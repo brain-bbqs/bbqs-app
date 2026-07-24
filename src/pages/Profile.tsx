@@ -1,100 +1,20 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Building2, FolderOpen, MessageSquare, History, LogOut, LogIn, Pencil, Check, X, Plus, Tag, FlaskConical, Sun, Moon, Monitor } from "lucide-react";
+import { User, Building2, FolderOpen, History, LogOut, LogIn, Pencil, Check, X, Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
+import { InvestigatorSummary } from "@/components/entity-summary/summaries/InvestigatorSummary";
 import { format } from "date-fns";
 import { toast } from "sonner";
-
-// Editable tag list component for skills / research areas
-function EditableTagList({
-  label,
-  icon: Icon,
-  items,
-  onSave,
-}: {
-  label: string;
-  icon: React.ElementType;
-  items: string[];
-  onSave: (updated: string[]) => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  const addItem = () => {
-    const val = draft.trim();
-    if (!val || items.includes(val)) { setDraft(""); return; }
-    onSave([...items, val]);
-    setDraft("");
-    setAdding(false);
-  };
-
-  const removeItem = (item: string) => {
-    onSave(items.filter((i) => i !== item));
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-          <Icon className="h-3.5 w-3.5" />
-          {label}
-        </span>
-        {!adding && (
-          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setAdding(true)}>
-            <Plus className="h-3 w-3 mr-1" /> Add
-          </Button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((item) => (
-          <Badge key={item} variant="secondary" className="gap-1 pr-1">
-            {item}
-            <button
-              onClick={() => removeItem(item)}
-              className="ml-0.5 hover:text-destructive transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
-        {items.length === 0 && !adding && (
-          <span className="text-xs text-muted-foreground italic">None yet — click Add to get started</span>
-        )}
-      </div>
-      {adding && (
-        <div className="flex items-center gap-1.5 mt-2">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={`Add ${label.toLowerCase()}…`}
-            className="h-7 text-sm flex-1"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addItem();
-              if (e.key === "Escape") { setAdding(false); setDraft(""); }
-            }}
-          />
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={addItem}>
-            <Check className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdding(false); setDraft(""); }}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Profile() {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -138,36 +58,27 @@ export default function Profile() {
     toast.success("Name updated");
   };
 
-  // Fetch linked investigator for this user (by email match)
+  // Resolve THIS user's investigator record. Prefer the robust user_id link (how the
+  // agent and the entity pane resolve it); fall back to email match only for legacy
+  // rows not yet linked. Resolving the same record — and rendering the same
+  // InvestigatorSummary below — is what keeps the profile page and the pane in exact sync.
   const { data: linkedInvestigator } = useQuery({
-    queryKey: ["profile-investigator", user?.email],
-    enabled: !!user?.email,
+    queryKey: ["profile-investigator", user?.id, user?.email],
+    enabled: !!user?.id || !!user?.email,
     queryFn: async () => {
-      const { data } = await supabase
+      let { data } = await supabase
         .from("investigators")
-        .select("id, name, skills, research_areas, email")
-        .ilike("email", user!.email!)
+        .select("id, name, resource_id")
+        .eq("user_id", user!.id)
         .maybeSingle();
+      if (!data && user?.email) {
+        ({ data } = await supabase
+          .from("investigators")
+          .select("id, name, resource_id")
+          .ilike("email", user.email)
+          .maybeSingle());
+      }
       return data;
-    },
-  });
-
-  // Mutation to update investigator skills / research_areas
-  const updateInvestigator = useMutation({
-    mutationFn: async ({ field, value }: { field: string; value: string[] }) => {
-      if (!linkedInvestigator) throw new Error("No linked investigator");
-      const { error } = await supabase
-        .from("investigators")
-        .update({ [field]: value } as any)
-        .eq("id", linkedInvestigator.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-investigator", user?.email] });
-      toast.success("Profile updated");
-    },
-    onError: () => {
-      toast.error("Failed to update");
     },
   });
 
@@ -416,27 +327,20 @@ export default function Profile() {
         </CardContent>
       </Card>
 
+      {/* Investigator record — rendered from the SAME component as the entity pane, so
+          the profile page and the pane always reflect exactly the same fields, values,
+          and editors (skills, research areas, working groups, secondary emails, ORCID,
+          institution, species, role, grants). Single source of truth; cannot drift. */}
       {linkedInvestigator && (
-        <Card id="skills" className="scroll-mt-20">
+        <Card id="record" className="scroll-mt-20">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Tag className="h-4 w-4" />
-              Skills &amp; Research Areas
+              <User className="h-4 w-4" />
+              Investigator Record
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
-            <EditableTagList
-              label="Skills"
-              icon={Tag}
-              items={linkedInvestigator.skills || []}
-              onSave={(updated) => updateInvestigator.mutate({ field: "skills", value: updated })}
-            />
-            <EditableTagList
-              label="Research Areas"
-              icon={FlaskConical}
-              items={linkedInvestigator.research_areas || []}
-              onSave={(updated) => updateInvestigator.mutate({ field: "research_areas", value: updated })}
-            />
+          <CardContent>
+            <InvestigatorSummary id={linkedInvestigator.id} />
           </CardContent>
         </Card>
       )}
