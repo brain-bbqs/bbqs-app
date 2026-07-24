@@ -676,7 +676,9 @@ export function InvestigatorSummary({ id }: { id: string }) {
         )}
       </SummaryField>
 
-      {/* Species */}
+      {/* Species — a read-only rollup of this person's projects' study_species. It is
+          edited on each project's profile page (Metadata → Species), not here, so the
+          value stays a single source of truth on the project. */}
       <SummaryField label="Species">
         {data.species.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
@@ -685,6 +687,9 @@ export function InvestigatorSummary({ id }: { id: string }) {
         ) : (
           <span className="text-muted-foreground italic text-xs">No species data</span>
         )}
+        <p className="mt-1 text-[11px] text-muted-foreground/80 italic">
+          Drawn from this person's projects — edit it on the project's profile page (Metadata → Species).
+        </p>
       </SummaryField>
 
       {/* Skills */}
