@@ -118,16 +118,19 @@ export default function Profile() {
     },
   });
 
-  // Fetch recent edit history
+  // Your edit history from the universal provenance store (data_audit_log), which
+  // captures EVERY change keyed on auth.uid() — including direct profile edits. (The
+  // old edit_history table only logged some paths, so it looked empty.) Reading your
+  // own rows requires the "actors read own data audit" RLS policy on data_audit_log.
   const { data: editHistory = [] } = useQuery({
-    queryKey: ["user-edit-history", user?.email],
-    enabled: !!user?.email,
+    queryKey: ["user-edit-history", user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data } = await supabase
-        .from("edit_history")
-        .select("id, grant_number, field_name, created_at")
-        .eq("edited_by", user!.email!)
-        .order("created_at", { ascending: false })
+        .from("data_audit_log")
+        .select("id, table_name, operation, changed_fields, occurred_at")
+        .eq("actor_id", user!.id)
+        .order("occurred_at", { ascending: false })
         .limit(20);
       return data || [];
     },
@@ -404,18 +407,23 @@ export default function Profile() {
             <p className="text-sm text-muted-foreground">No edits recorded yet.</p>
           ) : (
             <div className="space-y-2">
-              {editHistory.map((e: any) => (
-                <div key={e.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm text-foreground">
-                      <span className="font-medium">{e.field_name}</span> on {e.grant_number}
-                    </p>
+              {editHistory.map((e: any) => {
+                const fields = e.changed_fields ? Object.keys(e.changed_fields) : [];
+                const verb = e.operation === "INSERT" ? "Created" : e.operation === "DELETE" ? "Deleted" : "Updated";
+                return (
+                  <div key={e.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div>
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">{verb}</span> {e.table_name}
+                        {fields.length > 0 && <span className="text-muted-foreground"> — {fields.join(", ")}</span>}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(e.occurred_at), "MMM d, yyyy HH:mm")}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(e.created_at), "MMM d, yyyy HH:mm")}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
