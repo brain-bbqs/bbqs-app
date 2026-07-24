@@ -210,13 +210,23 @@ function EditableInstitutions({ investigatorId, current, onChanged, openEntity }
     },
   });
 
-  const addOrg = async (orgId: string) => {
+  // The pane links organizations (investigator_organizations), but the agent and the
+  // investigator_directory read the scalar investigators.institution — so an org link
+  // alone was invisible to the agent (bug 2026-07-24: Nima's MIT link, institution=null).
+  // Keep the scalar in sync with the linked org name(s) so both agree.
+  const syncInstitutionScalar = async (names: string[]) => {
+    const value = names.filter(Boolean).join(", ") || null;
+    await supabase.from("investigators").update({ institution: value } as any).eq("id", investigatorId);
+  };
+
+  const addOrg = async (orgId: string, orgName: string) => {
     const { error } = await supabase
       .from("investigator_organizations")
       .insert({ investigator_id: investigatorId, organization_id: orgId });
     if (error) {
       toast({ title: "Could not add", description: error.message, variant: "destructive" });
     } else {
+      await syncInstitutionScalar([...current.map((c) => c.name), orgName]);
       onChanged();
       setAdding(false);
       setSearch("");
@@ -232,6 +242,7 @@ function EditableInstitutions({ investigatorId, current, onChanged, openEntity }
     if (error) {
       toast({ title: "Could not remove", description: error.message, variant: "destructive" });
     } else {
+      await syncInstitutionScalar(current.filter((c) => c.id !== orgId).map((c) => c.name));
       onChanged();
     }
   };
@@ -271,7 +282,7 @@ function EditableInstitutions({ investigatorId, current, onChanged, openEntity }
               .map((o) => (
                 <button
                   key={o.id}
-                  onClick={() => addOrg(o.id)}
+                  onClick={() => addOrg(o.id, o.name)}
                   className="w-full text-left px-2 py-1 text-xs rounded hover:bg-accent"
                 >
                   {o.name}
