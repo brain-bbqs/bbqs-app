@@ -6,8 +6,15 @@
 //
 // IMPORTANT: embedding is a per-row network call, so a single request can only do a small
 // BATCH or it exceeds the edge-function time limit (~150s) and times out. Each call embeds
-// up to `limit` rows that are NOT yet in the index and returns { embedded, remaining, done }.
-// Call it repeatedly (or on a short cron) until done:true.
+// up to `limit` rows that are STALE — either NOT yet in the index (new entity) or whose
+// source row's `updated_at` is newer than the indexed `updated_at` (edited since last
+// embed) — and returns { embedded, remaining, done }. Call it repeatedly until done:true.
+//
+// FRESHNESS (feature 008 Phase 4): this is the single keep-current worker. Run it on a
+// pg_cron schedule (see specs/008 / docs) so NEW rows get indexed and EDITED rows get
+// re-embedded automatically. Publications & organizations have no `updated_at`, so only
+// their additions are caught (both are effectively immutable). discovery-chat's lazy
+// write-back for chat_interactions is complementary and unaffected.
 //
 // verify_jwt = false (machine caller / cron). Needs OPENROUTER_API_KEY on the KG project.
 //
@@ -43,28 +50,37 @@ async function embed(text: string, apiKey: string): Promise<{ vec?: number[]; er
 
 const clean = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : String(v ?? "")).trim();
 
-type Doc = { source_type: string; source_id: string; title: string; content: string; metadata: Record<string, unknown> };
+type Doc = { source_type: string; source_id: string; title: string; content: string; metadata: Record<string, unknown>; updatedAt?: string | null };
+
+// Latest of a set of ISO timestamps (for entities whose content spans >1 table, e.g. a
+// project's text comes from projects + grants — an edit to either should re-embed it).
+const maxTs = (...ts: Array<string | null | undefined>): string | null => {
+  const vals = ts.filter(Boolean) as string[];
+  return vals.length ? vals.sort()[vals.length - 1] : null;
+};
 
 async function buildCandidates(supabase: any, want: (t: string) => boolean): Promise<Doc[]> {
   const docs: Doc[] = [];
   if (want("project")) {
-    const { data } = await supabase.from("projects").select("grant_number, keywords, study_species, grants(title, abstract)").limit(1000);
+    const { data } = await supabase.from("projects").select("grant_number, keywords, study_species, updated_at, grants(title, abstract, updated_at)").limit(1000);
     for (const p of (data ?? [])) {
       const g = p.grants ?? {}; const gn = clean(p.grant_number); if (!gn) continue;
       docs.push({ source_type: "project", source_id: gn, title: g.title ?? gn,
         content: [g.title, g.abstract, clean(p.keywords), clean(p.study_species)].filter(Boolean).join(". "),
-        metadata: { grant_number: gn, study_species: p.study_species ?? [] } });
+        metadata: { grant_number: gn, study_species: p.study_species ?? [] },
+        updatedAt: maxTs(p.updated_at, g.updated_at) });
     }
   }
   if (want("investigator")) {
-    const { data } = await supabase.from("investigator_directory").select("id, name, institution, research_areas, skills, role").limit(1000);
+    const { data } = await supabase.from("investigator_directory").select("id, name, institution, research_areas, skills, role, updated_at").limit(1000);
     for (const i of (data ?? [])) { if (!i.id) continue;
       docs.push({ source_type: "investigator", source_id: i.id, title: i.name ?? i.id,
         content: [i.name, i.institution, clean(i.research_areas), clean(i.skills), i.role].filter(Boolean).join(". "),
-        metadata: { institution: i.institution ?? null } });
+        metadata: { institution: i.institution ?? null }, updatedAt: i.updated_at ?? null });
     }
   }
   if (want("publication")) {
+    // publications has no updated_at → new-row detection only (effectively immutable).
     const { data } = await supabase.from("publications").select("id, title, authors, journal, year, keywords").limit(2000);
     for (const p of (data ?? [])) { if (!p.id) continue;
       docs.push({ source_type: "publication", source_id: p.id, title: p.title ?? p.id,
@@ -72,22 +88,23 @@ async function buildCandidates(supabase: any, want: (t: string) => boolean): Pro
     }
   }
   if (want("resource")) {
-    const { data } = await supabase.from("resources").select("id, name, description, resource_type, external_url").limit(2000);
+    const { data } = await supabase.from("resources").select("id, name, description, resource_type, external_url, updated_at").limit(2000);
     for (const r of (data ?? [])) { if (!r.id) continue;
       docs.push({ source_type: "resource", source_id: r.id, title: r.name ?? r.id,
         content: [r.name, r.description, r.resource_type].filter(Boolean).join(". "),
-        metadata: { resource_type: r.resource_type ?? null, external_url: r.external_url ?? null } });
+        metadata: { resource_type: r.resource_type ?? null, external_url: r.external_url ?? null }, updatedAt: r.updated_at ?? null });
     }
   }
   if (want("organization")) {
+    // organizations has no updated_at → new-row detection only.
     const { data } = await supabase.from("organizations").select("id, name").limit(1000);
     for (const o of (data ?? [])) { if (!o.id) continue;
       docs.push({ source_type: "organization", source_id: o.id, title: o.name ?? o.id, content: clean(o.name), metadata: {} }); }
   }
   if (want("announcement")) {
-    const { data } = await supabase.from("announcements").select("id, title, content").limit(1000);
+    const { data } = await supabase.from("announcements").select("id, title, content, updated_at").limit(1000);
     for (const a of (data ?? [])) { if (!a.id) continue;
-      docs.push({ source_type: "announcement", source_id: a.id, title: a.title ?? a.id, content: [a.title, a.content].filter(Boolean).join(". "), metadata: {} }); }
+      docs.push({ source_type: "announcement", source_id: a.id, title: a.title ?? a.id, content: [a.title, a.content].filter(Boolean).join(". "), metadata: {}, updatedAt: a.updated_at ?? null }); }
   }
   return docs;
 }
@@ -109,11 +126,17 @@ Deno.serve(async (req) => {
 
     const candidates = await buildCandidates(supabase, want);
 
-    // Skip rows already embedded (incremental across calls). knowledge_embeddings is small.
-    const existing = new Set<string>();
-    { const { data } = await supabase.from("knowledge_embeddings").select("source_id").limit(10000);
-      for (const r of (data ?? [])) existing.add(r.source_id); }
-    const todo = candidates.filter((d) => d.content && !existing.has(d.source_id));
+    // Incremental across calls: embed rows that are STALE — new (not indexed) or edited
+    // (source updated_at newer than the indexed updated_at). knowledge_embeddings is small.
+    const indexed = new Map<string, string | null>();
+    { const { data } = await supabase.from("knowledge_embeddings").select("source_id, updated_at").limit(10000);
+      for (const r of (data ?? [])) indexed.set(r.source_id, r.updated_at ?? null); }
+    const isStale = (d: Doc): boolean => {
+      if (!indexed.has(d.source_id)) return true;                       // new entity
+      const idxTs = indexed.get(d.source_id);
+      return !!(d.updatedAt && idxTs && new Date(d.updatedAt) > new Date(idxTs)); // edited since indexed
+    };
+    const todo = candidates.filter((d) => d.content && isStale(d));
 
     const batch = todo.slice(0, limit);
     let embedded = 0; const errors: string[] = [];
@@ -122,7 +145,10 @@ Deno.serve(async (req) => {
       if (!vec) { errors.push(`${d.source_id}: ${err}`); continue; }
       const { error } = await supabase.from("knowledge_embeddings").upsert(
         { source_type: d.source_type, source_id: d.source_id, title: d.title.slice(0, 500),
-          content: d.content.slice(0, 4000), embedding: `[${vec.join(",")}]`, metadata: d.metadata },
+          content: d.content.slice(0, 4000), embedding: `[${vec.join(",")}]`, metadata: d.metadata,
+          // Advance the index timestamp explicitly so re-embedded edits aren't re-detected
+          // as stale next tick (no reliance on a moddatetime trigger).
+          updated_at: new Date().toISOString() },
         { onConflict: "source_id" });
       if (error) errors.push(`${d.source_id}: ${error.message}`); else embedded++;
     }
