@@ -23,19 +23,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function embed(text: string, apiKey: string): Promise<number[] | null> {
+async function embed(text: string, apiKey: string): Promise<{ vec?: number[]; err?: string }> {
   try {
     const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text.slice(0, 8000) }),
     });
-    if (!res.ok) { console.error("embed error", res.status, (await res.text()).slice(0, 200)); return null; }
-    const data = await res.json();
-    return data?.data?.[0]?.embedding ?? null;
+    const raw = await res.text();
+    if (!res.ok) return { err: `OpenRouter ${res.status}: ${raw.slice(0, 300)}` };
+    const data = JSON.parse(raw);
+    const vec = data?.data?.[0]?.embedding;
+    if (!Array.isArray(vec)) return { err: `no embedding in response: ${raw.slice(0, 300)}` };
+    return { vec };
   } catch (e) {
-    console.error("embed exception", e instanceof Error ? e.message : String(e));
-    return null;
+    return { err: `fetch exception: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
@@ -116,8 +118,8 @@ Deno.serve(async (req) => {
     const batch = todo.slice(0, limit);
     let embedded = 0; const errors: string[] = [];
     for (const d of batch) {
-      const vec = await embed(`${d.title}. ${d.content}`, OPENROUTER_API_KEY);
-      if (!vec) { errors.push(d.source_id); continue; }
+      const { vec, err } = await embed(`${d.title}. ${d.content}`, OPENROUTER_API_KEY);
+      if (!vec) { errors.push(`${d.source_id}: ${err}`); continue; }
       const { error } = await supabase.from("knowledge_embeddings").upsert(
         { source_type: d.source_type, source_id: d.source_id, title: d.title.slice(0, 500),
           content: d.content.slice(0, 4000), embedding: `[${vec.join(",")}]`, metadata: d.metadata },
