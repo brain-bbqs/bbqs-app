@@ -1,0 +1,162 @@
+// Full-coverage embedding sync for the UNIFIED index (feature 008) — INCREMENTAL.
+//
+// Embeds consortium entities into knowledge_embeddings with OpenAI text-embedding-3-small
+// (via OpenRouter — the model discovery-chat uses), so the KG-site and the agent can share
+// one index (DB-audit #243). Idempotent + additive.
+//
+// IMPORTANT: embedding is a per-row network call, so a single request can only do a small
+// BATCH or it exceeds the edge-function time limit (~150s) and times out. Each call embeds
+// up to `limit` rows that are STALE — either NOT yet in the index (new entity) or whose
+// source row's `updated_at` is newer than the indexed `updated_at` (edited since last
+// embed) — and returns { embedded, remaining, done }. Call it repeatedly until done:true.
+//
+// FRESHNESS (feature 008 Phase 4): this is the single keep-current worker. Run it on a
+// pg_cron schedule (see specs/008 / docs) so NEW rows get indexed and EDITED rows get
+// re-embedded automatically. Publications & organizations have no `updated_at`, so only
+// their additions are caught (both are effectively immutable). discovery-chat's lazy
+// write-back for chat_interactions is complementary and unaffected.
+//
+// verify_jwt = false (machine caller / cron). Needs OPENROUTER_API_KEY on the KG project.
+//
+// ⚠️ CUTOVER (source_id reconciliation): legacy rows key projects by the full NIH award id
+// (5R34DA059510-02); this uses the canonical bare grant_number + entity uuids. Run
+// `TRUNCATE public.knowledge_embeddings;` ONCE before the first batch, then call repeatedly.
+// knowledge_embeddings is a derived index (regenerable) — safe to truncate.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function embed(text: string, apiKey: string): Promise<{ vec?: number[]; err?: string }> {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text.slice(0, 8000) }),
+    });
+    const raw = await res.text();
+    if (!res.ok) return { err: `OpenRouter ${res.status}: ${raw.slice(0, 300)}` };
+    const data = JSON.parse(raw);
+    const vec = data?.data?.[0]?.embedding;
+    if (!Array.isArray(vec)) return { err: `no embedding in response: ${raw.slice(0, 300)}` };
+    return { vec };
+  } catch (e) {
+    return { err: `fetch exception: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+const clean = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : String(v ?? "")).trim();
+
+type Doc = { source_type: string; source_id: string; title: string; content: string; metadata: Record<string, unknown>; updatedAt?: string | null };
+
+// Latest of a set of ISO timestamps (for entities whose content spans >1 table, e.g. a
+// project's text comes from projects + grants — an edit to either should re-embed it).
+const maxTs = (...ts: Array<string | null | undefined>): string | null => {
+  const vals = ts.filter(Boolean) as string[];
+  return vals.length ? vals.sort()[vals.length - 1] : null;
+};
+
+async function buildCandidates(supabase: any, want: (t: string) => boolean): Promise<Doc[]> {
+  const docs: Doc[] = [];
+  if (want("project")) {
+    const { data } = await supabase.from("projects").select("grant_number, keywords, study_species, updated_at, grants(title, abstract, updated_at)").limit(1000);
+    for (const p of (data ?? [])) {
+      const g = p.grants ?? {}; const gn = clean(p.grant_number); if (!gn) continue;
+      docs.push({ source_type: "project", source_id: gn, title: g.title ?? gn,
+        content: [g.title, g.abstract, clean(p.keywords), clean(p.study_species)].filter(Boolean).join(". "),
+        metadata: { grant_number: gn, study_species: p.study_species ?? [] },
+        updatedAt: maxTs(p.updated_at, g.updated_at) });
+    }
+  }
+  if (want("investigator")) {
+    const { data } = await supabase.from("investigator_directory").select("id, name, institution, research_areas, skills, role, updated_at").limit(1000);
+    for (const i of (data ?? [])) { if (!i.id) continue;
+      docs.push({ source_type: "investigator", source_id: i.id, title: i.name ?? i.id,
+        content: [i.name, i.institution, clean(i.research_areas), clean(i.skills), i.role].filter(Boolean).join(". "),
+        metadata: { institution: i.institution ?? null }, updatedAt: i.updated_at ?? null });
+    }
+  }
+  if (want("publication")) {
+    // publications has no updated_at → new-row detection only (effectively immutable).
+    const { data } = await supabase.from("publications").select("id, title, authors, journal, year, keywords").limit(2000);
+    for (const p of (data ?? [])) { if (!p.id) continue;
+      docs.push({ source_type: "publication", source_id: p.id, title: p.title ?? p.id,
+        content: [p.title, clean(p.authors), p.journal, clean(p.keywords)].filter(Boolean).join(". "), metadata: { year: p.year ?? null } });
+    }
+  }
+  if (want("resource")) {
+    const { data } = await supabase.from("resources").select("id, name, description, resource_type, external_url, updated_at").limit(2000);
+    for (const r of (data ?? [])) { if (!r.id) continue;
+      docs.push({ source_type: "resource", source_id: r.id, title: r.name ?? r.id,
+        content: [r.name, r.description, r.resource_type].filter(Boolean).join(". "),
+        metadata: { resource_type: r.resource_type ?? null, external_url: r.external_url ?? null }, updatedAt: r.updated_at ?? null });
+    }
+  }
+  if (want("organization")) {
+    // organizations has no updated_at → new-row detection only.
+    const { data } = await supabase.from("organizations").select("id, name").limit(1000);
+    for (const o of (data ?? [])) { if (!o.id) continue;
+      docs.push({ source_type: "organization", source_id: o.id, title: o.name ?? o.id, content: clean(o.name), metadata: {} }); }
+  }
+  if (want("announcement")) {
+    const { data } = await supabase.from("announcements").select("id, title, content, updated_at").limit(1000);
+    for (const a of (data ?? [])) { if (!a.id) continue;
+      docs.push({ source_type: "announcement", source_id: a.id, title: a.title ?? a.id, content: [a.title, a.content].filter(Boolean).join(". "), metadata: {}, updatedAt: a.updated_at ?? null }); }
+  }
+  return docs;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const json = (b: unknown, s = 200) =>
+    new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  try {
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) return json({ ok: false, error: "OPENROUTER_API_KEY not set" }, 500);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } });
+
+    const body = await req.json().catch(() => ({}));
+    const only: string[] | null = Array.isArray(body?.types) && body.types.length ? body.types : null;
+    const limit = Math.min(Math.max(Number(body?.limit) || 40, 1), 80);
+    const want = (t: string) => !only || only.includes(t);
+
+    const candidates = await buildCandidates(supabase, want);
+
+    // Incremental across calls: embed rows that are STALE — new (not indexed) or edited
+    // (source updated_at newer than the indexed updated_at). knowledge_embeddings is small.
+    const indexed = new Map<string, string | null>();
+    { const { data } = await supabase.from("knowledge_embeddings").select("source_id, updated_at").limit(10000);
+      for (const r of (data ?? [])) indexed.set(r.source_id, r.updated_at ?? null); }
+    const isStale = (d: Doc): boolean => {
+      if (!indexed.has(d.source_id)) return true;                       // new entity
+      const idxTs = indexed.get(d.source_id);
+      return !!(d.updatedAt && idxTs && new Date(d.updatedAt) > new Date(idxTs)); // edited since indexed
+    };
+    const todo = candidates.filter((d) => d.content && isStale(d));
+
+    const batch = todo.slice(0, limit);
+    let embedded = 0; const errors: string[] = [];
+    for (const d of batch) {
+      const { vec, err } = await embed(`${d.title}. ${d.content}`, OPENROUTER_API_KEY);
+      if (!vec) { errors.push(`${d.source_id}: ${err}`); continue; }
+      const { error } = await supabase.from("knowledge_embeddings").upsert(
+        { source_type: d.source_type, source_id: d.source_id, title: d.title.slice(0, 500),
+          content: d.content.slice(0, 4000), embedding: `[${vec.join(",")}]`, metadata: d.metadata,
+          // Advance the index timestamp explicitly so re-embedded edits aren't re-detected
+          // as stale next tick (no reliance on a moddatetime trigger).
+          updated_at: new Date().toISOString() },
+        { onConflict: "source_id" });
+      if (error) errors.push(`${d.source_id}: ${error.message}`); else embedded++;
+    }
+    const remaining = todo.length - embedded;
+    console.log(`[embed-knowledge] candidates=${candidates.length} todo=${todo.length} embedded=${embedded} remaining=${remaining} errors=${errors.length}`);
+    return json({ ok: errors.length === 0, candidates: candidates.length, embedded, remaining, done: remaining <= 0, errors: errors.slice(0, 10) });
+  } catch (e) {
+    console.error("[embed-knowledge] fatal", e instanceof Error ? e.message : String(e));
+    return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});

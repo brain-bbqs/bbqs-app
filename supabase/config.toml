@@ -54,6 +54,9 @@ verify_jwt = false
 [functions.notify-access-request]
 verify_jwt = false
 
+[functions.embed-knowledge]
+verify_jwt = false
+
 [functions.sync-member-groups]
 verify_jwt = false
 
