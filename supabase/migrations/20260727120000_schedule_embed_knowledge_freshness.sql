@@ -4,11 +4,15 @@
 -- updated_at is newer than the indexed updated_at). This schedules it so new and
 -- edited consortium data are re-embedded automatically — no manual runs.
 --
--- Cadence: every 30 min. Steady state (few changes) → the tick is near-noop (one
--- scan, zero embeds). Each tick embeds up to `limit` stale rows; a large edit wave
--- drains over successive ticks. The function is verify_jwt=false, so the anon key
--- (public) is sufficient to trigger it; OPENROUTER_API_KEY + SERVICE_ROLE live in
--- the edge-function env, not here.
+-- Cadence: NIGHTLY at 03:00 UTC. Consortium data changes slowly (occasional new
+-- members / batch grant loads), and searchKG's structured legs read the live KG so
+-- new rows are findable by name/lexical/affiliation immediately — the embedding
+-- index only backs CONCEPTUAL/semantic recall, which tolerates ≤1-day latency.
+-- A shorter interval buys no meaningful freshness, only no-op invocations. Each run
+-- embeds up to `limit` stale rows; a large edit wave drains over successive nights
+-- (bump `limit` or run the function manually to drain immediately). The function is
+-- verify_jwt=false, so the anon key (public) is sufficient to trigger it;
+-- OPENROUTER_API_KEY + SERVICE_ROLE live in the edge-function env, not here.
 --
 -- Requires pg_cron + pg_net (pg_net already used by the universal-audit triggers).
 
@@ -21,11 +25,11 @@ where exists (select 1 from cron.job where jobname = 'embed-knowledge-freshness'
 
 select cron.schedule(
   'embed-knowledge-freshness',
-  '*/30 * * * *',
+  '0 3 * * *',
   $$
   select net.http_post(
     url := 'https://vpexxhfpvghlejljwpvt.supabase.co/functions/v1/embed-knowledge',
-    body := jsonb_build_object('limit', 30),
+    body := jsonb_build_object('limit', 80),
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXh4aGZwdmdobGVqbGp3cHZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MDg2NDUsImV4cCI6MjA4NTI4NDY0NX0.M107rJ9Ji17zAyd8Jolt5GQFZmu9vvAG1UiIq0GQh8U',
