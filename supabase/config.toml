@@ -99,3 +99,6 @@ verify_jwt = false
 
 [functions.relational-cohesion]
 verify_jwt = false
+
+[functions.device-knowledge-seed]
+verify_jwt = false
