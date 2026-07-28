@@ -1,0 +1,53 @@
+{
+  "category": {
+    "label": "Heart Rate Sensors",
+    "description": "Wearable and clinical sensors that measure cardiac activity — chest-strap ECG, wrist/finger PPG, and research-grade ambulatory ECG. Used to derive heart rate and heart rate variability (HRV) as autonomic-nervous-system readouts.",
+    "measures": ["heart rate (bpm)", "R–R intervals (ms)", "PPG pulse waveform", "beat-to-beat variability"],
+    "typical_use_cases": ["stress and arousal monitoring", "autonomic tone in psychiatric studies", "sleep staging", "biofeedback"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "SDNN",     "symbol": "SDNN",  "unit": "ms",   "typical_range": "30–100 ms (5-min)", "window_spec": "5-min short-term or 24-h long-term", "standard_ref": "Task Force 1996 (Circulation 93:1043)", "notes": "Standard deviation of NN intervals; total HRV." },
+    { "name": "RMSSD",    "symbol": "RMSSD", "unit": "ms",   "typical_range": "20–90 ms (5-min)",  "window_spec": "≥1-min (typ. 5-min)", "standard_ref": "Task Force 1996", "notes": "Root mean square of successive differences; short-term vagal tone." },
+    { "name": "pNN50",    "symbol": "pNN50", "unit": "%",    "typical_range": "0–30% (5-min)",     "window_spec": "5-min",             "standard_ref": "Task Force 1996", "notes": "% of successive NN pairs differing >50 ms." },
+    { "name": "LF power", "symbol": "LF",    "unit": "ms²",  "typical_range": "300–1200 ms²",       "window_spec": "5-min; 0.04–0.15 Hz", "standard_ref": "Task Force 1996", "notes": "Sympathetic + parasympathetic; baroreflex-linked." },
+    { "name": "HF power", "symbol": "HF",    "unit": "ms²",  "typical_range": "200–1000 ms²",       "window_spec": "5-min; 0.15–0.40 Hz", "standard_ref": "Task Force 1996", "notes": "Respiration-linked vagal activity." },
+    { "name": "LF/HF ratio", "symbol": "LF/HF", "unit": "ratio", "typical_range": "0.5–2.0",        "window_spec": "5-min",             "standard_ref": "Task Force 1996", "notes": "Sympathovagal balance proxy (interpret with care)." },
+    { "name": "Mean HR",  "symbol": "HR",    "unit": "bpm",  "typical_range": "60–100 (adult rest)", "window_spec": "any", "standard_ref": "AHA guidelines", "notes": "Mean beats per minute over window." }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "ECG (single-lead)",
+      "sampling_rate_hz": 1000,
+      "preprocessing": ["bandpass 0.5–40 Hz", "Pan–Tompkins R-peak detection", "ectopic-beat removal", "5-min windowing"],
+      "feature_set": ["SDNN","RMSSD","pNN50","LF","HF","LF/HF","sample entropy"],
+      "common_models": ["gradient-boosted trees (XGBoost)","1D-CNN","LSTM","logistic regression baseline"],
+      "label_source": "self-report stress / cortisol",
+      "dataset_examples": ["WESAD","SWELL-KW","DREAMER"],
+      "notes": "Standard HRV pipeline for stress/affect classification."
+    },
+    {
+      "task": "regression",
+      "input_signal": "PPG (wrist, 64 Hz)",
+      "sampling_rate_hz": 64,
+      "preprocessing": ["motion-artifact rejection (accelerometer)", "peak detection", "IBI interpolation to 4 Hz"],
+      "feature_set": ["time-domain HRV","frequency-domain HRV","PPG morphology"],
+      "common_models": ["random forest","1D-CNN","transformer (short-context)"],
+      "label_source": "gold-standard chest-ECG HRV",
+      "dataset_examples": ["PPG-DaLiA","MAUS"],
+      "notes": "PPG-to-HRV mapping; motion is the dominant failure mode."
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Motion artifact on wrist PPG corrupts IBI", "mitigation": "Fuse accelerometer; reject windows with SNR < threshold", "severity": "high" },
+    { "issue": "Ectopic beats inflate SDNN/RMSSD", "mitigation": "Apply ectopic filter (Malik) before feature extraction", "severity": "high" },
+    { "issue": "Window length mismatch across studies", "mitigation": "Report 5-min short-term windows per Task Force 1996", "severity": "medium" },
+    { "issue": "Respiration confound on HF band", "mitigation": "Record or pace respiration; report paced-breathing condition", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "standard", "title": "Heart Rate Variability: Standards of Measurement, Physiological Interpretation, and Clinical Use", "authority": "Task Force of the ESC and NASPE", "year": 1996, "url": "https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043", "doi": "10.1161/01.CIR.93.5.1043" },
+    { "kind": "paper", "title": "An Overview of Heart Rate Variability Metrics and Norms", "authority": "Shaffer & Ginsberg", "year": 2017, "url": "https://www.frontiersin.org/articles/10.3389/fpubh.2017.00258", "doi": "10.3389/fpubh.2017.00258" },
+    { "kind": "dataset", "title": "WESAD: Wearable Stress and Affect Detection", "authority": "Schmidt et al.", "year": 2018, "url": "https://archive.ics.uci.edu/dataset/465/wesad+wearable+stress+and+affect+detection" }
+  ]
+}

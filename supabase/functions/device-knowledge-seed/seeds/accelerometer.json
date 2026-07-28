@@ -1,0 +1,33 @@
+{
+  "category": {
+    "label": "Accelerometer",
+    "description": "Wearable tri-axial accelerometers (ActiGraph GT9X, Axivity AX3) for continuous activity and sleep monitoring.",
+    "measures": ["acceleration (g)","activity counts","step counts","sleep/wake epochs"],
+    "typical_use_cases": ["actigraphy","sleep staging","physical activity quantification"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "Sampling rate", "unit": "Hz", "typical_range": "30–100" },
+    { "name": "Dynamic range", "unit": "g",  "typical_range": "±8 to ±16" },
+    { "name": "Epoch length",  "unit": "s",  "typical_range": "15, 30, or 60", "standard_ref": "ActiGraph analytic guide" }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "tri-axial acceleration",
+      "sampling_rate_hz": 50,
+      "preprocessing": ["gravity separation","30-s epoch","ENMO metric"],
+      "feature_set": ["Cole–Kripke score","ENMO","MAD","angle-z"],
+      "common_models": ["random forest","1D-CNN","HMM"],
+      "label_source": "polysomnography sleep stages",
+      "dataset_examples": ["MESA Sleep","UK Biobank accelerometer"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Non-wear time misclassified as sleep", "mitigation": "Choi 2011 non-wear detection", "severity": "high" },
+    { "issue": "Vendor-specific counts non-comparable", "mitigation": "Report raw + ENMO, not proprietary counts", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "Large-scale physical activity assessment with wrist-worn accelerometers", "authority": "Doherty et al., PLoS ONE", "year": 2017, "doi": "10.1371/journal.pone.0169649" }
+  ]
+}

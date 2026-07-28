@@ -1,0 +1,35 @@
+{
+  "category": {
+    "label": "Video Cameras",
+    "description": "RGB machine-vision cameras used for behavioral tracking. Frame rate and shutter type dominate downstream analysis quality.",
+    "measures": ["pixel intensity over time","object/keypoint position","behavioral state duration"],
+    "typical_use_cases": ["open-field tracking","social behavior","pose-estimation input","operant tasks"],
+    "schema_org_type": "Camera"
+  },
+  "parameters": [
+    { "name": "Frame rate",   "unit": "fps", "typical_range": "30–200", "notes": "≥ 60 fps for fast rodent behaviors; ≥ 200 fps for reaching kinematics." },
+    { "name": "Resolution",   "unit": "px",  "typical_range": "720p – 4K", "notes": "Balance against IO/storage; crop to arena." },
+    { "name": "Shutter type", "unit": "-",   "typical_range": "global | rolling", "notes": "Global shutter required for fast or multi-camera sync." },
+    { "name": "Sync jitter",  "unit": "ms",  "typical_range": "<1 (hardware trig)", "notes": "Hardware GPIO trigger for multi-cam 3D." }
+  ],
+  "ml_specs": [
+    {
+      "task": "regression",
+      "input_signal": "RGB frames",
+      "sampling_rate_hz": 60,
+      "preprocessing": ["ROI crop","undistortion","brightness normalization"],
+      "feature_set": ["keypoint heatmaps","optical flow"],
+      "common_models": ["DeepLabCut","SLEAP","LightningPose"],
+      "label_source": "hand-labeled keypoints",
+      "dataset_examples": ["OpenMonkeyChallenge","AP-10K","MABe"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Rolling shutter distorts fast motion", "mitigation": "Use global-shutter cameras for kinematics", "severity": "high" },
+    { "issue": "Illumination drift breaks tracker generalization", "mitigation": "Constant IR/LED lighting; per-video normalization", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "DeepLabCut: markerless pose estimation with deep learning", "authority": "Mathis et al., Nature Neuroscience", "year": 2018, "doi": "10.1038/s41593-018-0209-y" },
+    { "kind": "paper", "title": "SLEAP: A deep learning system for multi-animal pose tracking", "authority": "Pereira et al., Nature Methods", "year": 2022, "doi": "10.1038/s41592-022-01426-1" }
+  ]
+}

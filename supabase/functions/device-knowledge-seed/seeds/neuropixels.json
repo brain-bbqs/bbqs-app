@@ -1,0 +1,35 @@
+{
+  "category": {
+    "label": "Neuropixels",
+    "description": "High-density silicon probes (Neuropixels 1.0/2.0) with hundreds to thousands of recording sites per shank for large-scale extracellular spike and LFP recording in rodents and non-human primates.",
+    "measures": ["extracellular action potentials", "local field potential", "unit isolation quality"],
+    "typical_use_cases": ["large-scale single-unit recording", "cortex-wide activity", "chronic freely-moving recording"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "AP sampling rate", "unit": "Hz", "typical_range": "30000", "notes": "Action-potential band; 300 Hz – 10 kHz filter." },
+    { "name": "LFP sampling rate", "unit": "Hz", "typical_range": "2500", "notes": "0.5–500 Hz band." },
+    { "name": "Recording sites", "unit": "count", "typical_range": "384 active of 960 (NP1.0)", "notes": "NP2.0 doubles density with switchable sites." },
+    { "name": "Isolation distance", "unit": "unitless", "typical_range": ">20 for single units", "notes": "Kilosort/quality-metric threshold." }
+  ],
+  "ml_specs": [
+    {
+      "task": "segmentation",
+      "input_signal": "raw 30 kHz AP-band",
+      "sampling_rate_hz": 30000,
+      "preprocessing": ["common-average reference","300 Hz high-pass","whitening"],
+      "feature_set": ["template-matching residuals","waveform PCs"],
+      "common_models": ["Kilosort 2.5/3/4","MountainSort","YASS"],
+      "label_source": "manual curation in Phy",
+      "dataset_examples": ["IBL Brain-Wide Map","Steinmetz 2019"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Probe drift over hours corrupts unit tracking", "mitigation": "Kilosort 2.5+ drift correction; report % of stable units", "severity": "high" },
+    { "issue": "Reference/ground selection injects broadband noise", "mitigation": "Use tissue reference; verify CAR reduces noise floor", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "Fully integrated silicon probes for high-density recording of neural activity", "authority": "Jun et al., Nature", "year": 2017, "doi": "10.1038/nature24636" },
+    { "kind": "paper", "title": "Neuropixels 2.0 — miniaturized high-density probes for stable long-term brain recordings", "authority": "Steinmetz et al., Science", "year": 2021, "doi": "10.1126/science.abf4588" }
+  ]
+}
