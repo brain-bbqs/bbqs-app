@@ -2,16 +2,15 @@ import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageMeta } from "@/components/PageMeta";
 import { SystemAlertsBanner } from "@/components/admin/SystemAlertsBanner";
-import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet, Cpu } from "lucide-react";
+import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet } from "lucide-react";
 import AdminUsers from "./AdminUsers";
 import AdminAccessRequests from "./AdminAccessRequests";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
 import { BudgetsPanel } from "@/components/admin/BudgetsPanel";
-import { DeviceKnowledgePanel } from "@/components/admin/DeviceKnowledgePanel";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "add-project", "device-knowledge"] as const;
+const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "add-project"] as const;
 type TabKey = (typeof VALID_TABS)[number];
 
 export default function AdminConsole() {
@@ -58,10 +57,6 @@ export default function AdminConsole() {
             <FolderPlus className="h-4 w-4" />
             Add Project
           </TabsTrigger>
-          <TabsTrigger value="device-knowledge" className="gap-1.5">
-            <Cpu className="h-4 w-4" />
-            Device Knowledge
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="alerts" className="mt-0">
@@ -100,10 +95,6 @@ export default function AdminConsole() {
               }
             />
           </div>
-        </TabsContent>
-
-        <TabsContent value="device-knowledge" className="mt-0">
-          <DeviceKnowledgePanel />
         </TabsContent>
       </Tabs>
     </div>
