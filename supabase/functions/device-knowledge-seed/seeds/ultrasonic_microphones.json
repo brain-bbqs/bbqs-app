@@ -1,0 +1,33 @@
+{
+  "category": {
+    "label": "Ultrasonic Microphones",
+    "description": "Wide-band condenser microphones (typ. 10–250 kHz) for rodent ultrasonic vocalization (USV) and bat/insect bioacoustics.",
+    "measures": ["USV call rate","call type (22 vs 50 kHz)","spectrotemporal features"],
+    "typical_use_cases": ["social communication","affective state","pup isolation calls"],
+    "schema_org_type": "AudioObject"
+  },
+  "parameters": [
+    { "name": "Sampling rate", "unit": "Hz",  "typical_range": "192000–384000", "notes": "Nyquist must exceed highest USV harmonic (>100 kHz)." },
+    { "name": "Bandwidth",     "unit": "kHz", "typical_range": "10–125" },
+    { "name": "SNR",           "unit": "dB",  "typical_range": ">20 dB", "notes": "Cage noise dominates; use directional array." }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "log-mel spectrogram (fs=250 kHz)",
+      "sampling_rate_hz": 250000,
+      "preprocessing": ["bandpass 15–110 kHz","spectrogram (2–5 ms hop)","VAD"],
+      "feature_set": ["spectrogram patches","MFCC (extended bw)"],
+      "common_models": ["DeepSqueak","VocalMat","BirdNET-style CNN"],
+      "label_source": "manual call typing",
+      "dataset_examples": ["MUPET corpus","DeepSqueak reference"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Aliasing above Nyquist mislabels calls", "mitigation": "Verify anti-alias filter and true fs ≥ 250 kHz", "severity": "high" },
+    { "issue": "Cage rattle spectrally overlaps 22 kHz calls", "mitigation": "Beamforming array + template rejection", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "DeepSqueak: detection and analysis of ultrasonic vocalizations", "authority": "Coffey et al., Neuropsychopharmacology", "year": 2019, "doi": "10.1038/s41386-018-0303-6" }
+  ]
+}

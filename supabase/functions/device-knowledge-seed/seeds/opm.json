@@ -1,0 +1,33 @@
+{
+  "category": {
+    "label": "Optically Pumped Magnetometers",
+    "description": "OPM-MEG: room-temperature magnetometers (QuSpin QZFM) enabling wearable, movement-tolerant MEG without cryogenics.",
+    "measures": ["magnetic field (fT)","source-level cortical activity","evoked fields"],
+    "typical_use_cases": ["developmental MEG","naturalistic tasks","clinical wearable MEG"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "Sensitivity",   "unit": "fT/√Hz", "typical_range": "7–15" },
+    { "name": "Bandwidth",     "unit": "Hz",     "typical_range": "0–130" },
+    { "name": "Sensor count",  "unit": "count",  "typical_range": "16–128" }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "OPM-MEG sensors",
+      "sampling_rate_hz": 1000,
+      "preprocessing": ["HFC/AMM interference suppression","co-registration","ICA"],
+      "feature_set": ["source-space band power","evoked-field amplitudes"],
+      "common_models": ["MNE decoding","Riemannian classifiers"],
+      "label_source": "task condition",
+      "dataset_examples": ["OPM-MEG open benchmarks"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Ambient field drift saturates sensors", "mitigation": "Active shielding + HFC per session", "severity": "high" },
+    { "issue": "Head movement changes forward model", "mitigation": "Continuous head tracking; per-epoch forward model", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "Moving MEG towards real-world applications with a wearable system", "authority": "Boto et al., Nature", "year": 2018, "doi": "10.1038/nature26147" }
+  ]
+}
