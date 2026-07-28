@@ -242,14 +242,16 @@ Deno.serve(async (req) => {
         const data = await er.json().catch(() => null);
         const vec = data?.data?.[0]?.embedding;
         if (!Array.isArray(vec)) continue;
-        const { error } = await sb.from("knowledge_embeddings").upsert({
+        // No unique constraint on (source_type, source_id) — delete existing then insert.
+        await sb.from("knowledge_embeddings").delete().eq("source_type", row.source_type).eq("source_id", row.source_id);
+        const { error } = await sb.from("knowledge_embeddings").insert({
           source_type: row.source_type,
           source_id: row.source_id,
           title: row.title,
           content: row.content,
           metadata: row.metadata,
           embedding: vec,
-        }, { onConflict: "source_type,source_id" });
+        });
         if (!error) stats.embeddings_enqueued++;
       }
     }
