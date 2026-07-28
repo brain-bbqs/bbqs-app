@@ -564,6 +564,244 @@ export type Database = {
         }
         Relationships: []
       }
+      device_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          label: string
+          measures: string[]
+          resource_id: string | null
+          schema_org_type: string | null
+          typical_use_cases: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          label: string
+          measures?: string[]
+          resource_id?: string | null
+          schema_org_type?: string | null
+          typical_use_cases?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          label?: string
+          measures?: string[]
+          resource_id?: string | null
+          schema_org_type?: string | null
+          typical_use_cases?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_categories_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_category_ml_specs: {
+        Row: {
+          category_key: string
+          common_models: string[]
+          created_at: string
+          dataset_examples: string[]
+          feature_set: string[]
+          id: string
+          input_signal: string | null
+          label_source: string | null
+          notes: string | null
+          preprocessing: string[]
+          sampling_rate_hz: number | null
+          task: string
+          updated_at: string
+        }
+        Insert: {
+          category_key: string
+          common_models?: string[]
+          created_at?: string
+          dataset_examples?: string[]
+          feature_set?: string[]
+          id?: string
+          input_signal?: string | null
+          label_source?: string | null
+          notes?: string | null
+          preprocessing?: string[]
+          sampling_rate_hz?: number | null
+          task: string
+          updated_at?: string
+        }
+        Update: {
+          category_key?: string
+          common_models?: string[]
+          created_at?: string
+          dataset_examples?: string[]
+          feature_set?: string[]
+          id?: string
+          input_signal?: string | null
+          label_source?: string | null
+          notes?: string | null
+          preprocessing?: string[]
+          sampling_rate_hz?: number | null
+          task?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_category_ml_specs_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "device_categories"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      device_category_parameters: {
+        Row: {
+          category_key: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          standard_ref: string | null
+          symbol: string | null
+          typical_range: string | null
+          unit: string | null
+          updated_at: string
+          window_spec: string | null
+        }
+        Insert: {
+          category_key: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          standard_ref?: string | null
+          symbol?: string | null
+          typical_range?: string | null
+          unit?: string | null
+          updated_at?: string
+          window_spec?: string | null
+        }
+        Update: {
+          category_key?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          standard_ref?: string | null
+          symbol?: string | null
+          typical_range?: string | null
+          unit?: string | null
+          updated_at?: string
+          window_spec?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_category_parameters_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "device_categories"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      device_category_pitfalls: {
+        Row: {
+          category_key: string
+          created_at: string
+          id: string
+          issue: string
+          mitigation: string | null
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          category_key: string
+          created_at?: string
+          id?: string
+          issue: string
+          mitigation?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          category_key?: string
+          created_at?: string
+          id?: string
+          issue?: string
+          mitigation?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_category_pitfalls_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "device_categories"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      device_category_references: {
+        Row: {
+          authority: string | null
+          category_key: string
+          created_at: string
+          doi: string | null
+          id: string
+          kind: string
+          title: string
+          updated_at: string
+          url: string | null
+          year: number | null
+        }
+        Insert: {
+          authority?: string | null
+          category_key: string
+          created_at?: string
+          doi?: string | null
+          id?: string
+          kind: string
+          title: string
+          updated_at?: string
+          url?: string | null
+          year?: number | null
+        }
+        Update: {
+          authority?: string | null
+          category_key?: string
+          created_at?: string
+          doi?: string | null
+          id?: string
+          kind?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_category_references_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "device_categories"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       device_manufacturers: {
         Row: {
           aliases: string[]
@@ -606,14 +844,20 @@ export type Database = {
           confidence: number | null
           created_at: string
           device_class: string
+          firmware_notes: string | null
           first_seen_at: string
           id: string
           last_verified_at: string | null
           manual_urls: string[]
           manufacturer_id: string | null
           model_name: string
+          output_signals: string[]
+          price_tier: string | null
           product_url: string | null
           regulatory: string | null
+          regulatory_class: string | null
+          sampling_rate_hz: number | null
+          sdk_urls: string[]
           updated_at: string
         }
         Insert: {
@@ -621,14 +865,20 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           device_class: string
+          firmware_notes?: string | null
           first_seen_at?: string
           id?: string
           last_verified_at?: string | null
           manual_urls?: string[]
           manufacturer_id?: string | null
           model_name: string
+          output_signals?: string[]
+          price_tier?: string | null
           product_url?: string | null
           regulatory?: string | null
+          regulatory_class?: string | null
+          sampling_rate_hz?: number | null
+          sdk_urls?: string[]
           updated_at?: string
         }
         Update: {
@@ -636,14 +886,20 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           device_class?: string
+          firmware_notes?: string | null
           first_seen_at?: string
           id?: string
           last_verified_at?: string | null
           manual_urls?: string[]
           manufacturer_id?: string | null
           model_name?: string
+          output_signals?: string[]
+          price_tier?: string | null
           product_url?: string | null
           regulatory?: string | null
+          regulatory_class?: string | null
+          sampling_rate_hz?: number | null
+          sdk_urls?: string[]
           updated_at?: string
         }
         Relationships: [
