@@ -525,6 +525,45 @@ export type Database = {
           },
         ]
       }
+      data_audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          changed_fields: Json | null
+          id: number
+          new_data: Json | null
+          occurred_at: string
+          old_data: Json | null
+          operation: string
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_fields?: Json | null
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          operation: string
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_fields?: Json | null
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          operation?: string
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       device_manufacturers: {
         Row: {
           aliases: string[]
