@@ -188,8 +188,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Pass 3: enqueue embeddings for the seeded categories via existing embed-knowledge fn.
-    // We push one embedding per (category, doc) so RAG surfaces them independently.
+    // Pass 3: embed the seeded rows directly into knowledge_embeddings using the same
+    // OpenRouter model as embed-knowledge (openai/text-embedding-3-small, 1536-dim).
+    const openrouterKey = Deno.env.get("OPENROUTER_API_KEY");
     const embedRows: Array<{ source_type: string; source_id: string; title: string; content: string; metadata: Record<string, unknown> }> = [];
     for (const [key, seed] of Object.entries(SEEDS)) {
       embedRows.push({
@@ -230,14 +231,27 @@ Deno.serve(async (req) => {
         });
       }
     }
-    // Fire-and-forget embed-knowledge for each row (existing fn generates+stores vectors).
-    for (const row of embedRows) {
-      const res = await fetch(`${url}/functions/v1/embed-knowledge`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
-        body: JSON.stringify(row),
-      }).catch(() => null);
-      if (res && res.ok) stats.embeddings_enqueued++;
+    if (openrouterKey) {
+      for (const row of embedRows) {
+        const er = await fetch("https://openrouter.ai/api/v1/embeddings", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${openrouterKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "openai/text-embedding-3-small", input: row.content.slice(0, 8000) }),
+        }).catch(() => null);
+        if (!er || !er.ok) continue;
+        const data = await er.json().catch(() => null);
+        const vec = data?.data?.[0]?.embedding;
+        if (!Array.isArray(vec)) continue;
+        const { error } = await sb.from("knowledge_embeddings").upsert({
+          source_type: row.source_type,
+          source_id: row.source_id,
+          title: row.title,
+          content: row.content,
+          metadata: row.metadata,
+          embedding: vec,
+        }, { onConflict: "source_type,source_id" });
+        if (!error) stats.embeddings_enqueued++;
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, stats }), { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
