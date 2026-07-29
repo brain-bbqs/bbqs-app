@@ -1,0 +1,33 @@
+{
+  "category": {
+    "label": "Tracking Software",
+    "description": "Deep-learning pose-estimation and behavior-classification pipelines (DeepLabCut, SLEAP, LightningPose, B-SOiD).",
+    "measures": ["keypoint coordinates","confidence per keypoint","behavioral state labels"],
+    "typical_use_cases": ["markerless pose","multi-animal tracking","action segmentation"],
+    "schema_org_type": "SoftwareApplication"
+  },
+  "parameters": [
+    { "name": "Keypoint likelihood threshold", "unit": "-", "typical_range": "0.6–0.9" },
+    { "name": "Training frames", "unit": "count", "typical_range": "150–500", "notes": "Diminishing returns above ~500 for single-animal." },
+    { "name": "Backbone", "unit": "-", "typical_range": "ResNet-50 | HRNet | EfficientNet" }
+  ],
+  "ml_specs": [
+    {
+      "task": "segmentation",
+      "input_signal": "keypoint trajectories",
+      "sampling_rate_hz": 60,
+      "preprocessing": ["gap-fill (linear/Kalman)","egocentric alignment"],
+      "feature_set": ["joint angles","velocities","UMAP embeddings"],
+      "common_models": ["B-SOiD","VAME","MotionMapper","keypoint-MoSeq"],
+      "label_source": "unsupervised clusters or ethogram",
+      "dataset_examples": ["MABe","CalMS21"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Identity swaps in multi-animal tracking", "mitigation": "SLEAP top-down + ID tracklets; hand-correct clips", "severity": "high" },
+    { "issue": "Domain shift between rigs breaks models", "mitigation": "Fine-tune per rig; report cross-rig accuracy", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "Quantifying behavior to understand the brain", "authority": "Pereira, Shaevitz, Murthy, Nature Neuroscience", "year": 2020, "doi": "10.1038/s41593-020-00734-z" }
+  ]
+}

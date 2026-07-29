@@ -1,0 +1,37 @@
+{
+  "category": {
+    "label": "EEG",
+    "description": "Non-invasive scalp electroencephalography. Records aggregate cortical field potentials on the order of microvolts, sampled at 250–2000 Hz across 8–256 channels.",
+    "measures": ["scalp voltage (µV)", "band power (delta/theta/alpha/beta/gamma)", "event-related potentials", "phase-locking value"],
+    "typical_use_cases": ["sleep staging", "BCI", "cognitive workload", "seizure detection", "resting-state biomarkers"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "Sampling rate", "unit": "Hz", "typical_range": "250–2000", "standard_ref": "IFCN 2017", "notes": "≥ 250 Hz for standard EEG; ≥ 1000 Hz for HFOs." },
+    { "name": "Alpha band power", "symbol": "α", "unit": "µV²", "typical_range": "8–13 Hz", "window_spec": "2–8 s Welch", "notes": "Posterior dominant rhythm at rest, eyes closed." },
+    { "name": "Theta band power", "symbol": "θ", "unit": "µV²", "typical_range": "4–8 Hz", "notes": "Frontal midline theta with cognitive control." },
+    { "name": "Gamma band power", "symbol": "γ", "unit": "µV²", "typical_range": "30–80 Hz", "notes": "Highly contaminated by EMG; report artifact rejection." },
+    { "name": "P300 amplitude", "unit": "µV", "typical_range": "5–20 µV", "window_spec": "250–500 ms post-stimulus", "notes": "Attention/oddball ERP component." }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "multichannel EEG",
+      "sampling_rate_hz": 250,
+      "preprocessing": ["notch 50/60 Hz", "bandpass 0.5–45 Hz", "ICA artifact removal", "epoch 1–2 s"],
+      "feature_set": ["band-power features", "common spatial patterns", "Riemannian covariance"],
+      "common_models": ["EEGNet","Riemannian tangent-space + SVM","ShallowConvNet","transformer (EEG-Conformer)"],
+      "label_source": "task/condition label",
+      "dataset_examples": ["BCI Competition IV","TUH EEG","PhysioNet Sleep-EDF"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "EMG contamination in gamma band", "mitigation": "ICA + strict channel rejection; report retained variance", "severity": "high" },
+    { "issue": "Reference-scheme dependence of connectivity", "mitigation": "Report reference (avg, mastoid, REST); repeat with 2nd scheme", "severity": "medium" },
+    { "issue": "Non-stationarity across sessions", "mitigation": "Session-wise normalization; domain adaptation", "severity": "medium" }
+  ],
+  "references": [
+    { "kind": "standard", "title": "IFCN standards for digital recording of clinical EEG", "authority": "Nuwer et al.", "year": 2017, "doi": "10.1016/j.clinph.2017.06.041" },
+    { "kind": "paper", "title": "EEGNet: A Compact Convolutional Network for EEG-based BCIs", "authority": "Lawhern et al.", "year": 2018, "doi": "10.1088/1741-2552/aace8c" }
+  ]
+}

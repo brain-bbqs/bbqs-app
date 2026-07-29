@@ -7,39 +7,18 @@ import {
   rateLimitResponse,
   LLM_RATE_LIMIT,
 } from "../_shared/security.ts";
-
-async function generateEmbeddingLovable(text: string, _apiKey: string): Promise<number[] | null> {
-  try {
-    // Lovable AI Gateway does NOT host embeddings — use OpenRouter (proxies OpenAI's model).
-    const openrouterKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!openrouterKey) {
-      console.error("OPENROUTER_API_KEY missing — cannot generate embedding");
-      return null;
-    }
-    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openrouterKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text.slice(0, 8000) }),
-    });
-    if (!res.ok) {
-      console.error("Embedding API error:", res.status, await res.text());
-      return null;
-    }
-    const data = await res.json();
-    return data?.data?.[0]?.embedding ?? null;
-  } catch (e) {
-    console.error("generateEmbedding exception:", e);
-    return null;
-  }
-}
+// Feature 009: use the SHARED retrieval core (one RAG path) + shared embedder.
+import { retrieve } from "../_shared/rag.ts";
+import { embedText } from "../_shared/kg.ts";
 
 async function writeBackInteraction(
-  supabase: any, apiKey: string,
+  supabase: any, _apiKey: string,
   opts: { userMessage: string; assistantResponse: string }
 ) {
   try {
     const content = `User asked: ${opts.userMessage}\n\nAssistant answered: ${opts.assistantResponse}`;
-    const embedding = await generateEmbeddingLovable(content, apiKey);
+    let embedding: number[] | null = null;
+    try { embedding = await embedText(content); } catch { /* skip write-back on embed failure */ }
     if (!embedding) return;
     await supabase.from("knowledge_embeddings").upsert({
       source_type: "chat_interaction",
@@ -97,30 +76,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // --- 1. Get embedding for user query ---
-    const queryEmbedding = await generateEmbeddingLovable(sanitizedQuery, LOVABLE_API_KEY);
-
+    // --- 1+2. Semantic retrieval via the SHARED RAG core (feature 009: one retrieval
+    // path across bbqs-api /ask, bbqs-mcp ask_bbqs, and here). knowledge_embeddings is
+    // public → anon; preserves the prior threshold/count so web-chat behavior is unchanged.
     let ragContext = "";
-
-    if (queryEmbedding) {
-      // --- 2. Semantic search ---
-      const { data: matches } = await supabase.rpc(
-        "search_knowledge_embeddings",
-        {
-          query_embedding: `[${queryEmbedding.join(",")}]`,
-          match_threshold: 0.5,
-          match_count: 8,
-        }
-      );
-
-      if (matches?.length) {
+    try {
+      const matches = await retrieve(sanitizedQuery, { anon: true }, { matchThreshold: 0.5, matchCount: 8 });
+      if (matches.length) {
         ragContext = matches
-          .map(
-            (m: any) =>
-              `[${m.source_type}] ${m.title}\n${m.content.slice(0, 600)}`
-          )
+          .map((m) => `[${m.source_type}] ${m.title}\n${m.content.slice(0, 600)}`)
           .join("\n---\n");
       }
+    } catch (e) {
+      console.error("shared retrieve error:", e);
     }
 
     // --- 3. Also do a direct DB search for people, projects, tools ---

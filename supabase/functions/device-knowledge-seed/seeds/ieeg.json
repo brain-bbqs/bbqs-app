@@ -1,0 +1,33 @@
+{
+  "category": {
+    "label": "iEEG",
+    "description": "Intracranial EEG in humans — subdural ECoG grids/strips and stereo-EEG (sEEG) depth electrodes.",
+    "measures": ["local field potential","high-frequency broadband (70–200 Hz)","stimulation-evoked responses"],
+    "typical_use_cases": ["seizure onset localization","cognitive neuroscience","closed-loop stimulation"],
+    "schema_org_type": "MedicalDevice"
+  },
+  "parameters": [
+    { "name": "Sampling rate", "unit": "Hz", "typical_range": "1000–2000", "notes": "≥ 2000 Hz for HFO detection." },
+    { "name": "High-gamma band", "symbol": "HG", "unit": "µV²", "typical_range": "70–150 Hz" },
+    { "name": "Inter-electrode spacing", "unit": "mm", "typical_range": "3.5–10 (grid); 3.5 (sEEG)" }
+  ],
+  "ml_specs": [
+    {
+      "task": "classification",
+      "input_signal": "multichannel iEEG",
+      "sampling_rate_hz": 1000,
+      "preprocessing": ["notch 60 Hz","common-average or bipolar","bandpass 0.5–200 Hz"],
+      "feature_set": ["high-gamma power","phase-amplitude coupling","Riemannian covariance"],
+      "common_models": ["EEGNet","gradient boosting","transformer"],
+      "label_source": "task events / seizure marks",
+      "dataset_examples": ["MNI Open iEEG Atlas"]
+    }
+  ],
+  "pitfalls": [
+    { "issue": "Amplifier saturation near stim contacts", "mitigation": "Blank stim epochs; template-subtract artifact", "severity": "high" },
+    { "issue": "Small N and cross-subject variability", "mitigation": "Within-subject CV; report per-subject", "severity": "high" }
+  ],
+  "references": [
+    { "kind": "paper", "title": "iEEG-BIDS extension", "authority": "Holdgraf et al.", "year": 2019, "doi": "10.1038/s41597-019-0105-7" }
+  ]
+}
