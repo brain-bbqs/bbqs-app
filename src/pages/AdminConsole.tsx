@@ -101,6 +101,10 @@ export default function AdminConsole() {
             />
           </div>
         </TabsContent>
+
+        <TabsContent value="news-radar" className="mt-0">
+          <NewsRadarPanel />
+        </TabsContent>
       </Tabs>
     </div>
   );
