@@ -2,15 +2,16 @@ import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageMeta } from "@/components/PageMeta";
 import { SystemAlertsBanner } from "@/components/admin/SystemAlertsBanner";
-import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet } from "lucide-react";
+import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet, Newspaper } from "lucide-react";
 import AdminUsers from "./AdminUsers";
 import AdminAccessRequests from "./AdminAccessRequests";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
 import { BudgetsPanel } from "@/components/admin/BudgetsPanel";
+import { NewsRadarPanel } from "@/components/admin/NewsRadarPanel";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "add-project"] as const;
+const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "add-project", "news-radar"] as const;
 type TabKey = (typeof VALID_TABS)[number];
 
 export default function AdminConsole() {
@@ -57,6 +58,10 @@ export default function AdminConsole() {
             <FolderPlus className="h-4 w-4" />
             Add Project
           </TabsTrigger>
+          <TabsTrigger value="news-radar" className="gap-1.5">
+            <Newspaper className="h-4 w-4" />
+            News Radar
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="alerts" className="mt-0">
@@ -95,6 +100,10 @@ export default function AdminConsole() {
               }
             />
           </div>
+        </TabsContent>
+
+        <TabsContent value="news-radar" className="mt-0">
+          <NewsRadarPanel />
         </TabsContent>
       </Tabs>
     </div>

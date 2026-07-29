@@ -2075,6 +2075,77 @@ export type Database = {
         }
         Relationships: []
       }
+      news_candidates: {
+        Row: {
+          announcement_id: string | null
+          author: string | null
+          created_at: string
+          id: string
+          matched_keywords: string[]
+          published_at: string | null
+          raw: Json | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          score: number
+          source: string
+          source_url: string | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          announcement_id?: string | null
+          author?: string | null
+          created_at?: string
+          id?: string
+          matched_keywords?: string[]
+          published_at?: string | null
+          raw?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score?: number
+          source: string
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          announcement_id?: string | null
+          author?: string | null
+          created_at?: string
+          id?: string
+          matched_keywords?: string[]
+          published_at?: string | null
+          raw?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score?: number
+          source?: string
+          source_url?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_candidates_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
