@@ -5,6 +5,11 @@ The Announcements page is fed by two paths: **manual posts** by signed-in member
 
 ## Flow
 
+![News Radar pipeline diagram](./news-radar-flow.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart TD
     subgraph Sources["7 curated RSS/Atom feeds"]
@@ -34,6 +39,8 @@ flowchart TD
 
     MANUAL["Member posts manually"] --> ANN
 ```
+
+</details>
 
 ## Components
 
