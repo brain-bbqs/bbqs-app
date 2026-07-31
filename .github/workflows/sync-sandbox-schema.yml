@@ -1,13 +1,17 @@
-name: Sync sandbox schema (PR)
+name: Sync sandbox schema + QA + auto-merge
 
 # Applies migrations from every pull request to the SANDBOX Supabase project
-# (vzfsndsqveacpefoqwsu) so schema drift is caught before merge, and the
-# sandbox Lovable preview always runs the PR's schema.
+# (vzfsndsqveacpefoqwsu), runs Playwright QA against the sandbox preview,
+# and auto-merges the PR when sandbox QA passes.
 #
 # Required repo secrets:
 #   SANDBOX_SUPABASE_DB_URL       postgresql://postgres:<pw>@db.vzfsndsqveacpefoqwsu.supabase.co:5432/postgres
+#   CI_AUTH_SECRET                shared token for the ci-auth edge function
+# Required repo variables:
+#   SANDBOX_PREVIEW_URL           https://<sandbox-host> (Lovable preview / deployed sandbox URL)
 # Optional repo variable:
 #   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
+#   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
   pull_request:
@@ -29,12 +33,16 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  actions: read
+  checks: read
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    outputs:
+      pushed: ${{ steps.push-status.outputs.pushed || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,3 +90,74 @@ jobs:
         run: supabase db push --db-url "$DB_URL" --include-all
         env:
           DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Record push status
+        id: push-status
+        if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        run: echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+  qa:
+    name: Sandbox QA
+    needs: migrate
+    if: github.event_name == 'pull_request' && needs.migrate.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify sandbox preview URL is configured
+        run: |
+          [ -n "$PREVIEW_URL" ] || { echo "::error::Missing variable SANDBOX_PREVIEW_URL"; exit 1; }
+        env:
+          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run functional tests against sandbox
+        run: |
+          npx playwright test --project=chromium --ignore-snapshots \
+            e2e/api-health.spec.ts \
+            e2e/data-integrity.spec.ts \
+            e2e/console-errors.spec.ts \
+            e2e/navigation.spec.ts \
+            e2e/smoke.spec.ts
+        env:
+          BASE_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+          CI: true
+          CI_AUTH_SECRET: ${{ secrets.CI_AUTH_SECRET }}
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-qa-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-qa-screenshots
+          path: test-results/
+          retention-days: 14
+
+  auto-merge:
+    name: Auto-merge on sandbox QA pass
+    needs: qa
+    if: github.event_name == 'pull_request' && vars.SANDBOX_AUTO_MERGE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

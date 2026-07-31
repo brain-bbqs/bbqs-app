@@ -27,17 +27,20 @@ Also copy from **Settings → API**:
 
 **Settings → Secrets and variables → Actions**
 
-Repository **secret**:
+Repository **secrets**:
 
 | Name | Value |
 |---|---|
 | `SANDBOX_SUPABASE_DB_URL` | the URI from step 1 |
+| `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 
-Repository **variable** (optional):
+Repository **variables**:
 
 | Name | Value | Effect |
 |---|---|---|
+| `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | Lovable preview / deployed URL QA targets. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
+| `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
 
 Merges to `main` always push. Manual runs default to dry-run.
 
@@ -78,6 +81,7 @@ non-prod equivalents your functions need. At minimum:
 ```
 GLOBUS_CLIENT_ID      = 2998008d-0e14-4458-8338-f82f2af28a88
 GLOBUS_CLIENT_SECRET  = <sandbox Globus secret>
+CI_AUTH_SECRET        = <same value as the GitHub Actions secret>
 ```
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are auto-injected.
@@ -113,11 +117,27 @@ curl -X POST "https://vzfsndsqveacpefoqwsu.supabase.co/functions/v1/seed-staging
 2. The workflow posts a **drift report comment** listing pending migrations.
 3. If `SANDBOX_MIGRATIONS_ENABLED=true`, those migrations are applied to the
    sandbox immediately, so the sandbox preview reflects the PR's schema.
-4. On merge to `main`, the sandbox is pushed again (idempotent), and
+4. If migrations were pushed and `SANDBOX_PREVIEW_URL` is set, the workflow
+   runs the **Sandbox QA** job: Playwright functional tests against the live
+   sandbox preview (`api-health`, `data-integrity`, `console-errors`,
+   `navigation`, `smoke`).
+5. If Sandbox QA passes and `SANDBOX_AUTO_MERGE_ENABLED=true`, the workflow
+   enables GitHub auto-merge (`gh pr merge --auto --squash`). The PR merges
+   once all required status checks and branch-protection rules are satisfied.
+6. On merge to `main`, the sandbox is pushed again (idempotent), and
    `sync-prod-schema.yml` handles prod separately.
+
+### Branch protection recommendation
+
+For the auto-merge step to actually merge the PR when QA passes, configure the
+branch protection rule for `main` to require only the **Sandbox QA** check from
+this workflow. If required reviews or other checks are enabled, auto-merge
+will wait for those as well.
 
 ### Troubleshooting
 
 - **`Missing secret SANDBOX_SUPABASE_DB_URL`** — step 2 not done.
+- **`Missing variable SANDBOX_PREVIEW_URL`** — add the sandbox Lovable preview / deployed URL.
 - **PR shows drift but nothing applied** — `SANDBOX_MIGRATIONS_ENABLED` variable is not `true`.
+- **QA passes but PR did not merge** — check branch protection rules and `SANDBOX_AUTO_MERGE_ENABLED`.
 - **Push fails on an old migration** — run once with `--include-all` from your machine to backfill history.
