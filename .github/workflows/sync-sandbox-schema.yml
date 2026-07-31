@@ -1,26 +1,25 @@
 name: Sync sandbox schema + QA + auto-merge
 
 # Applies migrations from every pull request to the SANDBOX Supabase project
-# (vzfsndsqveacpefoqwsu), runs Playwright QA against the sandbox preview,
-# and auto-merges the PR when sandbox QA passes.
+# (vzfsndsqveacpefoqwsu), builds the frontend against the sandbox backend,
+# deploys it to the sandbox GitHub Pages site, runs Playwright QA, and
+# auto-merges the PR when sandbox QA passes.
 #
 # Required repo secrets:
 #   SANDBOX_SUPABASE_DB_URL       postgresql://postgres:<pw>@db.vzfsndsqveacpefoqwsu.supabase.co:5432/postgres
+#   SANDBOX_SUPABASE_ANON_KEY     sandbox project anon/public key
 #   CI_AUTH_SECRET                shared token for the ci-auth edge function
+#   SANDBOX_GITHUB_PAT            PAT with repo scope for brain-bbqs/bbqs-website-sandbox
 # Required repo variables:
-#   SANDBOX_PREVIEW_URL           https://<sandbox-host> (Lovable preview / deployed sandbox URL)
+#   SANDBOX_PREVIEW_URL           https://<sandbox-host> (e.g. https://brain-bbqs.github.io/bbqs-website-sandbox)
 # Optional repo variable:
 #   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
   pull_request:
-    paths:
-      - 'supabase/migrations/**'
   push:
     branches: [main]
-    paths:
-      - 'supabase/migrations/**'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -96,19 +95,80 @@ jobs:
         if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
         run: echo "pushed=true" >> "$GITHUB_OUTPUT"
 
-  qa:
-    name: Sandbox QA
-    needs: migrate
-    if: github.event_name == 'pull_request' && needs.migrate.outputs.pushed == 'true'
+  deploy-frontend:
+    name: Deploy sandbox frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    needs: migrate
+    if: always() && needs.migrate.result == 'success'
+    outputs:
+      preview_url: ${{ vars.SANDBOX_PREVIEW_URL }}
     steps:
       - name: Verify sandbox preview URL is configured
         run: |
           [ -n "$PREVIEW_URL" ] || { echo "::error::Missing variable SANDBOX_PREVIEW_URL"; exit 1; }
+          [ -n "$ANON_KEY" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_ANON_KEY"; exit 1; }
+          [ -n "$PAT" ] || { echo "::error::Missing secret SANDBOX_GITHUB_PAT"; exit 1; }
+        env:
+          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+          ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+          PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Write sandbox environment
+        run: |
+          sed -i "s|SANDBOX_ANON_KEY_PLACEHOLDER|$ANON_KEY|" .env.sandbox
+          cat .env.sandbox
+        env:
+          ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+
+      - name: Build sandbox frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Prepare CNAME for sandbox Pages
+        run: |
+          # If the preview URL is not the default github.io project site,
+          # treat its host as a custom GitHub Pages domain.
+          if [[ "$PREVIEW_URL" != *"github.io"* ]]; then
+            echo "$PREVIEW_URL" | sed 's|https://||' | sed 's|/.*||' > dist/CNAME
+          else
+            rm -f dist/CNAME
+          fi
         env:
           PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
 
+      - name: Patch 404.html for project-site base path
+        run: |
+          BASE_PATH=$(grep '^VITE_BASE_PATH=' .env.sandbox | cut -d= -f2)
+          BASE_SEGMENTS=$(echo "$BASE_PATH" | tr '/' '\n' | grep -v '^$' | wc -l)
+          sed -i "s|var pathSegmentsToKeep = 0;|var pathSegmentsToKeep = $BASE_SEGMENTS;|" dist/404.html
+          echo "VITE_BASE_PATH=$BASE_PATH, pathSegmentsToKeep=$BASE_SEGMENTS"
+
+      - name: Deploy to sandbox GitHub Pages repo
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.SANDBOX_GITHUB_PAT }}
+          repository-name: brain-bbqs/bbqs-website-sandbox
+          branch: gh-pages
+          folder: dist
+          clean: true
+
+  qa:
+    name: Sandbox QA
+    needs: deploy-frontend
+    if: github.event_name == 'pull_request' && needs.deploy-frontend.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -130,7 +190,9 @@ jobs:
             e2e/navigation.spec.ts \
             e2e/smoke.spec.ts
         env:
-          BASE_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+          BASE_URL: ${{ needs.deploy-frontend.outputs.preview_url }}
+          VITE_SUPABASE_URL: https://vzfsndsqveacpefoqwsu.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           CI: true
           CI_AUTH_SECRET: ${{ secrets.CI_AUTH_SECRET }}
 
