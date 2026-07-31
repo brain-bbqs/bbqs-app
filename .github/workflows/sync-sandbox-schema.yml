@@ -1,0 +1,84 @@
+name: Sync sandbox schema (PR)
+
+# Applies migrations from every pull request to the SANDBOX Supabase project
+# (vzfsndsqveacpefoqwsu) so schema drift is caught before merge, and the
+# sandbox Lovable preview always runs the PR's schema.
+#
+# Required repo secrets:
+#   SANDBOX_SUPABASE_DB_URL       postgresql://postgres:<pw>@db.vzfsndsqveacpefoqwsu.supabase.co:5432/postgres
+# Optional repo variable:
+#   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List pending migrations only (no changes)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: sandbox-schema
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify sandbox DB URL secret is present
+        run: '[ -n "$DB_URL" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_DB_URL"; exit 1; }'
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: List pending migrations (drift report)
+        id: drift
+        continue-on-error: true
+        run: |
+          supabase migration list --db-url "$DB_URL" | tee /tmp/drift.txt
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Comment drift report on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '### Sandbox schema drift (`vzfsndsqveacpefoqwsu`)\n\n';
+            try {
+              body += '```\n' + fs.readFileSync('/tmp/drift.txt', 'utf8').slice(0, 60000) + '\n```';
+            } catch (e) {
+              body += '_Could not read drift report._';
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Push migrations to sandbox
+        # PRs push only when explicitly enabled; main always pushes;
+        # manual dispatch pushes when dry_run=false.
+        if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        run: supabase db push --db-url "$DB_URL" --include-all
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
