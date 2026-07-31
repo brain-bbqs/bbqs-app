@@ -81,6 +81,7 @@ non-prod equivalents your functions need. At minimum:
 ```
 GLOBUS_CLIENT_ID      = 2998008d-0e14-4458-8338-f82f2af28a88
 GLOBUS_CLIENT_SECRET  = <sandbox Globus secret>
+CI_AUTH_SECRET        = <same value as the GitHub Actions secret>
 ```
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are auto-injected.
