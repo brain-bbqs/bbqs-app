@@ -25,8 +25,8 @@ export async function loginAsTestUser(page: Page) {
 
   const { access_token, refresh_token } = await res.json();
 
-  // Inject session into Supabase localStorage key
-  const storageKey = `sb-vpexxhfpvghlejljwpvt-auth-token`;
+  // Inject session into the same storage key the app uses.
+  const storageKey = "bbqs-auth-session";
   await page.addInitScript(
     ({ key, access, refresh }) => {
       localStorage.setItem(
