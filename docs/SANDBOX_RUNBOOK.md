@@ -27,17 +27,20 @@ Also copy from **Settings → API**:
 
 **Settings → Secrets and variables → Actions**
 
-Repository **secret**:
+Repository **secrets**:
 
 | Name | Value |
 |---|---|
 | `SANDBOX_SUPABASE_DB_URL` | the URI from step 1 |
+| `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 
-Repository **variable** (optional):
+Repository **variables**:
 
 | Name | Value | Effect |
 |---|---|---|
+| `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | Lovable preview / deployed URL QA targets. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
+| `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
 
 Merges to `main` always push. Manual runs default to dry-run.
 
