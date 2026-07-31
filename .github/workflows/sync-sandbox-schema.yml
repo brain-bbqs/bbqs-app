@@ -146,6 +146,13 @@ jobs:
         env:
           PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
 
+      - name: Patch 404.html for project-site base path
+        run: |
+          BASE_PATH=$(grep '^VITE_BASE_PATH=' .env.sandbox | cut -d= -f2)
+          BASE_SEGMENTS=$(echo "$BASE_PATH" | tr '/' '\n' | grep -v '^$' | wc -l)
+          sed -i "s|var pathSegmentsToKeep = 0;|var pathSegmentsToKeep = $BASE_SEGMENTS;|" dist/404.html
+          echo "VITE_BASE_PATH=$BASE_PATH, pathSegmentsToKeep=$BASE_SEGMENTS"
+
       - name: Deploy to sandbox GitHub Pages repo
         uses: JamesIves/github-pages-deploy-action@v4
         with:
