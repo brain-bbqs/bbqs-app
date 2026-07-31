@@ -7,7 +7,7 @@ import { cookieStorage } from './cookie-storage';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://vpexxhfpvghlejljwpvt.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXh4aGZwdmdobGVqbGp3cHZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MDg2NDUsImV4cCI6MjA4NTI4NDY0NX0.M107rJ9Ji17zAyd8Jolt5GQFZmu9vvAG1UiIq0GQh8U";
-const AUTH_COOKIE_DOMAIN = import.meta.env.VITE_AUTH_COOKIE_DOMAIN || ".brain-bbqs.org";
+const AUTH_COOKIE_DOMAIN = import.meta.env.VITE_AUTH_COOKIE_DOMAIN ?? ".brain-bbqs.org";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
