@@ -134,6 +134,18 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Prepare CNAME for sandbox Pages
+        run: |
+          # If the preview URL is not the default github.io project site,
+          # treat its host as a custom GitHub Pages domain.
+          if [[ "$PREVIEW_URL" != *"github.io"* ]]; then
+            echo "$PREVIEW_URL" | sed 's|https://||' | sed 's|/.*||' > dist/CNAME
+          else
+            rm -f dist/CNAME
+          fi
+        env:
+          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+
       - name: Deploy to sandbox GitHub Pages repo
         uses: JamesIves/github-pages-deploy-action@v4
         with:
