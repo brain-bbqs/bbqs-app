@@ -1,0 +1,327 @@
+name: Sync sandbox schema + QA + auto-merge
+
+# Applies migrations from every pull request to the SANDBOX Supabase project
+# (vzfsndsqveacpefoqwsu), builds the frontend against the sandbox backend,
+# deploys it to the sandbox GitHub Pages site, runs Playwright QA, and
+# auto-merges the PR when sandbox QA passes.
+#
+# Required repo secrets:
+#   SANDBOX_SUPABASE_DB_URL       postgresql://postgres:<pw>@db.vzfsndsqveacpefoqwsu.supabase.co:5432/postgres
+#   SANDBOX_SUPABASE_ANON_KEY     sandbox project anon/public key
+#   CI_AUTH_SECRET                shared token for the ci-auth edge function
+#   SANDBOX_GITHUB_PAT            PAT with repo scope for brain-bbqs/bbqs-website-sandbox
+#   PROD_SUPABASE_DB_URL          production DB URL (read-only clone source for seeding)
+# Optional repo variable:
+#   SANDBOX_PREVIEW_URL           Override the default https://brain-bbqs.github.io/bbqs-website-sandbox URL
+#   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
+#   SANDBOX_SEED_DATA_ENABLED     'true' to clone production rows into the sandbox on every run
+#   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List pending migrations only (no changes)'
+        type: boolean
+        default: true
+      seed_data:
+        description: 'Clone production rows into the sandbox after migrating'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sandbox-schema
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    outputs:
+      pushed: ${{ steps.push-status.outputs.pushed || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify sandbox DB URL secret is present
+        run: '[ -n "$DB_URL" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_DB_URL"; exit 1; }'
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: List pending migrations (drift report)
+        id: drift
+        continue-on-error: true
+        run: |
+          supabase migration list --db-url "$DB_URL" | tee /tmp/drift.txt
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Comment drift report on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '### Sandbox schema drift (`vzfsndsqveacpefoqwsu`)\n\n';
+            try {
+              body += '```\n' + fs.readFileSync('/tmp/drift.txt', 'utf8').slice(0, 60000) + '\n```';
+            } catch (e) {
+              body += '_Could not read drift report._';
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Push migrations to sandbox
+        # PRs push only when explicitly enabled; main always pushes;
+        # manual dispatch pushes when dry_run=false.
+        if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        run: supabase db push --db-url "$DB_URL" --include-all
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Record push status
+        id: push-status
+        if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        run: echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+  seed-data:
+    name: Clone production rows into sandbox
+    runs-on: ubuntu-latest
+    needs: migrate
+    # Runs when explicitly enabled by repo variable, or on a manual dispatch with seed_data=true.
+    if: ${{ needs.migrate.result == 'success' && (vars.SANDBOX_SEED_DATA_ENABLED == 'true' || vars.SANDBOX_SEED_DATA_ENABLED == 'TRUE' || (github.event_name == 'workflow_dispatch' && (inputs.seed_data == true || inputs.seed_data == 'true'))) }}
+    steps:
+      - name: Report seed gate inputs
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "SANDBOX_SEED_DATA_ENABLED='${{ vars.SANDBOX_SEED_DATA_ENABLED }}'"
+          echo "seed_data input='${{ inputs.seed_data }}'"
+
+      - name: Verify seeding secrets are present
+        run: |
+          [ -n "$PROD_DB_URL" ] || { echo "::error::Missing secret PROD_SUPABASE_DB_URL"; exit 1; }
+          [ -n "$SANDBOX_DB_URL" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_DB_URL"; exit 1; }
+          case "$SANDBOX_DB_URL" in
+            *vzfsndsqveacpefoqwsu*) : ;;
+            *) echo "::error::Refusing to seed: SANDBOX_SUPABASE_DB_URL does not point at the sandbox project"; exit 1 ;;
+          esac
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          pg_dump --version
+
+      - name: Dump production data (auth users + public schema)
+        run: |
+          set -euo pipefail
+          # auth.users / auth.identities first: public tables carry FKs to them.
+          pg_dump "$PROD_DB_URL" \
+            --data-only --no-owner --no-privileges --no-comments \
+            --table=auth.users --table=auth.identities \
+            > /tmp/auth-data.sql
+          pg_dump "$PROD_DB_URL" \
+            --data-only --no-owner --no-privileges --no-comments \
+            --schema=public \
+            --exclude-table-data='public.data_audit_log' \
+            --exclude-table-data='public.analytics_clicks' \
+            --exclude-table-data='public.analytics_pageviews' \
+            --exclude-table-data='public.auth_audit_log' \
+            > /tmp/public-data.sql
+          wc -l /tmp/auth-data.sql /tmp/public-data.sql
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+
+      - name: Truncate sandbox tables
+        run: |
+          set -euo pipefail
+          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE stmt text;
+          BEGIN
+            SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
+              INTO stmt
+              FROM pg_tables
+             WHERE schemaname = 'public';
+            IF stmt IS NOT NULL THEN
+              EXECUTE 'TRUNCATE TABLE ' || stmt || ' RESTART IDENTITY CASCADE';
+            END IF;
+          END $$;
+          DELETE FROM auth.identities;
+          DELETE FROM auth.users;
+          SQL
+        env:
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Load production data into sandbox
+        run: |
+          set -euo pipefail
+          # session_replication_role=replica keeps FK ordering and audit/notify
+          # triggers from firing while the clone loads.
+          {
+            echo "SET session_replication_role = replica;"
+            cat /tmp/auth-data.sql
+            cat /tmp/public-data.sql
+            echo "SET session_replication_role = origin;"
+          } > /tmp/seed.sql
+          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f /tmp/seed.sql
+        env:
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+      - name: Report row counts
+        run: |
+          psql "$SANDBOX_DB_URL" -c "
+            SELECT relname AS table, n_live_tup AS approx_rows
+              FROM pg_stat_user_tables
+             WHERE schemaname = 'public' AND n_live_tup > 0
+             ORDER BY n_live_tup DESC LIMIT 40;"
+        env:
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
+  deploy-frontend:
+    name: Deploy sandbox frontend
+    runs-on: ubuntu-latest
+    needs: migrate
+    if: always() && needs.migrate.result == 'success'
+    outputs:
+      preview_url: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
+    steps:
+      - name: Verify sandbox deployment is configured
+        run: |
+          [ -n "$ANON_KEY" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_ANON_KEY"; exit 1; }
+          [ -n "$PAT" ] || { echo "::error::Missing secret SANDBOX_GITHUB_PAT"; exit 1; }
+        env:
+          ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+          PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Write sandbox environment
+        run: |
+          sed -i "s|SANDBOX_ANON_KEY_PLACEHOLDER|$ANON_KEY|" .env.sandbox
+          cat .env.sandbox
+        env:
+          ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+
+      - name: Build sandbox frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Prepare CNAME for sandbox Pages
+        run: |
+          # If the preview URL is not the default github.io project site,
+          # treat its host as a custom GitHub Pages domain.
+          if [[ "$PREVIEW_URL" != *"github.io"* ]]; then
+            echo "$PREVIEW_URL" | sed 's|https://||' | sed 's|/.*||' > dist/CNAME
+          else
+            rm -f dist/CNAME
+          fi
+        env:
+          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
+
+      - name: Patch 404.html for project-site base path
+        run: |
+          BASE_PATH=$(grep '^VITE_BASE_PATH=' .env.sandbox | cut -d= -f2)
+          BASE_SEGMENTS=$(echo "$BASE_PATH" | tr '/' '\n' | grep -v '^$' | wc -l)
+          sed -i "s|var pathSegmentsToKeep = 0;|var pathSegmentsToKeep = $BASE_SEGMENTS;|" dist/404.html
+          echo "VITE_BASE_PATH=$BASE_PATH, pathSegmentsToKeep=$BASE_SEGMENTS"
+
+      - name: Deploy to sandbox GitHub Pages repo
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.SANDBOX_GITHUB_PAT }}
+          repository-name: brain-bbqs/bbqs-website-sandbox
+          branch: gh-pages
+          folder: dist
+          clean: true
+
+  qa:
+    name: Sandbox QA
+    needs: deploy-frontend
+    if: github.event_name == 'pull_request' && needs.deploy-frontend.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run functional tests against sandbox
+        run: |
+          npx playwright test --project=chromium --ignore-snapshots \
+            e2e/api-health.spec.ts \
+            e2e/data-integrity.spec.ts \
+            e2e/console-errors.spec.ts \
+            e2e/navigation.spec.ts \
+            e2e/smoke.spec.ts
+        env:
+          BASE_URL: ${{ needs.deploy-frontend.outputs.preview_url }}
+          VITE_SUPABASE_URL: https://vzfsndsqveacpefoqwsu.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+          CI: true
+          CI_AUTH_SECRET: ${{ secrets.CI_AUTH_SECRET }}
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-qa-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-qa-screenshots
+          path: test-results/
+          retention-days: 14
+
+  auto-merge:
+    name: Auto-merge on sandbox QA pass
+    needs: qa
+    if: github.event_name == 'pull_request' && vars.SANDBOX_AUTO_MERGE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

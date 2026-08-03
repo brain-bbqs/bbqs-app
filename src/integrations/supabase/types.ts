@@ -3140,6 +3140,7 @@ export type Database = {
       ir_is_authorized: { Args: never; Returns: boolean }
       ir_upsert_profiles: { Args: { _rows: Json }; Returns: number }
       is_curator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      kg_read_sql: { Args: { max_rows?: number; query: string }; Returns: Json }
       revert_curation_change: { Args: { _audit_id: string }; Returns: Json }
       search_knowledge_embeddings: {
         Args: {

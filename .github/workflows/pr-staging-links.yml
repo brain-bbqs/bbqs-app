@@ -10,15 +10,16 @@ name: PR preview link
 #   LOVABLE_PROJECT_ID  e.g. 58213f9f-90d3-4c33-a079-dc28eec35ff7
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+  # Disabled as an automatic PR check — the sandbox pipeline posts the
+  # relevant preview URL. Run manually from the Actions tab if needed.
+  workflow_dispatch:
 
 permissions:
   pull-requests: write
   contents: read
 
 concurrency:
-  group: pr-staging-links-${{ github.event.pull_request.number }}
+  group: pr-staging-links-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

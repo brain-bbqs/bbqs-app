@@ -23,6 +23,14 @@ BBQS brings together a cross-disciplinary consortium of researchers to:
 | **Tutorials** | Learning materials for consortium tools and workflows |
 | **Job Board & Calendar** | Community job postings and upcoming events |
 
+## Announcements Pipeline (News Radar)
+
+Announcements come from two paths: manual posts by signed-in members, and **News Radar**, a nightly poller that scores curated science-news feeds against a BBQS keyword profile and queues candidates for admin approval. Full write-up: [`docs/NEWS_RADAR.md`](docs/NEWS_RADAR.md).
+
+<p align="center">
+  <img src="docs/news-radar-flow.svg" alt="News Radar pipeline: seven curated RSS/Atom feeds polled nightly by pg_cron, parsed and keyword-scored, deduplicated by URL into the news_candidates queue, reviewed in the Admin Console, then approved into announcements or rejected" width="720" />
+</p>
+
 ## Tech Stack
 
 - React 18 + TypeScript + Vite
