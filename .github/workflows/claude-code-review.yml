@@ -1,8 +1,10 @@
 name: Claude Code Review
 
+# Disabled as an automatic PR check — it produced low-signal noise on every PR.
+# Run manually from the Actions tab, or comment @claude on a PR
+# (handled by claude-review.yml) when a review is actually wanted.
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+  workflow_dispatch:
 
 jobs:
   claude-review:
