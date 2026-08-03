@@ -1,8 +1,9 @@
 name: QA – Smoke & Visual Regression
 
+# Disabled as an automatic PR check — the sandbox pipeline
+# (sync-sandbox-schema.yml) is the single source of PR truth.
+# Run this manually from the Actions tab when needed.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
