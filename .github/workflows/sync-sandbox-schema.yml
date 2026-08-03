@@ -10,9 +10,8 @@ name: Sync sandbox schema + QA + auto-merge
 #   SANDBOX_SUPABASE_ANON_KEY     sandbox project anon/public key
 #   CI_AUTH_SECRET                shared token for the ci-auth edge function
 #   SANDBOX_GITHUB_PAT            PAT with repo scope for brain-bbqs/bbqs-website-sandbox
-# Required repo variables:
-#   SANDBOX_PREVIEW_URL           https://<sandbox-host> (e.g. https://brain-bbqs.github.io/bbqs-website-sandbox)
 # Optional repo variable:
+#   SANDBOX_PREVIEW_URL           Override the default https://brain-bbqs.github.io/bbqs-website-sandbox URL
 #   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
@@ -101,15 +100,13 @@ jobs:
     needs: migrate
     if: always() && needs.migrate.result == 'success'
     outputs:
-      preview_url: ${{ vars.SANDBOX_PREVIEW_URL }}
+      preview_url: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
     steps:
-      - name: Verify sandbox preview URL is configured
+      - name: Verify sandbox deployment is configured
         run: |
-          [ -n "$PREVIEW_URL" ] || { echo "::error::Missing variable SANDBOX_PREVIEW_URL"; exit 1; }
           [ -n "$ANON_KEY" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_ANON_KEY"; exit 1; }
           [ -n "$PAT" ] || { echo "::error::Missing secret SANDBOX_GITHUB_PAT"; exit 1; }
         env:
-          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
           ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
 
@@ -144,7 +141,7 @@ jobs:
             rm -f dist/CNAME
           fi
         env:
-          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL }}
+          PREVIEW_URL: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
 
       - name: Patch 404.html for project-site base path
         run: |
