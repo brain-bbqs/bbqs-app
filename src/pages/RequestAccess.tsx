@@ -57,6 +57,16 @@ const requestSchema = z
       .max(200, "Institution must be under 200 characters"),
     requested_role: z.string().min(1, "Please select your role in BBQS"),
     other_role: z.string().trim().max(120).optional().or(z.literal("")),
+    // Which BBQS grant / PI they belong to. REQUIRED (or an explicit "not affiliated"
+    // declaration) — a reviewer can't route or justify access without it, and
+    // institution is not a proxy since several BBQS grants share one.
+    association: z
+      .string()
+      .trim()
+      .max(200, "Keep this under 200 characters")
+      .optional()
+      .or(z.literal("")),
+    no_association: z.boolean().optional(),
     message: z
       .string()
       .trim()
@@ -67,7 +77,18 @@ const requestSchema = z
   .refine(
     (d) => d.requested_role !== "Other" || (d.other_role && d.other_role.length >= 2),
     { message: "Please describe your role", path: ["other_role"] },
+  )
+  .refine(
+    (d) => d.no_association === true || ((d.association ?? "").trim().length >= 2),
+    {
+      message: "Tell us which BBQS grant or PI you're associated with",
+      path: ["association"],
+    },
   );
+
+/** What we persist when the requester declares no grant/PI tie — a definite value
+ *  beats a blank field, so the reviewer knows they were asked and answered. */
+const NO_ASSOCIATION = "Not affiliated with a specific BBQS grant or PI (self-declared)";
 
 export default function RequestAccess() {
   const navigate = useNavigate();
@@ -89,6 +110,8 @@ export default function RequestAccess() {
     institution: "",
     requested_role: "",
     other_role: "",
+    association: "",
+    no_association: false,
     message: "",
   });
 
@@ -111,6 +134,10 @@ export default function RequestAccess() {
         ? (parsed.data.other_role || "Other").trim()
         : parsed.data.requested_role;
 
+    const associationValue = parsed.data.no_association
+      ? NO_ASSOCIATION
+      : (parsed.data.association || "").trim();
+
     setSubmitting(true);
     try {
       // Route through the shared SECURITY DEFINER upsert so these details ENRICH the
@@ -126,6 +153,7 @@ export default function RequestAccess() {
         _message: parsed.data.message || null,
         _globus_name: globusName || parsed.data.full_name,
         _globus_subject: globusSubject || null,
+        _association: associationValue || null,
       });
       if (error) {
         if ((error as { code?: string }).code === "PGRST202") {
@@ -137,6 +165,7 @@ export default function RequestAccess() {
             email: parsed.data.email.toLowerCase(),
             institution: parsed.data.institution,
             requested_role: roleValue,
+            association: associationValue || null,
             message: parsed.data.message || null,
             globus_name: globusName || parsed.data.full_name,
             globus_subject: globusSubject || null,
@@ -276,6 +305,35 @@ export default function RequestAccess() {
                   className="mt-2"
                 />
               )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="association">
+                Which BBQS grant or PI are you associated with?
+              </Label>
+              <Input
+                id="association"
+                value={form.association}
+                onChange={update("association")}
+                placeholder="e.g. U24MH136628 — or your PI's name, e.g. Satra Ghosh"
+                maxLength={200}
+                disabled={form.no_association}
+                required={!form.no_association}
+              />
+              <p className="text-xs text-muted-foreground">
+                A grant number or the PI whose lab/group you work in. This is how we
+                route you to the right project and working groups.
+              </p>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.no_association}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, no_association: e.target.checked }))
+                  }
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                I'm not affiliated with a specific BBQS grant or PI
+              </label>
             </div>
             <div className="space-y-2">
               <Label htmlFor="message">Why are you requesting access? (optional)</Label>
