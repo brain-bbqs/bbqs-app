@@ -41,6 +41,18 @@ interface AccessRequest {
   full_name?: string | null;
   institution?: string | null;
   requested_role?: string | null;
+  /** Requester-declared BBQS tie: grant number, PI/lab name, or an explicit
+   *  "not affiliated" declaration. Null on rows filed before this field existed
+   *  and on Globus auto-filed rows (which know only the email). */
+  association?: string | null;
+}
+
+/** A BBQS/NIH award number stated in the free-text association, if there is one —
+ *  lets "Approve & onboard" hand the grant straight to the agent instead of making
+ *  the admin re-type it. Matches e.g. U24MH136628 / 1R61MH135106-01. */
+function grantNumberFrom(association?: string | null): string | null {
+  const m = (association ?? "").match(/\b\d?[A-Z]\d{2}[A-Z]{2}\d{5,6}\b/i);
+  return m ? m[0].toUpperCase() : null;
 }
 
 interface NameCollision {
@@ -239,7 +251,17 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
     const name = (r.full_name || r.globus_name || r.email.split("@")[0] || "Unknown").trim();
     const email = r.email.toLowerCase();
     const roleHint = r.requested_role ? ` as ${r.requested_role}` : "";
-    const url = `${AGENT_URL}/?ask=${encodeURIComponent(`Onboard ${name} (${email})${roleHint}`)}`;
+    // Carry the declared grant through so the agent can link the roster in the same
+    // pass; a PI/lab name (no award number) rides along as the by-group phrase, which
+    // the agent resolves via resolveGrant.
+    const grant = grantNumberFrom(r.association);
+    const assoc = (r.association ?? "").trim();
+    const grantHint = grant
+      ? `, grant ${grant}`
+      : assoc && !/^not affiliated/i.test(assoc)
+        ? ` from ${assoc}`
+        : "";
+    const url = `${AGENT_URL}/?ask=${encodeURIComponent(`Onboard ${name} (${email})${roleHint}${grantHint}`)}`;
     window.open(url, "_blank", "noopener");
     toast.info(
       "Opening full onboarding in the agent — complete the workflow there. This request clears automatically once they're provisioned.",
@@ -440,6 +462,17 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
           <Badge variant="outline" className="mt-1 text-xs font-normal">
             {r.requested_role}
           </Badge>
+        )}
+        {/* The declared grant/PI tie — the reviewer's basis for approving and for
+            routing them to the right roster. Flagged when absent (legacy or
+            Globus auto-filed rows) so it reads as "unknown", never as "none". */}
+        {r.association ? (
+          <div className="text-xs mt-1">
+            <span className="text-muted-foreground">Association: </span>
+            <span className="text-foreground">{r.association}</span>
+          </div>
+        ) : (
+          <div className="text-xs text-amber-600 mt-1">Association not stated — ask before approving</div>
         )}
         {r.message && (
           <div className="text-xs text-muted-foreground mt-1 italic line-clamp-2 max-w-md">

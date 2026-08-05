@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       access_requests: {
         Row: {
+          association: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -32,6 +33,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          association?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -48,6 +50,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          association?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
