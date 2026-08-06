@@ -2,9 +2,10 @@ import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageMeta } from "@/components/PageMeta";
 import { SystemAlertsBanner } from "@/components/admin/SystemAlertsBanner";
-import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet, Newspaper, LayoutDashboard } from "lucide-react";
+import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet, Newspaper, LayoutDashboard, ClipboardList } from "lucide-react";
 import AdminUsers from "./AdminUsers";
 import AdminAccessRequests from "./AdminAccessRequests";
+import { OnboardingPipelinePanel } from "@/components/admin/OnboardingPipelinePanel";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
 import { BudgetsPanel } from "@/components/admin/BudgetsPanel";
 import { NewsRadarPanel } from "@/components/admin/NewsRadarPanel";
@@ -12,7 +13,7 @@ import { WorkingGroupDashboardDefaults } from "@/components/admin/WorkingGroupDa
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "add-project", "news-radar", "dashboards"] as const;
+const VALID_TABS = ["alerts", "budgets", "users", "access-requests", "onboarding", "add-project", "news-radar", "dashboards"] as const;
 type TabKey = (typeof VALID_TABS)[number];
 
 export default function AdminConsole() {
@@ -55,6 +56,10 @@ export default function AdminConsole() {
             <UserPlus className="h-4 w-4" />
             Access Requests
           </TabsTrigger>
+          <TabsTrigger value="onboarding" className="gap-1.5">
+            <ClipboardList className="h-4 w-4" />
+            Onboarding
+          </TabsTrigger>
           <TabsTrigger value="add-project" className="gap-1.5">
             <FolderPlus className="h-4 w-4" />
             Add Project
@@ -86,6 +91,10 @@ export default function AdminConsole() {
 
         <TabsContent value="access-requests" className="mt-0">
           <AdminAccessRequests embedded />
+        </TabsContent>
+
+        <TabsContent value="onboarding" className="mt-0">
+          <OnboardingPipelinePanel embedded />
         </TabsContent>
 
         <TabsContent value="add-project" className="mt-0">
