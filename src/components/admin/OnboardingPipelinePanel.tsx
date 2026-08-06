@@ -5,8 +5,9 @@ import { useUserTier } from "@/hooks/useUserTier";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Lock, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
 
 // A row of the onboarding_pipeline view (migration 20260806140000). Queried untyped
 // (the view isn't in the generated Database types yet).
@@ -133,9 +134,19 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
             {f === "all" ? "All" : f === "in_progress" ? "In progress" : "Stuck"}
           </Button>
         ))}
-        <Button size="sm" variant="ghost" className="ml-auto" onClick={() => refetch()} disabled={isRefetching}>
-          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <OnboardMemberDialog
+            trigger={
+              <Button size="sm">
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                Onboard member
+              </Button>
+            }
+          />
+          <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isRefetching}>
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

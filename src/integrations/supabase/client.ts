@@ -18,5 +18,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storageKey: "bbqs-auth-session",
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  // Provenance (Principle X): tag KG-site writes so data_audit_log.client_source
+  // shows 'kg-site' (vs 'bbqs-agent' from the agent) — the audit trigger reads this
+  // header (KG migration 20260806130000).
+  global: {
+    headers: { "X-BBQS-Client": "kg-site" },
+  },
 });

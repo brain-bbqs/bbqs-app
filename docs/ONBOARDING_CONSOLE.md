@@ -54,5 +54,12 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
 3. **Offboard wizard** (P3) — pick member + leaving grant → confirm → `offboard_member`.
 
 ## Status
-- P1 view + status panel: THIS change.
-- P2/P3 RPCs + wizards + welcome-email fn: next, continuous.
+- **P1 DONE** (commit f79e71c) — `onboarding_pipeline` view + status panel + Admin Console tab.
+- **P2 DONE** — `onboard_member` + `set_onboarding_step` RPCs (`20260806150000`), `send-welcome-email`
+  edge function, `OnboardMemberDialog` wizard (wired into the panel header), and the KG-site
+  supabase client now tags writes `X-BBQS-Client: kg-site`.
+- **P3 NEXT** — `offboard_member` RPC + offboard wizard.
+
+## Manual apply / config (KG side)
+- Apply migrations in the SQL editor: `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`.
+- Deploy the edge function: `supabase functions deploy send-welcome-email` (needs `RESEND_API_KEY`).
