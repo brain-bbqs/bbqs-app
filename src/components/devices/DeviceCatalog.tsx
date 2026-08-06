@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Search, BookOpen, Factory } from "lucide-react";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import "@/styles/ag-grid-theme.css";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileCardList } from "@/components/MobileCardList";
 
 type Category = {
   key: string;
@@ -33,6 +40,7 @@ export function DeviceCatalog() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     (async () => {
@@ -79,6 +87,107 @@ export function DeviceCatalog() {
   }, [models, cat, q, makerById]);
 
   const labelFor = (key: string) => categories.find((c) => c.key === key)?.label || key.replace(/_/g, " ");
+
+  const rows = useMemo(
+    () =>
+      visible.map((m) => ({
+        ...m,
+        manufacturer: m.manufacturer_id ? makerById[m.manufacturer_id]?.name || "—" : "—",
+        manufacturer_url: m.manufacturer_id ? makerById[m.manufacturer_id]?.homepage_url : null,
+        category: labelFor(m.device_class),
+      })),
+    [visible, makerById, categories]
+  );
+
+  const defaultColDef = useMemo<ColDef>(
+    () => ({ sortable: true, filter: true, resizable: true, flex: 1, minWidth: 110, wrapText: true, autoHeight: true }),
+    []
+  );
+
+  const columnDefs = useMemo<ColDef[]>(
+    () => [
+      {
+        field: "model_name",
+        headerName: "Device",
+        minWidth: 200,
+        flex: 1.6,
+        cellRenderer: (p: any) =>
+          p.data.product_url ? (
+            <a
+              href={p.data.product_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+            >
+              {p.value}
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </a>
+          ) : (
+            <span className="font-medium">{p.value}</span>
+          ),
+      },
+      {
+        field: "manufacturer",
+        headerName: "Manufacturer",
+        minWidth: 150,
+        cellRenderer: (p: any) =>
+          p.data.manufacturer_url ? (
+            <a href={p.data.manufacturer_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+              <Factory className="h-3 w-3" /> {p.value}
+            </a>
+          ) : (
+            <span className="text-muted-foreground">{p.value}</span>
+          ),
+      },
+      { field: "category", headerName: "Category", minWidth: 150 },
+      {
+        field: "output_signals",
+        headerName: "Output signals",
+        minWidth: 180,
+        valueFormatter: (p: any) => (p.value || []).join(", "),
+        cellRenderer: (p: any) =>
+          p.value?.length ? (
+            <div className="flex flex-wrap gap-1 py-1">
+              {p.value.map((s: string) => (
+                <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        field: "sampling_rate_hz",
+        headerName: "Rate (Hz)",
+        width: 110,
+        flex: 0,
+        valueFormatter: (p: any) => (p.value ? `${p.value}` : "—"),
+      },
+      {
+        field: "regulatory_class",
+        headerName: "Regulatory",
+        minWidth: 120,
+        valueFormatter: (p: any) => p.value || "—",
+      },
+      {
+        field: "manual_urls",
+        headerName: "Docs",
+        width: 100,
+        flex: 0,
+        filter: false,
+        sortable: false,
+        cellRenderer: (p: any) =>
+          p.value?.[0] ? (
+            <a href={p.value[0]} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+              <BookOpen className="h-3 w-3" /> Manual
+            </a>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+    ],
+    []
+  );
 
   return (
     <div>
@@ -147,58 +256,35 @@ export function DeviceCatalog() {
         <p className="text-sm text-muted-foreground">Loading catalog…</p>
       ) : visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">No devices match that filter yet.</p>
+      ) : isMobile ? (
+        <MobileCardList
+          items={rows.map((r) => ({
+            id: r.id,
+            title: r.model_name,
+            titleHref: r.product_url || undefined,
+            fields: [
+              { label: "Manufacturer", value: r.manufacturer },
+              { label: "Category", value: r.category },
+              { label: "Output signals", value: (r.output_signals || []).join(", ") || "—" },
+              { label: "Rate (Hz)", value: r.sampling_rate_hz ?? "—" },
+              { label: "Regulatory", value: r.regulatory_class || "—" },
+            ],
+          }))}
+          emptyMessage="No devices match that filter yet."
+        />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((m) => {
-            const maker = m.manufacturer_id ? makerById[m.manufacturer_id] : undefined;
-            return (
-              <div key={m.id} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground leading-snug">{m.model_name}</div>
-                    <div className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-0.5">
-                      <Factory className="h-3 w-3" />
-                      {maker?.name || "Manufacturer unknown"}
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary shrink-0">
-                    {labelFor(m.device_class)}
-                  </Badge>
-                </div>
-
-                {!!m.output_signals?.length && (
-                  <div className="flex flex-wrap gap-1">
-                    {m.output_signals.map((s) => (
-                      <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                  {m.sampling_rate_hz && <span>{m.sampling_rate_hz} Hz</span>}
-                  {m.regulatory_class && <span>Regulatory: {m.regulatory_class}</span>}
-                </div>
-
-                <div className="flex flex-wrap gap-3 mt-auto pt-1 text-xs">
-                  {m.product_url && (
-                    <a href={m.product_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> Product page
-                    </a>
-                  )}
-                  {m.manual_urls?.[0] && (
-                    <a href={m.manual_urls[0]} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" /> Manual
-                    </a>
-                  )}
-                  {maker?.homepage_url && !m.product_url && (
-                    <a href={maker.homepage_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> {maker.name}
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="ag-theme-alpine rounded-lg border border-border overflow-hidden">
+          <AgGridReact
+            rowData={rows}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            domLayout="autoHeight"
+            animateRows
+            suppressCellFocus
+            enableCellTextSelection
+            pagination={rows.length > 25}
+            paginationPageSize={25}
+          />
         </div>
       )}
     </div>
