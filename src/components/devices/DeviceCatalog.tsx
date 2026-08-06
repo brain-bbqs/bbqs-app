@@ -88,6 +88,107 @@ export function DeviceCatalog() {
 
   const labelFor = (key: string) => categories.find((c) => c.key === key)?.label || key.replace(/_/g, " ");
 
+  const rows = useMemo(
+    () =>
+      visible.map((m) => ({
+        ...m,
+        manufacturer: m.manufacturer_id ? makerById[m.manufacturer_id]?.name || "—" : "—",
+        manufacturer_url: m.manufacturer_id ? makerById[m.manufacturer_id]?.homepage_url : null,
+        category: labelFor(m.device_class),
+      })),
+    [visible, makerById, categories]
+  );
+
+  const defaultColDef = useMemo<ColDef>(
+    () => ({ sortable: true, filter: true, resizable: true, flex: 1, minWidth: 110, wrapText: true, autoHeight: true }),
+    []
+  );
+
+  const columnDefs = useMemo<ColDef[]>(
+    () => [
+      {
+        field: "model_name",
+        headerName: "Device",
+        minWidth: 200,
+        flex: 1.6,
+        cellRenderer: (p: any) =>
+          p.data.product_url ? (
+            <a
+              href={p.data.product_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+            >
+              {p.value}
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </a>
+          ) : (
+            <span className="font-medium">{p.value}</span>
+          ),
+      },
+      {
+        field: "manufacturer",
+        headerName: "Manufacturer",
+        minWidth: 150,
+        cellRenderer: (p: any) =>
+          p.data.manufacturer_url ? (
+            <a href={p.data.manufacturer_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+              <Factory className="h-3 w-3" /> {p.value}
+            </a>
+          ) : (
+            <span className="text-muted-foreground">{p.value}</span>
+          ),
+      },
+      { field: "category", headerName: "Category", minWidth: 150 },
+      {
+        field: "output_signals",
+        headerName: "Output signals",
+        minWidth: 180,
+        valueFormatter: (p: any) => (p.value || []).join(", "),
+        cellRenderer: (p: any) =>
+          p.value?.length ? (
+            <div className="flex flex-wrap gap-1 py-1">
+              {p.value.map((s: string) => (
+                <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        field: "sampling_rate_hz",
+        headerName: "Rate (Hz)",
+        width: 110,
+        flex: 0,
+        valueFormatter: (p: any) => (p.value ? `${p.value}` : "—"),
+      },
+      {
+        field: "regulatory_class",
+        headerName: "Regulatory",
+        minWidth: 120,
+        valueFormatter: (p: any) => p.value || "—",
+      },
+      {
+        field: "manual_urls",
+        headerName: "Docs",
+        width: 100,
+        flex: 0,
+        filter: false,
+        sortable: false,
+        cellRenderer: (p: any) =>
+          p.value?.[0] ? (
+            <a href={p.value[0]} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+              <BookOpen className="h-3 w-3" /> Manual
+            </a>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+    ],
+    []
+  );
+
   return (
     <div>
       <div className="grid gap-3 md:grid-cols-3 mb-5">
