@@ -78,7 +78,10 @@ export function useDashboardConfig() {
     mutationFn: async (next: WidgetSetting[]) => {
       const { error } = await supabase
         .from("user_dashboard_layouts")
-        .upsert({ user_id: user!.id, widgets: next }, { onConflict: "user_id" });
+        .upsert(
+          [{ user_id: user!.id, widgets: next as unknown as Record<string, unknown>[] }],
+          { onConflict: "user_id" },
+        );
       if (error) throw error;
     },
     onSuccess: () => {
