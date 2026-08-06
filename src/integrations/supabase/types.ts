@@ -533,6 +533,7 @@ export type Database = {
           actor_id: string | null
           actor_role: string | null
           changed_fields: Json | null
+          client_source: string | null
           id: number
           new_data: Json | null
           occurred_at: string
@@ -545,6 +546,7 @@ export type Database = {
           actor_id?: string | null
           actor_role?: string | null
           changed_fields?: Json | null
+          client_source?: string | null
           id?: never
           new_data?: Json | null
           occurred_at?: string
@@ -557,6 +559,7 @@ export type Database = {
           actor_id?: string | null
           actor_role?: string | null
           changed_fields?: Json | null
+          client_source?: string | null
           id?: never
           new_data?: Json | null
           occurred_at?: string
@@ -1252,6 +1255,13 @@ export type Database = {
             referencedRelation: "investigators_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "grant_investigators_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_pipeline"
+            referencedColumns: ["id"]
+          },
         ]
       }
       grant_methods_evidence: {
@@ -1766,6 +1776,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "investigator_organizations_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_pipeline"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "investigator_organizations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -2229,6 +2246,13 @@ export type Database = {
             columns: ["investigator_id"]
             isOneToOne: true
             referencedRelation: "investigators_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personality_scores_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: true
+            referencedRelation: "onboarding_pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -2924,6 +2948,13 @@ export type Database = {
             referencedRelation: "investigators_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "grant_investigators_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_pipeline"
+            referencedColumns: ["id"]
+          },
         ]
       }
       investigator_directory: {
@@ -3053,6 +3084,23 @@ export type Database = {
           },
         ]
       }
+      onboarding_pipeline: {
+        Row: {
+          checklist: Json | null
+          created_at: string | null
+          days_since_created: number | null
+          email: string | null
+          id: string | null
+          is_stuck: boolean | null
+          live_grant_count: number | null
+          name: string | null
+          role: string | null
+          steps_done: number | null
+          steps_total: number | null
+          working_groups: string[] | null
+        }
+        Relationships: []
+      }
       project_devices_v: {
         Row: {
           confidence_max: number | null
@@ -3155,6 +3203,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      canonical_working_group: { Args: { _wg: string }; Returns: string }
       decrement_vote_count: {
         Args: { _suggestion_id: string }
         Returns: undefined
@@ -3189,6 +3238,19 @@ export type Database = {
       ir_upsert_profiles: { Args: { _rows: Json }; Returns: number }
       is_curator_or_admin: { Args: { _user_id: string }; Returns: boolean }
       kg_read_sql: { Args: { max_rows?: number; query: string }; Returns: Json }
+      onboard_member: {
+        Args: {
+          _email: string
+          _grant_id?: string
+          _institution?: string
+          _name: string
+          _pending_role?: string
+          _role?: string
+          _working_groups?: string[]
+        }
+        Returns: Json
+      }
+      onboarding_status_rank: { Args: { _s: string }; Returns: number }
       revert_curation_change: { Args: { _audit_id: string }; Returns: Json }
       search_knowledge_embeddings: {
         Args: {
@@ -3205,6 +3267,10 @@ export type Database = {
           source_type: string
           title: string
         }[]
+      }
+      set_onboarding_step: {
+        Args: { _investigator_id: string; _status: string; _step: string }
+        Returns: Json
       }
       upsert_access_request: {
         Args: {
