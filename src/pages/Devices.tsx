@@ -13,6 +13,8 @@ import "ag-grid-community/styles/ag-theme-alpine.css";
 import "@/styles/ag-grid-theme.css";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList } from "@/components/MobileCardList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DeviceCatalog } from "@/components/devices/DeviceCatalog";
 
 // Canonical BBQS device taxonomy — the 32 categories used across the program.
 // The DB `device_class` values (video_tracking, ephys_headstage, …) are folded
@@ -559,9 +561,10 @@ export default function Devices() {
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-1">Devices</h1>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              Every piece of instrumentation identified across BBQS projects — probes, miniscopes, headstages,
-              DBS leads, iEEG grids, behavior rigs — with the species, environment, and use context it was
-              deployed in.
+              Two views of the same instrumentation. <strong className="text-foreground">Catalog</strong> is the
+              curated registry: real products, their makers, what they output, and where the manuals live.
+              <strong className="text-foreground"> In projects</strong> is what we extracted from BBQS grants and
+              papers — species, environment, and how each device was actually used.
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
@@ -573,6 +576,17 @@ export default function Devices() {
         </div>
       </div>
 
+      <Tabs defaultValue="catalog" className="w-full">
+        <TabsList className="mb-5">
+          <TabsTrigger value="catalog">Catalog</TabsTrigger>
+          <TabsTrigger value="projects">In BBQS projects</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="catalog">
+          <DeviceCatalog />
+        </TabsContent>
+
+        <TabsContent value="projects">
       <div className="mb-4 flex gap-2 items-center">
         <input
           type="text"
@@ -678,6 +692,8 @@ export default function Devices() {
           />
         </div>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
