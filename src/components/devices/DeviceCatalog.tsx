@@ -256,58 +256,35 @@ export function DeviceCatalog() {
         <p className="text-sm text-muted-foreground">Loading catalog…</p>
       ) : visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">No devices match that filter yet.</p>
+      ) : isMobile ? (
+        <MobileCardList
+          items={rows.map((r) => ({
+            id: r.id,
+            title: r.model_name,
+            titleHref: r.product_url || undefined,
+            fields: [
+              { label: "Manufacturer", value: r.manufacturer },
+              { label: "Category", value: r.category },
+              { label: "Output signals", value: (r.output_signals || []).join(", ") || "—" },
+              { label: "Rate (Hz)", value: r.sampling_rate_hz ?? "—" },
+              { label: "Regulatory", value: r.regulatory_class || "—" },
+            ],
+          }))}
+          emptyMessage="No devices match that filter yet."
+        />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((m) => {
-            const maker = m.manufacturer_id ? makerById[m.manufacturer_id] : undefined;
-            return (
-              <div key={m.id} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground leading-snug">{m.model_name}</div>
-                    <div className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-0.5">
-                      <Factory className="h-3 w-3" />
-                      {maker?.name || "Manufacturer unknown"}
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary shrink-0">
-                    {labelFor(m.device_class)}
-                  </Badge>
-                </div>
-
-                {!!m.output_signals?.length && (
-                  <div className="flex flex-wrap gap-1">
-                    {m.output_signals.map((s) => (
-                      <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                  {m.sampling_rate_hz && <span>{m.sampling_rate_hz} Hz</span>}
-                  {m.regulatory_class && <span>Regulatory: {m.regulatory_class}</span>}
-                </div>
-
-                <div className="flex flex-wrap gap-3 mt-auto pt-1 text-xs">
-                  {m.product_url && (
-                    <a href={m.product_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> Product page
-                    </a>
-                  )}
-                  {m.manual_urls?.[0] && (
-                    <a href={m.manual_urls[0]} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" /> Manual
-                    </a>
-                  )}
-                  {maker?.homepage_url && !m.product_url && (
-                    <a href={maker.homepage_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> {maker.name}
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="ag-theme-alpine rounded-lg border border-border overflow-hidden">
+          <AgGridReact
+            rowData={rows}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            domLayout="autoHeight"
+            animateRows
+            suppressCellFocus
+            enableCellTextSelection
+            pagination={rows.length > 25}
+            paginationPageSize={25}
+          />
         </div>
       )}
     </div>
