@@ -2790,6 +2790,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_layouts: {
+        Row: {
+          created_at: string
+          updated_at: string
+          user_id: string
+          widgets: Json
+        }
+        Insert: {
+          created_at?: string
+          updated_at?: string
+          user_id: string
+          widgets?: Json
+        }
+        Update: {
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          widgets?: Json
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2811,6 +2832,30 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      working_group_dashboard_defaults: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          widgets: Json
+          working_group: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          widgets?: Json
+          working_group: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          widgets?: Json
+          working_group?: string
         }
         Relationships: []
       }
@@ -3163,6 +3208,7 @@ export type Database = {
       }
       upsert_access_request: {
         Args: {
+          _association?: string
           _email: string
           _full_name?: string
           _globus_name?: string
