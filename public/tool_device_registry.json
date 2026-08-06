@@ -1,0 +1,4764 @@
+{
+ "schema_version": "1.0",
+ "generated": "2026-07-30",
+ "description": "Registry of tools and devices referenced by the BBQS grant records. Join to grant_project_info_enriched.csv via tool_device_refs_json[].tool_id. Read verification.status and verification.fields_verified before trusting any field: only fields listed in fields_verified were confirmed against a fetched source. Fields that are null are unresearched, NOT known-empty.",
+ "status_legend": {
+  "documented": "Official docs fetched. prerequisites/installation/troubleshooting populated, every troubleshooting item carries a source_url.",
+  "identified": "Entity identified, maintainer and doc URL recorded. Enrichment fields null pending research.",
+  "no_public_docs": "Bespoke project code or hardware. No public documentation exists to ingest.",
+  "not_a_product": "Generic category label from the source table. Nothing to enrich."
+ },
+ "counts": {
+  "documented": 5,
+  "identified": 66,
+  "no_public_docs": 11,
+  "not_a_product": 92
+ },
+ "alias_index": {
+  "dlc": "deeplabcut",
+  "deeplabcut": "deeplabcut",
+  "sleap": "sleap",
+  "sleap beta": "sleap",
+  "mne": "mne-python",
+  "mne python": "mne-python",
+  "boris": "boris",
+  "neurodata without borders nwb toolchain": "nwb",
+  "pynwb": "nwb",
+  "neuroconv nwb": "nwb",
+  "nwb": "nwb",
+  "nwb guide": "nwb",
+  "neuroconv": "nwb",
+  "matnwb": "nwb",
+  "eeglab": "eeglab",
+  "openface": "openface",
+  "openface 2 0": "openface",
+  "openpose": "openpose",
+  "mmpose": "mmpose",
+  "mmove": "mmpose",
+  "mediapipe": "mediapipe",
+  "social dannce": "dannce",
+  "dannce": "dannce",
+  "social dannce segment length constraints": "dannce",
+  "s dannce": "dannce",
+  "anipose": "anipose",
+  "deeplabcut anipose": "anipose",
+  "keypoint moseq": "moseq",
+  "key point music": "moseq",
+  "moseq keypoint moseq": "moseq",
+  "moseq": "moseq",
+  "b soid": "bsoid",
+  "kilosort4": "kilosort",
+  "kilosort": "kilosort",
+  "cellpose": "cellpose",
+  "infrared cameras bonsai": "bonsai",
+  "bonsai": "bonsai",
+  "psychopy": "psychopy",
+  "structured tasks psychopy natural learning activities": "psychopy",
+  "opencv": "opencv",
+  "pyannote": "pyannote",
+  "pyannote audio": "pyannote",
+  "neurokit 2": "neurokit",
+  "neurokit2": "neurokit",
+  "neurokit": "neurokit",
+  "opensim": "opensim",
+  "opensim custom": "opensim",
+  "open ephys": "openephys",
+  "praat": "praat",
+  "opensmile": "opensmile",
+  "bci2000": "bci2000",
+  "datavyu": "datavyu",
+  "unity": "unity",
+  "matlab": "matlab",
+  "temporal mapper": "temporal-mapper",
+  "neuro pose live": "neuroposelib",
+  "neuroposelib": "neuroposelib",
+  "motive": "motive",
+  "neon player": "neon-player",
+  "d flow": "dflow",
+  "d flow custom": "dflow",
+  "motek d flow": "dflow",
+  "hume ai": "hume",
+  "ksana": "ksana",
+  "sra genomic": "sra",
+  "sra": "sra",
+  "ncbi sra": "sra",
+  "neuropixels": "neuropixels",
+  "emotibit": "emotibit",
+  "neuropace rns intracranial": "neuropace-rns",
+  "neuropace rns system": "neuropace-rns",
+  "neuropace rns": "neuropace-rns",
+  "pupillabs": "pupil-labs",
+  "pupil core": "pupil-labs",
+  "pupil labs eye trackers": "pupil-labs",
+  "pupil core invisible": "pupil-labs",
+  "pupil labs": "pupil-labs",
+  "neon": "pupil-labs",
+  "tobii pro": "tobii",
+  "eye tracking tobii pupil": "tobii",
+  "wearable sensor embraceplus": "embraceplus",
+  "embraceplus": "embraceplus",
+  "empatica": "embraceplus",
+  "empatica embraceplus": "embraceplus",
+  "delsys trigno": "delsys-trigno",
+  "ant neuro": "ant-neuro",
+  "eego": "ant-neuro",
+  "ant neuro eego": "ant-neuro",
+  "64 channel mobile eeg ant neuro": "ant-neuro",
+  "eeg mbraintrain": "mbraintrain",
+  "mbraintrain": "mbraintrain",
+  "mbraintrain smarting": "mbraintrain",
+  "gsr shimmer3 imotions": "shimmer",
+  "shimmer3 gsr": "shimmer",
+  "shimmer3": "shimmer",
+  "optitrack": "optitrack",
+  "xsens": "xsens",
+  "biopac": "biopac",
+  "ultrasonic microphones avisoft": "avisoft",
+  "avisoft ultrasonic microphones": "avisoft",
+  "avisoft": "avisoft",
+  "ecube": "whitematter",
+  "whitematter": "whitematter",
+  "white matter": "whitematter",
+  "white matter e3 ecube": "whitematter",
+  "white matter e3": "whitematter",
+  "basler cameras": "basler",
+  "basler": "basler",
+  "flir": "flir",
+  "flir teledyne cameras": "flir",
+  "gopro hero10": "gopro",
+  "gopro": "gopro",
+  "obsbot cameras": "obsbot",
+  "obsbot": "obsbot",
+  "garmin gps": "garmin",
+  "garmin": "garmin",
+  "gps garmin": "garmin",
+  "wildlife acoustics": "wildlife-acoustics",
+  "wildlife acoustics recorders": "wildlife-acoustics",
+  "microphone array uma 16": "uma16",
+  "uma 16": "uma16",
+  "minidsp uma 16": "uma16",
+  "med associates touchscreens": "med-associates",
+  "medassociates": "med-associates",
+  "med associates": "med-associates",
+  "scalp eeg natus": "natus",
+  "natus": "natus",
+  "natus xltek": "natus",
+  "seeg intracranial natus": "natus",
+  "natus xltek eeg monitoring": "natus",
+  "metronic person device": "medtronic-percept",
+  "medtronic percept": "medtronic-percept",
+  "medtronic": "medtronic-percept",
+  "cosmed k5": "cosmed-k5",
+  "cosmed calorimetry": "cosmed-k5",
+  "biomark pit tags": "biomark",
+  "karen": "caren",
+  "caren": "caren",
+  "motek caren": "caren",
+  "stewart platform": "caren",
+  "behavioral quantification": "custom",
+  "custom python scripts": "custom",
+  "custom cv ai": "custom",
+  "web application": "custom",
+  "cv methods": "custom",
+  "built in lab algorithms": "custom",
+  "python scripts": "custom",
+  "custom scripts": "custom",
+  "real time tracking": "custom",
+  "custom": "custom",
+  "custom wearable": "custom",
+  "custom cv": "custom",
+  "custom firmware capture app": "custom",
+  "ai agent to deliver tasks": "custom",
+  "custom ml": "custom",
+  "custom eeglab mne": "custom",
+  "t sne cluster": "custom",
+  "custom in house code": "custom",
+  "physical modeling": "custom",
+  "manual ai": "custom",
+  "capture app": "capture-app",
+  "capture app inman lab": "capture-app",
+  "arc": "arc-platform",
+  "arc platform wilbrecht lab": "arc-platform",
+  "st3dio": "st3dio",
+  "sc vae": "sc-vae",
+  "behavioral annotation annopose": "annopose",
+  "annopose": "annopose",
+  "so mo": "so-mo",
+  "dart": "dart",
+  "first person view cameras ewego": "ewego",
+  "ewego": "ewego",
+  "caracal": "caracal",
+  "oxford caracal": "caracal",
+  "oxford s caracal": "caracal",
+  "joint multi species deep embeddings for acoustic individual identification python": "joint-embeddings",
+  "joint multi species deep embeddings": "joint-embeddings",
+  "bot 3": "bot-3",
+  "ados": "ados",
+  "scq": "scq",
+  "srs": "srs",
+  "leiter": "leiter",
+  "leiter 3": "leiter",
+  "ppvt": "ppvt",
+  "behavioral coding": "generic:behavioral-coding",
+  "behavioral annotation": "generic:behavioral-annotation",
+  "video": "generic:video",
+  "video cameras": "generic:video-cameras",
+  "motion capture": "generic:motion-capture",
+  "motion capture gait": "generic:motion-capture-gait",
+  "acoustic recording": "generic:acoustic-recording",
+  "acoustic": "generic:acoustic",
+  "microphones": "generic:microphones",
+  "eye tracking": "generic:eye-tracking",
+  "scalp eeg": "generic:scalp-eeg",
+  "emg": "generic:emg",
+  "accelerometers": "generic:accelerometers",
+  "head mounted accelerometers": "generic:head-mounted-accelerometers",
+  "respiration sensor": "generic:respiration-sensor",
+  "physiological sensors": "generic:physiological-sensors",
+  "physiological monitor social interaction suite": "generic:physiological-monitor-social-interaction-suite",
+  "surveys diaries": "generic:surveys-diaries",
+  "surveys android": "generic:surveys-android",
+  "cognitive testing": "generic:cognitive-testing",
+  "structured tasks": "generic:structured-tasks",
+  "clinical evaluations": "generic:clinical-evaluations",
+  "clinical affective measures": "generic:clinical-affective-measures",
+  "interviews": "generic:interviews",
+  "depth sensing": "generic:depth-sensing",
+  "rfid tags": "generic:rfid-tags",
+  "thermocam": "generic:thermocam",
+  "heart rate sensor": "generic:heart-rate-sensor",
+  "core body temp sensor": "generic:core-body-temp-sensor",
+  "selfie camera": "generic:selfie-camera",
+  "ir camera": "generic:ir-camera",
+  "intranasal thermistor": "generic:intranasal-thermistor",
+  "biofluid sensing": "generic:biofluid-sensing",
+  "biochemical assay": "generic:biochemical-assay",
+  "bioluminescent indicators imaging": "generic:bioluminescent-indicators-imaging",
+  "neural imaging": "generic:neural-imaging",
+  "prey tracking system": "generic:prey-tracking-system",
+  "water flow apparatus": "generic:water-flow-apparatus",
+  "rodent testing arenas": "generic:rodent-testing-arenas",
+  "rodent assays outside home cage": "generic:rodent-assays-outside-home-cage",
+  "tissue immediate early genes": "generic:tissue-immediate-early-genes",
+  "rna sequencing": "generic:rna-sequencing",
+  "genetic knockout wild type": "generic:genetic-knockout-wild-type",
+  "wild type genetic knockouts drugs treatments": "generic:wild-type-genetic-knockouts-drugs-treatments",
+  "transition networks": "generic:transition-networks",
+  "immersive vr environment": "generic:immersive-vr-environment",
+  "vr ar headsets": "generic:vr-ar-headsets",
+  "motion capture markers": "generic:motion-capture-markers",
+  "smartphone": "generic:smartphone",
+  "ipad tablet": "generic:ipad-tablet",
+  "iphone android smartphones": "generic:iphone-android-smartphones",
+  "plethysmograph": "generic:plethysmograph",
+  "eda sensor": "generic:eda-sensor",
+  "wearable biosensor": "generic:wearable-biosensor",
+  "chest mounted video": "generic:chest-mounted-video",
+  "high resolution cameras": "generic:high-resolution-cameras",
+  "audio microphones": "generic:audio-microphones",
+  "audio recording": "generic:audio-recording",
+  "ultrasonic microphones": "generic:ultrasonic-microphones",
+  "microphone arrays": "generic:microphone-arrays",
+  "cameras smart aviary": "generic:cameras-smart-aviary",
+  "field scale cameras gps": "generic:field-scale-cameras-gps",
+  "wireless implant eeg single unit": "generic:wireless-implant-eeg-single-unit",
+  "wireless ephys multiunit": "generic:wireless-ephys-multiunit",
+  "ieeg intracranial": "generic:ieeg-intracranial",
+  "intracranial single unit": "generic:intracranial-single-unit",
+  "ecog intracranial": "generic:ecog-intracranial",
+  "ecog scalp eeg": "generic:ecog-scalp-eeg",
+  "ieeg single neuron": "generic:ieeg-single-neuron",
+  "intracranial ephys lfp single unit": "generic:intracranial-ephys-lfp-single-unit",
+  "deep brain stimulation scc": "generic:deep-brain-stimulation-scc",
+  "on scalp opm meg": "generic:on-scalp-opm-meg",
+  "lidar mmwave radar imu": "generic:lidar-mmwave-radar-imu",
+  "3d pose estimation cameras open field arenas": "generic:3d-pose-estimation-cameras-open-field-arenas",
+  "high speed video robotic positioning": "generic:high-speed-video-robotic-positioning",
+  "video multi camera 2d 3d": "generic:video-multi-camera-2d-3d",
+  "video blurred motion capture": "generic:video-blurred-motion-capture",
+  "video cameras behavioral apparatus": "generic:video-cameras-behavioral-apparatus",
+  "video cameras up to 1000 fps movement tracking": "generic:video-cameras-up-to-1000-fps-movement-tracking",
+  "video facial tracking social interaction suite": "generic:video-facial-tracking-social-interaction-suite",
+  "eye tracker social interaction suite": "generic:eye-tracker-social-interaction-suite",
+  "dial ratings social interaction suite": "generic:dial-ratings-social-interaction-suite",
+  "eeg social interaction suite": "generic:eeg-social-interaction-suite",
+  "eeg hyperscanning": "generic:eeg-hyperscanning",
+  "accelerometer gyroscope": "generic:accelerometer-gyroscope",
+  "custom skin like wearable": "generic:custom-skin-like-wearable",
+  "ppg motionsense ecg ecgsense": "generic:ppg-motionsense-ecg-ecgsense",
+  "self reported anxiety tablet": "generic:self-reported-anxiety-tablet",
+  "visual spatial memory task treasure hunt": "generic:visual-spatial-memory-task-treasure-hunt",
+  "emg jaw forelimb": "generic:emg-jaw-forelimb",
+  "seeg intracranial": "generic:seeg-intracranial"
+ },
+ "entries": {
+  "deeplabcut": {
+   "tool_id": "deeplabcut",
+   "display_name": "DeepLabCut",
+   "aliases": [
+    "DeepLabCut",
+    "DLC",
+    "deeplabcut"
+   ],
+   "kind": "software",
+   "function": "Markerless pose estimation from video",
+   "maintainer": {
+    "name": "The DeepLabCut Team",
+    "type": "open-source project",
+    "url": "https://github.com/DeepLabCut/DeepLabCut"
+   },
+   "docs": {
+    "primary": "https://deeplabcut.github.io/DeepLabCut/",
+    "install": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html",
+    "issues": "https://github.com/DeepLabCut/DeepLabCut/issues"
+   },
+   "prerequisites": {
+    "os": [
+     "Windows",
+     "Linux (Ubuntu recommended by maintainers)",
+     "macOS"
+    ],
+    "python": "3.10 - 3.12",
+    "gpu": "NVIDIA GPU with at least 8GB VRAM is ideal. A GPU is not strictly required, but on CPU training and evaluation are roughly 10x slower for ResNets. NVIDIA driver must be installed first; CUDA is usually obtained via the PyTorch install. Apple M-chip GPUs are used automatically by PyTorch via Metal.",
+    "notes": [
+     "As of v3.0+ the default engine is PyTorch. TensorFlow is opt-in via the deeplabcut[tf] extra and will be deprecated by v3.2 at the latest.",
+     "Native Windows GPU support for TensorFlow ended after TF 2.10; maintainers recommend WSL for Windows users who need TF GPU support.",
+     "Not compatible with Python 2."
+    ]
+   },
+   "installation": {
+    "recommended": "conda environment built from the supplied DEEPLABCUT.yaml",
+    "methods": [
+     {
+      "name": "conda (recommended for most users)",
+      "steps": [
+       "Install miniconda",
+       "Download conda-environments/DEEPLABCUT.yaml from the repo",
+       "conda env create -f DEEPLABCUT.yaml",
+       "conda activate DEEPLABCUT",
+       "python -m deeplabcut  # launches the GUI"
+      ]
+     },
+     {
+      "name": "pip",
+      "steps": [
+       "pip install 'deeplabcut[gui]'  # or 'deeplabcut' without GUI",
+       "pip install 'deeplabcut[gui,modelzoo]' for SuperAnimal models"
+      ]
+     },
+     {
+      "name": "uv (recommended for developers)",
+      "steps": [
+       "uv venv -p 3.12",
+       "uv pip install -e '.[gui]'"
+      ]
+     },
+     {
+      "name": "Docker",
+      "steps": [
+       "Images at docker.io/deeplabcut/deeplabcut. Linux hosts only."
+      ]
+     }
+    ],
+    "upgrade": "pip install --upgrade deeplabcut",
+    "verify": "python -c \"import torch; print(torch.cuda.is_available())\"  # expect True on CUDA GPU",
+    "version_check": "import deeplabcut; deeplabcut.__version__"
+   },
+   "troubleshooting": [
+    {
+     "question": "Windows: model downloads fail or symlink errors when videos are not copied into the project folder.",
+     "answer": "Open the terminal / cmd / Anaconda prompt as Administrator (right click, 'Run as administrator').",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    },
+    {
+     "question": "Errors when creating new videos, particularly after a Windows update.",
+     "answer": "Re-install ffmpeg. On Ubuntu: sudo apt install ffmpeg.",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    },
+    {
+     "question": "'import deeplabcut' picks up the wrong version.",
+     "answer": "If you git-cloned the repo and are working inside that folder, the import resolves to the local folder rather than the installed PyPI package.",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    },
+    {
+     "question": "TensorFlow and PyTorch fight over competing CUDA-toolkit dependencies.",
+     "answer": "Use the pinned extras (tf-cu11 / tf-cu12), which cap the PyTorch version to match the CUDA requirement. As a fallback on Linux, let TF install its own CUDA libraries with pip install 'tensorflow[and-cuda]==<version>' — note this may break PyTorch functionality.",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    },
+    {
+     "question": "Installing into the base environment causes package conflicts.",
+     "answer": "Maintainers explicitly warn against system-wide / base-environment installs; a system-wide install overwrites conflicting packages and degrades over time. Use a conda or uv managed environment.",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    },
+    {
+     "question": "Fresh Ubuntu install fails to build dependencies.",
+     "answer": "Run: sudo apt-get install gcc python3-dev",
+     "source_url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html"
+    }
+   ],
+   "compatibility_notes": [
+    "Data labelled in v2.x is compatible with v3+ and the PyTorch engine; no workflow change required.",
+    "A model trained on one camera may not generalise to another; maintainers recommend the same camera for training and inference."
+   ],
+   "verification": {
+    "status": "documented",
+    "fields_verified": [
+     "prerequisites",
+     "installation",
+     "troubleshooting",
+     "maintainer",
+     "docs",
+     "compatibility_notes"
+    ],
+    "sources": [
+     {
+      "url": "https://deeplabcut.github.io/DeepLabCut/docs/installation.html",
+      "retrieved": "2026-07-30",
+      "method": "web_fetch"
+     }
+    ],
+    "notes": "License not stated on the installation page; left unset rather than guessed."
+   }
+  },
+  "sleap": {
+   "tool_id": "sleap",
+   "display_name": "SLEAP",
+   "aliases": [
+    "SLEAP",
+    "SLEAP (beta)",
+    "sleap"
+   ],
+   "kind": "software",
+   "function": "Multi-animal pose tracking",
+   "maintainer": {
+    "name": "Talmo Lab",
+    "type": "academic lab / open-source project",
+    "url": "https://github.com/talmolab/sleap"
+   },
+   "docs": {
+    "primary": "https://docs.sleap.ai/",
+    "install": "https://docs.sleap.ai/dev/installation/",
+    "legacy": "https://legacy.sleap.ai/  (SLEAP <= 1.4.1)",
+    "help": "https://docs.sleap.ai/v1.5.1/help/"
+   },
+   "prerequisites": {
+    "os": [
+     "Windows",
+     "Linux",
+     "macOS (incl. Apple Silicon)"
+    ],
+    "python": "3.11, 3.12, 3.13. Python 3.14 is not yet tested or supported.",
+    "gpu": "GPU-accelerated training on NVIDIA GPUs and Apple Silicon. Other architectures (e.g. AMD GPUs, older Macs) are NOT supported and may fail or behave unexpectedly. CPU mode works but training is slower.",
+    "notes": [
+     "SLEAP 1.5+ uses uv; older versions used conda (see legacy docs).",
+     "The GUI can be installed alone for labeling; sleap-nn is the training/inference backend and needs matching PyTorch/CUDA versions.",
+     "Maintainers strongly recommend installing into a fresh environment when updating, since dependency versions change."
+    ]
+   },
+   "installation": {
+    "recommended": "uv (SLEAP 1.5+); conda/miniforge also supported",
+    "methods": [
+     {
+      "name": "uv",
+      "steps": [
+       "Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh (macOS/Linux) or powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\" (Windows)",
+       "uv tool install --python 3.13 sleap-nn --torch-backend auto"
+      ]
+     },
+     {
+      "name": "conda / miniforge",
+      "steps": [
+       "Create and activate a dedicated environment, then use the pip install commands inside it"
+      ]
+     }
+    ],
+    "verify": "python -c \"import sleap; sleap.versions()\"",
+    "gpu_check": "python -c \"import torch; print(torch.cuda.is_available())\""
+   },
+   "troubleshooting": [
+    {
+     "question": "Something is wrong and I don't know where to start.",
+     "answer": "Run `sleap doctor` and check the output for errors. This is the documented first step.",
+     "source_url": "https://docs.sleap.ai/dev/installation.md"
+    },
+    {
+     "question": "`--torch-backend` is not recognized.",
+     "answer": "Update uv to the latest version: uv self update. The flag requires uv 0.9.20+.",
+     "source_url": "https://nn.sleap.ai/dev/installation/"
+    },
+    {
+     "question": "uv installs Python 3.14, which SLEAP does not support.",
+     "answer": "Pin a supported version: add --python 3.13 to the install command.",
+     "source_url": "https://nn.sleap.ai/dev/installation/"
+    },
+    {
+     "question": "Commands fail after a uv-based install.",
+     "answer": "Prefix commands with `uv run` so they execute inside the correct virtual environment.",
+     "source_url": "https://docs.sleap.ai/v1.5.1/installation/"
+    },
+    {
+     "question": "Old Anaconda install resolves dependencies very slowly or fails.",
+     "answer": "Set the libmamba solver in the base environment: conda update -n base conda; conda install -n base conda-libmamba-solver; conda config --set solver libmamba.",
+     "source_url": "https://talmolab.github.io/sleap-core-docs/dev/installation/"
+    },
+    {
+     "question": "Import errors after changing GPUs or updating CUDA drivers.",
+     "answer": "Force a clean reinstall — the docs call this out specifically for the case of updated CUDA drivers or changed GPUs.",
+     "source_url": "https://nn.sleap.ai/dev/installation/"
+    }
+   ],
+   "verification": {
+    "status": "documented",
+    "fields_verified": [
+     "prerequisites",
+     "installation",
+     "troubleshooting",
+     "maintainer",
+     "docs"
+    ],
+    "sources": [
+     {
+      "url": "https://docs.sleap.ai/dev/installation.md",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://nn.sleap.ai/dev/installation/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://talmolab.github.io/sleap-core-docs/dev/installation/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://docs.sleap.ai/v1.5.1/installation/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     }
+    ],
+    "notes": "Confirmed from official docs snippets rather than a full page fetch. Talmo Lab is also named as a collaborator on R34DA059513 in the blitz transcript."
+   }
+  },
+  "mne-python": {
+   "tool_id": "mne-python",
+   "display_name": "MNE-Python",
+   "aliases": [
+    "MNE-Python",
+    "MNE",
+    "mne"
+   ],
+   "kind": "software",
+   "function": "MEG / EEG / sEEG / ECoG analysis",
+   "maintainer": {
+    "name": "MNE-Tools",
+    "type": "open-source project",
+    "url": "https://github.com/mne-tools/mne-python"
+   },
+   "docs": {
+    "primary": "https://mne.tools/stable/",
+    "install": "https://mne.tools/stable/install/index.html",
+    "manual_install": "https://mne.tools/stable/install/manual_install.html",
+    "forum": "https://mne.discourse.group/"
+   },
+   "license": "BSD-3-Clause",
+   "prerequisites": {
+    "os": [
+     "Windows",
+     "Linux",
+     "macOS"
+    ],
+    "python": ">= 3.10 (MNE 1.11+ / 1.12+). MNE 0.17 was the last release supporting Python 2.7.",
+    "core_dependencies": [
+     "NumPy >= 1.26",
+     "SciPy >= 1.13",
+     "Matplotlib >= 3.8",
+     "Pooch >= 1.5",
+     "tqdm >= 4.66",
+     "Jinja2 >= 3.1",
+     "decorator >= 5.1",
+     "lazy-loader >= 0.3",
+     "packaging"
+    ],
+    "optional": [
+     "scikit-learn (machine learning)",
+     "Joblib (parallelization)",
+     "mne-qt-browser >= 0.5 (fast raw data visualization)",
+     "FreeSurfer (converting structural MRI to scalp/skull/cortical surface models)"
+    ],
+    "notes": [
+     "conda must be 23.10.0 or newer.",
+     "Anaconda Inc. changed their terms of service in March 2024; the MNE docs recommend Miniforge or the pre-built MNE installer if you are unsure whether your usage requires a paid license.",
+     "The pip-installed core supports 2D plotting but NOT 3D visualization."
+    ]
+   },
+   "installation": {
+    "recommended": "pre-built MNE-Python standalone installer for users new to Python",
+    "methods": [
+     {
+      "name": "standalone installer",
+      "steps": [
+       "Download from https://mne.tools/stable/install/installers.html"
+      ]
+     },
+     {
+      "name": "pip",
+      "steps": [
+       "pip install --upgrade mne"
+      ]
+     },
+     {
+      "name": "conda",
+      "steps": [
+       "conda update --name=base conda",
+       "conda --version  # must be >= 23.10.0",
+       "Create a dedicated env; installing into its own env keeps 3D plotting dependencies in sync"
+      ]
+     },
+     {
+      "name": "development version",
+      "steps": [
+       "pip install --upgrade https://github.com/mne-tools/mne-python/archive/refs/heads/main.zip"
+      ]
+     }
+    ]
+   },
+   "troubleshooting": [
+    {
+     "question": "`mne` command not found / import fails after install.",
+     "answer": "The environment containing MNE-Python is probably not active. Run `conda activate mne` and retry. To activate automatically: echo conda activate mne >> ~/.bashrc (bash) or >> ~/.zprofile (zsh).",
+     "source_url": "https://mne.tools/0.23/install/mne_python.html"
+    },
+    {
+     "question": "HDF5 I/O functions fail (read_raw_eeglab, SourceMorph.save, etc.).",
+     "answer": "These require extra packages beyond the core pip install; install them into the same environment to unlock HDF5 support.",
+     "source_url": "https://mne.tools/1.8/install/manual_install.html"
+    },
+    {
+     "question": "Spyder console will not start against an MNE environment.",
+     "answer": "spyder-kernels is missing — install the required version into the conda environment.",
+     "source_url": "https://mne.tools/1.8/install/manual_install.html"
+    },
+    {
+     "question": "Where do I get help for an install problem not covered here?",
+     "answer": "The docs point to the Advanced Setup page first, then the MNE Forum (https://mne.discourse.group/) as the recommended venue for install troubleshooting.",
+     "source_url": "https://mne.tools/0.23/install/mne_python.html"
+    }
+   ],
+   "verification": {
+    "status": "documented",
+    "fields_verified": [
+     "prerequisites",
+     "installation",
+     "troubleshooting",
+     "maintainer",
+     "docs",
+     "license"
+    ],
+    "sources": [
+     {
+      "url": "https://mne.tools/stable/install/manual_install.html",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://mne.tools/stable/install/manual_install_python.html",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://pypi.org/project/mne/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://mne.tools/0.23/install/mne_python.html",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     }
+    ],
+    "notes": "Some troubleshooting items are sourced from an older docs version (0.23) where the current page no longer restates them; version noted in each source_url."
+   }
+  },
+  "boris": {
+   "tool_id": "boris",
+   "display_name": "BORIS",
+   "aliases": [
+    "BORIS",
+    "Boris"
+   ],
+   "kind": "software",
+   "function": "Event logging for video/audio behavioural coding and live observation",
+   "maintainer": {
+    "name": "Olivier Friard and Marco Gamba, University of Torino",
+    "type": "academic / open-source project",
+    "url": "https://www.boris.unito.it/"
+   },
+   "docs": {
+    "primary": "https://www.boris.unito.it/",
+    "user_guide": "https://www.boris.unito.it/user_guide/",
+    "download": "https://www.boris.unito.it/download/",
+    "issues": "https://github.com/olivierfriard/BORIS/issues"
+   },
+   "license": "GPL-3.0-or-later",
+   "prerequisites": {
+    "os": [
+     "Windows",
+     "GNU/Linux (Ubuntu, Debian, Raspberry Pi OS, ChromeOS)"
+    ],
+    "linux_system_packages": [
+     "libmpv2",
+     "ffmpeg",
+     "graphviz",
+     "libxcb-cursor0",
+     "libopenblas-dev"
+    ],
+    "notes": [
+     "Since v8, BORIS is built on the MPV media player (https://mpv.io), which allows more precise event recording than earlier versions.",
+     "Older documentation lists macOS support; current download pages list Linux and Windows only — confirm macOS status before assuming it.",
+     "An AppImage is provided that should run on recent Linux versions."
+    ]
+   },
+   "installation": {
+    "recommended": "platform installer from the official download page",
+    "methods": [
+     {
+      "name": "Linux",
+      "steps": [
+       "sudo apt install libmpv2 ffmpeg graphviz libxcb-cursor0 libopenblas-dev",
+       "Install the DEB package or AppImage from the download page"
+      ]
+     },
+     {
+      "name": "Windows",
+      "steps": [
+       "Installer from https://www.boris.unito.it/download/"
+      ]
+     },
+     {
+      "name": "from source",
+      "steps": [
+       "See the download page for dependency details"
+      ]
+     }
+    ],
+    "archives": "Previous versions: BORIS releases archive on GitHub; versions prior to 2.99 in a separate archive.",
+    "integrity": "Release files are GPG-signed; verify with the maintainer's PGP public key."
+   },
+   "troubleshooting": [
+    {
+     "question": "Behaviour keys from an old project no longer match.",
+     "answer": "Keys are case-sensitive. For projects created with BORIS < v7, use the 'Convert keys to lower case' tool.",
+     "source_url": "https://www.boris.unito.it/user_guide/pdf/boris_user_guide.pdf"
+    },
+    {
+     "question": "BORIS pauses and asks which behaviour to record.",
+     "answer": "This is expected behaviour when a keypress is ambiguous across the ethogram; select the intended behaviour to continue coding.",
+     "source_url": "https://www.boris.unito.it/user_guide/pdf/boris_user_guide.pdf"
+    },
+    {
+     "question": "How do I report a bug or request a feature?",
+     "answer": "Use the GitHub issues tracker at https://github.com/olivierfriard/BORIS/issues; the project also documents a 'how to report a bug' page.",
+     "source_url": "https://github.com/olivierfriard/BORIS"
+    }
+   ],
+   "verification": {
+    "status": "documented",
+    "fields_verified": [
+     "prerequisites",
+     "installation",
+     "troubleshooting",
+     "maintainer",
+     "docs",
+     "license"
+    ],
+    "sources": [
+     {
+      "url": "https://www.boris.unito.it/download_linux/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://www.boris.unito.it/download/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://github.com/olivierfriard/BORIS",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://www.boris.unito.it/user_guide/pdf/boris_user_guide.pdf",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     }
+    ],
+    "notes": "Sourced from user guide v9.12.1 and current download pages. macOS support is ambiguous between old and current docs — flagged in prerequisites.notes."
+   }
+  },
+  "nwb": {
+   "tool_id": "nwb",
+   "display_name": "Neurodata Without Borders (NWB) toolchain",
+   "aliases": [
+    "NWB GUIDE",
+    "PyNWB",
+    "NeuroConv",
+    "NeuroConv → NWB",
+    "NWB",
+    "pynwb",
+    "MatNWB"
+   ],
+   "kind": "software",
+   "function": "Standard data format plus conversion/read-write APIs for neurophysiology",
+   "maintainer": {
+    "name": "Neurodata Without Borders project",
+    "type": "open-source consortium",
+    "url": "https://nwb.org/"
+   },
+   "docs": {
+    "primary": "https://nwb.org/",
+    "faq": "https://nwb.org/faq/",
+    "pynwb": "https://pynwb.readthedocs.io/",
+    "pynwb_install": "https://pynwb.readthedocs.io/en/stable/install_users.html",
+    "neuroconv": "https://neuroconv.readthedocs.io/en/main/",
+    "nwb_guide": "https://nwb.org/tools/core/nwb-guide/",
+    "issues": "https://github.com/NeurodataWithoutBorders/pynwb/issues"
+   },
+   "components": [
+    {
+     "name": "PyNWB",
+     "role": "Python reference read/write API for the NWB 2.x format",
+     "install": "pip install pynwb  (also on conda-forge)"
+    },
+    {
+     "name": "NeuroConv",
+     "role": "Converts ~50 proprietary neurophysiology formats to NWB; handles piecewise reading of large data, chunking and lossless compression, and temporal alignment of multiple streams",
+     "install": "pip install neuroconv"
+    },
+    {
+     "name": "NWB GUIDE",
+     "role": "Desktop app giving a no-code interface to NeuroConv",
+     "install": "Pre-release; clone https://github.com/NeurodataWithoutBorders/nwb-guide"
+    },
+    {
+     "name": "MatNWB",
+     "role": "MATLAB reference API"
+    },
+    {
+     "name": "AqNWB",
+     "role": "C++ API"
+    }
+   ],
+   "troubleshooting": [
+    {
+     "question": "Which API should I use for my language?",
+     "answer": "PyNWB for Python, MatNWB for MATLAB, AqNWB for C++. For R, Julia, Java or JavaScript, use a standard HDF5 reader — but note those readers are not aware of NWB schema details.",
+     "source_url": "https://nwb.org/faq/"
+    },
+    {
+     "question": "Do I need to install nwb-schema separately?",
+     "answer": "No. The current schema always ships with the corresponding API, so end users do not need to interact with the nwb-schema repo.",
+     "source_url": "https://nwb.org/faq/"
+    },
+    {
+     "question": "Can I read older NWB 1.x files?",
+     "answer": "PyNWB includes a pynwb/legacy module supporting NWB:N 1.0.x files from popular repositories such as the Allen Cell Types Atlas. For 1.0.x files from other sources results vary, particularly where files include custom data or are missing required fields. api-python is deprecated.",
+     "source_url": "https://nwb.org/faq/"
+    },
+    {
+     "question": "NWB GUIDE install instructions are missing.",
+     "answer": "NWB GUIDE is in pre-release and under active development; the documented route is to clone the repository rather than install a release.",
+     "source_url": "https://nwb.org/tools/core/nwb-guide/"
+    },
+    {
+     "question": "Format-specific conversion dependencies fail in NeuroConv.",
+     "answer": "Per-format dependency install instructions live in the Conversion Examples Gallery, not the main install page.",
+     "source_url": "https://neuroconv.readthedocs.io/en/main/"
+    }
+   ],
+   "verification": {
+    "status": "documented",
+    "fields_verified": [
+     "components",
+     "troubleshooting",
+     "maintainer",
+     "docs"
+    ],
+    "sources": [
+     {
+      "url": "https://nwb.org/faq/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://neuroconv.readthedocs.io/en/main/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://nwb.org/tools/core/nwb-guide/",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://pynwb.readthedocs.io/en/stable/index.html",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     },
+     {
+      "url": "https://github.com/NeurodataWithoutBorders/pynwb",
+      "retrieved": "2026-07-30",
+      "method": "web_search"
+     }
+    ],
+    "notes": "Modelled as one entry with components because the source CSV uses NWB GUIDE, PyNWB and NeuroConv interchangeably across rows. Python/OS prerequisites not captured this pass — left null rather than guessed."
+   },
+   "prerequisites": null,
+   "installation": null
+  },
+  "eeglab": {
+   "tool_id": "eeglab",
+   "display_name": "EEGLAB",
+   "aliases": [
+    "EEGLAB",
+    "EEGLab"
+   ],
+   "kind": "software",
+   "function": "EEG signal processing (MATLAB)",
+   "maintainer": {
+    "name": "Swartz Center for Computational Neuroscience, UCSD",
+    "type": null,
+    "url": "https://sccn.ucsd.edu/eeglab/"
+   },
+   "docs": {
+    "primary": "https://sccn.ucsd.edu/eeglab/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "openface": {
+   "tool_id": "openface",
+   "display_name": "OpenFace",
+   "aliases": [
+    "OpenFace",
+    "OpenFace 2.0"
+   ],
+   "kind": "software",
+   "function": "Facial behaviour / action unit analysis",
+   "maintainer": {
+    "name": "Multicomp Lab, Carnegie Mellon University",
+    "type": null,
+    "url": "https://github.com/TadasBaltrusaitis/OpenFace"
+   },
+   "docs": {
+    "primary": "https://github.com/TadasBaltrusaitis/OpenFace"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "openpose": {
+   "tool_id": "openpose",
+   "display_name": "OpenPose",
+   "aliases": [
+    "OpenPose"
+   ],
+   "kind": "software",
+   "function": "Realtime multi-person 2D pose estimation",
+   "maintainer": {
+    "name": "CMU Perceptual Computing Lab",
+    "type": null,
+    "url": "https://github.com/CMU-Perceptual-Computing-Lab/openpose"
+   },
+   "docs": {
+    "primary": "https://github.com/CMU-Perceptual-Computing-Lab/openpose"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "mmpose": {
+   "tool_id": "mmpose",
+   "display_name": "MMPose",
+   "aliases": [
+    "MMPose",
+    "MMOVE"
+   ],
+   "kind": "software",
+   "function": "Pose estimation toolbox",
+   "maintainer": {
+    "name": "OpenMMLab",
+    "type": null,
+    "url": "https://github.com/open-mmlab/mmpose"
+   },
+   "docs": {
+    "primary": "https://github.com/open-mmlab/mmpose"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "mediapipe": {
+   "tool_id": "mediapipe",
+   "display_name": "MediaPipe",
+   "aliases": [
+    "Mediapipe",
+    "MediaPipe"
+   ],
+   "kind": "software",
+   "function": "Perception pipeline framework",
+   "maintainer": {
+    "name": "Google",
+    "type": null,
+    "url": "https://github.com/google-ai-edge/mediapipe"
+   },
+   "docs": {
+    "primary": "https://github.com/google-ai-edge/mediapipe"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "dannce": {
+   "tool_id": "dannce",
+   "display_name": "DANNCE",
+   "aliases": [
+    "DANNCE",
+    "social-dannce",
+    "s-DANNCE",
+    "social-dannce (segment length constraints)"
+   ],
+   "kind": "software",
+   "function": "3D kinematic pose estimation across species",
+   "maintainer": {
+    "name": "Dunn / Olveczky labs",
+    "type": null,
+    "url": "https://github.com/spoonsso/dannce"
+   },
+   "docs": {
+    "primary": "https://github.com/spoonsso/dannce"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "anipose": {
+   "tool_id": "anipose",
+   "display_name": "Anipose",
+   "aliases": [
+    "Anipose",
+    "DeepLabCut & Anipose"
+   ],
+   "kind": "software",
+   "function": "Robust markerless 3D pose estimation",
+   "maintainer": {
+    "name": "Tuthill Lab, University of Washington",
+    "type": null,
+    "url": "https://github.com/lambdaloop/anipose"
+   },
+   "docs": {
+    "primary": "https://github.com/lambdaloop/anipose"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "moseq": {
+   "tool_id": "moseq",
+   "display_name": "MoSeq / keypoint-MoSeq",
+   "aliases": [
+    "MoSeq",
+    "keypoint-MoSeq",
+    "key point music"
+   ],
+   "kind": "software",
+   "function": "Unsupervised behavioural syllable segmentation",
+   "maintainer": {
+    "name": "Datta Lab, Harvard Medical School",
+    "type": null,
+    "url": "https://dattalab.github.io/moseq2-website/"
+   },
+   "docs": {
+    "primary": "https://dattalab.github.io/moseq2-website/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "bsoid": {
+   "tool_id": "bsoid",
+   "display_name": "B-SOiD",
+   "aliases": [
+    "B-SOiD"
+   ],
+   "kind": "software",
+   "function": "Unsupervised behaviour identification",
+   "maintainer": {
+    "name": "Yttri Lab, Carnegie Mellon University",
+    "type": null,
+    "url": "https://github.com/YttriLab/B-SOID"
+   },
+   "docs": {
+    "primary": "https://github.com/YttriLab/B-SOID"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "kilosort": {
+   "tool_id": "kilosort",
+   "display_name": "Kilosort4",
+   "aliases": [
+    "KiloSort4",
+    "Kilosort4",
+    "Kilosort"
+   ],
+   "kind": "software",
+   "function": "Spike sorting",
+   "maintainer": {
+    "name": "Marius Pachitariu / Cortexlab",
+    "type": null,
+    "url": "https://github.com/MouseLand/Kilosort"
+   },
+   "docs": {
+    "primary": "https://github.com/MouseLand/Kilosort"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "cellpose": {
+   "tool_id": "cellpose",
+   "display_name": "Cellpose",
+   "aliases": [
+    "cellpose",
+    "Cellpose"
+   ],
+   "kind": "software",
+   "function": "Generalist cellular segmentation",
+   "maintainer": {
+    "name": "Stringer & Pachitariu, HHMI Janelia",
+    "type": null,
+    "url": "https://github.com/MouseLand/cellpose"
+   },
+   "docs": {
+    "primary": "https://github.com/MouseLand/cellpose"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "bonsai": {
+   "tool_id": "bonsai",
+   "display_name": "Bonsai",
+   "aliases": [
+    "Bonsai",
+    "Infrared cameras (Bonsai)"
+   ],
+   "kind": "software",
+   "function": "Event-based framework for processing and controlling data streams",
+   "maintainer": {
+    "name": "Bonsai Foundation",
+    "type": null,
+    "url": "https://bonsai-rx.org/"
+   },
+   "docs": {
+    "primary": "https://bonsai-rx.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "psychopy": {
+   "tool_id": "psychopy",
+   "display_name": "PsychoPy",
+   "aliases": [
+    "PsychoPy",
+    "Structured tasks (PsychoPy) & natural learning activities"
+   ],
+   "kind": "software",
+   "function": "Behavioural experiment presentation",
+   "maintainer": {
+    "name": "Open Science Tools Ltd / Jonathan Peirce",
+    "type": null,
+    "url": "https://www.psychopy.org/"
+   },
+   "docs": {
+    "primary": "https://www.psychopy.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "opencv": {
+   "tool_id": "opencv",
+   "display_name": "OpenCV",
+   "aliases": [
+    "OpenCV"
+   ],
+   "kind": "software",
+   "function": "Computer vision library",
+   "maintainer": {
+    "name": "OpenCV.org",
+    "type": null,
+    "url": "https://opencv.org/"
+   },
+   "docs": {
+    "primary": "https://opencv.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "pyannote": {
+   "tool_id": "pyannote",
+   "display_name": "pyannote.audio",
+   "aliases": [
+    "Pyannote",
+    "pyannote.audio"
+   ],
+   "kind": "software",
+   "function": "Speaker diarization toolkit",
+   "maintainer": {
+    "name": "pyannote",
+    "type": null,
+    "url": "https://github.com/pyannote/pyannote-audio"
+   },
+   "docs": {
+    "primary": "https://github.com/pyannote/pyannote-audio"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "neurokit": {
+   "tool_id": "neurokit",
+   "display_name": "NeuroKit2",
+   "aliases": [
+    "Neurokit",
+    "NeuroKit 2",
+    "NeuroKit2"
+   ],
+   "kind": "software",
+   "function": "Neurophysiological signal processing",
+   "maintainer": {
+    "name": "NeuroKit contributors",
+    "type": null,
+    "url": "https://neuropsychology.github.io/NeuroKit/"
+   },
+   "docs": {
+    "primary": "https://neuropsychology.github.io/NeuroKit/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "opensim": {
+   "tool_id": "opensim",
+   "display_name": "OpenSim",
+   "aliases": [
+    "OpenSim",
+    "OpenSim / custom"
+   ],
+   "kind": "software",
+   "function": "Musculoskeletal dynamics and neuromuscular control simulation",
+   "maintainer": {
+    "name": "Stanford NMBL / SimTK",
+    "type": null,
+    "url": "https://simtk.org/projects/opensim"
+   },
+   "docs": {
+    "primary": "https://simtk.org/projects/opensim"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "openephys": {
+   "tool_id": "openephys",
+   "display_name": "Open Ephys",
+   "aliases": [
+    "Open Ephys"
+   ],
+   "kind": "hybrid",
+   "function": "Open-source electrophysiology acquisition software and hardware",
+   "maintainer": {
+    "name": "Open Ephys",
+    "type": null,
+    "url": "https://open-ephys.org/"
+   },
+   "docs": {
+    "primary": "https://open-ephys.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "praat": {
+   "tool_id": "praat",
+   "display_name": "Praat",
+   "aliases": [
+    "PRAAT",
+    "Praat"
+   ],
+   "kind": "software",
+   "function": "Phonetic / acoustic analysis",
+   "maintainer": {
+    "name": "Paul Boersma and David Weenink, University of Amsterdam",
+    "type": null,
+    "url": "https://www.fon.hum.uva.nl/praat/"
+   },
+   "docs": {
+    "primary": "https://www.fon.hum.uva.nl/praat/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "opensmile": {
+   "tool_id": "opensmile",
+   "display_name": "openSMILE",
+   "aliases": [
+    "OpenSMILE",
+    "openSMILE"
+   ],
+   "kind": "software",
+   "function": "Audio feature extraction",
+   "maintainer": {
+    "name": "audEERING",
+    "type": null,
+    "url": "https://github.com/audeering/opensmile"
+   },
+   "docs": {
+    "primary": "https://github.com/audeering/opensmile"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "bci2000": {
+   "tool_id": "bci2000",
+   "display_name": "BCI2000",
+   "aliases": [
+    "BCI2000"
+   ],
+   "kind": "software",
+   "function": "General-purpose brain-computer interface system",
+   "maintainer": {
+    "name": "BCI2000 project",
+    "type": null,
+    "url": "https://www.bci2000.org/"
+   },
+   "docs": {
+    "primary": "https://www.bci2000.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "datavyu": {
+   "tool_id": "datavyu",
+   "display_name": "Datavyu",
+   "aliases": [
+    "Datavyu"
+   ],
+   "kind": "software",
+   "function": "Video annotation / behavioural coding",
+   "maintainer": {
+    "name": "Datavyu Foundation",
+    "type": null,
+    "url": "https://www.datavyu.org/"
+   },
+   "docs": {
+    "primary": "https://www.datavyu.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "unity": {
+   "tool_id": "unity",
+   "display_name": "Unity",
+   "aliases": [
+    "Unity"
+   ],
+   "kind": "software",
+   "function": "Real-time 3D / VR task engine",
+   "maintainer": {
+    "name": "Unity Technologies",
+    "type": null,
+    "url": "https://unity.com/"
+   },
+   "docs": {
+    "primary": "https://unity.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "matlab": {
+   "tool_id": "matlab",
+   "display_name": "MATLAB",
+   "aliases": [
+    "MATLAB"
+   ],
+   "kind": "software",
+   "function": "Numerical computing environment",
+   "maintainer": {
+    "name": "MathWorks",
+    "type": null,
+    "url": "https://www.mathworks.com/products/matlab.html"
+   },
+   "docs": {
+    "primary": "https://www.mathworks.com/products/matlab.html"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "temporal-mapper": {
+   "tool_id": "temporal-mapper",
+   "display_name": "Temporal Mapper",
+   "aliases": [
+    "Temporal Mapper"
+   ],
+   "kind": "software",
+   "function": "Topological data analysis producing transition networks from time series",
+   "maintainer": {
+    "name": "Mengsen Zhang, Michigan State University",
+    "type": null,
+    "url": "https://github.com/braindynamicslab/temporal-mapper"
+   },
+   "docs": {
+    "primary": "https://github.com/braindynamicslab/temporal-mapper"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "neuroposelib": {
+   "tool_id": "neuroposelib",
+   "display_name": "neuroposelib",
+   "aliases": [
+    "neuroposelib",
+    "neuro pose live"
+   ],
+   "kind": "software",
+   "function": "Python package consolidating pose processing and downstream analysis",
+   "maintainer": {
+    "name": "Dunn Lab, Duke University",
+    "type": null,
+    "url": "https://github.com/JoshuaWu/neuroposelib"
+   },
+   "docs": {
+    "primary": "https://github.com/JoshuaWu/neuroposelib"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "motive": {
+   "tool_id": "motive",
+   "display_name": "Motive",
+   "aliases": [
+    "Motive"
+   ],
+   "kind": "software",
+   "function": "OptiTrack motion capture software",
+   "maintainer": {
+    "name": "NaturalPoint / OptiTrack",
+    "type": null,
+    "url": "https://optitrack.com/software/motive/"
+   },
+   "docs": {
+    "primary": "https://optitrack.com/software/motive/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "neon-player": {
+   "tool_id": "neon-player",
+   "display_name": "Neon Player",
+   "aliases": [
+    "Neon Player"
+   ],
+   "kind": "software",
+   "function": "Pupil Labs Neon eye-tracking playback",
+   "maintainer": {
+    "name": "Pupil Labs",
+    "type": null,
+    "url": "https://docs.pupil-labs.com/neon/"
+   },
+   "docs": {
+    "primary": "https://docs.pupil-labs.com/neon/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "dflow": {
+   "tool_id": "dflow",
+   "display_name": "D-Flow",
+   "aliases": [
+    "D-Flow",
+    "D-Flow / custom",
+    "Motek D-FLOW"
+   ],
+   "kind": "software",
+   "function": "Real-time VR / gait task authoring for Motek platforms",
+   "maintainer": {
+    "name": "Motek Medical",
+    "type": null,
+    "url": "https://www.motekmedical.com/"
+   },
+   "docs": {
+    "primary": "https://www.motekmedical.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "hume": {
+   "tool_id": "hume",
+   "display_name": "Hume AI",
+   "aliases": [
+    "HUME AI",
+    "Hume AI"
+   ],
+   "kind": "software",
+   "function": "Emotion / expression measurement API",
+   "maintainer": {
+    "name": "Hume AI",
+    "type": null,
+    "url": "https://www.hume.ai/"
+   },
+   "docs": {
+    "primary": "https://www.hume.ai/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "ksana": {
+   "tool_id": "ksana",
+   "display_name": "Ksana",
+   "aliases": [
+    "Ksana"
+   ],
+   "kind": "software",
+   "function": "Smartphone digital phenotyping platform",
+   "maintainer": {
+    "name": "Ksana Health",
+    "type": null,
+    "url": "https://www.ksanahealth.com/"
+   },
+   "docs": {
+    "primary": "https://www.ksanahealth.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "sra": {
+   "tool_id": "sra",
+   "display_name": "NCBI SRA",
+   "aliases": [
+    "SRA",
+    "SRA (genomic)"
+   ],
+   "kind": "repository",
+   "function": "Sequence Read Archive for genomic data",
+   "maintainer": {
+    "name": "NCBI",
+    "type": null,
+    "url": "https://www.ncbi.nlm.nih.gov/sra"
+   },
+   "docs": {
+    "primary": "https://www.ncbi.nlm.nih.gov/sra"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "neuropixels": {
+   "tool_id": "neuropixels",
+   "display_name": "Neuropixels",
+   "aliases": [
+    "Neuropixels"
+   ],
+   "kind": "device",
+   "function": "High-density silicon recording probe",
+   "maintainer": {
+    "name": "IMEC (distributed via Neuropixels consortium)",
+    "type": null,
+    "url": "https://www.neuropixels.org/"
+   },
+   "docs": {
+    "primary": "https://www.neuropixels.org/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "emotibit": {
+   "tool_id": "emotibit",
+   "display_name": "EmotiBit",
+   "aliases": [
+    "Emotibit",
+    "EmotiBit"
+   ],
+   "kind": "device",
+   "function": "Wearable multi-modal physiological sensor (EDA, PPG, temperature, 9-axis IMU)",
+   "maintainer": {
+    "name": "Connected Future Labs",
+    "type": null,
+    "url": "https://www.emotibit.com/"
+   },
+   "docs": {
+    "primary": "https://www.emotibit.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "neuropace-rns": {
+   "tool_id": "neuropace-rns",
+   "display_name": "NeuroPace RNS System",
+   "aliases": [
+    "NeuroPace RNS (intracranial)",
+    "NeuroPace RNS"
+   ],
+   "kind": "device",
+   "function": "Responsive neurostimulation system with chronic iEEG recording",
+   "maintainer": {
+    "name": "NeuroPace, Inc.",
+    "type": null,
+    "url": "https://www.neuropace.com/"
+   },
+   "docs": {
+    "primary": "https://www.neuropace.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "pupil-labs": {
+   "tool_id": "pupil-labs",
+   "display_name": "Pupil Labs eye trackers",
+   "aliases": [
+    "Pupil Labs",
+    "PupilLabs",
+    "Pupil Core / Invisible",
+    "Pupil Core",
+    "Neon"
+   ],
+   "kind": "device",
+   "function": "Wearable eye tracking (Core, Invisible, Neon)",
+   "maintainer": {
+    "name": "Pupil Labs GmbH",
+    "type": null,
+    "url": "https://pupil-labs.com/"
+   },
+   "docs": {
+    "primary": "https://pupil-labs.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "tobii": {
+   "tool_id": "tobii",
+   "display_name": "Tobii Pro",
+   "aliases": [
+    "Tobii Pro",
+    "Eye tracking (Tobii / Pupil)"
+   ],
+   "kind": "device",
+   "function": "Eye tracking hardware and software",
+   "maintainer": {
+    "name": "Tobii AB",
+    "type": null,
+    "url": "https://www.tobii.com/products/eye-trackers"
+   },
+   "docs": {
+    "primary": "https://www.tobii.com/products/eye-trackers"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "embraceplus": {
+   "tool_id": "embraceplus",
+   "display_name": "Empatica EmbracePlus",
+   "aliases": [
+    "Wearable sensor (EmbracePlus)",
+    "EmbracePlus",
+    "Empatica"
+   ],
+   "kind": "device",
+   "function": "Medical-grade wrist wearable (EDA, PPG, temperature, accelerometry)",
+   "maintainer": {
+    "name": "Empatica Inc.",
+    "type": null,
+    "url": "https://www.empatica.com/embraceplus/"
+   },
+   "docs": {
+    "primary": "https://www.empatica.com/embraceplus/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "delsys-trigno": {
+   "tool_id": "delsys-trigno",
+   "display_name": "Delsys Trigno",
+   "aliases": [
+    "Delsys Trigno"
+   ],
+   "kind": "device",
+   "function": "Wireless surface EMG system",
+   "maintainer": {
+    "name": "Delsys Inc.",
+    "type": null,
+    "url": "https://delsys.com/trigno/"
+   },
+   "docs": {
+    "primary": "https://delsys.com/trigno/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "ant-neuro": {
+   "tool_id": "ant-neuro",
+   "display_name": "ANT Neuro eego",
+   "aliases": [
+    "64-channel mobile EEG (ANT Neuro)",
+    "ANT Neuro",
+    "eego"
+   ],
+   "kind": "device",
+   "function": "Mobile 64-channel EEG amplifier",
+   "maintainer": {
+    "name": "ANT Neuro",
+    "type": null,
+    "url": "https://www.ant-neuro.com/"
+   },
+   "docs": {
+    "primary": "https://www.ant-neuro.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "mbraintrain": {
+   "tool_id": "mbraintrain",
+   "display_name": "mBrainTrain Smarting",
+   "aliases": [
+    "EEG (mBrainTrain)",
+    "mBrainTrain"
+   ],
+   "kind": "device",
+   "function": "Mobile wireless EEG",
+   "maintainer": {
+    "name": "mBrainTrain",
+    "type": null,
+    "url": "https://mbraintrain.com/"
+   },
+   "docs": {
+    "primary": "https://mbraintrain.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "shimmer": {
+   "tool_id": "shimmer",
+   "display_name": "Shimmer3 GSR+",
+   "aliases": [
+    "GSR (Shimmer3 / iMotions)",
+    "Shimmer3"
+   ],
+   "kind": "device",
+   "function": "Wearable galvanic skin response / physiological sensor",
+   "maintainer": {
+    "name": "Shimmer Research",
+    "type": null,
+    "url": "https://shimmersensing.com/"
+   },
+   "docs": {
+    "primary": "https://shimmersensing.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "optitrack": {
+   "tool_id": "optitrack",
+   "display_name": "OptiTrack",
+   "aliases": [
+    "OptiTrack"
+   ],
+   "kind": "device",
+   "function": "Marker-based motion capture",
+   "maintainer": {
+    "name": "NaturalPoint, Inc.",
+    "type": null,
+    "url": "https://optitrack.com/"
+   },
+   "docs": {
+    "primary": "https://optitrack.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "xsens": {
+   "tool_id": "xsens",
+   "display_name": "Xsens",
+   "aliases": [
+    "Xsens"
+   ],
+   "kind": "device",
+   "function": "Inertial motion capture",
+   "maintainer": {
+    "name": "Movella (formerly Xsens)",
+    "type": null,
+    "url": "https://www.movella.com/products/motion-capture"
+   },
+   "docs": {
+    "primary": "https://www.movella.com/products/motion-capture"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "biopac": {
+   "tool_id": "biopac",
+   "display_name": "BIOPAC",
+   "aliases": [
+    "Biopac",
+    "BIOPAC"
+   ],
+   "kind": "device",
+   "function": "Physiological data acquisition (EMG, ECG, EDA)",
+   "maintainer": {
+    "name": "BIOPAC Systems, Inc.",
+    "type": null,
+    "url": "https://www.biopac.com/"
+   },
+   "docs": {
+    "primary": "https://www.biopac.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "avisoft": {
+   "tool_id": "avisoft",
+   "display_name": "Avisoft ultrasonic microphones",
+   "aliases": [
+    "Ultrasonic microphones (Avisoft)",
+    "Avisoft"
+   ],
+   "kind": "device",
+   "function": "Ultrasonic recording hardware and software",
+   "maintainer": {
+    "name": "Avisoft Bioacoustics",
+    "type": null,
+    "url": "https://www.avisoft.com/"
+   },
+   "docs": {
+    "primary": "https://www.avisoft.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "whitematter": {
+   "tool_id": "whitematter",
+   "display_name": "White Matter e3 / eCube",
+   "aliases": [
+    "White Matter E3",
+    "WhiteMatter",
+    "White Matter",
+    "eCube"
+   ],
+   "kind": "device",
+   "function": "Wireless electrophysiology and synchronized camera systems",
+   "maintainer": {
+    "name": "White Matter LLC",
+    "type": null,
+    "url": "https://white-matter.com/"
+   },
+   "docs": {
+    "primary": "https://white-matter.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "basler": {
+   "tool_id": "basler",
+   "display_name": "Basler cameras",
+   "aliases": [
+    "Basler"
+   ],
+   "kind": "device",
+   "function": "Industrial machine-vision cameras",
+   "maintainer": {
+    "name": "Basler AG",
+    "type": null,
+    "url": "https://www.baslerweb.com/"
+   },
+   "docs": {
+    "primary": "https://www.baslerweb.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "flir": {
+   "tool_id": "flir",
+   "display_name": "FLIR / Teledyne cameras",
+   "aliases": [
+    "FLIR"
+   ],
+   "kind": "device",
+   "function": "Machine-vision and thermal cameras",
+   "maintainer": {
+    "name": "Teledyne FLIR",
+    "type": null,
+    "url": "https://www.flir.com/"
+   },
+   "docs": {
+    "primary": "https://www.flir.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "gopro": {
+   "tool_id": "gopro",
+   "display_name": "GoPro HERO10",
+   "aliases": [
+    "GoPro Hero10",
+    "GoPro"
+   ],
+   "kind": "device",
+   "function": "Action camera",
+   "maintainer": {
+    "name": "GoPro, Inc.",
+    "type": null,
+    "url": "https://gopro.com/"
+   },
+   "docs": {
+    "primary": "https://gopro.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "obsbot": {
+   "tool_id": "obsbot",
+   "display_name": "OBSBOT cameras",
+   "aliases": [
+    "OBSBOT"
+   ],
+   "kind": "device",
+   "function": "AI-tracking PTZ cameras",
+   "maintainer": {
+    "name": "OBSBOT (Remo Tech)",
+    "type": null,
+    "url": "https://www.obsbot.com/"
+   },
+   "docs": {
+    "primary": "https://www.obsbot.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "garmin": {
+   "tool_id": "garmin",
+   "display_name": "Garmin GPS",
+   "aliases": [
+    "GPS (Garmin)",
+    "Garmin"
+   ],
+   "kind": "device",
+   "function": "GPS receivers",
+   "maintainer": {
+    "name": "Garmin Ltd.",
+    "type": null,
+    "url": "https://www.garmin.com/"
+   },
+   "docs": {
+    "primary": "https://www.garmin.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "wildlife-acoustics": {
+   "tool_id": "wildlife-acoustics",
+   "display_name": "Wildlife Acoustics recorders",
+   "aliases": [
+    "Wildlife Acoustics"
+   ],
+   "kind": "device",
+   "function": "Passive acoustic monitoring recorders",
+   "maintainer": {
+    "name": "Wildlife Acoustics, Inc.",
+    "type": null,
+    "url": "https://www.wildlifeacoustics.com/"
+   },
+   "docs": {
+    "primary": "https://www.wildlifeacoustics.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "uma16": {
+   "tool_id": "uma16",
+   "display_name": "miniDSP UMA-16",
+   "aliases": [
+    "Microphone Array UMA-16",
+    "UMA-16"
+   ],
+   "kind": "device",
+   "function": "16-element USB microphone array",
+   "maintainer": {
+    "name": "miniDSP",
+    "type": null,
+    "url": "https://www.minidsp.com/products/usb-audio-interface/uma-16"
+   },
+   "docs": {
+    "primary": "https://www.minidsp.com/products/usb-audio-interface/uma-16"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "med-associates": {
+   "tool_id": "med-associates",
+   "display_name": "Med Associates touchscreens",
+   "aliases": [
+    "MedAssociates",
+    "Med Associates"
+   ],
+   "kind": "device",
+   "function": "Operant behavioural testing hardware",
+   "maintainer": {
+    "name": "Med Associates Inc.",
+    "type": null,
+    "url": "https://www.med-associates.com/"
+   },
+   "docs": {
+    "primary": "https://www.med-associates.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "natus": {
+   "tool_id": "natus",
+   "display_name": "Natus XLTek",
+   "aliases": [
+    "Natus",
+    "Natus XLTek EEG monitoring",
+    "sEEG (intracranial); Natus",
+    "Scalp EEG; Natus"
+   ],
+   "kind": "device",
+   "function": "Clinical EEG / epilepsy monitoring systems",
+   "maintainer": {
+    "name": "Natus Medical Incorporated",
+    "type": null,
+    "url": "https://natus.com/"
+   },
+   "docs": {
+    "primary": "https://natus.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "medtronic-percept": {
+   "tool_id": "medtronic-percept",
+   "display_name": "Medtronic Percept",
+   "aliases": [
+    "metronic person device",
+    "Medtronic"
+   ],
+   "kind": "device",
+   "function": "DBS system with chronic local field potential sensing",
+   "maintainer": {
+    "name": "Medtronic plc",
+    "type": null,
+    "url": "https://www.medtronic.com/"
+   },
+   "docs": {
+    "primary": "https://www.medtronic.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "cosmed-k5": {
+   "tool_id": "cosmed-k5",
+   "display_name": "COSMED K5",
+   "aliases": [
+    "COSMED K5",
+    "Cosmed Calorimetry"
+   ],
+   "kind": "device",
+   "function": "Wearable indirect calorimeter",
+   "maintainer": {
+    "name": "COSMED",
+    "type": null,
+    "url": "https://www.cosmed.com/"
+   },
+   "docs": {
+    "primary": "https://www.cosmed.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "biomark": {
+   "tool_id": "biomark",
+   "display_name": "Biomark PIT tags",
+   "aliases": [
+    "Biomark PIT tags"
+   ],
+   "kind": "device",
+   "function": "Passive integrated transponder tags for individual ID",
+   "maintainer": {
+    "name": "Biomark, Inc.",
+    "type": null,
+    "url": "https://www.biomark.com/"
+   },
+   "docs": {
+    "primary": "https://www.biomark.com/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "caren": {
+   "tool_id": "caren",
+   "display_name": "Motek CAREN",
+   "aliases": [
+    "CAREN",
+    "Karen",
+    "Stewart Platform"
+   ],
+   "kind": "device",
+   "function": "Computer Assisted Rehabilitation Environment: 6-DOF platform, instrumented treadmill, 180-degree screen",
+   "maintainer": {
+    "name": "Motek Medical",
+    "type": null,
+    "url": "https://www.motekmedical.com/solution/caren/"
+   },
+   "docs": {
+    "primary": "https://www.motekmedical.com/solution/caren/"
+   },
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Entity identified and maintainer/doc entry point recorded, but detail pages were not fetched. prerequisites, installation and troubleshooting are deliberately null — populate them by fetching docs.primary before relying on this entry."
+   }
+  },
+  "custom": {
+   "tool_id": "custom",
+   "display_name": "custom / in-house code",
+   "aliases": [
+    "custom",
+    "Custom",
+    "custom ML",
+    "custom CV",
+    "custom CV / AI",
+    "custom scripts",
+    "custom wearable",
+    "Custom Python scripts",
+    "Python scripts",
+    "custom / EEGLab / MNE",
+    "built-in lab algorithms",
+    "manual + AI",
+    "CV methods",
+    "Custom Firmware & Capture App",
+    "Web application",
+    "AI agent to deliver tasks",
+    "t-SNE cluster",
+    "real-time tracking",
+    "behavioral quantification",
+    "physical modeling"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Bespoke code written by the project team. No public documentation exists. To enrich these, ask each project for a repository URL."
+   }
+  },
+  "capture-app": {
+   "tool_id": "capture-app",
+   "display_name": "CAPTURE App (Inman lab)",
+   "aliases": [
+    "Capture App"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Project-specific mobile application built by R61MH135109. Not a public product."
+   }
+  },
+  "arc-platform": {
+   "tool_id": "arc-platform",
+   "display_name": "ARC platform (Wilbrecht lab)",
+   "aliases": [
+    "ARC"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Adversity and Resilience Consortium platform, built by R34DA062119 with Metacell on OSB. Not a public product; contact the project."
+   }
+  },
+  "st3dio": {
+   "tool_id": "st3dio",
+   "display_name": "St3DIO",
+   "aliases": [
+    "St3DIO"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Hardware developed by R34DA059512. No public documentation located."
+   }
+  },
+  "sc-vae": {
+   "tool_id": "sc-vae",
+   "display_name": "SC-VAE",
+   "aliases": [
+    "SC-VAE"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Algorithm developed by R34DA059512. No public documentation located."
+   }
+  },
+  "annopose": {
+   "tool_id": "annopose",
+   "display_name": "Annopose",
+   "aliases": [
+    "Annopose",
+    "Behavioral annotation (Annopose)"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Annotation tool referenced by R34DA059510. No public documentation located."
+   }
+  },
+  "so-mo": {
+   "tool_id": "so-mo",
+   "display_name": "So-Mo",
+   "aliases": [
+    "So-Mo"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Referenced by R34DA059718. No public documentation located."
+   }
+  },
+  "dart": {
+   "tool_id": "dart",
+   "display_name": "DART",
+   "aliases": [
+    "DART"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Drug Acutely Restricted by Tethering, from the Tadross lab. Method rather than a documented software package; no install documentation applies."
+   }
+  },
+  "ewego": {
+   "tool_id": "ewego",
+   "display_name": "EweGo",
+   "aliases": [
+    "First-person-view cameras (EweGo)",
+    "EweGo"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Custom sheep-borne sensor package built by R34DA059514 (stereo cameras, stereo microphones, GPS). Not a commercial product."
+   }
+  },
+  "caracal": {
+   "tool_id": "caracal",
+   "display_name": "Oxford Caracal",
+   "aliases": [
+    "Oxford's Caracal",
+    "Caracal"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Open acoustic monitoring hardware from Oxford. Documentation not located this pass; treat as research-needed rather than confirmed-absent."
+   }
+  },
+  "joint-embeddings": {
+   "tool_id": "joint-embeddings",
+   "display_name": "Joint multi-species deep embeddings",
+   "aliases": [
+    "Joint multi-species deep embeddings for acoustic individual identification (Python)"
+   ],
+   "kind": "custom",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "no_public_docs",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Research code accompanying Vega-Hidalgo et al. 2025. No packaged distribution located."
+   }
+  },
+  "bot-3": {
+   "tool_id": "bot-3",
+   "display_name": "BOT-3",
+   "aliases": [
+    "BOT-3"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Bruininks-Oseretsky Test of Motor Proficiency, 3rd ed.",
+   "maintainer": {
+    "name": "Pearson",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "ados": {
+   "tool_id": "ados",
+   "display_name": "ADOS",
+   "aliases": [
+    "ADOS"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Autism Diagnostic Observation Schedule",
+   "maintainer": {
+    "name": "Western Psychological Services",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "scq": {
+   "tool_id": "scq",
+   "display_name": "SCQ",
+   "aliases": [
+    "SCQ"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Social Communication Questionnaire",
+   "maintainer": {
+    "name": "Western Psychological Services",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "srs": {
+   "tool_id": "srs",
+   "display_name": "SRS",
+   "aliases": [
+    "SRS"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Social Responsiveness Scale",
+   "maintainer": {
+    "name": "Western Psychological Services",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "leiter": {
+   "tool_id": "leiter",
+   "display_name": "Leiter-3",
+   "aliases": [
+    "Leiter"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Leiter International Performance Scale",
+   "maintainer": {
+    "name": "Stoelting",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "ppvt": {
+   "tool_id": "ppvt",
+   "display_name": "PPVT",
+   "aliases": [
+    "PPVT"
+   ],
+   "kind": "clinical_instrument",
+   "function": "Peabody Picture Vocabulary Test",
+   "maintainer": {
+    "name": "Pearson",
+    "type": "publisher",
+    "url": null
+   },
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "identified",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Licensed clinical assessment instrument, not software. Installation and troubleshooting do not apply; publisher recorded but not verified against a source this pass."
+   }
+  },
+  "generic:behavioral-coding": {
+   "tool_id": "generic:behavioral-coding",
+   "display_name": "Behavioral coding",
+   "aliases": [
+    "Behavioral coding"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:behavioral-annotation": {
+   "tool_id": "generic:behavioral-annotation",
+   "display_name": "Behavioral annotation",
+   "aliases": [
+    "Behavioral annotation"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video": {
+   "tool_id": "generic:video",
+   "display_name": "Video",
+   "aliases": [
+    "Video"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-cameras": {
+   "tool_id": "generic:video-cameras",
+   "display_name": "Video cameras",
+   "aliases": [
+    "Video cameras"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:motion-capture": {
+   "tool_id": "generic:motion-capture",
+   "display_name": "Motion capture",
+   "aliases": [
+    "Motion capture"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:motion-capture-gait": {
+   "tool_id": "generic:motion-capture-gait",
+   "display_name": "Motion capture / gait",
+   "aliases": [
+    "Motion capture / gait"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:acoustic-recording": {
+   "tool_id": "generic:acoustic-recording",
+   "display_name": "Acoustic recording",
+   "aliases": [
+    "Acoustic recording"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:acoustic": {
+   "tool_id": "generic:acoustic",
+   "display_name": "Acoustic",
+   "aliases": [
+    "Acoustic"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:microphones": {
+   "tool_id": "generic:microphones",
+   "display_name": "Microphones",
+   "aliases": [
+    "Microphones"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:eye-tracking": {
+   "tool_id": "generic:eye-tracking",
+   "display_name": "Eye tracking",
+   "aliases": [
+    "Eye tracking"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:scalp-eeg": {
+   "tool_id": "generic:scalp-eeg",
+   "display_name": "Scalp EEG",
+   "aliases": [
+    "Scalp EEG"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:emg": {
+   "tool_id": "generic:emg",
+   "display_name": "EMG",
+   "aliases": [
+    "EMG"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:accelerometers": {
+   "tool_id": "generic:accelerometers",
+   "display_name": "Accelerometers",
+   "aliases": [
+    "Accelerometers"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:head-mounted-accelerometers": {
+   "tool_id": "generic:head-mounted-accelerometers",
+   "display_name": "Head-mounted accelerometers",
+   "aliases": [
+    "Head-mounted accelerometers"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:respiration-sensor": {
+   "tool_id": "generic:respiration-sensor",
+   "display_name": "Respiration sensor",
+   "aliases": [
+    "Respiration sensor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:physiological-sensors": {
+   "tool_id": "generic:physiological-sensors",
+   "display_name": "Physiological sensors",
+   "aliases": [
+    "Physiological sensors"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:physiological-monitor-social-interaction-suite": {
+   "tool_id": "generic:physiological-monitor-social-interaction-suite",
+   "display_name": "Physiological monitor (Social Interaction Suite)",
+   "aliases": [
+    "Physiological monitor (Social Interaction Suite)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:surveys-diaries": {
+   "tool_id": "generic:surveys-diaries",
+   "display_name": "Surveys / diaries",
+   "aliases": [
+    "Surveys / diaries"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:surveys-android": {
+   "tool_id": "generic:surveys-android",
+   "display_name": "Surveys (Android)",
+   "aliases": [
+    "Surveys (Android)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:cognitive-testing": {
+   "tool_id": "generic:cognitive-testing",
+   "display_name": "Cognitive testing",
+   "aliases": [
+    "Cognitive testing"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:structured-tasks": {
+   "tool_id": "generic:structured-tasks",
+   "display_name": "Structured tasks",
+   "aliases": [
+    "Structured tasks"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:clinical-evaluations": {
+   "tool_id": "generic:clinical-evaluations",
+   "display_name": "Clinical evaluations",
+   "aliases": [
+    "Clinical evaluations"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:clinical-affective-measures": {
+   "tool_id": "generic:clinical-affective-measures",
+   "display_name": "Clinical & affective measures",
+   "aliases": [
+    "Clinical & affective measures"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:interviews": {
+   "tool_id": "generic:interviews",
+   "display_name": "Interviews",
+   "aliases": [
+    "Interviews"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:depth-sensing": {
+   "tool_id": "generic:depth-sensing",
+   "display_name": "Depth sensing",
+   "aliases": [
+    "Depth sensing"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:rfid-tags": {
+   "tool_id": "generic:rfid-tags",
+   "display_name": "RFID tags",
+   "aliases": [
+    "RFID tags"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:thermocam": {
+   "tool_id": "generic:thermocam",
+   "display_name": "Thermocam",
+   "aliases": [
+    "Thermocam"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:heart-rate-sensor": {
+   "tool_id": "generic:heart-rate-sensor",
+   "display_name": "Heart-rate sensor",
+   "aliases": [
+    "Heart-rate sensor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:core-body-temp-sensor": {
+   "tool_id": "generic:core-body-temp-sensor",
+   "display_name": "Core-body temp sensor",
+   "aliases": [
+    "Core-body temp sensor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:selfie-camera": {
+   "tool_id": "generic:selfie-camera",
+   "display_name": "Selfie camera",
+   "aliases": [
+    "Selfie camera"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ir-camera": {
+   "tool_id": "generic:ir-camera",
+   "display_name": "IR camera",
+   "aliases": [
+    "IR camera"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:intranasal-thermistor": {
+   "tool_id": "generic:intranasal-thermistor",
+   "display_name": "Intranasal thermistor",
+   "aliases": [
+    "Intranasal thermistor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:biofluid-sensing": {
+   "tool_id": "generic:biofluid-sensing",
+   "display_name": "Biofluid sensing",
+   "aliases": [
+    "Biofluid sensing"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:biochemical-assay": {
+   "tool_id": "generic:biochemical-assay",
+   "display_name": "Biochemical assay",
+   "aliases": [
+    "Biochemical assay"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:bioluminescent-indicators-imaging": {
+   "tool_id": "generic:bioluminescent-indicators-imaging",
+   "display_name": "Bioluminescent indicators (imaging)",
+   "aliases": [
+    "Bioluminescent indicators (imaging)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:neural-imaging": {
+   "tool_id": "generic:neural-imaging",
+   "display_name": "Neural imaging",
+   "aliases": [
+    "Neural imaging"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:prey-tracking-system": {
+   "tool_id": "generic:prey-tracking-system",
+   "display_name": "Prey-tracking system",
+   "aliases": [
+    "Prey-tracking system"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:water-flow-apparatus": {
+   "tool_id": "generic:water-flow-apparatus",
+   "display_name": "Water-flow apparatus",
+   "aliases": [
+    "Water-flow apparatus"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:rodent-testing-arenas": {
+   "tool_id": "generic:rodent-testing-arenas",
+   "display_name": "Rodent testing arenas",
+   "aliases": [
+    "Rodent testing arenas"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:rodent-assays-outside-home-cage": {
+   "tool_id": "generic:rodent-assays-outside-home-cage",
+   "display_name": "Rodent assays outside home cage",
+   "aliases": [
+    "Rodent assays outside home cage"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:tissue-immediate-early-genes": {
+   "tool_id": "generic:tissue-immediate-early-genes",
+   "display_name": "Tissue (immediate-early genes)",
+   "aliases": [
+    "Tissue (immediate-early genes)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:rna-sequencing": {
+   "tool_id": "generic:rna-sequencing",
+   "display_name": "RNA sequencing",
+   "aliases": [
+    "RNA sequencing"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:genetic-knockout-wild-type": {
+   "tool_id": "generic:genetic-knockout-wild-type",
+   "display_name": "Genetic knockout / Wild type",
+   "aliases": [
+    "Genetic knockout / Wild type"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:wild-type-genetic-knockouts-drugs-treatments": {
+   "tool_id": "generic:wild-type-genetic-knockouts-drugs-treatments",
+   "display_name": "Wild-type, genetic knockouts, drugs/treatments",
+   "aliases": [
+    "Wild-type, genetic knockouts, drugs/treatments"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:transition-networks": {
+   "tool_id": "generic:transition-networks",
+   "display_name": "Transition networks",
+   "aliases": [
+    "Transition networks"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:immersive-vr-environment": {
+   "tool_id": "generic:immersive-vr-environment",
+   "display_name": "Immersive VR environment",
+   "aliases": [
+    "Immersive VR environment"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:vr-ar-headsets": {
+   "tool_id": "generic:vr-ar-headsets",
+   "display_name": "VR / AR headsets",
+   "aliases": [
+    "VR / AR headsets"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:motion-capture-markers": {
+   "tool_id": "generic:motion-capture-markers",
+   "display_name": "Motion Capture Markers",
+   "aliases": [
+    "Motion Capture Markers"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:smartphone": {
+   "tool_id": "generic:smartphone",
+   "display_name": "Smartphone",
+   "aliases": [
+    "Smartphone"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ipad-tablet": {
+   "tool_id": "generic:ipad-tablet",
+   "display_name": "iPad / tablet",
+   "aliases": [
+    "iPad / tablet"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:iphone-android-smartphones": {
+   "tool_id": "generic:iphone-android-smartphones",
+   "display_name": "iPhone / Android smartphones",
+   "aliases": [
+    "iPhone / Android smartphones"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:plethysmograph": {
+   "tool_id": "generic:plethysmograph",
+   "display_name": "Plethysmograph",
+   "aliases": [
+    "Plethysmograph"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:eda-sensor": {
+   "tool_id": "generic:eda-sensor",
+   "display_name": "EDA sensor",
+   "aliases": [
+    "EDA sensor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:wearable-biosensor": {
+   "tool_id": "generic:wearable-biosensor",
+   "display_name": "Wearable biosensor",
+   "aliases": [
+    "Wearable biosensor"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:chest-mounted-video": {
+   "tool_id": "generic:chest-mounted-video",
+   "display_name": "Chest-mounted video",
+   "aliases": [
+    "Chest-mounted video"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:high-resolution-cameras": {
+   "tool_id": "generic:high-resolution-cameras",
+   "display_name": "High-resolution cameras",
+   "aliases": [
+    "High-resolution cameras"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:audio-microphones": {
+   "tool_id": "generic:audio-microphones",
+   "display_name": "Audio (microphones)",
+   "aliases": [
+    "Audio (microphones)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:audio-recording": {
+   "tool_id": "generic:audio-recording",
+   "display_name": "Audio recording",
+   "aliases": [
+    "Audio recording"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ultrasonic-microphones": {
+   "tool_id": "generic:ultrasonic-microphones",
+   "display_name": "Ultrasonic microphones",
+   "aliases": [
+    "Ultrasonic microphones"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:microphone-arrays": {
+   "tool_id": "generic:microphone-arrays",
+   "display_name": "Microphone arrays",
+   "aliases": [
+    "Microphone arrays"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:cameras-smart-aviary": {
+   "tool_id": "generic:cameras-smart-aviary",
+   "display_name": "Cameras (smart aviary)",
+   "aliases": [
+    "Cameras (smart aviary)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:field-scale-cameras-gps": {
+   "tool_id": "generic:field-scale-cameras-gps",
+   "display_name": "Field-Scale Cameras, GPS",
+   "aliases": [
+    "Field-Scale Cameras, GPS"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:wireless-implant-eeg-single-unit": {
+   "tool_id": "generic:wireless-implant-eeg-single-unit",
+   "display_name": "Wireless implant (EEG, single-unit)",
+   "aliases": [
+    "Wireless implant (EEG, single-unit)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:wireless-ephys-multiunit": {
+   "tool_id": "generic:wireless-ephys-multiunit",
+   "display_name": "Wireless ephys (multiunit)",
+   "aliases": [
+    "Wireless ephys (multiunit)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ieeg-intracranial": {
+   "tool_id": "generic:ieeg-intracranial",
+   "display_name": "iEEG (intracranial)",
+   "aliases": [
+    "iEEG (intracranial)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:intracranial-single-unit": {
+   "tool_id": "generic:intracranial-single-unit",
+   "display_name": "Intracranial single-unit",
+   "aliases": [
+    "Intracranial single-unit"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ecog-intracranial": {
+   "tool_id": "generic:ecog-intracranial",
+   "display_name": "ECoG (intracranial)",
+   "aliases": [
+    "ECoG (intracranial)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ecog-scalp-eeg": {
+   "tool_id": "generic:ecog-scalp-eeg",
+   "display_name": "ECoG, scalp EEG",
+   "aliases": [
+    "ECoG, scalp EEG"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ieeg-single-neuron": {
+   "tool_id": "generic:ieeg-single-neuron",
+   "display_name": "iEEG / single-neuron",
+   "aliases": [
+    "iEEG / single-neuron"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:intracranial-ephys-lfp-single-unit": {
+   "tool_id": "generic:intracranial-ephys-lfp-single-unit",
+   "display_name": "Intracranial ephys (LFP, single-unit)",
+   "aliases": [
+    "Intracranial ephys (LFP, single-unit)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:deep-brain-stimulation-scc": {
+   "tool_id": "generic:deep-brain-stimulation-scc",
+   "display_name": "Deep brain stimulation (SCC)",
+   "aliases": [
+    "Deep brain stimulation (SCC)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:on-scalp-opm-meg": {
+   "tool_id": "generic:on-scalp-opm-meg",
+   "display_name": "On-scalp OPM-MEG",
+   "aliases": [
+    "On-scalp OPM-MEG"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:lidar-mmwave-radar-imu": {
+   "tool_id": "generic:lidar-mmwave-radar-imu",
+   "display_name": "LiDAR / mmWave radar / IMU",
+   "aliases": [
+    "LiDAR / mmWave radar / IMU"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:3d-pose-estimation-cameras-open-field-arenas": {
+   "tool_id": "generic:3d-pose-estimation-cameras-open-field-arenas",
+   "display_name": "3D pose-estimation cameras, open-field arenas",
+   "aliases": [
+    "3D pose-estimation cameras, open-field arenas"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:high-speed-video-robotic-positioning": {
+   "tool_id": "generic:high-speed-video-robotic-positioning",
+   "display_name": "High-speed video (robotic positioning)",
+   "aliases": [
+    "High-speed video (robotic positioning)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-multi-camera-2d-3d": {
+   "tool_id": "generic:video-multi-camera-2d-3d",
+   "display_name": "Video (multi camera 2D & 3D)",
+   "aliases": [
+    "Video (multi camera 2D & 3D)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-blurred-motion-capture": {
+   "tool_id": "generic:video-blurred-motion-capture",
+   "display_name": "Video (blurred), motion capture",
+   "aliases": [
+    "Video (blurred), motion capture"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-cameras-behavioral-apparatus": {
+   "tool_id": "generic:video-cameras-behavioral-apparatus",
+   "display_name": "Video cameras (behavioral apparatus)",
+   "aliases": [
+    "Video cameras (behavioral apparatus)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-cameras-up-to-1000-fps-movement-tracking": {
+   "tool_id": "generic:video-cameras-up-to-1000-fps-movement-tracking",
+   "display_name": "Video cameras (up to 1000 fps movement tracking)",
+   "aliases": [
+    "Video cameras (up to 1000 fps movement tracking)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:video-facial-tracking-social-interaction-suite": {
+   "tool_id": "generic:video-facial-tracking-social-interaction-suite",
+   "display_name": "Video / facial tracking (Social Interaction Suite)",
+   "aliases": [
+    "Video / facial tracking (Social Interaction Suite)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:eye-tracker-social-interaction-suite": {
+   "tool_id": "generic:eye-tracker-social-interaction-suite",
+   "display_name": "Eye tracker (Social Interaction Suite)",
+   "aliases": [
+    "Eye tracker (Social Interaction Suite)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:dial-ratings-social-interaction-suite": {
+   "tool_id": "generic:dial-ratings-social-interaction-suite",
+   "display_name": "Dial ratings (Social Interaction Suite)",
+   "aliases": [
+    "Dial ratings (Social Interaction Suite)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:eeg-social-interaction-suite": {
+   "tool_id": "generic:eeg-social-interaction-suite",
+   "display_name": "EEG (Social Interaction Suite)",
+   "aliases": [
+    "EEG (Social Interaction Suite)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:eeg-hyperscanning": {
+   "tool_id": "generic:eeg-hyperscanning",
+   "display_name": "EEG (hyperscanning)",
+   "aliases": [
+    "EEG (hyperscanning)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:accelerometer-gyroscope": {
+   "tool_id": "generic:accelerometer-gyroscope",
+   "display_name": "Accelerometer / gyroscope",
+   "aliases": [
+    "Accelerometer / gyroscope"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:custom-skin-like-wearable": {
+   "tool_id": "generic:custom-skin-like-wearable",
+   "display_name": "Custom skin-like wearable",
+   "aliases": [
+    "Custom skin-like wearable"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:ppg-motionsense-ecg-ecgsense": {
+   "tool_id": "generic:ppg-motionsense-ecg-ecgsense",
+   "display_name": "PPG (MotionSense), ECG (ECGSense)",
+   "aliases": [
+    "PPG (MotionSense), ECG (ECGSense)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:self-reported-anxiety-tablet": {
+   "tool_id": "generic:self-reported-anxiety-tablet",
+   "display_name": "Self-reported anxiety (Tablet)",
+   "aliases": [
+    "Self-reported anxiety (Tablet)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:visual-spatial-memory-task-treasure-hunt": {
+   "tool_id": "generic:visual-spatial-memory-task-treasure-hunt",
+   "display_name": "Visual spatial memory task (Treasure Hunt)",
+   "aliases": [
+    "Visual spatial memory task (Treasure Hunt)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:emg-jaw-forelimb": {
+   "tool_id": "generic:emg-jaw-forelimb",
+   "display_name": "EMG (jaw, forelimb)",
+   "aliases": [
+    "EMG (jaw, forelimb)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:structured-tasks-psychopy-natural-learning-activities": {
+   "tool_id": "generic:structured-tasks-psychopy-natural-learning-activities",
+   "display_name": "Structured tasks (PsychoPy) & natural learning activities",
+   "aliases": [
+    "Structured tasks (PsychoPy) & natural learning activities"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  },
+  "generic:seeg-intracranial": {
+   "tool_id": "generic:seeg-intracranial",
+   "display_name": "sEEG (intracranial)",
+   "aliases": [
+    "sEEG (intracranial)"
+   ],
+   "kind": "category_label",
+   "function": null,
+   "maintainer": null,
+   "docs": null,
+   "prerequisites": null,
+   "installation": null,
+   "troubleshooting": null,
+   "verification": {
+    "status": "not_a_product",
+    "fields_verified": [],
+    "sources": [],
+    "notes": "Generic category label in the source slide table, not a nameable product. Nothing to enrich. Ask the project which specific hardware or software this refers to."
+   }
+  }
+ },
+ "generated_note": "Exported from the BBQS workbench on 2026-08-06"
+}
