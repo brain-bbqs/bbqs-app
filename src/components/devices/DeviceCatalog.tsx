@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Search, BookOpen, Factory } from "lucide-react";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import "@/styles/ag-grid-theme.css";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileCardList } from "@/components/MobileCardList";
 
 type Category = {
   key: string;
@@ -33,6 +40,7 @@ export function DeviceCatalog() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     (async () => {
