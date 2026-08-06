@@ -11,6 +11,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useDashboardConfig } from "@/hooks/useDashboardConfig";
 import { WIDGET_CATALOG, getWidgetDef, WidgetSetting } from "@/data/dashboard-widgets";
 import { MyProjectsWidget } from "@/components/dashboard/widgets/MyProjectsWidget";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { WorkingGroupMembersWidget } from "@/components/dashboard/widgets/WorkingGroupMembersWidget";
 import { WorkingGroupFeedWidget } from "@/components/dashboard/widgets/WorkingGroupFeedWidget";
 import { ArrowDown, ArrowUp, LayoutDashboard, RotateCcw, Settings2 } from "lucide-react";
@@ -91,20 +92,18 @@ export default function Dashboard() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <PageMeta title="Dashboard" description="Your personalized BBQS dashboard of projects and working group activity." />
 
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-1 flex items-center gap-2">
-            <LayoutDashboard className="h-7 w-7 text-primary" />
-            {profile?.full_name ? `${profile.full_name}'s dashboard` : "My dashboard"}
-          </h1>
-          <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-            {workingGroups.length ? (
-              workingGroups.map((g) => <Badge key={g} variant="outline">{g}</Badge>)
-            ) : (
-              <span>No working group assigned</span>
-            )}
-          </div>
-        </div>
+      <DashboardHero
+        investigatorId={investigatorId}
+        workingGroups={workingGroups}
+        fullName={profile?.full_name}
+        email={profile?.email ?? user?.email}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <LayoutDashboard className="h-5 w-5 text-primary" />
+          My dashboard
+        </h2>
         <div className="flex gap-2">
           {editing && (
             <Button variant="ghost" onClick={onReset} disabled={reset.isPending}>
