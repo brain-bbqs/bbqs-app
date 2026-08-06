@@ -1,79 +1,87 @@
-# Ingest the workshop tool & device registry
+# Step 1: populate the device tables
 
-Turn the uploaded `tool_device_registry.json` (174 entries) into live, queryable records behind the Devices and Resources pages, mapped onto the existing BBQS 3-layer model (resource hub -> typed table -> child detail tables).
+Scope this first pass to hardware only. Software, custom code, and grant links come later.
 
-## What is in the file
+## What we have to work with
 
-| Kind | Count | Meaning |
-| --- | --- | --- |
-| `category_label` | 92 | Generic modality names from the source spreadsheet ("Scalp EEG", "Eye tracking") |
-| `software` | 35 | Real analysis/acquisition tools (DeepLabCut, SLEAP, MNE, NWB, PsychoPy) |
-| `device` / `clinical_instrument` / `hybrid` | 35 | Hardware and clinical instruments (Neuropixels, EmotiBit, Tobii, ADOS, PPVT) |
-| `custom` | 11 | Bespoke project code with no public docs |
+The registry has 174 entries. Only 35 of them are actual hardware:
 
-Plus a 275-key `alias_index` mapping messy spreadsheet spellings to canonical `tool_id`s, and per-entry `prerequisites`, `installation`, `troubleshooting` (each item carrying a `source_url`), `maintainer`, `docs`, and a `verification` block.
+- 28 `device` (Neuropixels, EmotiBit, Tobii Pro, Delsys Trigno, OptiTrack, Xsens, BIOPAC, Basler, FLIR, GoPro, Garmin, Avisoft, Shimmer3 GSR+, ...)
+- 6 `clinical_instrument` (ADOS, SCQ, SRS, Leiter-3, PPVT, BOT-3)
+- 1 `hybrid` (Motek CAREN)
 
-Current state: `device_categories`, `device_models`, `device_manufacturers` and all four `device_category_*` tables are **empty**; `software_tools` has 18 rows. The Devices page derives its 32-category taxonomy client-side from a hardcoded array. This ingest fills those tables for real.
+Separately, 92 entries are `category_label` - plain modality names like "Scalp EEG", "Eye tracking", "Accelerometers", "Thermocam". Those are not devices; they are the category vocabulary.
 
-## Mapping to the model
+The three device tables are currently empty, and the Devices page builds its 32-category taxonomy from a hardcoded array in `src/pages/Devices.tsx`.
+
+## The three-table split
 
 ```text
-registry entry
-   |
-   +-- kind = category_label  ->  device_categories (label, description, measures)
-   |
-   +-- kind = device|clinical_instrument|hybrid
-   |        ->  resources (resource_type='tool') + device_models
-   |            + device_manufacturers (from maintainer.name)
-   |
-   +-- kind = software|repository
-   |        ->  resources (resource_type='software') + software_tools
-   |
-   +-- kind = custom  ->  resources only, flagged no_public_docs
-   |
-   +-- prerequisites   ->  device_category_parameters (os, python, gpu as rows)
-   +-- troubleshooting ->  tool_troubleshooting + device_category_pitfalls
-   +-- docs + maintainer -> device_category_references
-   +-- alias_index     ->  tool_aliases (canonical name resolution)
+device_manufacturers   who makes it        Empatica, Tobii, Delsys, IMEC, Motek
+        |
+        v
+device_models          the actual product  EmbracePlus, Tobii Pro Glasses, Trigno, Neuropixels 1.0
+        |
+        v
+device_categories      the modality        eda, eye_tracking, emg, ephys_probe
 ```
 
-Every row keeps its `verification.status` and `verification.fields_verified`, so the UI can distinguish "confirmed against a fetched source" from "null = unresearched", exactly as the file's own description asks.
+One row per real product in `device_models`, its maker in `device_manufacturers`, and the modality it measures in `device_categories`. That is the whole model for this step.
 
-## Schema changes
+## Field-by-field mapping
 
-1. **`tool_registry_entries`** - one row per registry entry: `tool_id` (unique), `display_name`, `kind`, `function`, `maintainer` (jsonb), `docs` (jsonb), `prerequisites` (jsonb), `installation` (jsonb), `license`, `verification_status`, `fields_verified` (text[]), `resource_id` FK, `raw` (jsonb passthrough), timestamps.
-2. **`tool_aliases`** - `alias` (unique, normalized lowercase) -> `tool_id`. Backs fuzzy lookup from grant spreadsheets and from search.
-3. **`tool_troubleshooting`** - `tool_id`, `question`, `answer`, `source_url`.
-4. Add a nullable `tool_id` column to `device_models` and `software_tools` so existing rows reconcile against the registry.
-5. Grants, RLS (public read, admin/curator write), and `updated_at` triggers on all new tables, following the existing device-table pattern.
+`device_manufacturers` - derived from each entry's `maintainer` block:
 
-## Ingest pipeline
+| Column | Source |
+| --- | --- |
+| `name` | `maintainer.name` (Empatica, Tobii, Delsys) |
+| `homepage_url` | `maintainer.url` |
+| `aliases` | alias_index entries that resolve to this maker |
+| `notes` | `maintainer.type` (company / academic lab / open-source project) |
 
-New edge function `tool-registry-ingest`:
+`device_models` - one row per hardware entry:
 
-- Reads the registry JSON committed to `public/tool_device_registry.json` (single source of truth, re-runnable and diffable).
-- Upserts on `tool_id`, so re-running is idempotent and never duplicates.
-- Creates a `resources` row per non-category entry and links it, so tools join the same graph as grants, publications, and investigators.
-- Maps category labels onto the existing 32-key BBQS taxonomy via the alias index, and reports any label that fails to match instead of silently dropping it.
-- Optionally generates embeddings into `knowledge_embeddings` so the registry becomes RAG-visible to the assistants (same pattern as `device-knowledge-seed`).
+| Column | Source |
+| --- | --- |
+| `model_name` | `display_name` |
+| `manufacturer_id` | FK to the row created above |
+| `device_class` | canonical category key, matched from `function` + aliases |
+| `product_url` | `docs.primary` |
+| `manual_urls` | `docs.install`, plus any other doc URLs |
+| `aliases` | every `alias_index` key pointing at this `tool_id` |
+| `output_signals` | parsed from `function` (EDA, PPG, temperature, IMU) |
+| `sampling_rate_hz` | left null unless the entry states it |
+| `regulatory_class` | set for the medical devices (EmbracePlus, NeuroPace RNS, Medtronic Percept) |
 
-Admin trigger: an "Ingest tool registry" button in Admin Console, with a dry-run mode that reports counts (created / updated / unmatched) before writing anything.
+`device_categories` - built from the 92 category labels, deduplicated and folded onto the existing 32-key taxonomy:
 
-## UI changes
+| Column | Source |
+| --- | --- |
+| `key` | canonical key (`eda`, `eye_tracker`, `emg`) |
+| `label` | human label ("Electrodermal Activity") |
+| `description` | short definition |
+| `measures` | the signals it captures |
 
-- **Devices page**: categories driven by `device_categories` rows instead of the hardcoded array; each device links to a detail view showing prerequisites, install methods, and troubleshooting Q&A with source links.
-- **Resources page**: software entries become first-class tools with maintainer, docs, and license.
-- **Verification chips**: `documented` / `identified` / `no_public_docs` / `not_a_product` badges so nobody mistakes an unresearched null for a real empty value.
+Deduplication matters: "Acoustic recording" / "Acoustic" / "Microphones" are one category, not three. The alias index already encodes most of these collapses.
 
-## Sequencing
+No verification or status columns. If a field is unknown it stays null.
 
-1. Migration for the new tables and columns.
-2. Commit the registry JSON to `public/`.
-3. Build and run `tool-registry-ingest` in dry-run, review counts.
-4. Run for real, verify row counts against the file's 174 entries.
-5. Wire the Devices and Resources UI to the populated tables.
-6. Add the admin ingest button and the embeddings pass.
+## How the data gets in
 
-## Open question
+A one-time seed rather than a pipeline, since this is a fixed file:
 
-The file says to join to `grant_project_info_enriched.csv` via `tool_device_refs_json[].tool_id`. That CSV was not uploaded. Without it, tools cannot be linked to specific BBQS grants - everything else works regardless. Send that CSV and step 7 becomes a `grant_tools` join table wiring each device to the projects that use it.
+1. Commit the registry to `public/tool_device_registry.json`.
+2. Generate SQL from the 35 hardware entries and run it as a data insert - manufacturers first, then categories, then models with their FKs resolved.
+3. Everything keys on natural unique values (`device_manufacturers.name`, `device_categories.key`, `device_models.model_name` + manufacturer), so re-running updates rather than duplicates.
+
+The 35 rows are small enough to inspect by hand before they land, which beats debugging an edge function on a one-shot import.
+
+## What you see afterwards
+
+The Devices page reads `device_models` joined to `device_manufacturers` and `device_categories` instead of its hardcoded taxonomy: real product names, real makers, working links to product pages and manuals, and category filters that come from the data.
+
+## Next steps, once this looks right
+
+- The 35 software tools into `software_tools`.
+- Prerequisites, install methods, and troubleshooting Q&A as child rows on each tool.
+- Grant links, which need `grant_project_info_enriched.csv` - it was not uploaded, and without it nothing can connect a device to a specific BBQS project.
