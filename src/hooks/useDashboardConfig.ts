@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Json } from "@/integrations/supabase/types";
 import { normalizeWidgets, DEFAULT_WIDGETS, WidgetSetting } from "@/data/dashboard-widgets";
 
 export interface DashboardIdentity {
@@ -79,7 +80,7 @@ export function useDashboardConfig() {
       const { error } = await supabase
         .from("user_dashboard_layouts")
         .upsert(
-          [{ user_id: user!.id, widgets: next as unknown as Record<string, unknown>[] }],
+          [{ user_id: user!.id, widgets: next as unknown as Json }],
           { onConflict: "user_id" },
         );
       if (error) throw error;
