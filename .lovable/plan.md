@@ -1,85 +1,79 @@
-# Device Knowledge Enrichment — backend + seed plan
+# Ingest the workshop tool & device registry
 
-Goal: give the agent structured, cite-able facts for each of the 32 BBQS device categories so probes like "HRV parameters + sensors" score P1≥3 on the QA rubric (spec 009). Today the schema has `device_manufacturers`, `device_models`, and per-evidence JSON blobs on `grant_methods_evidence`, but nothing that captures *what a category measures*, *which parameters people report*, or *what ML pipelines consume it*. We add that layer.
+Turn the uploaded `tool_device_registry.json` (174 entries) into live, queryable records behind the Devices and Resources pages, mapped onto the existing BBQS 3-layer model (resource hub -> typed table -> child detail tables).
 
-## Scope
+## What is in the file
 
-In:
-- New backend tables for category-level knowledge (measurables, parameters, ML training specs, common pitfalls, canonical references).
-- Model-level enrichment (firmware/sampling, output signals, SDKs).
-- Seed pipeline that fills the tables from (a) curated JSON we own, (b) grant_methods_evidence already harvested, (c) targeted paper fetches per category.
-- Agent retrieval: expose the new rows through `knowledge_embeddings` so the existing RAG path picks them up — no new tool wiring.
+| Kind | Count | Meaning |
+| --- | --- | --- |
+| `category_label` | 92 | Generic modality names from the source spreadsheet ("Scalp EEG", "Eye tracking") |
+| `software` | 35 | Real analysis/acquisition tools (DeepLabCut, SLEAP, MNE, NWB, PsychoPy) |
+| `device` / `clinical_instrument` / `hybrid` | 35 | Hardware and clinical instruments (Neuropixels, EmotiBit, Tobii, ADOS, PPVT) |
+| `custom` | 11 | Bespoke project code with no public docs |
 
-Out (later features):
-- No changes to the QA probe runner (spec 009) or to `Devices.tsx` UI beyond a small "Details" drawer.
-- No new auth surface; all writes go through admin/curator RLS we already have.
+Plus a 275-key `alias_index` mapping messy spreadsheet spellings to canonical `tool_id`s, and per-entry `prerequisites`, `installation`, `troubleshooting` (each item carrying a `source_url`), `maintainer`, `docs`, and a `verification` block.
 
-## Data model (new / changed)
+Current state: `device_categories`, `device_models`, `device_manufacturers` and all four `device_category_*` tables are **empty**; `software_tools` has 18 rows. The Devices page derives its 32-category taxonomy client-side from a hardcoded array. This ingest fills those tables for real.
+
+## Mapping to the model
 
 ```text
-device_categories                  ← 32 canonical rows, one per BBQS_TAXONOMY key
-  key, label, description, measures[], typical_use_cases[], schema_org_type
-
-device_category_parameters         ← the "SDNN / RMSSD / LF-HF" layer
-  category_key, name, symbol, unit, typical_range, window_spec,
-  standard_ref (e.g. "Task Force 1996"), notes
-
-device_category_ml_specs           ← "how you train / what you feed a model"
-  category_key, task (classification|regression|segmentation|forecasting|…),
-  input_signal, sampling_rate_hz, preprocessing[], feature_set[],
-  common_models[], label_source, dataset_examples[], notes
-
-device_category_pitfalls           ← replaces the in-code COMMON_ISSUES map
-  category_key, issue, mitigation, severity
-
-device_category_references         ← canonical papers / standards / manuals
-  category_key, kind (paper|standard|manual|dataset),
-  title, url, doi, year, authority
-
-device_models (existing)  +columns:
-  sampling_rate_hz, output_signals[], sdk_urls[], firmware_notes,
-  regulatory_class, price_tier
+registry entry
+   |
+   +-- kind = category_label  ->  device_categories (label, description, measures)
+   |
+   +-- kind = device|clinical_instrument|hybrid
+   |        ->  resources (resource_type='tool') + device_models
+   |            + device_manufacturers (from maintainer.name)
+   |
+   +-- kind = software|repository
+   |        ->  resources (resource_type='software') + software_tools
+   |
+   +-- kind = custom  ->  resources only, flagged no_public_docs
+   |
+   +-- prerequisites   ->  device_category_parameters (os, python, gpu as rows)
+   +-- troubleshooting ->  tool_troubleshooting + device_category_pitfalls
+   +-- docs + maintainer -> device_category_references
+   +-- alias_index     ->  tool_aliases (canonical name resolution)
 ```
 
-All new tables: `resource_id uuid` FK to `resources` (so they participate in the KG), `organization_id` nullable, standard `created_at/updated_at`, GRANTs for `anon SELECT` + `authenticated`/`service_role` write, RLS: public read, admin/curator write via `is_curator_or_admin(auth.uid())`.
+Every row keeps its `verification.status` and `verification.fields_verified`, so the UI can distinguish "confirmed against a fetched source" from "null = unresearched", exactly as the file's own description asks.
 
-## Retrieval wiring
+## Schema changes
 
-- Trigger on insert/update of each new table → enqueues an `embed-knowledge` job that writes to `knowledge_embeddings` with `source_type='device_category'|'device_parameter'|'device_ml_spec'|'device_pitfall'|'device_reference'` and a compact `title` + `content` (e.g. "HRV parameter SDNN — ms — 5-min window — Task Force 1996").
-- The existing `search_knowledge_embeddings` RPC then surfaces these rows to `discovery-chat` / `metadata-chat` / `assistant-router` without further code changes.
+1. **`tool_registry_entries`** - one row per registry entry: `tool_id` (unique), `display_name`, `kind`, `function`, `maintainer` (jsonb), `docs` (jsonb), `prerequisites` (jsonb), `installation` (jsonb), `license`, `verification_status`, `fields_verified` (text[]), `resource_id` FK, `raw` (jsonb passthrough), timestamps.
+2. **`tool_aliases`** - `alias` (unique, normalized lowercase) -> `tool_id`. Backs fuzzy lookup from grant spreadsheets and from search.
+3. **`tool_troubleshooting`** - `tool_id`, `question`, `answer`, `source_url`.
+4. Add a nullable `tool_id` column to `device_models` and `software_tools` so existing rows reconcile against the registry.
+5. Grants, RLS (public read, admin/curator write), and `updated_at` triggers on all new tables, following the existing device-table pattern.
 
-## Seed pipeline (`supabase/functions/device-knowledge-seed`)
+## Ingest pipeline
 
-Three passes per category, idempotent (`onConflict: category_key,name`):
+New edge function `tool-registry-ingest`:
 
-1. **Curated JSON** at `supabase/functions/device-knowledge-seed/seeds/<key>.json` — we own this; HRV, Neuropixels, EEG, video/pose, ultrasonic mics, wearable actigraphy, fMRI, iEEG, OPM ship in the first PR.
-2. **Fold existing evidence** — for each `grant_methods_evidence` row, if `device_class` maps to a category, promote its `recording_params` / `stimulation_params` / `analysis_metrics` keys into `device_category_parameters` (dedup by (category, name)).
-3. **Targeted paper fetch** — for gaps, call `paper-extract` on a short whitelist of canonical refs per category (e.g. Task Force 1996 for HRV) to pull parameter tables.
+- Reads the registry JSON committed to `public/tool_device_registry.json` (single source of truth, re-runnable and diffable).
+- Upserts on `tool_id`, so re-running is idempotent and never duplicates.
+- Creates a `resources` row per non-category entry and links it, so tools join the same graph as grants, publications, and investigators.
+- Maps category labels onto the existing 32-key BBQS taxonomy via the alias index, and reports any label that fails to match instead of silently dropping it.
+- Optionally generates embeddings into `knowledge_embeddings` so the registry becomes RAG-visible to the assistants (same pattern as `device-knowledge-seed`).
 
-Admin surface: existing `/admin` console gets a "Device knowledge" panel listing coverage per category (params N, ml_specs N, refs N) with a "Reseed" button that calls the function.
+Admin trigger: an "Ingest tool registry" button in Admin Console, with a dry-run mode that reports counts (created / updated / unmatched) before writing anything.
 
-## HRV worked example (acceptance for this feature)
+## UI changes
 
-After seeding, an anon `search_knowledge_embeddings("heart rate variability parameters sensors")` returns, in order:
-- `device_category:heart_rate_sensors` — description + measures
-- `device_parameter:SDNN`, `RMSSD`, `pNN50`, `LF/HF`, `HF power` — each with unit, window, standard_ref
-- `device_ml_spec:hrv_stress_classification` — 1000 Hz ECG → RR intervals → 5-min windows → gradient-boosted/1D-CNN
-- `device_reference:Task Force 1996`, `Shaffer & Ginsberg 2017`
-- `device_model:Polar H10`, `Empatica E4`, `ActiGraph GT9X` with sampling_rate + output_signals
+- **Devices page**: categories driven by `device_categories` rows instead of the hardcoded array; each device links to a detail view showing prerequisites, install methods, and troubleshooting Q&A with source links.
+- **Resources page**: software entries become first-class tools with maintainer, docs, and license.
+- **Verification chips**: `documented` / `identified` / `no_public_docs` / `not_a_product` badges so nobody mistakes an unresearched null for a real empty value.
 
-This is exactly what QA probe P1-A expects; passing means the pipeline works.
+## Sequencing
 
-## Deliverables
+1. Migration for the new tables and columns.
+2. Commit the registry JSON to `public/`.
+3. Build and run `tool-registry-ingest` in dry-run, review counts.
+4. Run for real, verify row counts against the file's 174 entries.
+5. Wire the Devices and Resources UI to the populated tables.
+6. Add the admin ingest button and the embeddings pass.
 
-1. One migration adding the 5 new tables + `device_models` columns + GRANTs + RLS + embedding triggers.
-2. `supabase/functions/device-knowledge-seed/` with the 3-pass runner and 9 curated JSON seeds (the categories that carry the most-asked probes).
-3. Small `/admin` panel + a "Details" drawer on `/devices` rows that renders the new fields.
-4. One follow-up run of the QA itinerary (spec 009) to confirm P1-A/B/C scores move to ≥3.
+## Open question
 
-## Non-goals / explicit constraints
-
-- Do not modify `grant_methods_evidence`, harvester tables, or the agent tool list.
-- Do not introduce a second embedding store — reuse `knowledge_embeddings`.
-- Category keys must stay in sync with `BBQS_TAXONOMY` in `src/pages/Devices.tsx`; the seed function fails loudly if a key drifts.
-
-Approve and I'll ship the migration first (single call), then the seed function + curated JSON, then the UI drawer.
+The file says to join to `grant_project_info_enriched.csv` via `tool_device_refs_json[].tool_id`. That CSV was not uploaded. Without it, tools cannot be linked to specific BBQS grants - everything else works regardless. Send that CSV and step 7 becomes a `grant_tools` join table wiring each device to the projects that use it.
