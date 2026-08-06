@@ -671,6 +671,13 @@ export type Database = {
             referencedRelation: "device_categories"
             referencedColumns: ["key"]
           },
+          {
+            foreignKeyName: "device_category_ml_specs_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["category_key"]
+          },
         ]
       }
       device_category_parameters: {
@@ -721,6 +728,13 @@ export type Database = {
             referencedRelation: "device_categories"
             referencedColumns: ["key"]
           },
+          {
+            foreignKeyName: "device_category_parameters_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["category_key"]
+          },
         ]
       }
       device_category_pitfalls: {
@@ -758,6 +772,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "device_categories"
             referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "device_category_pitfalls_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["category_key"]
           },
         ]
       }
@@ -805,6 +826,52 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "device_categories"
             referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "device_category_references_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["category_key"]
+          },
+        ]
+      }
+      device_class_crosswalk: {
+        Row: {
+          category_key: string
+          created_at: string
+          id: string
+          legacy_key: string
+          updated_at: string
+        }
+        Insert: {
+          category_key: string
+          created_at?: string
+          id?: string
+          legacy_key: string
+          updated_at?: string
+        }
+        Update: {
+          category_key?: string
+          created_at?: string
+          id?: string
+          legacy_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_class_crosswalk_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "device_categories"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "device_class_crosswalk_category_key_fkey"
+            columns: ["category_key"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["category_key"]
           },
         ]
       }
@@ -959,6 +1026,13 @@ export type Database = {
           validation_status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "edit_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "edit_history_project_id_fkey"
             columns: ["project_id"]
@@ -2316,6 +2390,13 @@ export type Database = {
             foreignKeyName: "project_publications_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_device_usage"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_publications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -3098,6 +3179,20 @@ export type Database = {
           steps_done: number | null
           steps_total: number | null
           working_groups: string[] | null
+        }
+        Relationships: []
+      }
+      project_device_usage: {
+        Row: {
+          catalog_models: number | null
+          category_key: string | null
+          category_label: string | null
+          evidence_count: number | null
+          evidence_terms: string[] | null
+          grant_number: string | null
+          grant_title: string | null
+          measures: string[] | null
+          project_id: string | null
         }
         Relationships: []
       }
