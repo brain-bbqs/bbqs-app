@@ -35,6 +35,7 @@ import Species from "./pages/Species";
 import Tutorials from "./pages/Tutorials";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import Dashboard from "./pages/Dashboard";
 import DataProvenanceDocs from "./pages/DataProvenanceDocs";
 import SelfAutonomyDocs from "./pages/SelfAutonomyDocs";
 import FeatureSuggestions from "./pages/FeatureSuggestions";
@@ -106,6 +107,7 @@ const App = () => (
               <Route path="/tutorials" element={<Tutorials />} />
               <Route path="/data-provenance" element={<DataProvenance />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               {/* Data Provenance Docs and Self-Autonomy Docs removed */}
               <Route path="/suggest-feature" element={<FeatureSuggestions />} />
               
