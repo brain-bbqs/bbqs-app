@@ -170,15 +170,15 @@ export function DeviceProjectMap() {
         <TabsContent value="project" className="pt-4">
           {isMobile ? (
             <MobileCardList
-              items={projectRows}
-              getKey={(r) => r.grant_number}
-              renderCard={(r) => (
-                <div className="space-y-2">
-                  <Link to={`/projects/${r.grant_number}/profile`} className="text-primary font-medium">{r.grant_number}</Link>
-                  <p className="text-sm text-muted-foreground">{r.grant_title}</p>
-                  {badgeCell(r.categories)}
-                </div>
-              )}
+              items={projectRows.map((r) => ({
+                id: r.grant_number,
+                title: r.grant_number,
+                fields: [
+                  { label: "Title", value: r.grant_title },
+                  { label: "Device categories", value: r.categories.join(", ") },
+                  { label: "Catalog products", value: r.catalog_models },
+                ],
+              }))}
             />
           ) : (
             <div className="ag-theme-alpine w-full">
@@ -197,15 +197,15 @@ export function DeviceProjectMap() {
         <TabsContent value="category" className="pt-4">
           {isMobile ? (
             <MobileCardList
-              items={categoryRows}
-              getKey={(r) => r.category_key}
-              renderCard={(r) => (
-                <div className="space-y-2">
-                  <p className="font-medium">{r.category_label}</p>
-                  <p className="text-sm text-muted-foreground">{r.project_count} projects · {r.catalog_models} catalog products</p>
-                  {badgeCell(r.projects)}
-                </div>
-              )}
+              items={categoryRows.map((r) => ({
+                id: r.category_key,
+                title: r.category_label,
+                fields: [
+                  { label: "Projects", value: r.project_count },
+                  { label: "Grant numbers", value: r.projects.join(", ") },
+                  { label: "Catalog products", value: r.catalog_models },
+                ],
+              }))}
             />
           ) : (
             <div className="ag-theme-alpine w-full">

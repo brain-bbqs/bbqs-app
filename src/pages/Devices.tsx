@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList } from "@/components/MobileCardList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeviceCatalog } from "@/components/devices/DeviceCatalog";
+import { DeviceProjectMap } from "@/components/devices/DeviceProjectMap";
 
 // Canonical BBQS device taxonomy — the 32 categories used across the program.
 // The DB `device_class` values (video_tracking, ephys_headstage, …) are folded
@@ -579,11 +580,16 @@ export default function Devices() {
       <Tabs defaultValue="catalog" className="w-full">
         <TabsList className="mb-5">
           <TabsTrigger value="catalog">Catalog</TabsTrigger>
-          <TabsTrigger value="projects">In BBQS projects</TabsTrigger>
+          <TabsTrigger value="map">Project map</TabsTrigger>
+          <TabsTrigger value="projects">Evidence</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog">
           <DeviceCatalog />
+        </TabsContent>
+
+        <TabsContent value="map">
+          <DeviceProjectMap />
         </TabsContent>
 
         <TabsContent value="projects">
