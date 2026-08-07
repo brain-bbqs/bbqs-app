@@ -4,11 +4,15 @@
 // welcome_email checklist step done via set_onboarding_step.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bbqs-client",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const FROM_ADDRESS = Deno.env.get("WELCOME_FROM") || "BBQS <noreply@brain-bbqs.org>";
-const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbq-clone.lovable.app/auth";
+// Use WELCOME_FROM only if it's a valid `email` or `Name <email>` string; else the default.
+const FROM_RE = /^(?:[^<>]+<[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+>|[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)$/;
+const _wf = (Deno.env.get("WELCOME_FROM") || "").trim();
+const FROM_ADDRESS = FROM_RE.test(_wf) ? _wf : "BBQS <noreply@brain-bbqs.org>";
+const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbqs.org/auth";
 
 // Non-research roles get the lighter template (no data-questionnaire / research asks).
 const NON_RESEARCH = new Set(["nih_program", "admin"]);
