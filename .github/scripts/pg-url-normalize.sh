@@ -18,27 +18,44 @@ export URL VAR_NAME OUT_NAME
 python3 - <<'PY'
 import os, re, sys, urllib.parse
 
-url = os.environ['URL'].strip().strip('"').strip("'")
+raw = os.environ['URL'].strip()
 var_name = os.environ['VAR_NAME']
 out_name = os.environ['OUT_NAME']
 
-m = re.match(r'^(postgres(?:ql)?)://([^:/@]+)(?::(.*))?@([^/@?]+)(/[^?]*)?(\?.*)?$', url, re.S)
-if not m:
+# Supabase's Connect dialog may copy either the URI itself or a ready-to-run
+# command such as: psql 'postgresql://...'. Accept both without exposing it.
+command = re.fullmatch(r"psql\s+(?:--dbname(?:=|\s+))?(['\"])(.+)\1", raw, re.S)
+url = command.group(2).strip() if command else raw.strip('"').strip("'")
+
+if any(char in url for char in ('\n', '\r', '\t', ' ')):
     print(
-        f"::error::{var_name} is not a valid PostgreSQL connection string. "
-        "Expected postgresql://<user>:<password>@<host>:<port>/<database> with no "
-        "surrounding quotes, spaces, or newlines. Copy it from Supabase -> Connect -> "
-        "Session pooler (port 5432).",
+        f"::error::{var_name} contains whitespace inside the database URI. "
+        "Save only the Session pooler URI on one line (the psql wrapper is also accepted).",
         file=sys.stderr,
     )
     sys.exit(1)
 
-scheme, user, password, hostport, path, query = m.groups()
-password = password or ''
-
-if '\n' in url or ' ' in url:
-    print(f"::error::{var_name} contains whitespace or a newline; re-paste the secret on a single line.", file=sys.stderr)
+m = re.fullmatch(
+    r'(postgres(?:ql)?)://([^:/@]+)(?::(.*))?@([^/@?:]+)(?::([0-9]+))?(/[^?]*)?(\?.*)?',
+    url,
+    re.S,
+)
+if not m:
+    hint = ""
+    if not url.startswith(("postgres://", "postgresql://")):
+        hint = " The value must begin with postgresql:// (not the Supabase HTTPS project URL)."
+    print(
+        f"::error::{var_name} is not a valid PostgreSQL connection string. "
+        "Expected postgresql://<user>:<password>@<host>:5432/postgres. Copy the URI "
+        "from Supabase -> Connect -> Session pooler, and save the complete value in "
+        f"the GitHub Actions secret.{hint}",
+        file=sys.stderr,
+    )
     sys.exit(1)
+
+scheme, user, password, host, port, path, query = m.groups()
+password = password or ''
+hostport = f"{host}:{port}" if port else host
 
 # Re-encode the password so special characters can't break the URI parser.
 password = urllib.parse.quote(urllib.parse.unquote(password), safe='')
@@ -46,7 +63,6 @@ user = urllib.parse.quote(urllib.parse.unquote(user), safe='')
 
 safe = f"{scheme}://{user}:{password}@{hostport}{path or '/postgres'}{query or ''}"
 
-host = hostport.split('@')[-1].split(':')[0]
 if host.startswith('db.') and host.endswith('.supabase.co'):
     print(
         f"::error::{var_name} uses Supabase's IPv6-only direct host ({host}). "
