@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus, Bell, Check, SkipForward, RotateCw } from "lucide-react";
+import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus, Bell, Check, SkipForward, RotateCw, Link2 } from "lucide-react";
+import { ResolveGrantLinkDialog } from "@/components/admin/ResolveGrantLinkDialog";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
@@ -57,6 +58,8 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("all");
   const [busy, setBusy] = useState(false);
+  // Member whose grant_link is being RESOLVED (real association, not a checkbox).
+  const [resolvingGrant, setResolvingGrant] = useState<{ id: string; name: string | null; email: string; role: string | null } | null>(null);
 
   const { data: rows = [], isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["onboarding-pipeline"],
@@ -199,9 +202,23 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
                               <DropdownMenuContent align="start">
                                 <DropdownMenuLabel>{STAGE_LABELS[k] ?? k}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setStep(r.id, k, "done")}><Check className="mr-2 h-4 w-4" />Mark done</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setStep(r.id, k, "skipped")}><SkipForward className="mr-2 h-4 w-4" />Dismiss / skip</DropdownMenuItem>
-                                {k === "welcome_email" && <DropdownMenuItem onClick={() => reRunWelcome(r)}><RotateCw className="mr-2 h-4 w-4" />Re-send welcome email</DropdownMenuItem>}
+                                {/* Real resolution first — the action that actually fixes the stage. */}
+                                {k === "grant_link" && (
+                                  <DropdownMenuItem onClick={() => setResolvingGrant({ id: r.id, name: r.name, email: r.email, role: r.role })}>
+                                    <Link2 className="mr-2 h-4 w-4" />Associate a grant…
+                                  </DropdownMenuItem>
+                                )}
+                                {k === "welcome_email" && <DropdownMenuItem onClick={() => reRunWelcome(r)}><RotateCw className="mr-2 h-4 w-4" />Send welcome email now</DropdownMenuItem>}
+                                {k === "data_questionnaire" && (
+                                  <DropdownMenuItem asChild>
+                                    <a href="/admin?tab=onboarding" onClick={(e) => e.preventDefault()} className="flex items-center">
+                                      <RotateCw className="mr-2 h-4 w-4" />Questionnaire is PI-owned
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setStep(r.id, k, "done")}><Check className="mr-2 h-4 w-4" />Mark done (manual)</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setStep(r.id, k, "skipped")}><SkipForward className="mr-2 h-4 w-4" />Dismiss / not needed</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           );
@@ -224,6 +241,8 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
           </Table>
         </div>
       )}
+
+      <ResolveGrantLinkDialog member={resolvingGrant} onClose={() => setResolvingGrant(null)} />
     </div>
   );
 }
