@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Check, RefreshCw, ExternalLink, SkipForward, Mail } from "lucide-react";
+import { Loader2, Check, RefreshCw, ExternalLink, SkipForward, Mail, Search, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
@@ -46,9 +46,12 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
   const queryClient = useQueryClient();
   const [wgs, setWgs] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  /** Last slack-channels result: { not_in_workspace | in_channels/missing | invited/failed }. */
+  const [slackInfo, setSlackInfo] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     setWgs(new Set((target?.working_groups ?? []).filter(Boolean)));
+    setSlackInfo(null);
   }, [target]);
 
   if (!target) return null;
@@ -102,6 +105,36 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
       if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
       await markStep("done");
     }, "Welcome email sent");
+
+  // Slack: check membership / add to the configured channels via the KG slack-channels
+  // function. Deliberately does NOT close the dialog — the admin needs to read the result
+  // (e.g. "not in the workspace yet — send a guest invite first").
+  const callSlack = async (action: "check" | "invite") => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("slack-channels", {
+        body: { email: target.email, role: target.role, action },
+      });
+      if (error) throw new Error(await edgeError(error, data));
+      const res = (data ?? {}) as Record<string, any>;
+      setSlackInfo(res);
+      if (res.not_in_workspace) toast.warning("Not in the Slack workspace yet — invite them as a guest first");
+      else if (res.error) toast.error(res.error);
+      else if (action === "invite") {
+        await markStep("done");
+        toast.success(res.invited?.length ? `Added to ${res.invited.length} channel(s)` : "Already in all channels");
+        refresh();
+      } else {
+        toast.success(res.missing?.length ? `Missing ${res.missing.length} channel(s)` : "Already in all channels");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Slack call failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const checkSlack = () => callSlack("check");
+  const inviteSlack = () => callSlack("invite");
 
   const askAgent = (cmd: string) => {
     window.open(`${AGENT_URL}/?ask=${encodeURIComponent(cmd)}`, "_blank", "noopener");
@@ -165,12 +198,38 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
           {stage === "slack" && (
             <>
               <p className="text-sm text-muted-foreground">
-                Slack invitations run through the agent (it holds the Slack token and the configured
-                channel list). This opens it pre-filled; apply the proposal there, then mark done here.
+                Adds them to the configured onboarding channels (postdocs and grad students also get
+                the young-investigator channel). Workspace entry itself can't be automated — an
+                external guest must be invited to Slack manually first; this reports that plainly.
               </p>
-              <Button variant="secondary" onClick={() => askAgent(`Invite ${target.email} to the BBQS Slack channels`)}>
-                <ExternalLink className="mr-1.5 h-4 w-4" />Open agent to invite
-              </Button>
+              {slackInfo && (
+                <div className="rounded-md border border-border p-2.5 text-xs space-y-0.5">
+                  {slackInfo.not_in_workspace ? (
+                    <p className="text-amber-600 dark:text-amber-400">{slackInfo.error}</p>
+                  ) : slackInfo.error ? (
+                    <p className="text-destructive">{slackInfo.error}</p>
+                  ) : (
+                    <>
+                      <p className="text-foreground">
+                        In workspace{slackInfo.is_young_investigator ? " · young investigator" : ""}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Already in {(slackInfo.in_channels ?? slackInfo.already_in ?? []).length} channel(s)
+                        {slackInfo.missing ? ` · missing ${slackInfo.missing.length}` : ""}
+                        {slackInfo.invited ? ` · added ${slackInfo.invited.length}` : ""}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={checkSlack} disabled={busy}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="mr-1.5 h-4 w-4" />Check status</>}
+                </Button>
+                <Button onClick={inviteSlack} disabled={busy}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Hash className="mr-1.5 h-4 w-4" />Add to channels</>}
+                </Button>
+              </div>
             </>
           )}
 
