@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Check, Mail, X, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { edgeError } from "@/lib/edgeError";
 
 const ROLES: { value: string; label: string }[] = [
   { value: "contact_pi", label: "Contact PI" },
@@ -89,7 +90,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
     setParsing(true);
     try {
       const { data, error } = await supabase.functions.invoke("parse-onboard", { body: { text: smartText } });
-      if (error || !data?.ok) throw new Error((data as any)?.error ?? error?.message ?? "parse failed");
+      if (error || !data?.ok) throw new Error(await edgeError(error, data));
       const f = (data as any).fields;
       if (f.email) setEmail(f.email);
       if (f.secondary_email) setSecondary(f.secondary_email);
@@ -147,7 +148,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
       const { data, error } = await supabase.functions.invoke("send-welcome-email", {
         body: { to: result.email, name: name.trim(), role: result.role },
       });
-      if (error || (data && (data as any).success === false)) throw new Error((data as any)?.error ?? "send failed");
+      if (error || (data && (data as any).success === false)) throw new Error(await edgeError(error, data));
       await supabase.rpc("set_onboarding_step" as any, {
         _investigator_id: result.investigator_id, _step: "welcome_email", _status: "done",
       });
