@@ -11,6 +11,7 @@ import { useDashboardConfig } from "@/hooks/useDashboardConfig";
 import { WIDGET_CATALOG, getWidgetDef, WidgetSetting } from "@/data/dashboard-widgets";
 import { MyProjectsWidget } from "@/components/dashboard/widgets/MyProjectsWidget";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
+import { DashboardSetup } from "@/components/dashboard/DashboardSetup";
 import { WorkingGroupMembersWidget } from "@/components/dashboard/widgets/WorkingGroupMembersWidget";
 import { WorkingGroupFeedWidget } from "@/components/dashboard/widgets/WorkingGroupFeedWidget";
 import { ArrowDown, ArrowUp, LayoutDashboard, RotateCcw, Settings2 } from "lucide-react";
@@ -19,8 +20,10 @@ import { toast } from "sonner";
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
-  const { widgets, workingGroups, investigatorId, isLoading, save, reset } = useDashboardConfig();
+  const { widgets, workingGroups, memberGroups, onboarded, investigatorId, isLoading, save, reset } =
+    useDashboardConfig();
   const [editing, setEditing] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(false);
   const [draft, setDraft] = useState<WidgetSetting[]>(widgets);
 
   useEffect(() => {
@@ -74,6 +77,15 @@ export default function Dashboard() {
     }
   };
 
+  const onCompleteSetup = async (nextWidgets: WidgetSetting[], nextGroups: string[]) => {
+    try {
+      await save.mutateAsync({ widgets: nextWidgets, workingGroups: nextGroups, onboarded: true });
+      toast.success("Dashboard set up");
+    } catch {
+      toast.error("Could not save your dashboard setup");
+    }
+  };
+
   const renderWidget = (key: string) => {
     switch (key) {
       case "my_projects":
@@ -121,6 +133,14 @@ export default function Dashboard() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
+      ) : !onboarded && !setupDismissed ? (
+        <DashboardSetup
+          initialGroups={memberGroups}
+          saving={save.isPending}
+          onComplete={onCompleteSetup}
+          onSkip={() => setSetupDismissed(true)}
+          title="Welcome — set up your dashboard"
+        />
       ) : editing ? (
         <Card>
           <CardHeader>
