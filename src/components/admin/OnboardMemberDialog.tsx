@@ -44,6 +44,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   const [email, setEmail] = useState("");
+  const [secondary, setSecondary] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("research_staff");
   const [wgs, setWgs] = useState<Set<string>>(new Set());
@@ -76,7 +77,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   });
 
   const reset = () => {
-    setEmail(""); setName(""); setRole("research_staff"); setWgs(new Set()); setTier("member");
+    setEmail(""); setSecondary(""); setName(""); setRole("research_staff"); setWgs(new Set()); setTier("member");
     setInstitution(""); setGrantQuery(""); setGrant(null);
     setSubmitting(false); setResult(null); setSendingEmail(false); setEmailSent(false);
     setSmartText(""); setParsing(false);
@@ -91,6 +92,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
       if (error || !data?.ok) throw new Error((data as any)?.error ?? error?.message ?? "parse failed");
       const f = (data as any).fields;
       if (f.email) setEmail(f.email);
+      if (f.secondary_email) setSecondary(f.secondary_email);
       if (f.name) setName(f.name);
       if (f.role && ROLES.some((r) => r.value === f.role)) setRole(f.role);
       if (Array.isArray(f.working_groups)) setWgs(new Set(f.working_groups.filter((w: string) => WORKING_GROUPS.some((x) => x.token === w))));
@@ -125,6 +127,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
         _pending_role: tier === "member" ? null : tier,
         _institution: institution.trim() || null,
         _grant_id: grant?.id ?? null,
+        _secondary_emails: secondary.trim() ? [secondary.trim().toLowerCase()] : [],
       });
       if (error) throw error;
       setResult(data as OnboardResult);
@@ -229,6 +232,10 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
               <div>
                 <Label htmlFor="ob-email">Email <span className="text-destructive">*</span></Label>
                 <Input id="ob-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@university.edu" />
+              </div>
+              <div>
+                <Label htmlFor="ob-secondary">Secondary email</Label>
+                <Input id="ob-secondary" type="email" value={secondary} onChange={(e) => setSecondary(e.target.value)} placeholder="(optional — for Globus / mailing-list matching)" />
               </div>
               <div>
                 <Label htmlFor="ob-name">Full name <span className="text-destructive">*</span></Label>

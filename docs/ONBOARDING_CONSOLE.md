@@ -62,9 +62,16 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
   `google/gemini-2.5-flash`, admin/curator-gated, returns sanitized fields) + a "Smart fill"
   textarea in the wizard: paste a form row / email / description → LLM pre-fills the fields
   for the admin to review (feature-004: LLM proposes, human + deterministic path execute).
+- **P4 DONE (interactive pipeline)** — migration `20260806160000`: `set_onboarding_step` accepts
+  `skipped`; the view + rank treat skipped as complete; `onboard_member` gains `_secondary_emails`
+  (written to `investigators.secondary_emails`). Panel: each pending/stuck stage is a click menu
+  (**Mark done / Dismiss / Re-run**), and every member row has a one-click **Remind** button
+  (`send-onboarding-reminder` emails the member their remaining steps). Wizard gains a
+  **secondary email** field (+ Smart-fill fills it).
 - **P3 NEXT** — `offboard_member` RPC + offboard wizard.
 
 ## Manual apply / config (KG side)
-- Apply migrations in the SQL editor: `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`.
-- Deploy edge functions: `supabase functions deploy send-welcome-email` (needs `RESEND_API_KEY`)
-  and `supabase functions deploy parse-onboard` (needs `LOVABLE_API_KEY` — already set for discovery-chat).
+- Apply migrations in the SQL editor (in order): `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`, `20260806160000`.
+- Deploy edge functions (keys already on the project): `parse-onboard` (LOVABLE_API_KEY),
+  `send-welcome-email` + `send-onboarding-reminder` (RESEND_API_KEY):
+  `supabase functions deploy parse-onboard send-welcome-email send-onboarding-reminder`
