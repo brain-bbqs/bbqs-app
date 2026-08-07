@@ -3,7 +3,7 @@
 // Deploy: supabase functions deploy send-onboarding-reminder  (needs RESEND_API_KEY).
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bbqs-client",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 // Use REMINDER_FROM only if it's a valid `email` or `Name <email>` string; else the safe
@@ -11,7 +11,7 @@ const corsHeaders = {
 const FROM_RE = /^(?:[^<>]+<[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+>|[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)$/;
 const _rf = (Deno.env.get("REMINDER_FROM") || "").trim();
 const FROM_ADDRESS = FROM_RE.test(_rf) ? _rf : "BBQS <noreply@brain-bbqs.org>";
-const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbq-clone.lovable.app/auth";
+const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbqs.org/auth";
 
 // Friendly labels for the persisted checklist keys.
 const STEP_LABELS: Record<string, string> = {
