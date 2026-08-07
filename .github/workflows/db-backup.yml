@@ -7,7 +7,8 @@
 #
 # ── Required secrets (Settings → Secrets → Actions) ─────────────────────────
 #   SUPABASE_KG_DB_URL
-#     postgresql://postgres:[PASSWORD]@db.vpexxhfpvghlejljwpvt.supabase.co:5432/postgres
+#     Supabase Connect → Session pooler URI (port 5432). Do not use the
+#     db.<project-ref>.supabase.co direct URI; GitHub runners cannot reach IPv6.
 #   BACKUP_REPO_TOKEN
 #     GitHub PAT with `repo` scope — used to push to brain-bbqs/bbqs-backups
 # ────────────────────────────────────────────────────────────────────────────
