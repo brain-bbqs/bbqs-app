@@ -19,10 +19,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
   },
-  // Provenance (Principle X): tag KG-site writes so data_audit_log.client_source
-  // shows 'kg-site' (vs 'bbqs-agent' from the agent) — the audit trigger reads this
-  // header (KG migration 20260806130000).
-  global: {
-    headers: { "X-BBQS-Client": "kg-site" },
-  },
+  // NOTE: do NOT add a global custom header here (e.g. X-BBQS-Client). supabase-js applies
+  // global headers to EVERY request including functions.invoke, and each edge function's
+  // hand-written CORS allow-list would then reject the preflight ("Request header field
+  // x-bbqs-client is not allowed"), breaking every function (nih-grants/projects, chat,
+  // add-project, …). Provenance tagging for KG-site writes must be done per-write, not globally.
 });
