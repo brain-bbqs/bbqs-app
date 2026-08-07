@@ -60,12 +60,20 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "Admin or curator only" }, 403);
     }
 
+    // Report WHICH piece of config is missing (presence only — never the values), so a 500
+    // explains itself instead of forcing a Network-tab dig.
     const token = Deno.env.get("SLACK_BOT_TOKEN");
-    if (!token) return json({ ok: false, error: "SLACK_BOT_TOKEN not configured on this project" }, 500);
-
     const base = csv(Deno.env.get("SLACK_ONBOARDING_CHANNELS"));
     const yi = csv(Deno.env.get("SLACK_YI_CHANNELS"));
-    if (!base.length) return json({ ok: false, error: "SLACK_ONBOARDING_CHANNELS not configured" }, 500);
+    const cfg = { SLACK_BOT_TOKEN: !!token, SLACK_ONBOARDING_CHANNELS: base.length, SLACK_YI_CHANNELS: yi.length };
+    if (!token || !base.length) {
+      console.error("slack-channels: missing config", cfg);
+      return json({
+        ok: false,
+        config: cfg,
+        error: `Slack is not configured on this project: ${!token ? "SLACK_BOT_TOKEN missing" : ""}${!token && !base.length ? "; " : ""}${!base.length ? "SLACK_ONBOARDING_CHANNELS missing" : ""}. Set them with: supabase secrets set SLACK_BOT_TOKEN=xoxb-… SLACK_ONBOARDING_CHANNELS="C…,C…"`,
+      }, 500);
+    }
     const isYI = YI_ROLES.has(String(role ?? "").toLowerCase());
     const target = [...new Set([...base, ...(isYI ? yi : [])])];
 
@@ -112,6 +120,8 @@ Deno.serve(async (req) => {
       error: failed.length ? `Could not add to ${failed.length} channel(s): ${failed.map((f) => `${f.channel} (${f.error})`).join(", ")}` : undefined,
     });
   } catch (e) {
-    return json({ ok: false, error: String((e as Error)?.message ?? e) }, 500);
+    // Log the full error so it is visible in the function Logs, and return the message.
+    console.error("slack-channels failed:", e);
+    return json({ ok: false, error: `slack-channels: ${String((e as Error)?.message ?? e)}` }, 500);
   }
 });
