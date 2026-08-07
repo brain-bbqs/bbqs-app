@@ -3341,6 +3341,7 @@ export type Database = {
           _name: string
           _pending_role?: string
           _role?: string
+          _secondary_emails?: string[]
           _working_groups?: string[]
         }
         Returns: Json
