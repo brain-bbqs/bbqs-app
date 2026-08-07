@@ -1,9 +1,11 @@
 name: QA – Smoke & Visual Regression
 
-# Disabled as an automatic PR check — the sandbox pipeline
-# (sync-sandbox-schema.yml) is the single source of PR truth.
-# Run this manually from the Actions tab when needed.
+# REQUIRED CHECK. Per docs/governance/qa-gate.md, QA must pass before any
+# merge into main. Do not disable this workflow or remove the pull_request
+# trigger — bypassing it is a governance/security override, not a shortcut.
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

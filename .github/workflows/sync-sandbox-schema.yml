@@ -55,6 +55,11 @@ jobs:
         env:
           DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
+      - name: Normalize sandbox DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -64,9 +69,7 @@ jobs:
         id: drift
         continue-on-error: true
         run: |
-          supabase migration list --db-url "$DB_URL" | tee /tmp/drift.txt
-        env:
-          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          supabase migration list --db-url "$DB_URL_SAFE" | tee /tmp/drift.txt
 
       - name: Comment drift report on PR
         if: github.event_name == 'pull_request'
@@ -91,9 +94,7 @@ jobs:
         # PRs push only when explicitly enabled; main always pushes;
         # manual dispatch pushes when dry_run=false.
         if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
-        run: supabase db push --db-url "$DB_URL" --include-all
-        env:
-          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$DB_URL_SAFE" --include-all
 
       - name: Record push status
         id: push-status
@@ -117,7 +118,13 @@ jobs:
         run: |
           [ -n "$PROD_DB_URL" ] || { echo "::error::Missing secret PROD_SUPABASE_DB_URL"; exit 1; }
           [ -n "$SANDBOX_DB_URL" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_DB_URL"; exit 1; }
+          case "$PROD_DB_URL" in
+            *"@db.vpexxhfpvghlejljwpvt.supabase.co"*) echo "::error::PROD_SUPABASE_DB_URL uses the IPv6-only direct host. Replace it with the production Session pooler URI from Supabase → Connect → Session pooler (port 5432)."; exit 1 ;;
+            *vpexxhfpvghlejljwpvt*) : ;;
+            *) echo "::error::Refusing to seed: PROD_SUPABASE_DB_URL does not identify the production project"; exit 1 ;;
+          esac
           case "$SANDBOX_DB_URL" in
+            *"@db.vzfsndsqveacpefoqwsu.supabase.co"*) echo "::error::SANDBOX_SUPABASE_DB_URL uses the IPv6-only direct host. Replace it with the sandbox Session pooler URI from Supabase → Connect → Session pooler (port 5432)."; exit 1 ;;
             *vzfsndsqveacpefoqwsu*) : ;;
             *) echo "::error::Refusing to seed: SANDBOX_SUPABASE_DB_URL does not point at the sandbox project"; exit 1 ;;
           esac
@@ -133,15 +140,20 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-17
           pg_dump --version
 
+      - name: Resolve production DB IPv4
+        run: source .github/scripts/pg-ipv4-env.sh PROD_DB_URL
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+
       - name: Dump production data (auth users + public schema)
         run: |
           set -euo pipefail
           # auth.users / auth.identities first: public tables carry FKs to them.
-          pg_dump "$PROD_DB_URL" \
+          pg_dump \
             --data-only --no-owner --no-privileges --no-comments \
             --table=auth.users --table=auth.identities \
             > /tmp/auth-data.sql
-          pg_dump "$PROD_DB_URL" \
+          pg_dump \
             --data-only --no-owner --no-privileges --no-comments \
             --schema=public \
             --exclude-table-data='public.data_audit_log' \
@@ -150,13 +162,16 @@ jobs:
             --exclude-table-data='public.auth_audit_log' \
             > /tmp/public-data.sql
           wc -l /tmp/auth-data.sql /tmp/public-data.sql
+
+      - name: Resolve sandbox DB IPv4
+        run: source .github/scripts/pg-ipv4-env.sh SANDBOX_DB_URL
         env:
-          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
       - name: Truncate sandbox tables
         run: |
           set -euo pipefail
-          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql -v ON_ERROR_STOP=1 <<'SQL'
           DO $$
           DECLARE stmt text;
           BEGIN
@@ -171,8 +186,6 @@ jobs:
           DELETE FROM auth.identities;
           DELETE FROM auth.users;
           SQL
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
       - name: Load production data into sandbox
         run: |
@@ -185,19 +198,15 @@ jobs:
             cat /tmp/public-data.sql
             echo "SET session_replication_role = origin;"
           } > /tmp/seed.sql
-          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f /tmp/seed.sql
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          psql -v ON_ERROR_STOP=1 --single-transaction -f /tmp/seed.sql
 
       - name: Report row counts
         run: |
-          psql "$SANDBOX_DB_URL" -c "
+          psql -c "
             SELECT relname AS table, n_live_tup AS approx_rows
               FROM pg_stat_user_tables
              WHERE schemaname = 'public' AND n_live_tup > 0
              ORDER BY n_live_tup DESC LIMIT 40;"
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
   deploy-frontend:
     name: Deploy sandbox frontend
