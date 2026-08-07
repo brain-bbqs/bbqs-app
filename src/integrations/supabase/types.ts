@@ -2898,21 +2898,27 @@ export type Database = {
       user_dashboard_layouts: {
         Row: {
           created_at: string
+          onboarded_at: string | null
           updated_at: string
           user_id: string
           widgets: Json
+          working_groups: string[]
         }
         Insert: {
           created_at?: string
+          onboarded_at?: string | null
           updated_at?: string
           user_id: string
           widgets?: Json
+          working_groups?: string[]
         }
         Update: {
           created_at?: string
+          onboarded_at?: string | null
           updated_at?: string
           user_id?: string
           widgets?: Json
+          working_groups?: string[]
         }
         Relationships: []
       }
@@ -3341,6 +3347,7 @@ export type Database = {
           _name: string
           _pending_role?: string
           _role?: string
+          _secondary_emails?: string[]
           _working_groups?: string[]
         }
         Returns: Json

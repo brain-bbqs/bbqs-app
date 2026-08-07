@@ -9,6 +9,12 @@ export interface DashboardIdentity {
   workingGroups: string[];
 }
 
+export interface DashboardPrefs {
+  widgets: WidgetSetting[] | null;
+  workingGroups: string[] | null;
+  onboarded: boolean;
+}
+
 /** Resolve the signed-in user's investigator record + working groups. */
 export function useDashboardIdentity() {
   const { user } = useAuth();
@@ -49,40 +55,62 @@ export function useDashboardConfig() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: identity, isLoading: identityLoading } = useDashboardIdentity();
-  const groups = identity?.workingGroups ?? [];
+  const memberGroups = identity?.workingGroups ?? [];
 
-  const { data: widgets, isLoading } = useQuery<WidgetSetting[]>({
-    queryKey: ["dashboard-layout", user?.id, groups.join("|")],
+  const { data: prefs, isLoading } = useQuery<DashboardPrefs & { widgets: WidgetSetting[] }>({
+    queryKey: ["dashboard-layout", user?.id, memberGroups.join("|")],
     enabled: !!user && !identityLoading,
     queryFn: async () => {
       const { data: own } = await supabase
         .from("user_dashboard_layouts")
-        .select("widgets")
+        .select("widgets, working_groups, onboarded_at")
         .eq("user_id", user!.id)
         .maybeSingle();
+
+      const savedGroups = (own?.working_groups ?? []).filter(Boolean);
+      const onboarded = !!own?.onboarded_at;
+
       if (own?.widgets && Array.isArray(own.widgets) && own.widgets.length) {
-        return normalizeWidgets(own.widgets);
+        return {
+          widgets: normalizeWidgets(own.widgets),
+          workingGroups: savedGroups.length ? savedGroups : memberGroups,
+          onboarded,
+        };
       }
-      if (groups.length) {
+      if (memberGroups.length) {
         const { data: defaults } = await supabase
           .from("working_group_dashboard_defaults")
           .select("working_group, widgets")
-          .in("working_group", groups);
+          .in("working_group", memberGroups);
         const match = defaults?.find((d) => Array.isArray(d.widgets) && (d.widgets as unknown[]).length);
-        if (match) return normalizeWidgets(match.widgets);
+        if (match) {
+          return {
+            widgets: normalizeWidgets(match.widgets),
+            workingGroups: savedGroups.length ? savedGroups : memberGroups,
+            onboarded,
+          };
+        }
       }
-      return DEFAULT_WIDGETS;
+      return {
+        widgets: DEFAULT_WIDGETS,
+        workingGroups: savedGroups.length ? savedGroups : memberGroups,
+        onboarded,
+      };
     },
   });
 
   const save = useMutation({
-    mutationFn: async (next: WidgetSetting[]) => {
+    mutationFn: async (input: WidgetSetting[] | { widgets: WidgetSetting[]; workingGroups?: string[]; onboarded?: boolean }) => {
+      const next = Array.isArray(input) ? input : input.widgets;
+      const row: Record<string, unknown> = {
+        user_id: user!.id,
+        widgets: next as unknown as Json,
+      };
+      if (!Array.isArray(input) && input.workingGroups) row.working_groups = input.workingGroups;
+      if (!Array.isArray(input) && input.onboarded) row.onboarded_at = new Date().toISOString();
       const { error } = await supabase
         .from("user_dashboard_layouts")
-        .upsert(
-          [{ user_id: user!.id, widgets: next as unknown as Json }],
-          { onConflict: "user_id" },
-        );
+        .upsert([row as never], { onConflict: "user_id" });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -104,8 +132,10 @@ export function useDashboardConfig() {
   });
 
   return {
-    widgets: widgets ?? DEFAULT_WIDGETS,
-    workingGroups: groups,
+    widgets: prefs?.widgets ?? DEFAULT_WIDGETS,
+    workingGroups: prefs?.workingGroups ?? memberGroups,
+    memberGroups,
+    onboarded: prefs?.onboarded ?? false,
     investigatorId: identity?.investigatorId ?? null,
     isLoading: identityLoading || isLoading,
     save,

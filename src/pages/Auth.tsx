@@ -15,7 +15,7 @@ export default function Auth() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) navigate("/dashboard");
   }, [user, navigate]);
 
   // Handle Globus callback — token_hash comes as a query param from the edge function redirect
@@ -81,7 +81,7 @@ export default function Auth() {
 
       toast.success(`Welcome, ${name || email || ""}!`);
       window.history.replaceState({}, "", "/auth");
-      navigate("/");
+      navigate("/dashboard");
     } catch (err: any) {
       console.error("Globus callback error:", err);
       toast.error(err.message || "Globus sign-in failed");
