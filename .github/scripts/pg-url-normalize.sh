@@ -22,6 +22,19 @@ raw = os.environ['URL'].strip()
 var_name = os.environ['VAR_NAME']
 out_name = os.environ['OUT_NAME']
 
+def shape(value):
+    """Redacted description of the secret so we can debug without leaking it."""
+    prefix = value.split('://', 1)[0][:12] if '://' in value else '(no scheme)'
+    return (
+        f"length={len(value)}, scheme='{prefix}', has_at={'@' in value}, "
+        f"has_colon={':' in value}, has_space={' ' in value}, "
+        f"has_newline={chr(10) in value or chr(13) in value}, "
+        f"quoted={value[:1] in chr(34) + chr(39)}"
+    )
+
+# Tolerate a copied "NAME=postgresql://..." assignment line.
+raw = re.sub(r'^[A-Za-z_][A-Za-z0-9_]*=', '', raw)
+
 # Supabase's Connect dialog may copy either the URI itself or a ready-to-run
 # command such as: psql 'postgresql://...'. Accept both without exposing it.
 command = re.fullmatch(r"psql\s+(?:--dbname(?:=|\s+))?(['\"])(.+)\1", raw, re.S)
@@ -48,7 +61,7 @@ if not m:
         f"::error::{var_name} is not a valid PostgreSQL connection string. "
         "Expected postgresql://<user>:<password>@<host>:5432/postgres. Copy the URI "
         "from Supabase -> Connect -> Session pooler, and save the complete value in "
-        f"the GitHub Actions secret.{hint}",
+        f"the GitHub Actions secret.{hint} Redacted shape of the received value: {shape(url)}",
         file=sys.stderr,
     )
     sys.exit(1)
