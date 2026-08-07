@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
+import { GroupAuditDialog } from "@/components/admin/GroupAuditDialog";
 
 type PipelineRow = {
   id: string;
@@ -26,7 +27,14 @@ type PipelineRow = {
   steps_done: number;
   steps_total: number;
   is_stuck: boolean;
+  last_reminder_sent_at: string | null;
+  reminder_count: number;
 };
+
+/** Don't nudge the same person more often than this. */
+const REMINDER_COOLDOWN_DAYS = 7;
+const daysSince = (iso: string | null) =>
+  iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000) : null;
 
 const STAGE_ORDER = [
   "kg_created", "grant_link", "consortium_group", "pi_group",
@@ -105,6 +113,8 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       if (!steps.length) throw new Error("No remaining steps to remind about");
       const { data, error } = await supabase.functions.invoke("send-onboarding-reminder", { body: { to: r.email, name: r.name, steps } });
       if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
+      // Stamp it so the panel shows "reminded Nd ago" and the cooldown can bite.
+      await supabase.rpc("record_onboarding_reminder" as any, { _investigator_id: r.id });
     }, "Reminder sent");
 
   if (tier.isLoading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -138,6 +148,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
           </Button>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          <GroupAuditDialog />
           <OnboardMemberDialog trigger={<Button size="sm"><UserPlus className="mr-1.5 h-4 w-4" />Onboard member</Button>} />
           <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isRefetching}><RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} /></Button>
         </div>
@@ -207,9 +218,32 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
                       <div className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" disabled={busy || !hasRemaining} onClick={() => remind(r)} title={hasRemaining ? "Email this member their remaining steps" : "Nothing remaining"}>
-                        <Bell className="mr-1.5 h-3.5 w-3.5" />Remind
-                      </Button>
+                      {(() => {
+                        const d = daysSince(r.last_reminder_sent_at);
+                        const cooling = d !== null && d < REMINDER_COOLDOWN_DAYS;
+                        return (
+                          <div className="inline-flex flex-col items-end gap-0.5">
+                            <Button
+                              size="sm"
+                              variant={cooling ? "ghost" : "outline"}
+                              disabled={busy || !hasRemaining || cooling}
+                              onClick={() => remind(r)}
+                              title={
+                                !hasRemaining ? "Nothing remaining"
+                                : cooling ? `Reminded ${d === 0 ? "today" : `${d}d ago`} — wait ${REMINDER_COOLDOWN_DAYS - (d ?? 0)} more day(s)`
+                                : "Email this member their remaining steps"
+                              }
+                            >
+                              <Bell className="mr-1.5 h-3.5 w-3.5" />Remind
+                            </Button>
+                            <span className="text-[10px] text-muted-foreground">
+                              {d === null
+                                ? "never reminded"
+                                : `${d === 0 ? "reminded today" : `reminded ${d}d ago`}${r.reminder_count > 1 ? ` ·${r.reminder_count}x` : ""}`}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 );
