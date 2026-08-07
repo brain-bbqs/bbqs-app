@@ -55,6 +55,11 @@ jobs:
         env:
           DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
+      - name: Normalize sandbox DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -64,9 +69,7 @@ jobs:
         id: drift
         continue-on-error: true
         run: |
-          supabase migration list --db-url "$DB_URL" | tee /tmp/drift.txt
-        env:
-          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          supabase migration list --db-url "$DB_URL_SAFE" | tee /tmp/drift.txt
 
       - name: Comment drift report on PR
         if: github.event_name == 'pull_request'
@@ -91,9 +94,7 @@ jobs:
         # PRs push only when explicitly enabled; main always pushes;
         # manual dispatch pushes when dry_run=false.
         if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
-        run: supabase db push --db-url "$DB_URL" --include-all
-        env:
-          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$DB_URL_SAFE" --include-all
 
       - name: Record push status
         id: push-status
