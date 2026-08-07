@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Link2, Sparkles } from "lucide-react";
+import { Loader2, Link2, Sparkles, Search } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
@@ -14,10 +14,11 @@ type Suggestion = { grant_id: string; grant_number: string; title: string | null
 type GrantHit = { id: string; grant_number: string; title: string | null };
 
 /** Actually RESOLVE the grant_link stage: rank candidate grants from live data (shared email
- *  domain / institution), or search manually, then associate in one call. Not a checkbox. */
+ *  domain / institution), or type-ahead search all grants, then associate in one click. */
 export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
 
   const { data: suggestions = [], isLoading } = useQuery({
@@ -30,14 +31,14 @@ export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | n
     },
   });
 
-  const { data: searchHits = [] } = useQuery({
+  const { data: searchHits = [], isFetching: searching } = useQuery({
     queryKey: ["grant-search-resolve", q],
     enabled: !!member && q.trim().length >= 2,
     queryFn: async () => {
       const term = q.trim().replace(/[%,]/g, " ");
       const { data, error } = await supabase
         .from("grants").select("id,grant_number,title")
-        .or(`grant_number.ilike.%${term}%,title.ilike.%${term}%`).limit(8);
+        .or(`grant_number.ilike.%${term}%,title.ilike.%${term}%`).limit(10);
       if (error) throw error;
       return (data ?? []) as GrantHit[];
     },
@@ -61,33 +62,43 @@ export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | n
     }
   };
 
-  const Row = ({ id, number, title, reason }: { id: string; number: string; title: string | null; reason?: string | null }) => (
-    <div className="flex items-center gap-2 rounded-md border border-border p-2.5">
+  const close = () => { setQ(""); setDropdownOpen(false); onClose(); };
+
+  /** A whole-row click target — the entire card links the grant, no button-hunting. */
+  const GrantRow = ({ id, number, title, reason }: { id: string; number: string; title: string | null; reason?: string | null }) => (
+    <button
+      type="button"
+      onClick={() => link(id, number)}
+      disabled={linking !== null}
+      className="group w-full text-left flex items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted hover:border-primary/50 disabled:opacity-60 disabled:cursor-not-allowed"
+    >
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-foreground truncate">{title ?? number}</div>
-        <div className="text-xs text-muted-foreground">
-          {number}{reason ? <span className="text-primary"> · {reason}</span> : null}
+        <div className="text-sm font-medium text-foreground leading-snug">{title ?? number}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          <span className="font-mono">{number}</span>
+          {reason ? <span className="text-primary"> · {reason}</span> : null}
         </div>
       </div>
-      <Button size="sm" disabled={linking !== null} onClick={() => link(id, number)}>
-        {linking === id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link2 className="mr-1.5 h-3.5 w-3.5" />Link</>}
-      </Button>
-    </div>
+      <span className="shrink-0 inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary pt-0.5">
+        {linking === id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link2 className="h-3.5 w-3.5" />Link</>}
+      </span>
+    </button>
   );
 
   return (
-    <Dialog open={!!member} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+    <Dialog open={!!member} onOpenChange={(o) => !o && close()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Associate a grant</DialogTitle>
           <DialogDescription>
-            {member ? <>Link <strong>{member.name ?? member.email}</strong> to a consortium grant. Suggestions are inferred from live data — colleagues on a grant who share their email domain or institution.</> : null}
+            {member ? <>Link <strong>{member.name ?? member.email}</strong> to a consortium grant. Suggestions are inferred from live data — colleagues on a grant who share their email domain or institution. Click any grant to link it.</> : null}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-1">
+        <div className="space-y-5 py-1">
+          {/* Suggested */}
           <div>
-            <div className="flex items-center gap-1.5 text-sm font-medium mb-1.5">
+            <div className="flex items-center gap-1.5 text-sm font-medium mb-2">
               <Sparkles className="h-4 w-4 text-primary" /> Suggested
             </div>
             {isLoading ? (
@@ -99,25 +110,60 @@ export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | n
             ) : (
               <div className="space-y-2">
                 {suggestions.map((s) => (
-                  <Row key={s.grant_id} id={s.grant_id} number={s.grant_number} title={s.title} reason={s.reason} />
+                  <GrantRow key={s.grant_id} id={s.grant_id} number={s.grant_number} title={s.title} reason={s.reason} />
                 ))}
               </div>
             )}
           </div>
 
-          <div>
+          {/* Type-ahead search over all grants */}
+          <div className="relative">
             <Label htmlFor="rg-search">Or search all grants</Label>
-            <Input id="rg-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Grant number or title…" />
-            {searchHits.length > 0 && (
-              <div className="space-y-2 mt-2">
-                {searchHits.map((g) => <Row key={g.id} id={g.id} number={g.grant_number} title={g.title} />)}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="rg-search"
+                className="pl-8"
+                value={q}
+                onChange={(e) => { setQ(e.target.value); setDropdownOpen(true); }}
+                onFocus={() => setDropdownOpen(true)}
+                onKeyDown={(e) => { if (e.key === "Escape") { setDropdownOpen(false); e.stopPropagation(); } }}
+                placeholder="Type a grant number or title…"
+                autoComplete="off"
+              />
+              {searching && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+
+            {dropdownOpen && q.trim().length >= 2 && (
+              <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-72 overflow-y-auto">
+                {searchHits.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-muted-foreground">
+                    {searching ? "Searching…" : "No grants match that search."}
+                  </div>
+                ) : (
+                  searchHits.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => link(g.id, g.grant_number)}
+                      disabled={linking !== null}
+                      className="w-full text-left px-3 py-2.5 hover:bg-muted border-b border-border last:border-b-0 transition-colors disabled:opacity-60"
+                    >
+                      <div className="text-sm text-foreground leading-snug">{g.title ?? g.grant_number}</div>
+                      <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                        {g.grant_number}
+                        {linking === g.id && <span className="ml-2 text-primary">linking…</span>}
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={close}>Cancel</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -68,10 +68,24 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
   (**Mark done / Dismiss / Re-run**), and every member row has a one-click **Remind** button
   (`send-onboarding-reminder` emails the member their remaining steps). Wizard gains a
   **secondary email** field (+ Smart-fill fills it).
+- **P6 DONE (resolve-for-real)** — every stage tag opens the resolver that fixes it:
+  grant association (ranked live suggestions), working-group membership (writes
+  `working_groups`, sync trigger provisions the lists), mailing-list re-sync, welcome email,
+  and Slack channels. `data_questionnaire` is PI-only (migration `20260807140000`).
+- **P7 DONE (Slack)** — `slack-channels` edge function: resolves a member by email
+  (`users.lookupByEmail`), reads their channels, and adds the missing ones. Role rule mirrors
+  the agent — everyone gets `SLACK_ONBOARDING_CHANNELS`; postdocs/grad students also get
+  `SLACK_YI_CHANNELS`. Workspace ENTRY stays manual (Slack requires a guest invite); the
+  function reports that explicitly rather than failing silently.
 - **P3 NEXT** — `offboard_member` RPC + offboard wizard.
 
 ## Manual apply / config (KG side)
 - Apply migrations in the SQL editor (in order): `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`, `20260806160000`.
 - Deploy edge functions (keys already on the project): `parse-onboard` (LOVABLE_API_KEY),
   `send-welcome-email` + `send-onboarding-reminder` (RESEND_API_KEY):
-  `supabase functions deploy parse-onboard send-welcome-email send-onboarding-reminder`
+  `supabase functions deploy parse-onboard send-welcome-email send-onboarding-reminder slack-channels`
+- Slack secrets on the KG project (option A — the bot token is duplicated here from the agent):
+  `supabase secrets set SLACK_BOT_TOKEN=xoxb-… SLACK_ONBOARDING_CHANNELS="C07UA8763SA,C0951JD5SAV,C096Q1GMU01,C07UGPTGCHH" SLACK_YI_CHANNELS="C09673P9D1A"`
+  Bot scopes needed: `users:read.email`, `channels:read`, `groups:read`, and invite rights
+  (`channels:manage` / `groups:write`). Keep `slack_young_investigator_channels` in the AGENT's
+  consortium_settings set to the SAME value (`C09673P9D1A`) so both surfaces agree.

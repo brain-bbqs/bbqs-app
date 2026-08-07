@@ -5,11 +5,9 @@ import { useUserTier } from "@/hooks/useUserTier";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus, Bell, Check, SkipForward, RotateCw, Link2 } from "lucide-react";
+import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus, Bell } from "lucide-react";
 import { ResolveGrantLinkDialog } from "@/components/admin/ResolveGrantLinkDialog";
+import { ResolveStageDialog, type StageTarget } from "@/components/admin/ResolveStageDialog";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
@@ -60,6 +58,8 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
   const [busy, setBusy] = useState(false);
   // Member whose grant_link is being RESOLVED (real association, not a checkbox).
   const [resolvingGrant, setResolvingGrant] = useState<{ id: string; name: string | null; email: string; role: string | null } | null>(null);
+  // Any other stage → the generic resolver (WG membership, group re-sync, welcome, slack, …).
+  const [resolvingStage, setResolvingStage] = useState<StageTarget | null>(null);
 
   const { data: rows = [], isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["onboarding-pipeline"],
@@ -98,18 +98,6 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
     }
   };
 
-  const setStep = (id: string, step: string, status: "done" | "skipped") =>
-    act(async () => {
-      const { error } = await supabase.rpc("set_onboarding_step" as any, { _investigator_id: id, _step: step, _status: status });
-      if (error) throw error;
-    }, status === "done" ? "Marked done" : "Dismissed");
-
-  const reRunWelcome = (r: PipelineRow) =>
-    act(async () => {
-      const { data, error } = await supabase.functions.invoke("send-welcome-email", { body: { to: r.email, name: r.name, role: r.role } });
-      if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
-      await supabase.rpc("set_onboarding_step" as any, { _investigator_id: r.id, _step: "welcome_email", _status: "done" });
-    }, "Welcome email re-sent");
 
   const remind = (r: PipelineRow) =>
     act(async () => {
@@ -194,33 +182,22 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
                           const status = checklist[k];
                           const cls = `inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] leading-none ${stageClass(status)}`;
                           if (isDone(status)) return <span key={k} className={cls} title={`${STAGE_LABELS[k] ?? k}: ${status}`}>{STAGE_LABELS[k] ?? k}</span>;
+                          // Every unresolved tag is a direct click → the resolver that actually
+                          // fixes THAT stage (grant association, WG membership, group re-sync, …).
                           return (
-                            <DropdownMenu key={k}>
-                              <DropdownMenuTrigger asChild disabled={busy}>
-                                <button className={`${cls} cursor-pointer hover:ring-1 hover:ring-ring`} title={`${STAGE_LABELS[k] ?? k}: ${status} — click to resolve`}>{STAGE_LABELS[k] ?? k}</button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                <DropdownMenuLabel>{STAGE_LABELS[k] ?? k}</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {/* Real resolution first — the action that actually fixes the stage. */}
-                                {k === "grant_link" && (
-                                  <DropdownMenuItem onClick={() => setResolvingGrant({ id: r.id, name: r.name, email: r.email, role: r.role })}>
-                                    <Link2 className="mr-2 h-4 w-4" />Associate a grant…
-                                  </DropdownMenuItem>
-                                )}
-                                {k === "welcome_email" && <DropdownMenuItem onClick={() => reRunWelcome(r)}><RotateCw className="mr-2 h-4 w-4" />Send welcome email now</DropdownMenuItem>}
-                                {k === "data_questionnaire" && (
-                                  <DropdownMenuItem asChild>
-                                    <a href="/admin?tab=onboarding" onClick={(e) => e.preventDefault()} className="flex items-center">
-                                      <RotateCw className="mr-2 h-4 w-4" />Questionnaire is PI-owned
-                                    </a>
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setStep(r.id, k, "done")}><Check className="mr-2 h-4 w-4" />Mark done (manual)</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setStep(r.id, k, "skipped")}><SkipForward className="mr-2 h-4 w-4" />Dismiss / not needed</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <button
+                              key={k}
+                              disabled={busy}
+                              className={`${cls} cursor-pointer hover:ring-1 hover:ring-ring`}
+                              title={`${STAGE_LABELS[k] ?? k}: ${status} — click to resolve`}
+                              onClick={() =>
+                                k === "grant_link"
+                                  ? setResolvingGrant({ id: r.id, name: r.name, email: r.email, role: r.role })
+                                  : setResolvingStage({ stage: k, id: r.id, name: r.name, email: r.email, role: r.role, working_groups: r.working_groups })
+                              }
+                            >
+                              {STAGE_LABELS[k] ?? k}
+                            </button>
                           );
                         })}
                       </div>
@@ -243,6 +220,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       )}
 
       <ResolveGrantLinkDialog member={resolvingGrant} onClose={() => setResolvingGrant(null)} />
+      <ResolveStageDialog target={resolvingStage} onClose={() => setResolvingStage(null)} />
     </div>
   );
 }
