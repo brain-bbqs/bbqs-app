@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Usage: source .github/scripts/pg-ipv4-env.sh <ENV_VAR_NAME>
-# Reads a PostgreSQL connection string from the named environment variable,
-# resolves the DB host to an IPv4 address, and writes libpq env vars to
-# $GITHUB_ENV so subsequent steps connect over IPv4 (bypasses unreachable IPv6).
+# Reads an IPv4-capable PostgreSQL connection string from the named environment
+# variable and writes libpq env vars to $GITHUB_ENV. Supabase direct hosts
+# (db.<project-ref>.supabase.co) are IPv6-only and must not be used on GitHub's
+# IPv4-only hosted runners; use the Session pooler URI on port 5432 instead.
 set -euo pipefail
 
 VAR_NAME="${1:-}"
@@ -11,11 +12,13 @@ VAR_NAME="${1:-}"
 # indirect expansion to read the connection string
 URL="${!VAR_NAME}"
 [ -n "$URL" ] || { echo "::error::$VAR_NAME is empty" >&2; exit 1; }
+export URL VAR_NAME
 
 python3 - <<'PY'
 import os, sys, socket, urllib.parse
 
 url = os.environ['URL']
+var_name = os.environ['VAR_NAME']
 env_path = os.environ.get('GITHUB_ENV')
 
 p = urllib.parse.urlparse(url)
@@ -26,6 +29,15 @@ if p.scheme not in ('postgres', 'postgresql'):
 host = p.hostname
 if not host:
     print("::error::Could not parse host from connection string", file=sys.stderr)
+    sys.exit(1)
+
+if host.startswith('db.') and host.endswith('.supabase.co'):
+    print(
+        f"::error::{var_name} uses Supabase's IPv6-only direct database host ({host}). "
+        "Replace this GitHub Actions secret with the Session pooler connection string "
+        "from Supabase → Connect → Session pooler (port 5432).",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 port = p.port or 5432

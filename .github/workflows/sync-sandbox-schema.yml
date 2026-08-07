@@ -117,7 +117,13 @@ jobs:
         run: |
           [ -n "$PROD_DB_URL" ] || { echo "::error::Missing secret PROD_SUPABASE_DB_URL"; exit 1; }
           [ -n "$SANDBOX_DB_URL" ] || { echo "::error::Missing secret SANDBOX_SUPABASE_DB_URL"; exit 1; }
+          case "$PROD_DB_URL" in
+            *"@db.vpexxhfpvghlejljwpvt.supabase.co"*) echo "::error::PROD_SUPABASE_DB_URL uses the IPv6-only direct host. Replace it with the production Session pooler URI from Supabase → Connect → Session pooler (port 5432)."; exit 1 ;;
+            *vpexxhfpvghlejljwpvt*) : ;;
+            *) echo "::error::Refusing to seed: PROD_SUPABASE_DB_URL does not identify the production project"; exit 1 ;;
+          esac
           case "$SANDBOX_DB_URL" in
+            *"@db.vzfsndsqveacpefoqwsu.supabase.co"*) echo "::error::SANDBOX_SUPABASE_DB_URL uses the IPv6-only direct host. Replace it with the sandbox Session pooler URI from Supabase → Connect → Session pooler (port 5432)."; exit 1 ;;
             *vzfsndsqveacpefoqwsu*) : ;;
             *) echo "::error::Refusing to seed: SANDBOX_SUPABASE_DB_URL does not point at the sandbox project"; exit 1 ;;
           esac

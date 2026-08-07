@@ -15,11 +15,15 @@ There is **no Lovable remix** to maintain.
 
 ## 1. Get the sandbox Supabase credentials
 
-Supabase dashboard → project `vzfsndsqveacpefoqwsu` → **Settings → Database → Connection string → URI**:
+Supabase dashboard → project `vzfsndsqveacpefoqwsu` → **Connect → Session pooler → URI**:
 
 ```
-postgresql://postgres:<DB_PASSWORD>@db.vzfsndsqveacpefoqwsu.supabase.co:5432/postgres
+postgresql://postgres.vzfsndsqveacpefoqwsu:<DB_PASSWORD>@<region>.pooler.supabase.com:5432/postgres
 ```
+
+Use the **Session pooler** on port `5432`, not the direct
+`db.vzfsndsqveacpefoqwsu.supabase.co` host. GitHub-hosted runners are IPv4-only,
+while the direct Supabase database hostname is IPv6-only.
 
 Also copy from **Settings → API**:
 
@@ -49,7 +53,8 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 
 | Name | Value |
 |---|---|
-| `SANDBOX_SUPABASE_DB_URL` | the URI from step 1 |
+| `SANDBOX_SUPABASE_DB_URL` | sandbox Session pooler URI from step 1 |
+| `PROD_SUPABASE_DB_URL` | production Session pooler URI (port 5432), used as the clone source |
 | `SANDBOX_SUPABASE_ANON_KEY` | the anon key from step 1 |
 | `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 | `SANDBOX_GITHUB_PAT` | classic PAT with `repo` scope (and SSO authorized if the org uses SAML) for `brain-bbqs/bbqs-website-sandbox` |
