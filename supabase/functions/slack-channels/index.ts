@@ -66,6 +66,30 @@ Deno.serve(async (req) => {
     const base = csv(Deno.env.get("SLACK_ONBOARDING_CHANNELS"));
     const yi = csv(Deno.env.get("SLACK_YI_CHANNELS"));
     const cfg = { SLACK_BOT_TOKEN: !!token, SLACK_ONBOARDING_CHANNELS: base.length, SLACK_YI_CHANNELS: yi.length };
+
+    // A secret pasted with a non-ASCII character (a smart quote, a curly apostrophe, or the
+    // literal "…" from a docs placeholder) makes the Authorization header invalid and fetch
+    // throws the opaque "not a valid ByteString". Catch it here and say exactly what is wrong,
+    // without ever echoing the secret.
+    const badChars = (v: string) => [...v].filter((c) => c.charCodeAt(0) > 126 || c.charCodeAt(0) < 32);
+    if (token) {
+      const bad = badChars(token);
+      if (bad.length) {
+        const codes = [...new Set(bad.map((c) => "U+" + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")))];
+        console.error("slack-channels: SLACK_BOT_TOKEN contains non-ASCII", codes);
+        return json({
+          ok: false,
+          error: `SLACK_BOT_TOKEN contains ${bad.length} non-ASCII character(s) (${codes.join(", ")}) — it was probably pasted with a placeholder or a smart quote. Re-set it with the real token: supabase secrets set SLACK_BOT_TOKEN=xoxb-YOUR-REAL-TOKEN`,
+        }, 500);
+      }
+      if (!token.startsWith("xox")) {
+        return json({ ok: false, error: "SLACK_BOT_TOKEN does not look like a Slack bot token (expected it to start with 'xoxb-')." }, 500);
+      }
+    }
+    const badChannel = [...base, ...yi].find((c) => badChars(c).length);
+    if (badChannel) {
+      return json({ ok: false, error: `A configured Slack channel ID contains non-ASCII characters. Re-set SLACK_ONBOARDING_CHANNELS / SLACK_YI_CHANNELS as plain comma-separated IDs (e.g. C07UA8763SA,C0951JD5SAV).` }, 500);
+    }
     if (!token || !base.length) {
       console.error("slack-channels: missing config", cfg);
       return json({
