@@ -47,6 +47,11 @@ jobs:
         env:
           DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
 
+      - name: Normalize prod DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -54,13 +59,9 @@ jobs:
 
       - name: List pending migrations (drift report)
         continue-on-error: true
-        run: supabase migration list --db-url "$DB_URL"
-        env:
-          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+        run: supabase migration list --db-url "$DB_URL_SAFE"
 
       - name: Push migrations to prod
         # Push on a real push to main (when enabled) OR a manual dispatch with dry_run=false.
         if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
-        run: supabase db push --db-url "$DB_URL" --include-all
-        env:
-          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+        run: supabase db push --db-url "$DB_URL_SAFE" --include-all
