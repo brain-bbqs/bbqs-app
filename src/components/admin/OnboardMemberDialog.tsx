@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Check, Mail, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Check, Mail, X, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLES: { value: string; label: string }[] = [
@@ -56,6 +57,9 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
+  const [smartText, setSmartText] = useState("");
+  const [parsing, setParsing] = useState(false);
+
   const { data: grantResults = [] } = useQuery({
     queryKey: ["grant-search", grantQuery],
     enabled: open && grantQuery.trim().length >= 2 && !grant,
@@ -75,6 +79,30 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
     setEmail(""); setName(""); setRole("research_staff"); setWgs(new Set()); setTier("member");
     setInstitution(""); setGrantQuery(""); setGrant(null);
     setSubmitting(false); setResult(null); setSendingEmail(false); setEmailSent(false);
+    setSmartText(""); setParsing(false);
+  };
+
+  // Smart-fill: LLM parses free text → pre-fills the fields below (admin reviews, then submits).
+  const smartFill = async () => {
+    if (!smartText.trim()) return;
+    setParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-onboard", { body: { text: smartText } });
+      if (error || !data?.ok) throw new Error((data as any)?.error ?? error?.message ?? "parse failed");
+      const f = (data as any).fields;
+      if (f.email) setEmail(f.email);
+      if (f.name) setName(f.name);
+      if (f.role && ROLES.some((r) => r.value === f.role)) setRole(f.role);
+      if (Array.isArray(f.working_groups)) setWgs(new Set(f.working_groups.filter((w: string) => WORKING_GROUPS.some((x) => x.token === w))));
+      if (f.institution) setInstitution(f.institution);
+      if (f.access_tier && ["member", "curator", "admin"].includes(f.access_tier)) setTier(f.access_tier);
+      if (f.grant_hint) { setGrant(null); setGrantQuery(f.grant_hint); }  // seeds the grant search
+      toast.success("Fields pre-filled — review and submit");
+    } catch (e: any) {
+      toast.error(`Smart fill failed: ${e?.message ?? "unknown"}`);
+    } finally {
+      setParsing(false);
+    }
   };
 
   const onOpenChange = (o: boolean) => { setOpen(o); if (!o) reset(); };
@@ -178,6 +206,25 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
         ) : (
           // ── Form view ────────────────────────────────────────────────
           <div className="space-y-4 py-2">
+            {/* Smart fill — LLM pre-fills the fields for the admin to review */}
+            <div className="rounded-md border border-dashed border-border p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Sparkles className="h-4 w-4 text-primary" /> Smart fill <span className="font-normal text-muted-foreground">(optional)</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Paste a form row, an email, or a description — the assistant fills the fields below for you to review.
+              </p>
+              <Textarea
+                rows={3}
+                value={smartText}
+                onChange={(e) => setSmartText(e.target.value)}
+                placeholder="e.g. Sankar Alagapan sankar.alagapan@gatech.edu, co-investigator on Christopher Rozell's R61, analytics + devices + ELSI working groups"
+              />
+              <Button size="sm" variant="secondary" onClick={smartFill} disabled={parsing || !smartText.trim()}>
+                {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Sparkles className="mr-1.5 h-4 w-4" />Parse &amp; fill</>}
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
               <div>
                 <Label htmlFor="ob-email">Email <span className="text-destructive">*</span></Label>

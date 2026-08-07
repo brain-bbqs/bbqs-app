@@ -58,8 +58,13 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
 - **P2 DONE** — `onboard_member` + `set_onboarding_step` RPCs (`20260806150000`), `send-welcome-email`
   edge function, `OnboardMemberDialog` wizard (wired into the panel header), and the KG-site
   supabase client now tags writes `X-BBQS-Client: kg-site`.
+- **P2.5 DONE (Smart fill)** — `parse-onboard` edge function (Lovable AI gateway,
+  `google/gemini-2.5-flash`, admin/curator-gated, returns sanitized fields) + a "Smart fill"
+  textarea in the wizard: paste a form row / email / description → LLM pre-fills the fields
+  for the admin to review (feature-004: LLM proposes, human + deterministic path execute).
 - **P3 NEXT** — `offboard_member` RPC + offboard wizard.
 
 ## Manual apply / config (KG side)
 - Apply migrations in the SQL editor: `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`.
-- Deploy the edge function: `supabase functions deploy send-welcome-email` (needs `RESEND_API_KEY`).
+- Deploy edge functions: `supabase functions deploy send-welcome-email` (needs `RESEND_API_KEY`)
+  and `supabase functions deploy parse-onboard` (needs `LOVABLE_API_KEY` — already set for discovery-chat).
