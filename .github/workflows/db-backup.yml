@@ -40,10 +40,14 @@ jobs:
         id: ts
         run: echo "DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve DB IPv4
+        run: source .github/scripts/pg-ipv4-env.sh SUPABASE_KG_DB_URL
+        env:
+          SUPABASE_KG_DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+
       - name: Dump schema
         run: |
           pg_dump \
-            "${{ secrets.SUPABASE_KG_DB_URL }}" \
             --schema-only \
             --no-owner \
             --no-acl \
@@ -53,7 +57,6 @@ jobs:
       - name: Dump full data
         run: |
           pg_dump \
-            "${{ secrets.SUPABASE_KG_DB_URL }}" \
             --no-owner \
             --no-acl \
             --format=plain \
