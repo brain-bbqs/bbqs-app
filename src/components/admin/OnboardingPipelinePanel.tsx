@@ -11,6 +11,7 @@ import {
 import { Loader2, Lock, AlertTriangle, RefreshCw, UserPlus, Bell, Check, SkipForward, RotateCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { edgeError } from "@/lib/edgeError";
 import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
 
 type PipelineRow = {
@@ -103,7 +104,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
   const reRunWelcome = (r: PipelineRow) =>
     act(async () => {
       const { data, error } = await supabase.functions.invoke("send-welcome-email", { body: { to: r.email, name: r.name, role: r.role } });
-      if (error || (data as any)?.success === false) throw new Error((data as any)?.error ?? "send failed");
+      if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
       await supabase.rpc("set_onboarding_step" as any, { _investigator_id: r.id, _step: "welcome_email", _status: "done" });
     }, "Welcome email re-sent");
 
@@ -112,7 +113,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       const steps = remainingSteps(r);
       if (!steps.length) throw new Error("No remaining steps to remind about");
       const { data, error } = await supabase.functions.invoke("send-onboarding-reminder", { body: { to: r.email, name: r.name, steps } });
-      if (error || (data as any)?.success === false) throw new Error((data as any)?.error ?? "send failed");
+      if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
     }, "Reminder sent");
 
   if (tier.isLoading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
