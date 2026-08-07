@@ -10,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const ROLES = ["contact_pi", "co_pi", "mpi", "co-investigator", "postdoc", "graduate_student", "research_staff", "data_manager", "project_manager", "nih_program", "admin", "other"];

@@ -4,8 +4,13 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const FROM_ADDRESS = Deno.env.get("REMINDER_FROM") || "BBQS <noreply@brain-bbqs.org>";
+// Use REMINDER_FROM only if it's a valid `email` or `Name <email>` string; else the safe
+// default (a malformed env value here 422s every send — Resend "Invalid `from` field").
+const FROM_RE = /^(?:[^<>]+<[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+>|[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)$/;
+const _rf = (Deno.env.get("REMINDER_FROM") || "").trim();
+const FROM_ADDRESS = FROM_RE.test(_rf) ? _rf : "BBQS <noreply@brain-bbqs.org>";
 const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbq-clone.lovable.app/auth";
 
 // Friendly labels for the persisted checklist keys.
