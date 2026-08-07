@@ -133,15 +133,20 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-17
           pg_dump --version
 
+      - name: Resolve production DB IPv4
+        run: source .github/scripts/pg-ipv4-env.sh PROD_DB_URL
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+
       - name: Dump production data (auth users + public schema)
         run: |
           set -euo pipefail
           # auth.users / auth.identities first: public tables carry FKs to them.
-          pg_dump "$PROD_DB_URL" \
+          pg_dump \
             --data-only --no-owner --no-privileges --no-comments \
             --table=auth.users --table=auth.identities \
             > /tmp/auth-data.sql
-          pg_dump "$PROD_DB_URL" \
+          pg_dump \
             --data-only --no-owner --no-privileges --no-comments \
             --schema=public \
             --exclude-table-data='public.data_audit_log' \
@@ -150,13 +155,16 @@ jobs:
             --exclude-table-data='public.auth_audit_log' \
             > /tmp/public-data.sql
           wc -l /tmp/auth-data.sql /tmp/public-data.sql
+
+      - name: Resolve sandbox DB IPv4
+        run: source .github/scripts/pg-ipv4-env.sh SANDBOX_DB_URL
         env:
-          PROD_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
       - name: Truncate sandbox tables
         run: |
           set -euo pipefail
-          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql -v ON_ERROR_STOP=1 <<'SQL'
           DO $$
           DECLARE stmt text;
           BEGIN
@@ -171,8 +179,6 @@ jobs:
           DELETE FROM auth.identities;
           DELETE FROM auth.users;
           SQL
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
       - name: Load production data into sandbox
         run: |
@@ -185,19 +191,15 @@ jobs:
             cat /tmp/public-data.sql
             echo "SET session_replication_role = origin;"
           } > /tmp/seed.sql
-          psql "$SANDBOX_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f /tmp/seed.sql
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          psql -v ON_ERROR_STOP=1 --single-transaction -f /tmp/seed.sql
 
       - name: Report row counts
         run: |
-          psql "$SANDBOX_DB_URL" -c "
+          psql -c "
             SELECT relname AS table, n_live_tup AS approx_rows
               FROM pg_stat_user_tables
              WHERE schemaname = 'public' AND n_live_tup > 0
              ORDER BY n_live_tup DESC LIMIT 40;"
-        env:
-          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
 
   deploy-frontend:
     name: Deploy sandbox frontend
