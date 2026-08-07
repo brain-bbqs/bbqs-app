@@ -12,6 +12,7 @@ import { User, Building2, FolderOpen, History, LogOut, LogIn, Pencil, Check, X, 
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
+import { MemberProfileEditor } from "@/components/profile/MemberProfileEditor";
 import { InvestigatorSummary } from "@/components/entity-summary/summaries/InvestigatorSummary";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -217,6 +218,9 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      {/* Self-serve profile editing (benign fields direct; working groups = request for admin approval) */}
+      <MemberProfileEditor />
+
       {/* Profile header */}
       <Card id="overview" className="scroll-mt-20">
         <CardHeader>
