@@ -1,0 +1,23 @@
+name: Guards (cross-layer invariants)
+
+# Fast, zero-dependency static gate (~10s): no npm install, no browser, no DB.
+# Catches cross-layer breakage that single-file review misses — e.g. a global supabase-client
+# header vs each edge function's hand-written CORS allow-list (broke every edge function on
+# 2026-08-07). Deliberately cheap so it can run on every push without CI friction.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run guard suite
+        run: npm run test:guards
