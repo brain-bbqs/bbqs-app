@@ -115,12 +115,29 @@ Deno.serve(async (req) => {
     const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: userData } = await supa.auth.getUser();
-    const uid = userData?.user?.id;
-    if (!uid) return json({ ok: false, error: "Not authenticated" }, 401);
-    const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
-    if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
-      return json({ ok: false, error: "Admin or curator only" }, 403);
+    // TRIGGER PATH: the DB trigger fires with only the public anon key (the established
+    // pattern here — see sync_member_groups). It is NOT trusted: we ignore every value in the
+    // body except the email, re-read the member with the service role, and act ONLY on what
+    // the database says. It also returns a bare {ok} so this path can't be used to probe who
+    // is in Slack. Everything else still requires an admin/curator JWT.
+    const triggerMode = action === "sync";
+    let dbRole: unknown = role;
+    let dbWGs: unknown = working_groups;
+    if (triggerMode) {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: inv } = await admin.from("investigators")
+        .select("role,working_groups").ilike("email", String(email)).maybeSingle();
+      if (!inv) return json({ ok: true, skipped: "no such member" });
+      dbRole = inv.role;
+      dbWGs = inv.working_groups;
+    } else {
+      const { data: userData } = await supa.auth.getUser();
+      const uid = userData?.user?.id;
+      if (!uid) return json({ ok: false, error: "Not authenticated" }, 401);
+      const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
+      if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
+        return json({ ok: false, error: "Admin or curator only" }, 403);
+      }
     }
 
     // Report WHICH piece of config is missing (presence only — never the values), so a 500
@@ -217,8 +234,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const isYI = YI_ROLES.has(String(role ?? "").toLowerCase());
-    const target = targetsFor(base, yi, wgMap, role, working_groups);
+    const effRole = triggerMode ? dbRole : role;
+    const effWGs = triggerMode ? dbWGs : working_groups;
+    const isYI = YI_ROLES.has(String(effRole ?? "").toLowerCase());
+    const target = targetsFor(base, yi, wgMap, effRole, effWGs);
 
     // 1. Resolve the person in the workspace (external guests must be invited manually first).
     const lookup = await slack("users.lookupByEmail", token, { email: String(email).toLowerCase() });
@@ -243,6 +262,17 @@ Deno.serve(async (req) => {
 
     const names = await channelNames(target, token);
     const label = (id: string) => names[id] ?? id;
+
+    if (triggerMode) {
+      for (const channel of missing) {
+        let r = await slack("conversations.invite", token, { channel, users: userId }, true);
+        if (!r?.ok && r?.error === "not_in_channel") {
+          const j = await slack("conversations.join", token, { channel }, true);
+          if (j?.ok) await slack("conversations.invite", token, { channel, users: userId }, true);
+        }
+      }
+      return json({ ok: true, synced: missing.length });
+    }
 
     if (action !== "invite") {
       return json({
