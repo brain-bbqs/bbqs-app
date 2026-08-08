@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
 import { GroupAuditDialog } from "@/components/admin/GroupAuditDialog";
+import { SlackInvitesDialog } from "@/components/admin/SlackInvitesDialog";
 
 type PipelineRow = {
   id: string;
@@ -90,6 +91,12 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
     return rows;
   }, [rows, filter]);
   const stuckCount = useMemo(() => rows.filter((r) => r.is_stuck).length, [rows]);
+  // Everyone whose Slack step is still open — fed to the batch guest-invite triage.
+  const slackPending = useMemo(
+    () => rows.filter((r) => r.checklist && "slack" in r.checklist && !isDone(r.checklist.slack))
+              .map((r) => ({ email: r.email, name: r.name, role: r.role, working_groups: r.working_groups })),
+    [rows],
+  );
 
   // Run an action, toast, refresh. Serialized via `busy` to avoid double-clicks.
   const act = async (fn: () => Promise<void>, ok: string) => {
@@ -148,6 +155,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
           </Button>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          <SlackInvitesDialog people={slackPending} />
           <GroupAuditDialog />
           <OnboardMemberDialog trigger={<Button size="sm"><UserPlus className="mr-1.5 h-4 w-4" />Onboard member</Button>} />
           <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isRefetching}><RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} /></Button>

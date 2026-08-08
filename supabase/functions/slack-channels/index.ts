@@ -26,6 +26,33 @@ const corsHeaders = {
 const YI_ROLES = new Set(["postdoc", "graduate_student"]);
 const csv = (v: string | undefined) => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
+/** Per-working-group Slack channels, mirroring the wg-*@ Google Groups.
+ *  SLACK_WG_CHANNELS="WG-Analytics=C1,WG-Devices=C2|C3,WG-ELSI=C4,WG-Standards=C5"
+ *  (a group may map to several channels with "|"). Case-insensitive on the WG token. */
+function wgChannelMap(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const pair of csv(Deno.env.get("SLACK_WG_CHANNELS"))) {
+    const i = pair.indexOf("=");
+    if (i < 1) continue;
+    const wg = pair.slice(0, i).trim().toLowerCase();
+    const ids = pair.slice(i + 1).split("|").map((x) => x.trim()).filter(Boolean);
+    if (wg && ids.length) out[wg] = ids;
+  }
+  return out;
+}
+
+/** Channels a member should be in: everyone-channels + YI (trainees) + their working groups. */
+function targetsFor(base: string[], yi: string[], wgMap: Record<string, string[]>,
+                    role: unknown, workingGroups: unknown): string[] {
+  const t = [...base];
+  if (YI_ROLES.has(String(role ?? "").toLowerCase())) t.push(...yi);
+  for (const wg of Array.isArray(workingGroups) ? workingGroups : []) {
+    const ids = wgMap[String(wg).trim().toLowerCase()];
+    if (ids) t.push(...ids);
+  }
+  return [...new Set(t)];
+}
+
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -39,6 +66,27 @@ async function slack(method: string, token: string, params: Record<string, strin
       })
     : await fetch(`${url}?${new URLSearchParams(params)}`, { headers: { Authorization: `Bearer ${token}` } });
   return await res.json();
+}
+
+/** Translate a raw Slack API error into something an admin can act on. Returning the bare
+ *  code ("user_is_ultra_restricted") tells you nothing about WHO must do WHAT. */
+function explainSlackError(code: string, channel: string): string {
+  switch (code) {
+    case "user_is_ultra_restricted":
+      return `${channel}: this member is a SINGLE-CHANNEL GUEST in Slack, so Slack will not add them to more channels. A workspace admin must change their account type (Slack → Manage members → Change account type → Multi-Channel Guest or Member), then retry.`;
+    case "user_is_restricted":
+      return `${channel}: this member is a guest account restricted from that channel — a workspace admin must grant access or upgrade them to Member.`;
+    case "is_archived":
+      return `${channel} is archived — remove it from the configured onboarding channels.`;
+    case "channel_not_found":
+      return `${channel}: channel not found, or it is private and the bot cannot see it — check the configured channel ID and invite the bot with /invite @BBQS.`;
+    case "cant_invite_self":
+      return `${channel}: cannot invite the bot itself.`;
+    case "not_in_channel":
+      return `${channel}: the BBQS bot is not in this channel — run /invite @BBQS there, then retry.`;
+    default:
+      return `${channel}: ${code}`;
+  }
 }
 
 /** id -> #name for display. Falls back to the raw id if the lookup fails. */
@@ -56,20 +104,40 @@ async function channelNames(ids: string[], token: string): Promise<Record<string
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { email, role, action } = await req.json().catch(() => ({}));
-    if (!email || typeof email !== "string") return json({ ok: false, error: "Provide an email" }, 400);
+    const { email, role, action, people, working_groups } = await req.json().catch(() => ({}));
+    const isBulk = action === "bulk_check" && Array.isArray(people);
+    if (!isBulk && (!email || typeof email !== "string")) {
+      return json({ ok: false, error: "Provide an email, or people[] with action:'bulk_check'" }, 400);
+    }
 
     // Authz: admin/curator only, checked under the caller's own JWT.
     const authHeader = req.headers.get("Authorization") || "";
     const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: userData } = await supa.auth.getUser();
-    const uid = userData?.user?.id;
-    if (!uid) return json({ ok: false, error: "Not authenticated" }, 401);
-    const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
-    if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
-      return json({ ok: false, error: "Admin or curator only" }, 403);
+    // TRIGGER PATH: the DB trigger fires with only the public anon key (the established
+    // pattern here — see sync_member_groups). It is NOT trusted: we ignore every value in the
+    // body except the email, re-read the member with the service role, and act ONLY on what
+    // the database says. It also returns a bare {ok} so this path can't be used to probe who
+    // is in Slack. Everything else still requires an admin/curator JWT.
+    const triggerMode = action === "sync";
+    let dbRole: unknown = role;
+    let dbWGs: unknown = working_groups;
+    if (triggerMode) {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: inv } = await admin.from("investigators")
+        .select("role,working_groups").ilike("email", String(email)).maybeSingle();
+      if (!inv) return json({ ok: true, skipped: "no such member" });
+      dbRole = inv.role;
+      dbWGs = inv.working_groups;
+    } else {
+      const { data: userData } = await supa.auth.getUser();
+      const uid = userData?.user?.id;
+      if (!uid) return json({ ok: false, error: "Not authenticated" }, 401);
+      const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
+      if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
+        return json({ ok: false, error: "Admin or curator only" }, 403);
+      }
     }
 
     // Report WHICH piece of config is missing (presence only — never the values), so a 500
@@ -110,8 +178,66 @@ Deno.serve(async (req) => {
         error: `Slack is not configured on this project: ${!token ? "SLACK_BOT_TOKEN missing" : ""}${!token && !base.length ? "; " : ""}${!base.length ? "SLACK_ONBOARDING_CHANNELS missing" : ""}. Set them with: supabase secrets set SLACK_BOT_TOKEN=xoxb-… SLACK_ONBOARDING_CHANNELS="C…,C…"`,
       }, 500);
     }
-    const isYI = YI_ROLES.has(String(role ?? "").toLowerCase());
-    const target = [...new Set([...base, ...(isYI ? yi : [])])];
+    const wgMap = wgChannelMap();
+
+    // Discovery: list every channel the bot can see, so an admin can copy IDs for
+    // SLACK_ONBOARDING_CHANNELS / SLACK_WG_CHANNELS instead of digging through Slack.
+    if (action === "list_channels") {
+      const out: Array<{ id: string; name: string; is_private: boolean; is_member: boolean }> = [];
+      let cursor: string | undefined;
+      do {
+        const p: Record<string, string> = { types: "public_channel,private_channel", limit: "200", exclude_archived: "true" };
+        if (cursor) p.cursor = cursor;
+        const r = await slack("conversations.list", token, p);
+        if (!r?.ok) return json({ ok: false, error: `Slack list failed: ${String(r?.error ?? "unknown")}` }, 502);
+        for (const c of r.channels ?? []) out.push({ id: c.id, name: `#${c.name}`, is_private: !!c.is_private, is_member: !!c.is_member });
+        cursor = r.response_metadata?.next_cursor || undefined;
+      } while (cursor);
+      out.sort((a, b) => a.name.localeCompare(b.name));
+      return json({ ok: true, channels: out, configured: { onboarding: base, yi, working_groups: wgMap } });
+    }
+
+    // BULK: classify many members at once so an admin can send ONE group guest invite in Slack
+    // instead of discovering "not in workspace" one person at a time. Read-only.
+    if (isBulk) {
+      const list = (people as Array<{ email?: string; name?: string; role?: string }>)
+        .filter((p) => p?.email).slice(0, 100);
+      const names = await channelNames([...new Set([...base, ...yi, ...Object.values(wgMap).flat()])], token);
+      const out: Array<Record<string, unknown>> = [];
+      // Small sequential batches — users.lookupByEmail is rate-limited per workspace.
+      for (let i = 0; i < list.length; i += 5) {
+        const batch = list.slice(i, i + 5);
+        const res = await Promise.all(batch.map(async (p) => {
+          const em = String(p.email).toLowerCase();
+          const lk = await slack("users.lookupByEmail", token, { email: em });
+          if (!lk?.ok) {
+            return { email: em, name: p.name ?? null, in_workspace: false,
+                     reason: String(lk?.error ?? "unknown") };
+          }
+          const want = targetsFor(base, yi, wgMap, p.role, (p as { working_groups?: unknown }).working_groups);
+          const cv = await slack("users.conversations", token, {
+            user: lk.user.id, types: "public_channel,private_channel", limit: "200", exclude_archived: "true",
+          });
+          const cur: string[] = cv?.ok ? (cv.channels ?? []).map((c: { id: string }) => c.id) : [];
+          const miss = want.filter((c) => !cur.includes(c));
+          return { email: em, name: p.name ?? null, in_workspace: true,
+                   missing: miss.map((c) => names[c] ?? c), missing_ids: miss };
+        }));
+        out.push(...res);
+      }
+      return json({
+        ok: true,
+        checked: out.length,
+        needs_guest_invite: out.filter((p) => !p.in_workspace),
+        needs_channels: out.filter((p) => p.in_workspace && (p.missing_ids as string[]).length > 0),
+        complete: out.filter((p) => p.in_workspace && (p.missing_ids as string[]).length === 0),
+      });
+    }
+
+    const effRole = triggerMode ? dbRole : role;
+    const effWGs = triggerMode ? dbWGs : working_groups;
+    const isYI = YI_ROLES.has(String(effRole ?? "").toLowerCase());
+    const target = targetsFor(base, yi, wgMap, effRole, effWGs);
 
     // 1. Resolve the person in the workspace (external guests must be invited manually first).
     const lookup = await slack("users.lookupByEmail", token, { email: String(email).toLowerCase() });
@@ -136,6 +262,17 @@ Deno.serve(async (req) => {
 
     const names = await channelNames(target, token);
     const label = (id: string) => names[id] ?? id;
+
+    if (triggerMode) {
+      for (const channel of missing) {
+        let r = await slack("conversations.invite", token, { channel, users: userId }, true);
+        if (!r?.ok && r?.error === "not_in_channel") {
+          const j = await slack("conversations.join", token, { channel }, true);
+          if (j?.ok) await slack("conversations.invite", token, { channel, users: userId }, true);
+        }
+      }
+      return json({ ok: true, synced: missing.length });
+    }
 
     if (action !== "invite") {
       return json({
@@ -167,7 +304,7 @@ Deno.serve(async (req) => {
         }
       }
       if (r?.ok || r?.error === "already_in_channel") invited.push(channel);
-      else failed.push({ channel, error: `${label(channel)}: ${String(r?.error ?? "unknown")}` });
+      else failed.push({ channel, error: explainSlackError(String(r?.error ?? "unknown"), label(channel)) });
     }
     return json({
       ok: failed.length === 0,
