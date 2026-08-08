@@ -41,6 +41,27 @@ async function slack(method: string, token: string, params: Record<string, strin
   return await res.json();
 }
 
+/** Translate a raw Slack API error into something an admin can act on. Returning the bare
+ *  code ("user_is_ultra_restricted") tells you nothing about WHO must do WHAT. */
+function explainSlackError(code: string, channel: string): string {
+  switch (code) {
+    case "user_is_ultra_restricted":
+      return `${channel}: this member is a SINGLE-CHANNEL GUEST in Slack, so Slack will not add them to more channels. A workspace admin must change their account type (Slack → Manage members → Change account type → Multi-Channel Guest or Member), then retry.`;
+    case "user_is_restricted":
+      return `${channel}: this member is a guest account restricted from that channel — a workspace admin must grant access or upgrade them to Member.`;
+    case "is_archived":
+      return `${channel} is archived — remove it from the configured onboarding channels.`;
+    case "channel_not_found":
+      return `${channel}: channel not found, or it is private and the bot cannot see it — check the configured channel ID and invite the bot with /invite @BBQS.`;
+    case "cant_invite_self":
+      return `${channel}: cannot invite the bot itself.`;
+    case "not_in_channel":
+      return `${channel}: the BBQS bot is not in this channel — run /invite @BBQS there, then retry.`;
+    default:
+      return `${channel}: ${code}`;
+  }
+}
+
 /** id -> #name for display. Falls back to the raw id if the lookup fails. */
 async function channelNames(ids: string[], token: string): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
@@ -167,7 +188,7 @@ Deno.serve(async (req) => {
         }
       }
       if (r?.ok || r?.error === "already_in_channel") invited.push(channel);
-      else failed.push({ channel, error: `${label(channel)}: ${String(r?.error ?? "unknown")}` });
+      else failed.push({ channel, error: explainSlackError(String(r?.error ?? "unknown"), label(channel)) });
     }
     return json({
       ok: failed.length === 0,
