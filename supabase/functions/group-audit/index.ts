@@ -35,7 +35,22 @@ const YI_GROUP = "young-investigators@brain-bbqs.org";
 // co-investigators ended up on pi@ (policy call, 2026-08-07: "only people who can be pulled
 // out of RePORTER are PIs"). Roster 'co-investigator' does NOT qualify either.
 const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
-const YI_ROLES = new Set(["postdoc", "graduate_student"]);
+// investigators.role holds RAW Google-Form labels, not canonical tokens: "Postdoc/Grad Student"
+// (33 people), "Principal Investigator (PI)", "Research Staff (Scientist and others), Postdoc",
+// "Grad Student", free text, and 75 NULLs. An exact-match test saw only the 6 rows literally
+// equal to "postdoc" and flagged 66 REAL trainees as removable (caught before anyone acted on
+// it, 2026-08-07). Match by substring, the way the agent's normalizeRole does.
+function isYoungInvestigator(role: string | null | undefined): boolean {
+  const r = String(role ?? "").toLowerCase();
+  if (!r) return false;
+  return /post-?doc|grad(uate)?\s*student|grad|trainee|student/.test(r);
+}
+/** True when we cannot classify the role at all — such a member is never proposed for removal. */
+function roleIsUnknown(role: string | null | undefined): boolean {
+  const r = String(role ?? "").trim();
+  if (!r) return true;
+  return !/post-?doc|grad|student|trainee|principal|pi|co-?investigator|contact_pi|co_pi|mpi|research\s*staff|scientist|data\s*manager|project\s*manager|nih|admin/i.test(r);
+}
 
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -134,16 +149,21 @@ Deno.serve(async (req) => {
       const role = String(p.role ?? "").toLowerCase();
       add(CONSORTIUM, email);
       if (piIds.has(p.id)) add(PI_GROUP, email);   // roster-derived, never self-reported
-      if (YI_ROLES.has(role)) add(YI_GROUP, email);
+      if (isYoungInvestigator(role)) add(YI_GROUP, email);
       for (const wg of p.working_groups ?? []) if (WG_GROUPS[wg]) add(WG_GROUPS[wg], email);
     }
     // Every address the KG knows about (primary + secondary). Used to guarantee removals only
     // ever touch real consortium members, never service accounts or nested groups.
     const knownMembers = new Set<string>();
+    const unknownRole = new Set<string>();
     for (const p of people ?? []) {
       const e = (p.email ?? "").toLowerCase().trim();
       if (e) knownMembers.add(e);
       for (const sx of p.secondary_emails ?? []) knownMembers.add(String(sx).toLowerCase());
+      if (roleIsUnknown(p.role)) {
+        if (e) unknownRole.add(e);
+        for (const sx of p.secondary_emails ?? []) unknownRole.add(String(sx).toLowerCase());
+      }
     }
 
     // Alternate addresses count as "already a member" — a person may be in a group under either.
@@ -171,11 +191,14 @@ Deno.serve(async (req) => {
       // Anything else in the group — admin@/noreply@ service accounts, nested groups, external
       // collaborators — is left strictly alone, and OWNER/MANAGER is never touched (removing an
       // owner can break the group).
+      // FAIL SAFE: only propose removal when the member's role is classifiable. An
+      // unrecognized/blank role means we cannot prove they are NOT entitled, so they are
+      // protected rather than removed.
       const extra = [...actual].filter(
-        (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER",
+        (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER" && !unknownRole.has(e),
       );
       const extraProtected = [...actual].filter(
-        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER"),
+        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER" || unknownRole.has(e)),
       );
       groups[group] = {
         expected: [],
