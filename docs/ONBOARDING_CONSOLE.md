@@ -79,6 +79,26 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
   function reports that explicitly rather than failing silently.
 - **P3 NEXT** — `offboard_member` RPC + offboard wizard.
 
+## Slack channel map (source of truth)
+Membership = everyone-channel + young-investigator channel (postdoc/graduate_student) + one
+channel per working group the member belongs to. Kept in KG project secrets:
+
+| Scope | Channel | ID | Secret |
+|---|---|---|---|
+| Everyone | `#general` | `C07UA8763SA` | `SLACK_ONBOARDING_CHANNELS` |
+| Postdocs / grad students / trainees | `#younginvestigators` | `C09673P9D1A` | `SLACK_YI_CHANNELS` |
+| WG-Analytics | `#bbqs-wg-analytics` | `C0BP1AN59CZ` | `SLACK_WG_CHANNELS` |
+| WG-Devices | `#bbqs-wg-devices` | `C09633EE5M5` | `SLACK_WG_CHANNELS` |
+| WG-ELSI | `#bbqs-wg-elsi` | `C098CRMDFUK` | `SLACK_WG_CHANNELS` |
+| WG-Standards | `#bbqs-wg-standards` | `C097J7SLNJY` | `SLACK_WG_CHANNELS` |
+
+`trg_sync_slack_channels` (migration `20260807220000`) keeps these in step automatically on any
+INSERT/UPDATE of `role`/`working_groups`, from any surface. The bot must be a member of each
+channel (`/invite @BBQS`) — it can self-join PUBLIC channels only, and only with the
+`channels:join` scope. NOTE: the everyone/YI/WG lists ALSO exist agent-side in
+`consortium_settings` (`slack_onboarding_channels`, `slack_young_investigator_channels`); keep
+them in sync or the two surfaces will invite people differently.
+
 ## Manual apply / config (KG side)
 - Apply migrations in the SQL editor (in order): `20260806120000`, `20260806130000`, `20260806140000`, `20260806150000`, `20260806160000`.
 - Deploy edge functions (keys already on the project): `parse-onboard` (LOVABLE_API_KEY),
