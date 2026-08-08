@@ -29,7 +29,12 @@ const WG_GROUPS: Record<string, string> = {
 const CONSORTIUM = "consortium@brain-bbqs.org";
 const PI_GROUP = "pi@brain-bbqs.org";
 const YI_GROUP = "young-investigators@brain-bbqs.org";
-const PI_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi", "co-investigator"]);
+// PI = a PI role on the NIH GRANT ROSTER (grant_investigators), which is derived from NIH
+// RePORTER. The self-reported investigators.role is NOT authority: 25 members type a PI-ish
+// title on the onboarding form with no PI roster row at all, and that is how 24
+// co-investigators ended up on pi@ (policy call, 2026-08-07: "only people who can be pulled
+// out of RePORTER are PIs"). Roster 'co-investigator' does NOT qualify either.
+const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
 const YI_ROLES = new Set(["postdoc", "graduate_student"]);
 
 const json = (b: unknown, s = 200) =>
@@ -97,11 +102,19 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: people, error } = await admin
       .from("investigators")
-      .select("name,email,secondary_emails,role,working_groups");
+      .select("id,name,email,secondary_emails,role,working_groups");
     if (error) throw new Error(error.message);
 
+    // Authoritative PI set, straight from the grant roster.
+    const { data: roster } = await admin.from("grant_investigators").select("investigator_id,role");
+    const piIds = new Set(
+      (roster ?? [])
+        .filter((r: { role: string | null }) => PI_ROSTER_ROLES.has(String(r.role ?? "").toLowerCase()))
+        .map((r: { investigator_id: string }) => r.investigator_id),
+    );
+
     const token = await getAccessToken();
-    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number }> = {};
+    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number; extra?: string[] }> = {};
 
     // Build the expected membership per group from the KG.
     const expect: Record<string, Set<string>> = {};
@@ -111,7 +124,7 @@ Deno.serve(async (req) => {
       if (!email) continue;
       const role = String(p.role ?? "").toLowerCase();
       add(CONSORTIUM, email);
-      if (PI_ROLES.has(role)) add(PI_GROUP, email);
+      if (piIds.has(p.id)) add(PI_GROUP, email);   // roster-derived, never self-reported
       if (YI_ROLES.has(role)) add(YI_GROUP, email);
       for (const wg of p.working_groups ?? []) if (WG_GROUPS[wg]) add(WG_GROUPS[wg], email);
     }
@@ -127,11 +140,17 @@ Deno.serve(async (req) => {
     for (const [group, wanted] of Object.entries(expect)) {
       const actual = new Set(await listGroupMembers(group, token));
       const missing = [...wanted].filter((e) => !actual.has(e) && !(alt[e] ?? []).some((a) => actual.has(a)));
+      // EXTRA = in the Google Group but not entitled by the KG. Reported by ADDRESS (not just a
+      // count) because that is the list an admin must act on — e.g. co-investigators sitting on
+      // pi@. Never auto-removed: repair only adds.
+      const entitled = new Set([...wanted, ...[...wanted].flatMap((e) => alt[e] ?? [])]);
+      const extra = [...actual].filter((e) => !entitled.has(e));
       groups[group] = {
-        expected: [], // omitted from the response: only counts + drift are useful
+        expected: [],
         actual_count: actual.size,
         missing,
-        extra_count: Math.max(0, actual.size - (wanted.size - missing.length)),
+        extra_count: extra.length,
+        extra,
       };
       if (action === "repair") {
         for (const e of missing) {
@@ -149,6 +168,7 @@ Deno.serve(async (req) => {
       action: action === "repair" ? "repair" : "audit",
       summary,
       missing_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, v.missing])),
+      extra_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, (v as { extra?: string[] }).extra ?? []])),
       repaired: action === "repair" ? repaired : undefined,
       failures: failures.length ? failures : undefined,
     });

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
 type Summary = Record<string, { expected: number; in_google: number; missing: number; extra: number }>;
-type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; repaired?: number; failures?: string[]; error?: string };
+type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; repaired?: number; failures?: string[]; error?: string };
 
 /** Audit ACTUAL Google Group membership vs what the KG implies, and optionally repair.
  *  Necessary because working_groups is an intent record: the sync trigger only fires on
@@ -66,6 +66,7 @@ export function GroupAuditDialog() {
                     <th className="text-right p-2 font-medium">Expected</th>
                     <th className="text-right p-2 font-medium">In Google</th>
                     <th className="text-right p-2 font-medium">Missing</th>
+                    <th className="text-right p-2 font-medium">Extra</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -75,6 +76,7 @@ export function GroupAuditDialog() {
                       <td className="p-2 text-right">{v.expected}</td>
                       <td className="p-2 text-right">{v.in_google}</td>
                       <td className={`p-2 text-right font-medium ${v.missing ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>{v.missing}</td>
+                      <td className={`p-2 text-right font-medium ${v.extra ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{v.extra}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -90,6 +92,25 @@ export function GroupAuditDialog() {
                   <div key={g}>
                     <div className="font-mono text-[11px] text-foreground">{g}</div>
                     <div className="text-muted-foreground">{v.join(", ")}</div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {res?.extra_by_group && Object.values(res.extra_by_group).some((v) => v.length) && (
+            <details className="text-xs" open>
+              <summary className="cursor-pointer text-amber-600 dark:text-amber-400">
+                In the group but NOT entitled — review for removal
+              </summary>
+              <p className="mt-1 text-muted-foreground">
+                Repair never removes anyone; these must be removed deliberately in Google Groups.
+              </p>
+              <div className="mt-2 space-y-2">
+                {Object.entries(res.extra_by_group).filter(([, v]) => v.length).map(([g, v]) => (
+                  <div key={g}>
+                    <div className="font-mono text-[11px] text-foreground">{g} — {v.length}</div>
+                    <div className="text-muted-foreground break-all">{v.join(", ")}</div>
                   </div>
                 ))}
               </div>
