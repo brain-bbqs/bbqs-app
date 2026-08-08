@@ -41,6 +41,18 @@ async function slack(method: string, token: string, params: Record<string, strin
   return await res.json();
 }
 
+/** id -> #name for display. Falls back to the raw id if the lookup fails. */
+async function channelNames(ids: string[], token: string): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const r = await slack("conversations.info", token, { channel: id });
+      out[id] = r?.ok && r.channel?.name ? `#${r.channel.name}` : id;
+    } catch { out[id] = id; }
+  }));
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -122,26 +134,49 @@ Deno.serve(async (req) => {
     const current: string[] = conv?.ok ? (conv.channels ?? []).map((c: { id: string }) => c.id) : [];
     const missing = target.filter((c) => !current.includes(c));
 
+    const names = await channelNames(target, token);
+    const label = (id: string) => names[id] ?? id;
+
     if (action !== "invite") {
-      return json({ ok: true, user_id: userId, is_young_investigator: isYI, target, in_channels: target.filter((c) => current.includes(c)), missing });
+      return json({
+        ok: true, user_id: userId, is_young_investigator: isYI,
+        target: target.map(label),
+        in_channels: target.filter((c) => current.includes(c)).map(label),
+        missing: missing.map(label),
+        missing_ids: missing,
+      });
     }
 
     // 3. Add them to the channels they're missing.
     const invited: string[] = [];
     const failed: { channel: string; error: string }[] = [];
     for (const channel of missing) {
-      const r = await slack("conversations.invite", token, { channel, users: userId }, true);
+      let r = await slack("conversations.invite", token, { channel, users: userId }, true);
+      // 'not_in_channel' means the BOT is not a member — conversations.invite requires that.
+      // For a PUBLIC channel the bot can join itself (needs the channels:join scope); for a
+      // private one a human must add it, so we say so instead of reporting a bare API code.
+      if (!r?.ok && r?.error === "not_in_channel") {
+        const j = await slack("conversations.join", token, { channel }, true);
+        if (j?.ok) r = await slack("conversations.invite", token, { channel, users: userId }, true);
+        else {
+          failed.push({
+            channel,
+            error: `the BBQS bot is not in ${label(channel)} and could not join it (${String(j?.error ?? "unknown")}) — add the bot to that channel in Slack (/invite @BBQS), then retry`,
+          });
+          continue;
+        }
+      }
       if (r?.ok || r?.error === "already_in_channel") invited.push(channel);
-      else failed.push({ channel, error: String(r?.error ?? "unknown") });
+      else failed.push({ channel, error: `${label(channel)}: ${String(r?.error ?? "unknown")}` });
     }
     return json({
       ok: failed.length === 0,
       user_id: userId,
       is_young_investigator: isYI,
-      invited,
+      invited: invited.map(label),
       failed,
-      already_in: target.filter((c) => current.includes(c)),
-      error: failed.length ? `Could not add to ${failed.length} channel(s): ${failed.map((f) => `${f.channel} (${f.error})`).join(", ")}` : undefined,
+      already_in: target.filter((c) => current.includes(c)).map(label),
+      error: failed.length ? `Could not add to ${failed.length} channel(s): ${failed.map((f) => f.error).join("; ")}` : undefined,
     });
   } catch (e) {
     // Log the full error so it is visible in the function Logs, and return the message.

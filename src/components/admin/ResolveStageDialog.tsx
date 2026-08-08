@@ -211,13 +211,28 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
                   ) : (
                     <>
                       <p className="text-foreground">
-                        In workspace{slackInfo.is_young_investigator ? " · young investigator" : ""}
+                        In workspace{slackInfo.is_young_investigator ? " · young investigator (gets the YI channel too)" : ""}
                       </p>
-                      <p className="text-muted-foreground">
-                        Already in {(slackInfo.in_channels ?? slackInfo.already_in ?? []).length} channel(s)
-                        {slackInfo.missing ? ` · missing ${slackInfo.missing.length}` : ""}
-                        {slackInfo.invited ? ` · added ${slackInfo.invited.length}` : ""}
-                      </p>
+                      {(slackInfo.in_channels ?? slackInfo.already_in ?? []).length > 0 && (
+                        <p className="text-emerald-600 dark:text-emerald-400">
+                          Already in: {(slackInfo.in_channels ?? slackInfo.already_in ?? []).join(", ")}
+                        </p>
+                      )}
+                      {(slackInfo.missing ?? []).length > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400">
+                          Missing: {(slackInfo.missing ?? []).join(", ")}
+                        </p>
+                      )}
+                      {(slackInfo.invited ?? []).length > 0 && (
+                        <p className="text-emerald-600 dark:text-emerald-400">
+                          Added: {(slackInfo.invited ?? []).join(", ")}
+                        </p>
+                      )}
+                      {(slackInfo.target ?? []).length > 0 && (
+                        <p className="text-muted-foreground">
+                          Should be in: {(slackInfo.target ?? []).join(", ")}
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
