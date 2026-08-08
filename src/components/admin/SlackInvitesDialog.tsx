@@ -7,7 +7,7 @@ import { Loader2, Slack, Copy, Check, UserPlus, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
-type Person = { email: string; name: string | null; role: string | null };
+type Person = { email: string; name: string | null; role: string | null; working_groups: string[] | null };
 type Row = { email: string; name: string | null; in_workspace: boolean; missing?: string[]; missing_ids?: string[]; reason?: string };
 type Result = { ok?: boolean; checked?: number; needs_guest_invite?: Row[]; needs_channels?: Row[]; complete?: Row[]; error?: string };
 
@@ -61,7 +61,8 @@ export function SlackInvitesDialog({ people }: { people: Person[] }) {
     try {
       for (const p of chans) {
         const { data, error } = await supabase.functions.invoke("slack-channels", {
-          body: { email: p.email, role: people.find((x) => x.email === p.email)?.role, action: "invite" },
+          body: { email: p.email, role: people.find((x) => x.email === p.email)?.role,
+                 working_groups: people.find((x) => x.email === p.email)?.working_groups ?? [], action: "invite" },
         });
         if (error || (data as any)?.ok === false) failed.push(`${p.email}: ${(data as any)?.error ?? "failed"}`);
         else ok++;

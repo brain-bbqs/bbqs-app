@@ -94,7 +94,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
   // Everyone whose Slack step is still open — fed to the batch guest-invite triage.
   const slackPending = useMemo(
     () => rows.filter((r) => r.checklist && "slack" in r.checklist && !isDone(r.checklist.slack))
-              .map((r) => ({ email: r.email, name: r.name, role: r.role })),
+              .map((r) => ({ email: r.email, name: r.name, role: r.role, working_groups: r.working_groups })),
     [rows],
   );
 

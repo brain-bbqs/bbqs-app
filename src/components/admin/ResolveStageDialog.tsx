@@ -113,7 +113,7 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("slack-channels", {
-        body: { email: target.email, role: target.role, action },
+        body: { email: target.email, role: target.role, working_groups: target.working_groups ?? [], action },
       });
       if (error) throw new Error(await edgeError(error, data));
       const res = (data ?? {}) as Record<string, any>;
