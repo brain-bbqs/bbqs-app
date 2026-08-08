@@ -77,8 +77,11 @@ async function channelNames(ids: string[], token: string): Promise<Record<string
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { email, role, action } = await req.json().catch(() => ({}));
-    if (!email || typeof email !== "string") return json({ ok: false, error: "Provide an email" }, 400);
+    const { email, role, action, people } = await req.json().catch(() => ({}));
+    const isBulk = action === "bulk_check" && Array.isArray(people);
+    if (!isBulk && (!email || typeof email !== "string")) {
+      return json({ ok: false, error: "Provide an email, or people[] with action:'bulk_check'" }, 400);
+    }
 
     // Authz: admin/curator only, checked under the caller's own JWT.
     const authHeader = req.headers.get("Authorization") || "";
@@ -131,6 +134,43 @@ Deno.serve(async (req) => {
         error: `Slack is not configured on this project: ${!token ? "SLACK_BOT_TOKEN missing" : ""}${!token && !base.length ? "; " : ""}${!base.length ? "SLACK_ONBOARDING_CHANNELS missing" : ""}. Set them with: supabase secrets set SLACK_BOT_TOKEN=xoxb-… SLACK_ONBOARDING_CHANNELS="C…,C…"`,
       }, 500);
     }
+    // BULK: classify many members at once so an admin can send ONE group guest invite in Slack
+    // instead of discovering "not in workspace" one person at a time. Read-only.
+    if (isBulk) {
+      const list = (people as Array<{ email?: string; name?: string; role?: string }>)
+        .filter((p) => p?.email).slice(0, 100);
+      const names = await channelNames([...new Set([...base, ...yi])], token);
+      const out: Array<Record<string, unknown>> = [];
+      // Small sequential batches — users.lookupByEmail is rate-limited per workspace.
+      for (let i = 0; i < list.length; i += 5) {
+        const batch = list.slice(i, i + 5);
+        const res = await Promise.all(batch.map(async (p) => {
+          const em = String(p.email).toLowerCase();
+          const lk = await slack("users.lookupByEmail", token, { email: em });
+          if (!lk?.ok) {
+            return { email: em, name: p.name ?? null, in_workspace: false,
+                     reason: String(lk?.error ?? "unknown") };
+          }
+          const want = [...new Set([...base, ...(YI_ROLES.has(String(p.role ?? "").toLowerCase()) ? yi : [])])];
+          const cv = await slack("users.conversations", token, {
+            user: lk.user.id, types: "public_channel,private_channel", limit: "200", exclude_archived: "true",
+          });
+          const cur: string[] = cv?.ok ? (cv.channels ?? []).map((c: { id: string }) => c.id) : [];
+          const miss = want.filter((c) => !cur.includes(c));
+          return { email: em, name: p.name ?? null, in_workspace: true,
+                   missing: miss.map((c) => names[c] ?? c), missing_ids: miss };
+        }));
+        out.push(...res);
+      }
+      return json({
+        ok: true,
+        checked: out.length,
+        needs_guest_invite: out.filter((p) => !p.in_workspace),
+        needs_channels: out.filter((p) => p.in_workspace && (p.missing_ids as string[]).length > 0),
+        complete: out.filter((p) => p.in_workspace && (p.missing_ids as string[]).length === 0),
+      });
+    }
+
     const isYI = YI_ROLES.has(String(role ?? "").toLowerCase());
     const target = [...new Set([...base, ...(isYI ? yi : [])])];
 
