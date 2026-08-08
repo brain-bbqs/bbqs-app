@@ -55,8 +55,8 @@ async function getAccessToken(): Promise<string> {
 }
 
 /** Every member address of a group (paginated). */
-async function listGroupMembers(group: string, token: string): Promise<string[]> {
-  const out: string[] = [];
+async function listGroupMembers(group: string, token: string): Promise<Array<{ email: string; role: string }>> {
+  const out: Array<{ email: string; role: string }> = [];
   let pageToken: string | undefined;
   do {
     const u = new URL(`https://admin.googleapis.com/admin/directory/v1/groups/${encodeURIComponent(group)}/members`);
@@ -65,10 +65,19 @@ async function listGroupMembers(group: string, token: string): Promise<string[]>
     const res = await fetch(u, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`list ${group}: ${res.status} ${(await res.text()).slice(0, 160)}`);
     const j = await res.json();
-    for (const m of j.members ?? []) if (m.email) out.push(String(m.email).toLowerCase());
+    for (const m of j.members ?? []) if (m.email) out.push({ email: String(m.email).toLowerCase(), role: String(m.role ?? "MEMBER").toUpperCase() });
     pageToken = j.nextPageToken;
   } while (pageToken);
   return out;
+}
+
+async function removeMember(email: string, group: string, token: string): Promise<string | null> {
+  const res = await fetch(
+    `https://admin.googleapis.com/admin/directory/v1/groups/${encodeURIComponent(group)}/members/${encodeURIComponent(email)}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (res.ok || res.status === 404) return null;   // 404 = already gone
+  return `${res.status}: ${(await res.text()).slice(0, 120)}`;
 }
 
 async function addMember(email: string, group: string, token: string): Promise<string | null> {
@@ -85,7 +94,7 @@ async function addMember(email: string, group: string, token: string): Promise<s
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { action } = await req.json().catch(() => ({}));
+    const { action, group: bodyGroup } = await req.json().catch(() => ({}));
     const authHeader = req.headers.get("Authorization") || "";
     const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -114,7 +123,7 @@ Deno.serve(async (req) => {
     );
 
     const token = await getAccessToken();
-    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number; extra?: string[] }> = {};
+    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number; extra?: string[]; extra_protected?: string[] }> = {};
 
     // Build the expected membership per group from the KG.
     const expect: Record<string, Set<string>> = {};
@@ -128,6 +137,15 @@ Deno.serve(async (req) => {
       if (YI_ROLES.has(role)) add(YI_GROUP, email);
       for (const wg of p.working_groups ?? []) if (WG_GROUPS[wg]) add(WG_GROUPS[wg], email);
     }
+    // Every address the KG knows about (primary + secondary). Used to guarantee removals only
+    // ever touch real consortium members, never service accounts or nested groups.
+    const knownMembers = new Set<string>();
+    for (const p of people ?? []) {
+      const e = (p.email ?? "").toLowerCase().trim();
+      if (e) knownMembers.add(e);
+      for (const sx of p.secondary_emails ?? []) knownMembers.add(String(sx).toLowerCase());
+    }
+
     // Alternate addresses count as "already a member" — a person may be in a group under either.
     const alt: Record<string, string[]> = {};
     for (const p of people ?? []) {
@@ -136,22 +154,43 @@ Deno.serve(async (req) => {
     }
 
     let repaired = 0;
+    let removed = 0;
     const failures: string[] = [];
+    // Removal is scoped to ONE named group per call — never "clean every group" in one shot.
+    const targetGroup = typeof bodyGroup === "string" ? bodyGroup.toLowerCase().trim() : "";
     for (const [group, wanted] of Object.entries(expect)) {
-      const actual = new Set(await listGroupMembers(group, token));
+      const actualRows = await listGroupMembers(group, token);
+      const actual = new Set(actualRows.map((r) => r.email));
+      const roleOf = new Map(actualRows.map((r) => [r.email, r.role]));
       const missing = [...wanted].filter((e) => !actual.has(e) && !(alt[e] ?? []).some((a) => actual.has(a)));
       // EXTRA = in the Google Group but not entitled by the KG. Reported by ADDRESS (not just a
       // count) because that is the list an admin must act on — e.g. co-investigators sitting on
       // pi@. Never auto-removed: repair only adds.
       const entitled = new Set([...wanted, ...[...wanted].flatMap((e) => alt[e] ?? [])]);
-      const extra = [...actual].filter((e) => !entitled.has(e));
+      // SAFETY: only ever propose removing addresses that belong to a KNOWN investigator.
+      // Anything else in the group — admin@/noreply@ service accounts, nested groups, external
+      // collaborators — is left strictly alone, and OWNER/MANAGER is never touched (removing an
+      // owner can break the group).
+      const extra = [...actual].filter(
+        (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER",
+      );
+      const extraProtected = [...actual].filter(
+        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER"),
+      );
       groups[group] = {
         expected: [],
         actual_count: actual.size,
         missing,
         extra_count: extra.length,
         extra,
+        extra_protected: extraProtected,
       };
+      if (action === "remove_extra" && targetGroup && group === targetGroup) {
+        for (const e of extra) {
+          const err = await removeMember(e, group, token);
+          if (err) failures.push(`${group} x ${e}: ${err}`); else removed++;
+        }
+      }
       if (action === "repair") {
         for (const e of missing) {
           const err = await addMember(e, group, token);
@@ -170,6 +209,8 @@ Deno.serve(async (req) => {
       missing_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, v.missing])),
       extra_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, (v as { extra?: string[] }).extra ?? []])),
       repaired: action === "repair" ? repaired : undefined,
+      removed: action === "remove_extra" ? removed : undefined,
+      removed_from: action === "remove_extra" ? targetGroup : undefined,
       failures: failures.length ? failures : undefined,
     });
   } catch (e) {
