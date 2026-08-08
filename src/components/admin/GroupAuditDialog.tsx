@@ -2,12 +2,12 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck, Wrench, AlertTriangle } from "lucide-react";
+import { Loader2, ShieldCheck, Wrench, AlertTriangle, UserMinus } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
 type Summary = Record<string, { expected: number; in_google: number; missing: number; extra: number }>;
-type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; repaired?: number; failures?: string[]; error?: string };
+type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
 
 /** Audit ACTUAL Google Group membership vs what the KG implies, and optionally repair.
  *  Necessary because working_groups is an intent record: the sync trigger only fires on
@@ -17,15 +17,16 @@ export function GroupAuditDialog() {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
 
-  const run = async (action: "audit" | "repair") => {
+  const run = async (action: "audit" | "repair" | "remove_extra", group?: string) => {
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("group-audit", { body: { action } });
+      const { data, error } = await supabase.functions.invoke("group-audit", { body: { action, group } });
       if (error) throw new Error(await edgeError(error, data));
       const r = (data ?? {}) as Result;
       setRes(r);
       if (r.error) toast.error(r.error);
       else if (action === "repair") toast.success(`Added ${r.repaired ?? 0} missing membership(s)`);
+      else if (action === "remove_extra") toast.success(`Removed ${r.removed ?? 0} from ${r.removed_from}`);
       else {
         const miss = Object.values(r.summary ?? {}).reduce((a, v) => a + v.missing, 0);
         toast[miss ? "warning" : "success"](miss ? `${miss} missing membership(s) found` : "All groups in sync");
@@ -104,13 +105,31 @@ export function GroupAuditDialog() {
                 In the group but NOT entitled — review for removal
               </summary>
               <p className="mt-1 text-muted-foreground">
-                Repair never removes anyone; these must be removed deliberately in Google Groups.
+                These are consortium members the KG does not entitle to the group (e.g. co-investigators
+                on pi@, which is roster-derived). Removal is per-group and explicit — it never runs as
+                part of Repair, and it skips owners, managers, service accounts and nested groups.
               </p>
               <div className="mt-2 space-y-2">
                 {Object.entries(res.extra_by_group).filter(([, v]) => v.length).map(([g, v]) => (
-                  <div key={g}>
-                    <div className="font-mono text-[11px] text-foreground">{g} — {v.length}</div>
-                    <div className="text-muted-foreground break-all">{v.join(", ")}</div>
+                  <div key={g} className="rounded border border-border p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-mono text-[11px] text-foreground">{g} — {v.length}</div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={busy}
+                        onClick={() => {
+                          if (confirm(`Remove ${v.length} member(s) from ${g}?
+
+This is a real Google Group removal. Only consortium members with plain MEMBER status are affected — owners, managers, service accounts and nested groups are never touched.`)) {
+                            run("remove_extra", g);
+                          }
+                        }}
+                      >
+                        <UserMinus className="mr-1.5 h-3.5 w-3.5" />Remove {v.length}
+                      </Button>
+                    </div>
+                    <div className="text-muted-foreground break-all mt-1">{v.join(", ")}</div>
                   </div>
                 ))}
               </div>
