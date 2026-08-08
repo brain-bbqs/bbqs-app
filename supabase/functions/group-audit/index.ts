@@ -103,7 +103,17 @@ async function addMember(email: string, group: string, token: string): Promise<s
   });
   if (res.ok) return null;
   const t = await res.text();
-  return t.includes("duplicate") || t.includes("Member already exists") ? null : `${res.status}: ${t.slice(0, 120)}`;
+  if (t.includes("duplicate") || t.includes("Member already exists")) return null;   // already there
+  // Google returns 404 "Resource Not Found: <email>" when the ADDRESS cannot be added — it is
+  // not a real account and the group does not accept it. That is a DATA problem (a typo, or a
+  // leftover test fixture in investigators), not a sync failure, so say so.
+  if (res.status === 404) {
+    return `${email} could not be added — Google does not recognise that address. Check it is a real, current address (leftover test records are a common cause).`;
+  }
+  if (res.status === 403) {
+    return `${email}: permission denied by Google (the group may not allow external members).`;
+  }
+  return `${email}: ${res.status} ${t.slice(0, 100)}`;
 }
 
 Deno.serve(async (req) => {
