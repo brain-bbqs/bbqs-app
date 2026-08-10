@@ -1871,12 +1871,15 @@ export type Database = {
           email: string | null
           id: string
           institution: string | null
+          last_reminder_sent_at: string | null
           name: string
           onboarding_checklist: Json | null
           onboarding_completed_at: string | null
           orcid: string | null
           pending_role: Database["public"]["Enums"]["app_role"] | null
           profile_url: string | null
+          reminder_count: number
+          requested_working_groups: string[] | null
           research_areas: string[] | null
           resource_id: string | null
           role: string | null
@@ -1892,12 +1895,15 @@ export type Database = {
           email?: string | null
           id?: string
           institution?: string | null
+          last_reminder_sent_at?: string | null
           name: string
           onboarding_checklist?: Json | null
           onboarding_completed_at?: string | null
           orcid?: string | null
           pending_role?: Database["public"]["Enums"]["app_role"] | null
           profile_url?: string | null
+          reminder_count?: number
+          requested_working_groups?: string[] | null
           research_areas?: string[] | null
           resource_id?: string | null
           role?: string | null
@@ -1913,12 +1919,15 @@ export type Database = {
           email?: string | null
           id?: string
           institution?: string | null
+          last_reminder_sent_at?: string | null
           name?: string
           onboarding_checklist?: Json | null
           onboarding_completed_at?: string | null
           orcid?: string | null
           pending_role?: Database["public"]["Enums"]["app_role"] | null
           profile_url?: string | null
+          reminder_count?: number
+          requested_working_groups?: string[] | null
           research_areas?: string[] | null
           resource_id?: string | null
           role?: string | null
@@ -3179,8 +3188,10 @@ export type Database = {
           email: string | null
           id: string | null
           is_stuck: boolean | null
+          last_reminder_sent_at: string | null
           live_grant_count: number | null
           name: string | null
+          reminder_count: number | null
           role: string | null
           steps_done: number | null
           steps_total: number | null
@@ -3304,6 +3315,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      approve_working_groups: {
+        Args: { _groups?: string[]; _investigator_id: string }
+        Returns: Json
+      }
       canonical_working_group: { Args: { _wg: string }; Returns: string }
       decrement_vote_count: {
         Args: { _suggestion_id: string }
@@ -3339,6 +3354,25 @@ export type Database = {
       ir_upsert_profiles: { Args: { _rows: Json }; Returns: number }
       is_curator_or_admin: { Args: { _user_id: string }; Returns: boolean }
       kg_read_sql: { Args: { max_rows?: number; query: string }; Returns: Json }
+      link_investigator_grant: {
+        Args: { _grant_id: string; _investigator_id: string; _role?: string }
+        Returns: Json
+      }
+      member_self_update: {
+        Args: {
+          _institution?: string
+          _orcid?: string
+          _requested_working_groups?: string[]
+          _research_areas?: string[]
+          _secondary_emails?: string[]
+          _skills?: string[]
+        }
+        Returns: Json
+      }
+      offboard_member: {
+        Args: { _grant_id?: string; _investigator_id: string }
+        Returns: Json
+      }
       onboard_member: {
         Args: {
           _email: string
@@ -3353,7 +3387,12 @@ export type Database = {
         Returns: Json
       }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
+      record_onboarding_reminder: {
+        Args: { _investigator_id: string }
+        Returns: Json
+      }
       revert_curation_change: { Args: { _audit_id: string }; Returns: Json }
+      role_owns_questionnaire: { Args: { _role: string }; Returns: boolean }
       search_knowledge_embeddings: {
         Args: {
           match_count?: number
@@ -3373,6 +3412,16 @@ export type Database = {
       set_onboarding_step: {
         Args: { _investigator_id: string; _status: string; _step: string }
         Returns: Json
+      }
+      suggest_grants_for_investigator: {
+        Args: { _investigator_id: string }
+        Returns: {
+          grant_id: string
+          grant_number: string
+          reason: string
+          score: number
+          title: string
+        }[]
       }
       upsert_access_request: {
         Args: {

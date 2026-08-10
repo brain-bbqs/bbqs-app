@@ -24,11 +24,9 @@ import {
   ShieldCheck,
   ScrollText,
   Plane,
-  CheckSquare,
   Mic,
   ChefHat,
   LayoutGrid,
-  Waves,
   Presentation,
   LayoutDashboard,
 } from "lucide-react";
@@ -100,8 +98,6 @@ const engineeringItems: NavItem[] = [
   { title: "Roadmap", url: "/roadmap", icon: Map },
   { title: "Data Model", url: "/data-model", icon: Database },
   { title: "BBQS Schema", url: "/schema", icon: Database },
-  { title: "Ontology Approval", url: "/ontology-approval", icon: CheckSquare, adminOnly: true },
-  { title: "Social Force Field", url: "/social-force-field", icon: Waves, adminOnly: true },
   { title: "Give Feedback", url: "/suggest-feature", icon: Lightbulb },
   { title: "Admin Console", url: "/admin", icon: ShieldCheck, adminOnly: true },
 ];
