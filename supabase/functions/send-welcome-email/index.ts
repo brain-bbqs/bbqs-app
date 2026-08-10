@@ -14,6 +14,16 @@ const _wf = (Deno.env.get("WELCOME_FROM") || "").trim();
 const FROM_ADDRESS = FROM_RE.test(_wf) ? _wf : "BBQS <noreply@brain-bbqs.org>";
 const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbqs.org/auth";
 
+// Archive copy + reply path. The console previously sent NEITHER, so a console welcome left no
+// trace anywhere while the agent's equivalent (bbqs-agent resend.ts DEFAULT_BCC) BCC'd every send
+// to noreply@ — a mailbox nobody reads. Both surfaces now copy a monitored address, the same one
+// every template tells members to write to. Override per-project with ARCHIVE_BCC / REPLY_TO;
+// set ARCHIVE_BCC to "none" to suppress the copy entirely.
+const _bcc = (Deno.env.get("ARCHIVE_BCC") || "").trim();
+const ARCHIVE_BCC = _bcc.toLowerCase() === "none" ? "" : (FROM_RE.test(_bcc) ? _bcc : "dcaic-admin@brain-bbqs.org");
+const _rt = (Deno.env.get("REPLY_TO") || "").trim();
+const REPLY_TO = FROM_RE.test(_rt) ? _rt : "dcaic-admin@brain-bbqs.org";
+
 // Non-research roles get the lighter template (no data-questionnaire / research asks).
 const NON_RESEARCH = new Set(["nih_program", "admin"]);
 
@@ -71,7 +81,14 @@ Deno.serve(async (req) => {
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [to],
+        reply_to: REPLY_TO,
+        ...(ARCHIVE_BCC ? { bcc: [ARCHIVE_BCC] } : {}),
+        subject,
+        html,
+      }),
     });
 
     const data = await resendRes.json();

@@ -13,6 +13,13 @@ const _rf = (Deno.env.get("REMINDER_FROM") || "").trim();
 const FROM_ADDRESS = FROM_RE.test(_rf) ? _rf : "BBQS <noreply@brain-bbqs.org>";
 const SIGN_IN_URL = Deno.env.get("WELCOME_SIGNIN_URL") || "https://brain-bbqs.org/auth";
 
+// Archive copy + reply path — same contract as send-welcome-email. Set ARCHIVE_BCC to "none" to
+// suppress the copy; reminders are the higher-volume surface, so that switch matters here.
+const _bcc = (Deno.env.get("ARCHIVE_BCC") || "").trim();
+const ARCHIVE_BCC = _bcc.toLowerCase() === "none" ? "" : (FROM_RE.test(_bcc) ? _bcc : "dcaic-admin@brain-bbqs.org");
+const _rt = (Deno.env.get("REPLY_TO") || "").trim();
+const REPLY_TO = FROM_RE.test(_rt) ? _rt : "dcaic-admin@brain-bbqs.org";
+
 // Friendly labels for the persisted checklist keys.
 const STEP_LABELS: Record<string, string> = {
   kg_created: "Create your member profile",
@@ -59,7 +66,14 @@ Deno.serve(async (req) => {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [to],
+        reply_to: REPLY_TO,
+        ...(ARCHIVE_BCC ? { bcc: [ARCHIVE_BCC] } : {}),
+        subject,
+        html,
+      }),
     });
     const data = await res.json();
     if (!res.ok) return json({ success: false, error: data }, 502);
