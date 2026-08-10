@@ -119,7 +119,7 @@ async function addMember(email: string, group: string, token: string): Promise<s
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { action, group: bodyGroup } = await req.json().catch(() => ({}));
+    const { action, group: bodyGroup, email: bodyEmail, groups: bodyGroups } = await req.json().catch(() => ({}));
     const authHeader = req.headers.get("Authorization") || "";
     const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -130,6 +130,34 @@ Deno.serve(async (req) => {
     const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
     if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
       return json({ ok: false, error: "Admin or curator only" }, 403);
+    }
+
+    // OFFBOARD REMOVAL: remove ONE named member from an explicit list of groups, as computed by
+    // the offboard_member RPC. Separate from the audit sweep — the caller states exactly who and
+    // which groups, so nothing is inferred. Still skips OWNER/MANAGER (removing an owner can
+    // break the group).
+    if (action === "remove_groups") {
+      const em = String(bodyEmail ?? "").toLowerCase().trim();
+      const list = Array.isArray(bodyGroups) ? bodyGroups.map((g: unknown) => String(g).toLowerCase().trim()).filter(Boolean) : [];
+      if (!em || !list.length) return json({ ok: false, error: "Provide email and groups[]" }, 400);
+      const tok = await getAccessToken();
+      const removedFrom: string[] = [];
+      const skipped: string[] = [];
+      const errs: string[] = [];
+      for (const g of list) {
+        try {
+          const rows = await listGroupMembers(g, tok);
+          const hit = rows.find((r) => r.email === em);
+          if (!hit) { skipped.push(`${g} (not a member)`); continue; }
+          if (hit.role !== "MEMBER") { skipped.push(`${g} (${hit.role} — not removed)`); continue; }
+          const err = await removeMember(em, g, tok);
+          if (err) errs.push(`${g}: ${err}`); else removedFrom.push(g);
+        } catch (e) {
+          errs.push(`${g}: ${String((e as Error)?.message ?? e)}`);
+        }
+      }
+      return json({ ok: errs.length === 0, email: em, removed_from: removedFrom, skipped,
+                    error: errs.length ? errs.join("; ") : undefined });
     }
 
     // Service-role read: the audit must see EVERY investigator, not just RLS-visible ones.

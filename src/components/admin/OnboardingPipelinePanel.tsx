@@ -14,6 +14,7 @@ import { edgeError } from "@/lib/edgeError";
 import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
 import { GroupAuditDialog } from "@/components/admin/GroupAuditDialog";
 import { SlackInvitesDialog } from "@/components/admin/SlackInvitesDialog";
+import { OffboardMemberDialog } from "@/components/admin/OffboardMemberDialog";
 
 type PipelineRow = {
   id: string;
@@ -158,6 +159,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
           <SlackInvitesDialog people={slackPending} />
           <GroupAuditDialog />
           <OnboardMemberDialog trigger={<Button size="sm"><UserPlus className="mr-1.5 h-4 w-4" />Onboard member</Button>} />
+          <OffboardMemberDialog />
           <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isRefetching}><RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} /></Button>
         </div>
       </div>

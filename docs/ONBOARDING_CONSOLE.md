@@ -77,7 +77,13 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
   the agent — everyone gets `SLACK_ONBOARDING_CHANNELS`; postdocs/grad students also get
   `SLACK_YI_CHANNELS`. Workspace ENTRY stays manual (Slack requires a guest invite); the
   function reports that explicitly rather than failing silently.
-- **P3 NEXT** — `offboard_member` RPC + offboard wizard.
+- **P3 DONE (offboarding)** — `offboard_member` RPC (migration `20260810120000`) + `OffboardMemberDialog`.
+  Offboard = leave ONE grant, multi-grant-safe; the record is NEVER deleted (that is the agent's
+  `reset`, deliberately not exposed). The RPC removes the roster row(s), computes what remains, and
+  RETURNS the mailing lists no longer justified; the console then removes them via
+  `group-audit action:'remove_groups'` as an explicit second confirmation, so an outward-facing
+  action is never a hidden side effect of a DB call. On a FULL departure only, the record is marked
+  `{status:'offboarded'}` and `onboarding_completed_at` cleared. Slack removal is not automated.
 
 ## Slack channel map (source of truth)
 Membership = everyone-channel + young-investigator channel (postdoc/graduate_student) + one
