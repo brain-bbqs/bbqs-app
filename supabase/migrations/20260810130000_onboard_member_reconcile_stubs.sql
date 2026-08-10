@@ -206,12 +206,18 @@ GRANT EXECUTE ON FUNCTION public.onboard_member(text, text, text, text[], text, 
 -- metadata keys are excluded automatically, while a genuinely new step can never be hidden
 -- (a real step always carries a status). 'pre_check' still needs its name excluded: its value IS
 -- 'done', but it marks "a real run started" rather than work to do.
+--
+-- Built on the definition in 20260807180000 (reminder tracking), NOT the one in 20260806160000:
+-- CREATE OR REPLACE VIEW cannot drop or reorder columns, so omitting the trailing
+-- last_reminder_sent_at / reminder_count fails with 42P16 "cannot drop columns from view".
+-- Only the `steps` CTE filters differ from that version.
 CREATE OR REPLACE VIEW public.onboarding_pipeline
 WITH (security_invoker = true)
 AS
 WITH base AS (
   SELECT i.id, i.name, i.email, i.role, i.working_groups, i.created_at,
          i.onboarding_checklist AS checklist,
+         i.last_reminder_sent_at, coalesce(i.reminder_count, 0) AS reminder_count,
          coalesce((SELECT count(*) FROM public.grant_investigators gi WHERE gi.investigator_id = i.id), 0) AS live_grant_count
   FROM public.investigators i
   WHERE i.onboarding_completed_at IS NULL
@@ -244,7 +250,9 @@ SELECT b.id, b.name, b.email, b.role, b.working_groups, b.created_at, b.checklis
   floor(extract(epoch FROM (now() - b.created_at)) / 86400)::int AS days_since_created,
   coalesce(s.steps_done, 0) AS steps_done,
   coalesce(s.steps_total, 0) AS steps_total,
-  (floor(extract(epoch FROM (now() - b.created_at)) / 86400) > 14 AND coalesce(s.required_incomplete, 0) > 0) AS is_stuck
+  (floor(extract(epoch FROM (now() - b.created_at)) / 86400) > 14 AND coalesce(s.required_incomplete, 0) > 0) AS is_stuck,
+  b.last_reminder_sent_at,
+  b.reminder_count
 FROM base b JOIN steps s ON s.id = b.id
 WHERE b.live_grant_count > 0 OR coalesce(s.steps_in_flight, 0) > 0;
 
