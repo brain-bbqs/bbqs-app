@@ -54,8 +54,6 @@ import DevicesGraph from "./pages/DevicesGraph";
 import DataModel from "./pages/DataModel";
 import BbqsSchema from "./pages/BbqsSchema";
 
-import OntologyApproval from "./pages/OntologyApproval";
-import SocialForceField from "./pages/SocialForceField";
 import InternalCoordination from "./pages/InternalCoordination";
 
 const queryClient = new QueryClient();
@@ -91,8 +89,6 @@ const App = () => (
               <Route path="/data-model" element={<DataModel />} />
               <Route path="/schema" element={<BbqsSchema />} />
               
-              <Route path="/ontology-approval" element={<OntologyApproval />} />
-              <Route path="/social-force-field" element={<SocialForceField />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/request-access" element={<RequestAccess />} />
               <Route path="/publications" element={<Publications />} />
