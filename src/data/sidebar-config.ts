@@ -24,11 +24,9 @@ import {
   ShieldCheck,
   ScrollText,
   Plane,
-  CheckSquare,
   Mic,
   ChefHat,
   LayoutGrid,
-  Waves,
   Presentation,
   LayoutDashboard,
 } from "lucide-react";
