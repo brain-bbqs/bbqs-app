@@ -185,3 +185,68 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.onboard_member(text, text, text, text[], text, text, uuid, text[]) TO authenticated;
+
+-- ---------------------------------------------------------------------------------------------
+-- Same pass: stop checklist METADATA from being counted as an unfinishable step.
+--
+-- The view identified steps by excluding a blacklist of key NAMES ('status','offboarded_at',
+-- 'pre_check'). Two metadata keys were never on that list, so they counted as steps whose value
+-- is not 'done' — permanently inflating steps_total and holding required_incomplete >= 1, which
+-- pins the row to "stuck" with no UI able to clear it (there is no action for a 'source' step):
+--   source            — 23 rows, value 'legacy_backfill'
+--   finished_by_admin — 3 rows, an ISO timestamp
+-- Latent until now only because all 23 carry onboarding_completed_at and so sat outside the
+-- pipeline. onboard_member ends with `onboarding_completed_at = NULL`, so onboarding any legacy
+-- member — e.g. Firooz Aflatouni, a SMART-DBS PI whose record dates from the backfill — drops them
+-- into the pipeline instantly stuck. Blacklisting the two names would fix today and break again on
+-- the next metadata key.
+--
+-- Structural rule instead: an entry is a STEP only when its VALUE is one of the status vocabulary.
+-- Metadata is self-identifying — a timestamp or 'legacy_backfill' is not a status — so future
+-- metadata keys are excluded automatically, while a genuinely new step can never be hidden
+-- (a real step always carries a status). 'pre_check' still needs its name excluded: its value IS
+-- 'done', but it marks "a real run started" rather than work to do.
+CREATE OR REPLACE VIEW public.onboarding_pipeline
+WITH (security_invoker = true)
+AS
+WITH base AS (
+  SELECT i.id, i.name, i.email, i.role, i.working_groups, i.created_at,
+         i.onboarding_checklist AS checklist,
+         coalesce((SELECT count(*) FROM public.grant_investigators gi WHERE gi.investigator_id = i.id), 0) AS live_grant_count
+  FROM public.investigators i
+  WHERE i.onboarding_completed_at IS NULL
+    AND i.onboarding_checklist ->> 'pre_check' = 'done'
+    AND coalesce(i.onboarding_checklist ->> 'status', '') <> 'offboarded'
+),
+steps AS (
+  SELECT b.id,
+    count(*) FILTER (
+      WHERE kv.key <> 'pre_check'
+        AND kv.value IN ('done','skipped','pending','queued','not_started')
+    ) AS steps_total,
+    count(*) FILTER (
+      WHERE kv.key <> 'pre_check'
+        AND kv.value IN ('done','skipped')
+    ) AS steps_done,
+    count(*) FILTER (
+      WHERE kv.key NOT IN ('pre_check','wg_groups','working_groups')
+        AND kv.value IN ('pending','queued','not_started')
+    ) AS required_incomplete,
+    count(*) FILTER (
+      WHERE kv.key <> 'pre_check'
+        AND kv.value IN ('pending','queued')
+    ) AS steps_in_flight
+  FROM base b
+  LEFT JOIN LATERAL jsonb_each_text(b.checklist) AS kv ON true
+  GROUP BY b.id
+)
+SELECT b.id, b.name, b.email, b.role, b.working_groups, b.created_at, b.checklist, b.live_grant_count,
+  floor(extract(epoch FROM (now() - b.created_at)) / 86400)::int AS days_since_created,
+  coalesce(s.steps_done, 0) AS steps_done,
+  coalesce(s.steps_total, 0) AS steps_total,
+  (floor(extract(epoch FROM (now() - b.created_at)) / 86400) > 14 AND coalesce(s.required_incomplete, 0) > 0) AS is_stuck
+FROM base b JOIN steps s ON s.id = b.id
+WHERE b.live_grant_count > 0 OR coalesce(s.steps_in_flight, 0) > 0;
+
+COMMENT ON VIEW public.onboarding_pipeline IS
+  'Members with onboarding in progress + derived status (steps_done/total, days_since_created, is_stuck). Mirrors bbqs-agent checklist.ts. A checklist entry counts as a step only when its VALUE is a status, so metadata keys (source, finished_by_admin, offboarded_at) are excluded structurally. security_invoker: investigators RLS gates visibility.';
