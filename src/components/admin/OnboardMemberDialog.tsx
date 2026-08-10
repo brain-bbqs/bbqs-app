@@ -38,7 +38,13 @@ const WORKING_GROUPS = [
 
 const PI_ROLES = new Set(["contact_pi", "co_pi", "mpi", "co-investigator"]);
 
-type OnboardResult = { ok: boolean; investigator_id: string; email: string; role: string; grant_linked: boolean };
+type OnboardResult = {
+  ok: boolean; investigator_id: string; email: string; role: string; grant_linked: boolean;
+  /** Set when the RPC matched an email-less RePORTER import stub for this person instead of
+   *  creating a second record: 'adopted_stub' claimed it, 'merged_stub' folded it into the
+   *  emailed record. Surfaced so the admin can see WHICH record they just wrote to. */
+  reconciled?: "adopted_stub" | "merged_stub" | null;
+};
 
 export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const queryClient = useQueryClient();
@@ -131,8 +137,15 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
         _secondary_emails: secondary.trim() ? [secondary.trim().toLowerCase()] : [],
       });
       if (error) throw error;
-      setResult(data as OnboardResult);
-      toast.success(`Onboarded ${name.trim()}`);
+      const r = data as OnboardResult;
+      setResult(r);
+      toast.success(
+        r.reconciled === "adopted_stub"
+          ? `Onboarded ${name.trim()} — matched their existing RePORTER record (no duplicate created)`
+          : r.reconciled === "merged_stub"
+            ? `Onboarded ${name.trim()} — merged a duplicate RePORTER record into their profile`
+            : `Onboarded ${name.trim()}`,
+      );
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Onboarding failed");
