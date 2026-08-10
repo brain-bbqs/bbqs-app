@@ -85,6 +85,30 @@ Both surfaces (agent + console) operate on the SAME KG state. The onboarding pip
   action is never a hidden side effect of a DB call. On a FULL departure only, the record is marked
   `{status:'offboarded'}` and `onboarding_completed_at` cleared. Slack removal is not automated.
 
+## RePORTER import stubs (migration `20260810130000`)
+Importing a grant from NIH RePORTER creates `investigators` rows carrying only a **name** —
+often with a doubled space, `"Firooz  Aflatouni"` — plus the `grant_investigators` roster row
+with the correct PI role. **24 such email-less records hold roster rows**, so this is a class.
+`onboard_member` upserts BY EMAIL, so onboarding one of those PIs used to either insert a twin
+(roster row stays on the stub → the new record reads `live_grant_count = 0` and asks for a grant
+forever) or fail `23505` on `investigators_name_key`. Confirmed on `1U01MH144347-01`, whose five
+PIs are all stubs.
+
+The RPC now reconciles first, matching an email-less record whose whitespace/case-normalized name
+equals the typed name: **ADOPT** it (claim the row, set the email) or, when an emailed record also
+exists, **MERGE** the stub into it. Ordering is load-bearing — every FK to `investigators.id` is
+`ON DELETE CASCADE`, so repointing precedes the DELETE, and the rename follows the DELETE so the
+name unique index cannot trip. The result carries `reconciled: 'adopted_stub' | 'merged_stub'` and
+the wizard says so in its toast, so an admin can see WHICH record they wrote to. Adoption drops an
+inherited `welcome_email: 'done'`: the legacy backfill marked **19 address-less records** complete,
+and no welcome can have reached them.
+
+Same migration: `onboarding_pipeline` counted checklist **metadata** as steps, because it
+blacklisted key names and `source` (23 rows) / `finished_by_admin` (3 rows) were never listed —
+each an unfinishable step that pinned the row to "stuck" with no action able to clear it. An entry
+is now a step only when its **value is a status**; metadata is self-identifying, and a real step
+always carries a status, so new steps can never be hidden.
+
 ## Slack channel map (source of truth)
 Membership = everyone-channel + young-investigator channel (postdoc/graduate_student) + one
 channel per working group the member belongs to. Kept in KG project secrets:
