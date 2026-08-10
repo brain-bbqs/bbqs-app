@@ -35,7 +35,22 @@ const YI_GROUP = "young-investigators@brain-bbqs.org";
 // co-investigators ended up on pi@ (policy call, 2026-08-07: "only people who can be pulled
 // out of RePORTER are PIs"). Roster 'co-investigator' does NOT qualify either.
 const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
-const YI_ROLES = new Set(["postdoc", "graduate_student"]);
+// investigators.role holds RAW Google-Form labels, not canonical tokens: "Postdoc/Grad Student"
+// (33 people), "Principal Investigator (PI)", "Research Staff (Scientist and others), Postdoc",
+// "Grad Student", free text, and 75 NULLs. An exact-match test saw only the 6 rows literally
+// equal to "postdoc" and flagged 66 REAL trainees as removable (caught before anyone acted on
+// it, 2026-08-07). Match by substring, the way the agent's normalizeRole does.
+function isYoungInvestigator(role: string | null | undefined): boolean {
+  const r = String(role ?? "").toLowerCase();
+  if (!r) return false;
+  return /post-?doc|grad(uate)?\s*student|grad|trainee|student/.test(r);
+}
+/** True when we cannot classify the role at all — such a member is never proposed for removal. */
+function roleIsUnknown(role: string | null | undefined): boolean {
+  const r = String(role ?? "").trim();
+  if (!r) return true;
+  return !/post-?doc|grad|student|trainee|principal|pi|co-?investigator|contact_pi|co_pi|mpi|research\s*staff|scientist|data\s*manager|project\s*manager|nih|admin/i.test(r);
+}
 
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -88,13 +103,23 @@ async function addMember(email: string, group: string, token: string): Promise<s
   });
   if (res.ok) return null;
   const t = await res.text();
-  return t.includes("duplicate") || t.includes("Member already exists") ? null : `${res.status}: ${t.slice(0, 120)}`;
+  if (t.includes("duplicate") || t.includes("Member already exists")) return null;   // already there
+  // Google returns 404 "Resource Not Found: <email>" when the ADDRESS cannot be added — it is
+  // not a real account and the group does not accept it. That is a DATA problem (a typo, or a
+  // leftover test fixture in investigators), not a sync failure, so say so.
+  if (res.status === 404) {
+    return `${email} could not be added — Google does not recognise that address. Check it is a real, current address (leftover test records are a common cause).`;
+  }
+  if (res.status === 403) {
+    return `${email}: permission denied by Google (the group may not allow external members).`;
+  }
+  return `${email}: ${res.status} ${t.slice(0, 100)}`;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { action, group: bodyGroup } = await req.json().catch(() => ({}));
+    const { action, group: bodyGroup, email: bodyEmail, groups: bodyGroups } = await req.json().catch(() => ({}));
     const authHeader = req.headers.get("Authorization") || "";
     const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -105,6 +130,34 @@ Deno.serve(async (req) => {
     const { data: roles } = await supa.from("user_roles").select("role").eq("user_id", uid);
     if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
       return json({ ok: false, error: "Admin or curator only" }, 403);
+    }
+
+    // OFFBOARD REMOVAL: remove ONE named member from an explicit list of groups, as computed by
+    // the offboard_member RPC. Separate from the audit sweep — the caller states exactly who and
+    // which groups, so nothing is inferred. Still skips OWNER/MANAGER (removing an owner can
+    // break the group).
+    if (action === "remove_groups") {
+      const em = String(bodyEmail ?? "").toLowerCase().trim();
+      const list = Array.isArray(bodyGroups) ? bodyGroups.map((g: unknown) => String(g).toLowerCase().trim()).filter(Boolean) : [];
+      if (!em || !list.length) return json({ ok: false, error: "Provide email and groups[]" }, 400);
+      const tok = await getAccessToken();
+      const removedFrom: string[] = [];
+      const skipped: string[] = [];
+      const errs: string[] = [];
+      for (const g of list) {
+        try {
+          const rows = await listGroupMembers(g, tok);
+          const hit = rows.find((r) => r.email === em);
+          if (!hit) { skipped.push(`${g} (not a member)`); continue; }
+          if (hit.role !== "MEMBER") { skipped.push(`${g} (${hit.role} — not removed)`); continue; }
+          const err = await removeMember(em, g, tok);
+          if (err) errs.push(`${g}: ${err}`); else removedFrom.push(g);
+        } catch (e) {
+          errs.push(`${g}: ${String((e as Error)?.message ?? e)}`);
+        }
+      }
+      return json({ ok: errs.length === 0, email: em, removed_from: removedFrom, skipped,
+                    error: errs.length ? errs.join("; ") : undefined });
     }
 
     // Service-role read: the audit must see EVERY investigator, not just RLS-visible ones.
@@ -134,16 +187,21 @@ Deno.serve(async (req) => {
       const role = String(p.role ?? "").toLowerCase();
       add(CONSORTIUM, email);
       if (piIds.has(p.id)) add(PI_GROUP, email);   // roster-derived, never self-reported
-      if (YI_ROLES.has(role)) add(YI_GROUP, email);
+      if (isYoungInvestigator(role)) add(YI_GROUP, email);
       for (const wg of p.working_groups ?? []) if (WG_GROUPS[wg]) add(WG_GROUPS[wg], email);
     }
     // Every address the KG knows about (primary + secondary). Used to guarantee removals only
     // ever touch real consortium members, never service accounts or nested groups.
     const knownMembers = new Set<string>();
+    const unknownRole = new Set<string>();
     for (const p of people ?? []) {
       const e = (p.email ?? "").toLowerCase().trim();
       if (e) knownMembers.add(e);
       for (const sx of p.secondary_emails ?? []) knownMembers.add(String(sx).toLowerCase());
+      if (roleIsUnknown(p.role)) {
+        if (e) unknownRole.add(e);
+        for (const sx of p.secondary_emails ?? []) unknownRole.add(String(sx).toLowerCase());
+      }
     }
 
     // Alternate addresses count as "already a member" — a person may be in a group under either.
@@ -171,11 +229,14 @@ Deno.serve(async (req) => {
       // Anything else in the group — admin@/noreply@ service accounts, nested groups, external
       // collaborators — is left strictly alone, and OWNER/MANAGER is never touched (removing an
       // owner can break the group).
+      // FAIL SAFE: only propose removal when the member's role is classifiable. An
+      // unrecognized/blank role means we cannot prove they are NOT entitled, so they are
+      // protected rather than removed.
       const extra = [...actual].filter(
-        (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER",
+        (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER" && !unknownRole.has(e),
       );
       const extraProtected = [...actual].filter(
-        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER"),
+        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER" || unknownRole.has(e)),
       );
       groups[group] = {
         expected: [],

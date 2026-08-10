@@ -56,7 +56,10 @@ function wgSet(arr: unknown): Set<string> {
 function roleSet(role: unknown): Set<string> {
   const r = String(role ?? "").toLowerCase().trim();
   const out = new Set<string>();
-  if (["pi", "contact_pi", "co_pi", "mpi", "co-investigator"].includes(r)) out.add("pi");
+  // pi@ = the PI roles NIH actually records on the award. co-investigator sits on the award
+  // but is NOT a PI for mailing-list purposes (policy 2026-08-07: "only people who can be
+  // pulled out of RePORTER are PIs"). The broad rule had put 24 co-investigators on pi@.
+  if (["pi", "contact_pi", "co_pi", "mpi"].includes(r)) out.add("pi");
   else if (r === "postdoc" || r === "graduate_student") out.add("young_investigators");
   else if (r === "nih_program") { out.add("dcaic_all"); out.add("nih"); }
   else if (r === "admin") out.add("dcaic_all");
