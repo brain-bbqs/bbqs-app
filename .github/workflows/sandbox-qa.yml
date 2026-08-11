@@ -182,7 +182,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       # No package-lock.json in this repo (bun.lock is the committed lockfile), so `npm ci` cannot run.
       - run: npm install
