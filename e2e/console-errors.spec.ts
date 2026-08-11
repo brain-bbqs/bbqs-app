@@ -45,6 +45,7 @@ const IGNORED_CONSOLE = [
   "validateDOMNesting",
   "X-Frame-Options may only be set via an HTTP header", // meta tag warning from third-party content
   "data:font/", // base64-embedded font CSP noise
+  "Permissions policy violation", // Chrome feature-policy notices (compute-pressure etc.), not app errors
 ];
 
 // Supabase API URLs that are intentionally auth-gated and will 401 for anon users.
