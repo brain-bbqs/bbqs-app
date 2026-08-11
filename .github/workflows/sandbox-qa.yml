@@ -12,7 +12,7 @@ name: Sandbox QA (clone prod -> build -> sandbox repo)
 #                     it so the sandbox is an exact replica.
 #   4. build        – npm build of the frontend pointed at the SANDBOX database.
 #                     The build is then force-pushed to a SEPARATE sandbox repository
-#                     (vars.SANDBOX_PAGES_REPO), which serves it from its own GitHub
+#                     (brain-bbqs/bbqs-website-sandbox), which serves it from its own GitHub
 #                     Pages site and URL. Production Pages is never touched.
 #
 # Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
@@ -193,7 +193,7 @@ jobs:
           VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           VITE_AUTH_COOKIE_DOMAIN: ''
-          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/' }}
+          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/bbqs-website-sandbox/' }}
 
       - name: SPA fallback for GitHub Pages
         run: |
@@ -207,22 +207,19 @@ jobs:
           path: dist
           retention-days: 7
 
-      # Publishes to a SEPARATE repository (vars.SANDBOX_PAGES_REPO, e.g.
-      # "org/bbqs-sandbox") on its `gh-pages` branch. That repo owns its own Pages
-      # site and URL, so a sandbox deploy can never overwrite production.
+      # Publishes to the SEPARATE sandbox repository — brain-bbqs/bbqs-website-sandbox
+      # (override with vars.SANDBOX_PAGES_REPO) — on its `gh-pages` branch. That repo
+      # owns its own Pages site and URL, so a sandbox deploy can never overwrite
+      # production.
       # Requires secret SANDBOX_GITHUB_PAT with `repo` scope on the target repo.
       - name: Publish to the sandbox repository
         if: ${{ inputs.deploy_pages }}
         env:
-          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO }}
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-website-sandbox' }}
           TARGET_BRANCH: ${{ vars.SANDBOX_PAGES_BRANCH || 'gh-pages' }}
           PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
         run: |
           set -euo pipefail
-          if [ -z "$TARGET_REPO" ]; then
-            echo "::error::Set repository variable SANDBOX_PAGES_REPO (owner/repo of the sandbox site repository)."
-            exit 1
-          fi
           if [ -z "$PAT" ]; then
             echo "::error::Set secret SANDBOX_GITHUB_PAT (token with write access to $TARGET_REPO)."
             exit 1
