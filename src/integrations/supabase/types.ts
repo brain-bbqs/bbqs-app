@@ -3468,6 +3468,7 @@ export type Database = {
         }
         Returns: Json
       }
+      normalize_grant_role: { Args: { _role: string }; Returns: string }
       offboard_member: {
         Args: { _grant_id?: string; _investigator_id: string }
         Returns: Json
@@ -3491,6 +3492,7 @@ export type Database = {
         Returns: Json
       }
       revert_curation_change: { Args: { _audit_id: string }; Returns: Json }
+      role_label_from_token: { Args: { _role: string }; Returns: string }
       role_owns_questionnaire: { Args: { _role: string }; Returns: boolean }
       search_knowledge_embeddings: {
         Args: {
