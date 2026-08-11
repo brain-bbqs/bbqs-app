@@ -59,6 +59,8 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 | `SANDBOX_SUPABASE_ANON_KEY` | the anon key from step 1 |
 | `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 | `SANDBOX_GITHUB_PAT` | classic PAT with `repo` scope (and SSO authorized if the org uses SAML) for `brain-bbqs/bbqs-website-sandbox` |
+| `PROD_SUPABASE_DB_URL` | production Session pooler URI — **read-only use**, needed for the exact-clone job |
+| `PROD_DB_PASSWORD` | production DB password. Fallback used to assemble the prod pooler URI when `PROD_SUPABASE_DB_URL` is absent or malformed. |
 
 **Repository variables:**
 
@@ -66,7 +68,10 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 |---|---|---|
 | `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | URL QA targets. Example: `https://brain-bbqs.github.io/bbqs-website-sandbox` or `https://sandbox.brain-bbqs.org`. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
-| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed the sandbox with generated fake rows on every run. Leave unset to seed only on manual dispatch. |
+| `SANDBOX_CLONE_PROD_ENABLED` | `false` | **Cloning is ON by default.** Set to `false` to stop copying production data and fall back to fake seeding. |
+| `SANDBOX_CLONE_AUTH` | `false` | Skip cloning `auth.users` / `storage` metadata; `public` data only. Defaults to `true`. |
+| `PROD_DB_REGION` | e.g. `us-east-1` | Pooler region used when the prod URI is assembled from `PROD_DB_PASSWORD`. |
+| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed with generated fake rows. Ignored while cloning is enabled. |
 | `SANDBOX_DB_REGION` | e.g. `us-east-1` | Pooler region used when the DB URI is assembled from `SANDBOX_DB_PASSWORD`. Defaults to `us-east-1`. |
 | `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
 
