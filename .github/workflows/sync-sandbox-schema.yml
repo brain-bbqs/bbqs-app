@@ -135,6 +135,65 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           psql "$DB_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
 
+  clone-prod:
+    name: Clone production data into sandbox
+    runs-on: ubuntu-latest
+    needs: migrate
+    # Default ON: the sandbox is meant to be an exact copy of production.
+    # Turn off with repo variable SANDBOX_CLONE_PROD_ENABLED=false, or with
+    # clone_prod=false on a manual dispatch.
+    if: ${{ needs.migrate.result == 'success' && needs.migrate.outputs.pushed == 'true' && vars.SANDBOX_CLONE_PROD_ENABLED != 'false' && !(github.event_name == 'workflow_dispatch' && (inputs.clone_prod == false || inputs.clone_prod == 'false')) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify production read credentials are present
+        run: |
+          if [ -z "$PROD_URL" ] && [ -z "$PROD_PASSWORD" ]; then
+            echo "::error::Cloning production requires PROD_SUPABASE_DB_URL (Session pooler URI) or PROD_DB_PASSWORD. Set one, or disable cloning with repo variable SANDBOX_CLONE_PROD_ENABLED=false."
+            exit 1
+          fi
+        env:
+          PROD_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          PROD_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+
+      - name: Normalize production DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          FALLBACK_REF: vpexxhfpvghlejljwpvt
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+
+      - name: Normalize sandbox DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL SANDBOX_DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          FALLBACK_REF: vzfsndsqveacpefoqwsu
+          FALLBACK_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'us-east-1' }}
+
+      - name: Install Postgres 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Clone production into sandbox
+        run: .github/scripts/clone-prod-to-sandbox.sh
+        env:
+          PROD_URL: ${{ env.PROD_DB_URL_SAFE }}
+          SANDBOX_URL: ${{ env.SANDBOX_DB_URL_SAFE }}
+          CLONE_AUTH: ${{ vars.SANDBOX_CLONE_AUTH || 'true' }}
+
+      - name: Re-neutralize production pointers after the clone
+        run: psql "$SANDBOX_DB_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
+
   seed-data:
     name: Seed sandbox with generated fake data
     runs-on: ubuntu-latest
