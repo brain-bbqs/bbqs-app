@@ -18,3 +18,11 @@ type: feature
 
 - Cron jobs use `public.cron_invoke(fn, body, query)` reading `project_url` / `project_service_role_key` (fallback `project_anon_key`) from Vault. No hardcoded keys in cron commands. Rotate by updating the Vault secret only.
 - Staging chain (docs/SANDBOX_RUNBOOK.md): validate DB secrets -> SANDBOX_MIGRATIONS_ENABLED=true -> dispatch dry_run -> migrate -> seed -> deploy -> QA -> auto-merge.
+
+## Data policy update (Aug 2026)
+The sandbox must be an **exact clone of production data on every sync run**
+(`clone-prod` job → `.github/scripts/clone-prod-to-sandbox.sh`): pg_dump prod
+data-only → truncate sandbox public tables → pg_restore → row-count diff →
+`sandbox-localize.sql`. Fake seeding (`seed-staging-fakes`) is now the fallback
+only, used when `SANDBOX_CLONE_PROD_ENABLED=false`. Because real PII lands in
+the sandbox, the sandbox carries production confidentiality.
