@@ -32,6 +32,11 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # The IPv4-resolve step sources a script from this repo, so the workspace
+      # must actually contain it. Without checkout the runner dir is empty and the
+      # step dies with ".github/scripts/pg-ipv4-env.sh: No such file or directory".
+      - uses: actions/checkout@v4
+
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update -qq

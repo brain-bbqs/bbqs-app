@@ -36,8 +36,20 @@ interface AccessRequest {
   full_name?: string | null;
   institution?: string | null;
   requested_role?: string | null;
-  /** Free text naming the PI or grant the requester works with; resolves to the wizard grant hint. */
+  /** Requester-declared BBQS tie: grant number, PI/lab name, or an explicit
+   *  "not affiliated" declaration. Null on rows filed before this field existed
+   *  and on Globus auto-filed rows (which know only the email). */
   association?: string | null;
+}
+
+/** A BBQS/NIH award number stated in the free-text association, if there is one — lets
+ *  "Approve & onboard" hand the grant straight to the wizard instead of making the admin re-type
+ *  it. Matches e.g. U24MH136628 / 1R61MH135106-01. Kept prefix- and suffix-tolerant on purpose:
+ *  a requester may type the full award number even though grants.grant_number now stores the
+ *  stable core (migration 20260810170000), and the grant lookup strips both ends anyway. */
+function grantNumberFrom(association?: string | null): string | null {
+  const m = (association ?? "").match(/\b\d?[A-Z]\d{2}[A-Z]{2}\d{5,6}\b/i);
+  return m ? m[0].toUpperCase() : null;
 }
 
 interface NameCollision {
@@ -245,8 +257,14 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
     const parts = [name, r.email.toLowerCase()];
     if (r.requested_role) parts.push(r.requested_role);
     if (r.institution) parts.push(r.institution);
-    // association is free text naming a PI or a grant number — exactly what grant_hint resolves.
-    if (r.association) parts.push(`works with ${r.association}`);
+    // Prefer an explicit award number when the association states one — Smart fill resolves
+    // "grant <number>" far more reliably than a lab name. A PI/lab name rides along as prose for
+    // grant_hint to match on. An explicit "not affiliated" declaration is deliberately dropped:
+    // it is meaningful to a REVIEWER but would only mislead the grant search.
+    const grant = grantNumberFrom(r.association);
+    const assoc = (r.association ?? "").trim();
+    if (grant) parts.push(`grant ${grant}`);
+    else if (assoc && !/^not affiliated/i.test(assoc)) parts.push(`works with ${assoc}`);
     navigate(
       `/admin?tab=onboarding&prefill=${encodeURIComponent(parts.join(", "))}` +
         `&request=${encodeURIComponent(r.id)}`,
@@ -448,6 +466,17 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
           <Badge variant="outline" className="mt-1 text-xs font-normal">
             {r.requested_role}
           </Badge>
+        )}
+        {/* The declared grant/PI tie — the reviewer's basis for approving and for
+            routing them to the right roster. Flagged when absent (legacy or
+            Globus auto-filed rows) so it reads as "unknown", never as "none". */}
+        {r.association ? (
+          <div className="text-xs mt-1">
+            <span className="text-muted-foreground">Association: </span>
+            <span className="text-foreground">{r.association}</span>
+          </div>
+        ) : (
+          <div className="text-xs text-amber-600 mt-1">Association not stated — ask before approving</div>
         )}
         {r.message && (
           <div className="text-xs text-muted-foreground mt-1 italic line-clamp-2 max-w-md">

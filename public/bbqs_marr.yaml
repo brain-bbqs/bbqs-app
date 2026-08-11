@@ -224,14 +224,14 @@ projects:
         citations: 9
         rcr: 2.259361952893084
         pubmed_link: "https://pubmed.ncbi.nlm.nih.gov/39680425/"
-    target_species_domain: "Meriones unguiculatus; Mus musculus (Mongolian gerbil; house mouse)"
+    target_species_domain: "Meriones unguiculatus (Mongolian gerbil)"
     marr_l1_ethological_goal: "Vocal communication and social signaling within naturalistic environments."
     marr_l2_algorithmic_function: "Computational source separation (attribution) and multimodal data fusion."
     marr_l3_implementational_hardware: "Microphone arrays, continuous neural recordings, and behavioral cameras in naturalistic arenas."
     data_analysis_approach: "Fusing acoustic data with physical tracking to solve the 'cocktail party problem' of attributing specific vocalizations to individual interacting animals while simultaneously mapping neural responses."
     cross_project_synergy: "The source attribution algorithms developed here are highly translatable to the Molothrus ater (brown-headed cowbird) smart aviary (R34DA059507)."
     agentic_action_required: "Detail the dimensionality reduction techniques used."
-    species: ["Meriones unguiculatus", "Mus musculus"]
+    species: ["Meriones unguiculatus"]
     experimental_approaches: ["Naturalistic social observation", "Multimodal fusion", "Acoustic monitoring"]
     data_modalities: ["Audio / Acoustic", "Video / Behavioral", "Neural"]
     data_type: ["Acoustic waveforms", "Video frames", "Neural time-series"]
