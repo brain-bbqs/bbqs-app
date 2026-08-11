@@ -38,8 +38,20 @@ function fail(error: string, extra: Record<string, unknown> = {}) {
 // Be permissive but reject anything not alphanumeric (+ optional hyphen).
 const GRANT_RE = /^[A-Za-z0-9]{6,20}(-\d{1,3})?$/;
 
+/** Reduce any NIH award number to its STABLE CORE: activity code + institute + serial.
+ *
+ *  RePORTER's project_num is not stable — the leading digit is the application TYPE and the suffix
+ *  is the SUPPORT YEAR, so the same award reports as 1R34DA059506-01 in FY2024 and 5R34DA059506-02
+ *  in FY2025. Storing what the admin typed is how 6 of 31 grants ended up prefixed (1R61MH138967)
+ *  and one suffixed (1U01MH144347-01) while the other 25 were bare — see migration 20260810170000.
+ *
+ *  The core is also a valid RePORTER search key (verified against all 31 grants), so normalizing
+ *  BEFORE the lookup is safe as well as more consistent. Input that does not match the NIH shape is
+ *  passed through cleaned but otherwise untouched, rather than mangled. */
 function normalizeGrantNumber(input: string): string {
-  return input.trim().toUpperCase().replace(/\s+/g, "");
+  const cleaned = input.trim().toUpperCase().replace(/\s+/g, "");
+  const m = cleaned.match(/^\d*([A-Z]\d{2}[A-Z]{2}\d{6})(?:-\d+[A-Z0-9]*)?$/);
+  return m ? m[1] : cleaned;
 }
 
 async function fetchGrantFromReporter(grantNumber: string) {
@@ -211,6 +223,9 @@ Deno.serve(async (req) => {
     .from("grants")
     .upsert({
       grant_number: grantNumber,
+      // The full per-year RePORTER string, kept so shortening grant_number loses nothing. Refreshed
+      // on every sync because it changes each fiscal year (migration 20260810170000).
+      reporter_project_num: reporter.grantNumber ?? null,
       title: reporter.title,
       abstract: reporter.abstract || null,
       award_amount: reporter.awardAmount || null,
