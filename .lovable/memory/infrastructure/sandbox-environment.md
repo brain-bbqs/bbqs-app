@@ -26,3 +26,9 @@ data-only → truncate sandbox public tables → pg_restore → row-count diff �
 `sandbox-localize.sql`. Fake seeding (`seed-staging-fakes`) is now the fallback
 only, used when `SANDBOX_CLONE_PROD_ENABLED=false`. Because real PII lands in
 the sandbox, the sandbox carries production confidentiality.
+
+## 2026-08-11 — pipeline stripped down
+`qa.yml` (Playwright smoke/visual regression) and `sync-sandbox-schema.yml` were
+DELETED at maintainer request: the Playwright suite is unused and the sandbox
+pipeline is paused. Do not recreate either workflow unless asked. `guards.yml` is
+now the only automatic check on PRs to `main`.
