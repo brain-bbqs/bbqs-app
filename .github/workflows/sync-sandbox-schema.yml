@@ -15,11 +15,18 @@ name: Sync sandbox schema + QA + auto-merge
 #   CI_AUTH_SECRET                shared token for the ci-auth edge function
 #   SANDBOX_GITHUB_PAT            PAT with repo scope for brain-bbqs/bbqs-website-sandbox
 #   STAGING_SEED_TOKEN            x-seed-token for the sandbox seed-staging-fakes function
+#   PROD_SUPABASE_DB_URL          production Session pooler URI (read-only use) — required for
+#                                 the exact-clone job, or set PROD_DB_PASSWORD instead
+#   PROD_DB_PASSWORD              production DB password; the pooler URI is assembled from it
 # Optional repo variable:
 #   SANDBOX_PREVIEW_URL           Override the default https://brain-bbqs.github.io/bbqs-website-sandbox URL
 #   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
-#   SANDBOX_SEED_DATA_ENABLED     'true' to reseed the sandbox with fake data on every run
+#   SANDBOX_CLONE_PROD_ENABLED    'true' (default) to clone production data into the sandbox on
+#                                 every run. Set to 'false' to fall back to generated fake data.
+#   SANDBOX_SEED_DATA_ENABLED     'true' to reseed the sandbox with fake data (ignored while
+#                                 cloning is enabled — the two are mutually exclusive)
 #   SANDBOX_DB_REGION             pooler region for the assembled URI (default us-east-1)
+#   PROD_DB_REGION                pooler region for the production URI (default us-east-1)
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
@@ -36,6 +43,10 @@ on:
         description: 'Reseed the sandbox with generated fake data after migrating'
         type: boolean
         default: false
+      clone_prod:
+        description: 'Clone production data into the sandbox (exact copy, includes real PII)'
+        type: boolean
+        default: true
 
 concurrency:
   group: sandbox-schema
