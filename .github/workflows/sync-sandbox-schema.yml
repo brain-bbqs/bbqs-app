@@ -30,10 +30,9 @@ name: Sync sandbox schema + QA + auto-merge
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
-  # Active during dev-branch testing: every push to `dev` re-runs the full
-  # sandbox loop (migrate -> clone prod -> deploy -> QA) from scratch.
-  # PRs into dev/main get a drift report (and push only when
-  # SANDBOX_MIGRATIONS_ENABLED=true).
+  # Dev-branch testing only: pushes to `dev` re-run the full sandbox loop
+  # (migrate -> clone prod -> deploy -> QA). Pull requests do NOT trigger this
+  # workflow — no drift comments, no sandbox jobs on PRs into main.
   push:
     branches: [dev]
     paths:
@@ -42,8 +41,6 @@ on:
       - '.github/scripts/**'
       - '.github/sql/**'
       - 'src/**'
-  pull_request:
-    branches: [dev, main]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -105,25 +102,6 @@ jobs:
         continue-on-error: true
         run: |
           supabase migration list --db-url "$DB_URL_SAFE" | tee /tmp/drift.txt
-
-      - name: Comment drift report on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let body = '### Sandbox schema drift (`vzfsndsqveacpefoqwsu`)\n\n';
-            try {
-              body += '```\n' + fs.readFileSync('/tmp/drift.txt', 'utf8').slice(0, 60000) + '\n```';
-            } catch (e) {
-              body += '_Could not read drift report._';
-            }
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
 
       - name: Push migrations to sandbox
         # PRs push only when explicitly enabled; main always pushes;
