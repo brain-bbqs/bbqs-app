@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
 type Summary = Record<string, { expected: number; in_google: number; missing: number; extra: number }>;
-type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; dismissed_by_group?: Record<string, string[]>; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
+type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; dismissed_by_group?: Record<string, string[]>; protected_by_group?: Record<string, string[]>; additive_only_groups?: string[]; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
 
 /** Audit ACTUAL Google Group membership vs what the KG implies, and optionally repair.
  *  Necessary because working_groups is an intent record: the sync trigger only fires on
@@ -211,6 +211,37 @@ This is a real Google Group removal. Only consortium members with plain MEMBER s
                         </li>
                       ))}
                     </ul>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {res?.protected_by_group && Object.values(res.protected_by_group).some((v) => v.length) && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">
+                In the group, not KG-entitled, not proposed for removal —{" "}
+                {Object.values(res.protected_by_group).reduce((a, v) => a + v.length, 0)}
+              </summary>
+              <p className="mt-1 text-muted-foreground">
+                Shown for visibility only, with no action attached: service accounts, nested groups,
+                owners and managers, roles the KG cannot classify, and every member of an
+                additive-only group. An address here with no knowledge-graph record is worth
+                following up — they receive consortium mail while being invisible to every roster,
+                reminder and offboarding path.
+              </p>
+              <div className="mt-2 space-y-2">
+                {Object.entries(res.protected_by_group).filter(([, v]) => v.length).map(([g, v]) => (
+                  <div key={g} className="rounded border border-border p-2">
+                    <div className="font-mono text-[11px] text-foreground">
+                      {g} — {v.length}
+                      {res.additive_only_groups?.includes(g) && (
+                        <span className="ml-1.5 font-sans text-muted-foreground">
+                          (additive-only: membership is never revoked here)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground break-all mt-1">{v.join(", ")}</div>
                   </div>
                 ))}
               </div>

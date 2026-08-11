@@ -35,6 +35,23 @@ const YI_GROUP = "young-investigators@brain-bbqs.org";
 // co-investigators ended up on pi@ (policy call, 2026-08-07: "only people who can be pulled
 // out of RePORTER are PIs"). Roster 'co-investigator' does NOT qualify either.
 const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
+// ADDITIVE-ONLY groups: the KG decides who gets INVITED, never who gets REVOKED. Unentitled
+// members are reported but NEVER proposed for removal, and remove_extra refuses outright.
+//
+// Policy call 2026-08-10: "Young Investigator is only for postdocs and Ph.D. students. Scientists
+// and others should be removed from such a suggestion. Leave anyone who is in the Young
+// Investigator currently intact." So the entitlement rule stays strict on the ADD side —
+// isYoungInvestigator does not match "Research Staff (Scientist and others)" — while existing
+// membership is left alone.
+//
+// The distinction that matters is authority vs community. pi@ is an AUTHORITY list: being wrongly
+// on it misrepresents who speaks for a project, which is why 24 non-PIs were removed from it
+// (2026-08-07). young-investigators@ is a career-development COMMUNITY: someone may be there
+// because a PI asked for them, because they mentor the group, or because they were early-career
+// when they joined. None of that is legible to the KG, and removing them protects nothing.
+// Meaghan Perdue (role "Admin") is the worked example — she works WITH the young investigators,
+// a fact no role label encodes.
+const ADDITIVE_ONLY_GROUPS = new Set([YI_GROUP]);
 // investigators.role holds RAW Google-Form labels, not canonical tokens: "Postdoc/Grad Student"
 // (33 people), "Principal Investigator (PI)", "Research Staff (Scientist and others), Postdoc",
 // "Grad Student", free text, and 75 NULLs. An exact-match test saw only the 6 rows literally
@@ -43,13 +60,16 @@ const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
 function isYoungInvestigator(role: string | null | undefined): boolean {
   const r = String(role ?? "").toLowerCase();
   if (!r) return false;
-  return /post-?doc|grad(uate)?\s*student|grad|trainee|student/.test(r);
+  // Policy (2026-08-10): young-investigators@ is for POSTDOCS AND PhD STUDENTS. "Research Staff
+  // (Scientist and others)" is deliberately NOT entitled -- see ADDITIVE_ONLY_GROUPS for why that
+  // does NOT make them removable. ph\.?\s?d catches "PhD candidate" labels that never say student.
+  return /post-?doc|grad(uate)?\s*student|\bgrad\b|trainee|student|ph\.?\s?d/.test(r);
 }
 /** True when we cannot classify the role at all — such a member is never proposed for removal. */
 function roleIsUnknown(role: string | null | undefined): boolean {
   const r = String(role ?? "").trim();
   if (!r) return true;
-  return !/post-?doc|grad|student|trainee|principal|pi|co-?investigator|contact_pi|co_pi|mpi|research\s*staff|scientist|data\s*manager|project\s*manager|nih|admin/i.test(r);
+  return !/post-?doc|grad|student|trainee|principal|\bpi\b|co-?investigator|contact_pi|co_pi|mpi|research\s*staff|scientist|data\s*manager|project\s*manager|nih|admin/i.test(r);
 }
 
 const json = (b: unknown, s = 200) =>
@@ -269,12 +289,16 @@ Deno.serve(async (req) => {
         (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER" && !unknownRole.has(e),
       );
       // Dismissed entries drop out of the review list AND out of everything remove_extra iterates,
-      // so "Remove N" can never sweep up a member an admin explicitly kept.
-      const extra = removable.filter((e) => !isDismissed(group, e));
-      const extraDismissed = removable.filter((e) => isDismissed(group, e));
-      const extraProtected = [...actual].filter(
-        (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER" || unknownRole.has(e)),
-      );
+      // so "Remove N" can never sweep up a member an admin explicitly kept. An additive-only group
+      // proposes nothing at all: its unentitled members are reported under extra_protected.
+      const additiveOnly = ADDITIVE_ONLY_GROUPS.has(group);
+      const extra = additiveOnly ? [] : removable.filter((e) => !isDismissed(group, e));
+      const extraDismissed = additiveOnly ? [] : removable.filter((e) => isDismissed(group, e));
+      const extraProtected = additiveOnly
+        ? [...actual].filter((e) => !entitled.has(e))
+        : [...actual].filter(
+            (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER" || unknownRole.has(e)),
+          );
       groups[group] = {
         expected: [],
         actual_count: actual.size,
@@ -284,6 +308,14 @@ Deno.serve(async (req) => {
         extra_protected: extraProtected,
         extra_dismissed: extraDismissed,
       };
+      if (action === "remove_extra" && targetGroup && group === targetGroup && additiveOnly) {
+        // Refuse loudly. `extra` is already empty here, so the loop below would silently report
+        // "removed 0" and look like a no-op bug rather than a policy.
+        return json({
+          ok: false,
+          error: `${group} is additive-only: membership is never revoked by the audit, only proposed for addition. Remove someone from this group directly in Google if that is really intended.`,
+        });
+      }
       if (action === "remove_extra" && targetGroup && group === targetGroup) {
         for (const e of extra) {
           const err = await removeMember(e, group, token);
@@ -310,6 +342,15 @@ Deno.serve(async (req) => {
       dismissed_by_group: Object.fromEntries(
         Object.entries(groups).map(([g, v]) => [g, (v as { extra_dismissed?: string[] }).extra_dismissed ?? []]),
       ),
+      // In the group, not KG-entitled, and deliberately NOT proposed for removal — service
+      // accounts, nested groups, owners/managers, unclassifiable roles, and every member of an
+      // additive-only group. Returned so these are VISIBLE: young-investigators@ carries 24
+      // addresses with no KG record at all, which the audit previously computed and then dropped
+      // on the floor, so they looked like they did not exist.
+      protected_by_group: Object.fromEntries(
+        Object.entries(groups).map(([g, v]) => [g, (v as { extra_protected?: string[] }).extra_protected ?? []]),
+      ),
+      additive_only_groups: [...ADDITIVE_ONLY_GROUPS],
       repaired: action === "repair" ? repaired : undefined,
       removed: action === "remove_extra" ? removed : undefined,
       removed_from: action === "remove_extra" ? targetGroup : undefined,
