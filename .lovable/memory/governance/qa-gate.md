@@ -9,7 +9,7 @@ type: feature
   2. approval via `sandbox-approval` GitHub Environment,
   3. `supabase db push` to sandbox + `clone-prod-to-sandbox.sh` exact data clone + `sandbox-localize.sql`,
   4. `npm ci && npm run build` with VITE_* pointed at sandbox,
-  5. deploy to GitHub Pages.
+  5. force-push `dist/` to a SEPARATE sandbox repo (vars.SANDBOX_PAGES_REPO, branch gh-pages) with its own Pages URL.
 - Dispatch-only by design; add `push: dev` trigger later. Sandbox holds real prod PII.
-- Secrets: SUPABASE_KG_DB_URL, SANDBOX_DB_PASSWORD (or SANDBOX_SUPABASE_DB_URL pooler URI), SANDBOX_SUPABASE_ANON_KEY. Vars: SANDBOX_PROJECT_REF, SANDBOX_DB_REGION, SANDBOX_BASE_PATH.
-- Pages hosts one site per repo: a sandbox deploy overwrites publish.yml's output.
+- Secrets: SUPABASE_KG_DB_URL, SANDBOX_DB_PASSWORD (or SANDBOX_SUPABASE_DB_URL pooler URI), SANDBOX_SUPABASE_ANON_KEY, SANDBOX_GITHUB_PAT. Vars: SANDBOX_PAGES_REPO (required), SANDBOX_PAGES_BRANCH, SANDBOX_PROJECT_REF, SANDBOX_DB_REGION, SANDBOX_BASE_PATH.
+- Sandbox site lives in its own private repo (holds prod PII); production Pages via publish.yml is untouched.

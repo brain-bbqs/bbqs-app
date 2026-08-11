@@ -8,7 +8,7 @@ The Playwright suite (`qa.yml`) and the old sandbox sync workflow
 (`sync-sandbox-schema.yml`) were deleted. The sandbox pipeline was then rebuilt
 from scratch as a single **manually triggered** workflow:
 
-- `Sandbox QA (clone prod -> build -> Pages)` — `.github/workflows/sandbox-qa.yml`
+- `Sandbox QA (clone prod -> build -> sandbox repo)` — `.github/workflows/sandbox-qa.yml`
 
 ### What it does, in order
 
@@ -25,21 +25,26 @@ from scratch as a single **manually triggered** workflow:
    and vault secrets.
 4. **Build.** `npm ci && npm run build` with `VITE_SUPABASE_URL` /
    `VITE_SUPABASE_PUBLISHABLE_KEY` pointed at the sandbox project.
-5. **Deploy.** GitHub Pages via `actions/deploy-pages`.
+5. **Publish.** The `dist/` build is force-pushed to a **separate sandbox
+   repository** (`vars.SANDBOX_PAGES_REPO`, branch `gh-pages`) that owns its own
+   GitHub Pages site and URL. Production's Pages deploy (`publish.yml`) is never
+   touched, and the two can run independently.
 
-> The sandbox clone contains real production data, including PII. Treat the
-> sandbox — and anything it is deployed to — at production confidentiality.
-> Because Pages hosts one site per repo, a sandbox deploy replaces whatever
-> `publish.yml` last shipped; dispatch with `deploy_pages = false` when that is
-> not wanted, or move the sandbox to its own target before making this automatic.
+> The sandbox clone contains real production data, including PII. The sandbox
+> database **and the sandbox site repository** must therefore be private and
+> limited to the same people who can read production.
 
 ### Required configuration
 
 Secrets: `SUPABASE_KG_DB_URL`, `SANDBOX_DB_PASSWORD` (or
 `SANDBOX_SUPABASE_DB_URL` as a `postgresql://` Session pooler URI),
-`SANDBOX_SUPABASE_ANON_KEY`.
-Variables (optional): `SANDBOX_PROJECT_REF` (default `vzfsndsqveacpefoqwsu`),
-`SANDBOX_DB_REGION`, `SANDBOX_BASE_PATH`.
+`SANDBOX_SUPABASE_ANON_KEY`, `SANDBOX_GITHUB_PAT` (write access to the sandbox
+site repo).
+Variables: `SANDBOX_PAGES_REPO` (`owner/repo` of the sandbox site repository —
+required to publish), and optionally `SANDBOX_PAGES_BRANCH` (default `gh-pages`),
+`SANDBOX_PROJECT_REF` (default `vzfsndsqveacpefoqwsu`), `SANDBOX_DB_REGION`,
+`SANDBOX_BASE_PATH` (set to `/<repo-name>/` unless the sandbox repo is a
+`<user>.github.io` site).
 
 The only automatic gate on pull requests into `main` is:
 
@@ -76,3 +81,6 @@ changes — the doc and the workflows must never disagree.
   suite unused, sandbox pipeline paused). `guards.yml` is the sole automatic gate.
 - 2026-08-11 — Sandbox QA rebuilt from scratch as one manual workflow
   (`sandbox-qa.yml`): prod drift check → approval → clone → npm build → Pages.
+- 2026-08-11 — Sandbox site moved out of this repo: the build is published to a
+  separate sandbox repository with its own Pages URL, so production Pages is
+  never overwritten.
