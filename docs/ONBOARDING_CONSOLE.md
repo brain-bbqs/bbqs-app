@@ -109,6 +109,29 @@ each an unfinishable step that pinned the row to "stuck" with no action able to 
 is now a step only when its **value is a status**; metadata is self-identifying, and a real step
 always carries a status, so new steps can never be hidden.
 
+## Role identity: which column is authoritative (issue #283, migrations 20260810130000 / 20260811120000)
+Two columns, two jobs, and they are NOT interchangeable:
+
+| column | meaning | vocabulary |
+|---|---|---|
+| `grant_investigators.role` | per-grant, RePORTER-derived — **the** authority for "role on this project" | canonical tokens only, enforced by `trg_normalize_grant_role` |
+| `investigators.role` | one free-text consortium/career label (its UI placeholder: "e.g. Working Group Chair, Trainee, Steering Committee") | human labels; never a machine token |
+
+A scalar cannot express a role that varies per grant, so `investigators.role` is not a project role.
+**`pi@` entitlement derives from the ROSTER**; career stage (`young-investigators@`) derives from the
+label, and by SUBSTRING — exact matching against raw form labels is what once flagged 66 real
+trainees as removable.
+
+Why it mattered: `sync-member-groups` decided `pi@` by exact-matching `investigators.role`. Measured
+2026-08-11 — 74 investigators held a PI role on the roster, 9 had a canonical token in
+`investigators.role`, so the trigger **missed 65 real PIs**, and the 9 it caught were exactly those
+`onboard_member` had written a token for. `group-audit` computed the expected set from the roster, so
+the two surfaces disagreed and the audit reported drift no repair could settle.
+
+The vocabulary backfill runs with `trg_sync_member_groups` DISABLED: normalizing stored vocabulary is
+not a membership change and must not emit one. Guarded by
+`tests/guards/role-vocabulary-parity.test.mjs`, proven red (3 failures) against the pre-fix code.
+
 ## Slack channel map (source of truth)
 Membership = everyone-channel + young-investigator channel (postdoc/graduate_student) + one
 channel per working group the member belongs to. Kept in KG project secrets:

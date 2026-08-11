@@ -56,6 +56,8 @@ import BbqsSchema from "./pages/BbqsSchema";
 
 import InternalCoordination from "./pages/InternalCoordination";
 
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -102,8 +104,8 @@ const App = () => (
               <Route path="/dandi-assistant" element={<DandiAssistant />} />
               <Route path="/tutorials" element={<Tutorials />} />
               <Route path="/data-provenance" element={<DataProvenance />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               {/* Data Provenance Docs and Self-Autonomy Docs removed */}
               <Route path="/suggest-feature" element={<FeatureSuggestions />} />
               
@@ -114,8 +116,8 @@ const App = () => (
               <Route path="/grants" element={<FundingOpportunities />} />
               <Route path="/cross-species-synchronization" element={<CrossSpeciesSynchronization />} />
               <Route path="/grants/:grantNumber/methods-evidence" element={<GrantMethodsEvidence />} />
-              <Route path="/admin" element={<AdminConsole />} />
-              <Route path="/internal/coordination" element={<InternalCoordination />} />
+              <Route path="/admin" element={<ProtectedRoute><AdminConsole /></ProtectedRoute>} />
+              <Route path="/internal/coordination" element={<ProtectedRoute><InternalCoordination /></ProtectedRoute>} />
               <Route path="/admin/harvester" element={<Navigate to="/resources/devices" replace />} />
               <Route path="/admin/kg-heatmap" element={<Navigate to="/resources/devices" replace />} />
               <Route path="/admin/kg-live" element={<Navigate to="/resources/devices" replace />} />

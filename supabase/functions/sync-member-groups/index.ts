@@ -52,18 +52,54 @@ function wgSet(arr: unknown): Set<string> {
   if (Array.isArray(arr)) for (const v of arr) { const k = normaliseWG(String(v)); if (k) out.add(k); }
   return out;
 }
-// role → managed role-group keys (mirrors the agent's groupsForRole, minus consortium).
-function roleSet(role: unknown): Set<string> {
+/** PI roles as NIH records them on the award. co-investigator sits on the award but is NOT a PI for
+ *  mailing-list purposes (policy 2026-08-07: "only people who can be pulled out of RePORTER are
+ *  PIs"). The broad rule had put 24 co-investigators on pi@. */
+const PI_ROSTER_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
+
+/** Career-stage groups, derived from the free-text investigators.role.
+ *
+ *  MATCH BY SUBSTRING, not equality. investigators.role holds RAW Google-Form labels, not canonical
+ *  tokens: "Postdoc/Grad Student" (32 people), "Research Staff (Scientist and others)" (27),
+ *  "Principal Investigator (PI)" (38), plus free text and 68 NULLs. Exact matching saw almost none of
+ *  them — the same mistake that made group-audit flag 66 real trainees as removable (2026-08-07).
+ *  young-investigators@ is for postdocs and PhD students (policy 2026-08-10). */
+function careerGroupSet(role: unknown): Set<string> {
   const r = String(role ?? "").toLowerCase().trim();
   const out = new Set<string>();
-  // pi@ = the PI roles NIH actually records on the award. co-investigator sits on the award
-  // but is NOT a PI for mailing-list purposes (policy 2026-08-07: "only people who can be
-  // pulled out of RePORTER are PIs"). The broad rule had put 24 co-investigators on pi@.
-  if (["pi", "contact_pi", "co_pi", "mpi"].includes(r)) out.add("pi");
-  else if (r === "postdoc" || r === "graduate_student") out.add("young_investigators");
-  else if (r === "nih_program") { out.add("dcaic_all"); out.add("nih"); }
-  else if (r === "admin") out.add("dcaic_all");
+  if (!r) return out;
+  if (/post-?doc|grad(uate)?\s*student|\bgrad\b|trainee|student|ph\.?\s?d/.test(r)) {
+    out.add("young_investigators");
+  }
+  if (/nih\s*program/.test(r)) { out.add("dcaic_all"); out.add("nih"); }
+  else if (/^admin$/.test(r)) out.add("dcaic_all");
   return out;
+}
+
+/** Is this person a PI on ANY grant, per the roster? THE source of truth for pi@.
+ *
+ *  Previously pi@ was decided by exact-matching investigators.role against canonical tokens, but that
+ *  column overwhelmingly holds human form labels. Measured 2026-08-11: 74 investigators hold a PI
+ *  role on the grant roster, while only 9 had a canonical token in investigators.role — so this
+ *  trigger MISSED 65 real PIs, and the only 9 it caught were the ones onboard_member happened to
+ *  write a token for. Meanwhile group-audit computed the expected pi@ set from the roster, so the two
+ *  surfaces disagreed about who belongs and the audit reported permanent drift.
+ *
+ *  The roster is RePORTER-derived and per-grant, which is what "PI" actually means; a single
+ *  self-reported scalar cannot express it. Read it directly and stop inferring. */
+async function isRosterPi(supabaseUrl: string, serviceKey: string, email: string): Promise<boolean> {
+  const url =
+    `${supabaseUrl}/rest/v1/grant_investigators` +
+    `?select=role,investigators!inner(email,secondary_emails)` +
+    `&investigators.email=eq.${encodeURIComponent(email)}`;
+  const res = await fetch(url, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } });
+  if (!res.ok) {
+    // Fail CLOSED for additions: better to leave pi@ unchanged than to guess from a stale label.
+    console.error(`isRosterPi lookup failed (${res.status}) for ${email}`);
+    return false;
+  }
+  const rows = (await res.json()) as Array<{ role: string | null }>;
+  return rows.some((r) => PI_ROSTER_ROLES.has(String(r.role ?? "").toLowerCase().trim()));
 }
 
 async function getAccessToken(): Promise<string> {
@@ -121,8 +157,9 @@ Deno.serve(async (req) => {
 
     const oldWG = wgSet(body?.old?.working_groups);
     const newWG = wgSet(body?.new?.working_groups);
-    const oldRole = roleSet(body?.old?.role);
-    const newRole = roleSet(body?.new?.role);
+    // Career-stage groups still diff off the label, because that is where career stage lives.
+    const oldRole = careerGroupSet(body?.old?.role);
+    const newRole = careerGroupSet(body?.new?.role);
 
     const toAdd = new Set<string>();
     const toRemove = new Set<string>();
@@ -133,6 +170,16 @@ Deno.serve(async (req) => {
     for (const k of ROLE_KEYS) {
       if (newRole.has(k) && !oldRole.has(k)) toAdd.add(k);
       if (oldRole.has(k) && !newRole.has(k)) toRemove.add(k);
+    }
+
+    // pi@ is ENSURED from the roster and never revoked here. A label edit is not evidence that
+    // someone stopped being a PI on their award, and this trigger cannot see the roster change that
+    // would be — removal belongs to offboarding and to the explicit group audit.
+    const svcUrl = Deno.env.get("SUPABASE_URL");
+    const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (svcUrl && svcKey && (await isRosterPi(svcUrl, svcKey, email))) {
+      toAdd.add("pi");
+      toRemove.delete("pi");
     }
 
     const token = await getAccessToken();
