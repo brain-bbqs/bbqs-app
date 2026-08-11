@@ -30,9 +30,8 @@ name: Sync sandbox schema + QA + auto-merge
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  # Manual-only while credentials and the clone flow are being validated.
+  # Re-enable pull_request / push triggers once sandbox runs are reliable.
   workflow_dispatch:
     inputs:
       dry_run:
