@@ -15,11 +15,18 @@ name: Sync sandbox schema + QA + auto-merge
 #   CI_AUTH_SECRET                shared token for the ci-auth edge function
 #   SANDBOX_GITHUB_PAT            PAT with repo scope for brain-bbqs/bbqs-website-sandbox
 #   STAGING_SEED_TOKEN            x-seed-token for the sandbox seed-staging-fakes function
+#   PROD_SUPABASE_DB_URL          production Session pooler URI (read-only use) — required for
+#                                 the exact-clone job, or set PROD_DB_PASSWORD instead
+#   PROD_DB_PASSWORD              production DB password; the pooler URI is assembled from it
 # Optional repo variable:
 #   SANDBOX_PREVIEW_URL           Override the default https://brain-bbqs.github.io/bbqs-website-sandbox URL
 #   SANDBOX_MIGRATIONS_ENABLED    'true' to actually push on PRs (otherwise dry-run only)
-#   SANDBOX_SEED_DATA_ENABLED     'true' to reseed the sandbox with fake data on every run
+#   SANDBOX_CLONE_PROD_ENABLED    'true' (default) to clone production data into the sandbox on
+#                                 every run. Set to 'false' to fall back to generated fake data.
+#   SANDBOX_SEED_DATA_ENABLED     'true' to reseed the sandbox with fake data (ignored while
+#                                 cloning is enabled — the two are mutually exclusive)
 #   SANDBOX_DB_REGION             pooler region for the assembled URI (default us-east-1)
+#   PROD_DB_REGION                pooler region for the production URI (default us-east-1)
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
@@ -36,6 +43,10 @@ on:
         description: 'Reseed the sandbox with generated fake data after migrating'
         type: boolean
         default: false
+      clone_prod:
+        description: 'Clone production data into the sandbox (exact copy, includes real PII)'
+        type: boolean
+        default: true
 
 concurrency:
   group: sandbox-schema
@@ -124,14 +135,75 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           psql "$DB_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
 
+  clone-prod:
+    name: Clone production data into sandbox
+    runs-on: ubuntu-latest
+    needs: migrate
+    # Default ON: the sandbox is meant to be an exact copy of production.
+    # Turn off with repo variable SANDBOX_CLONE_PROD_ENABLED=false, or with
+    # clone_prod=false on a manual dispatch.
+    if: ${{ needs.migrate.result == 'success' && needs.migrate.outputs.pushed == 'true' && vars.SANDBOX_CLONE_PROD_ENABLED != 'false' && !(github.event_name == 'workflow_dispatch' && (inputs.clone_prod == false || inputs.clone_prod == 'false')) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify production read credentials are present
+        run: |
+          if [ -z "$PROD_URL" ] && [ -z "$PROD_PASSWORD" ]; then
+            echo "::error::Cloning production requires PROD_SUPABASE_DB_URL (Session pooler URI) or PROD_DB_PASSWORD. Set one, or disable cloning with repo variable SANDBOX_CLONE_PROD_ENABLED=false."
+            exit 1
+          fi
+        env:
+          PROD_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          PROD_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+
+      - name: Normalize production DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+          FALLBACK_REF: vpexxhfpvghlejljwpvt
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+
+      - name: Normalize sandbox DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL SANDBOX_DB_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          FALLBACK_REF: vzfsndsqveacpefoqwsu
+          FALLBACK_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'us-east-1' }}
+
+      - name: Install Postgres 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Clone production into sandbox
+        run: .github/scripts/clone-prod-to-sandbox.sh
+        env:
+          PROD_URL: ${{ env.PROD_DB_URL_SAFE }}
+          SANDBOX_URL: ${{ env.SANDBOX_DB_URL_SAFE }}
+          CLONE_AUTH: ${{ vars.SANDBOX_CLONE_AUTH || 'true' }}
+
+      - name: Re-neutralize production pointers after the clone
+        run: psql "$SANDBOX_DB_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
+
   seed-data:
     name: Seed sandbox with generated fake data
     runs-on: ubuntu-latest
-    needs: migrate
+    needs: [migrate, clone-prod]
     # No production data is ever copied into the sandbox. Rows are generated by
     # the seed-staging-fakes edge function (gated on STAGING_MODE=true plus a
     # shared x-seed-token) so the sandbox never holds real PII.
-    if: ${{ needs.migrate.result == 'success' && (vars.SANDBOX_SEED_DATA_ENABLED == 'true' || vars.SANDBOX_SEED_DATA_ENABLED == 'TRUE' || (github.event_name == 'workflow_dispatch' && (inputs.seed_data == true || inputs.seed_data == 'true'))) }}
+    # Only runs when cloning is turned OFF — cloning and fake seeding are
+    # mutually exclusive ways of filling the sandbox.
+    if: ${{ always() && needs.migrate.result == 'success' && needs.clone-prod.result == 'skipped' && (vars.SANDBOX_SEED_DATA_ENABLED == 'true' || vars.SANDBOX_SEED_DATA_ENABLED == 'TRUE' || (github.event_name == 'workflow_dispatch' && (inputs.seed_data == true || inputs.seed_data == 'true'))) }}
     steps:
       - name: Verify seeding secrets are present
         run: |
@@ -164,8 +236,10 @@ jobs:
   deploy-frontend:
     name: Deploy sandbox frontend
     runs-on: ubuntu-latest
-    needs: migrate
-    if: always() && needs.migrate.result == 'success'
+    needs: [migrate, clone-prod, seed-data]
+    # Waits for whichever data step ran (clone or fake seed) so QA sees a
+    # populated sandbox; both are allowed to be skipped.
+    if: ${{ always() && needs.migrate.result == 'success' && needs.clone-prod.result != 'failure' && needs.seed-data.result != 'failure' }}
     outputs:
       preview_url: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
     steps:
