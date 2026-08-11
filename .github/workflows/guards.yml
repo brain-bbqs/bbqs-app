@@ -5,9 +5,9 @@ name: Guards (cross-layer invariants)
 # header vs each edge function's hand-written CORS allow-list (broke every edge function on
 # 2026-08-07). Deliberately cheap so it can run on every push without CI friction.
 on:
-  push:
-    branches: [main, dev]
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
