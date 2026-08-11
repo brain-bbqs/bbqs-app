@@ -114,6 +114,16 @@ jobs:
         if: ${{ (github.event_name == 'pull_request' && vars.SANDBOX_MIGRATIONS_ENABLED == 'true') || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
         run: echo "pushed=true" >> "$GITHUB_OUTPUT"
 
+      - name: Neutralize production pointers in the sandbox
+        # The migration history hardcodes the production project URL and anon key
+        # inside pg_cron jobs. Left alone, the sandbox scheduler would fire at
+        # production edge functions. This unschedules all cron jobs and clears
+        # any prod credential copied into the sandbox vault.
+        if: ${{ steps.push-status.outputs.pushed == 'true' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DB_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
+
   seed-data:
     name: Seed sandbox with generated fake data
     runs-on: ubuntu-latest
