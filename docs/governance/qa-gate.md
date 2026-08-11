@@ -26,7 +26,8 @@ from scratch as a single **manually triggered** workflow:
 4. **Build.** `npm ci && npm run build` with `VITE_SUPABASE_URL` /
    `VITE_SUPABASE_PUBLISHABLE_KEY` pointed at the sandbox project.
 5. **Publish.** The `dist/` build is force-pushed to a **separate sandbox
-   repository** (`vars.SANDBOX_PAGES_REPO`, branch `gh-pages`) that owns its own
+   repository** — `brain-bbqs/bbqs-website-sandbox` (override with
+   `vars.SANDBOX_PAGES_REPO`), branch `gh-pages` — which owns its own
    GitHub Pages site and URL. Production's Pages deploy (`publish.yml`) is never
    touched, and the two can run independently.
 
@@ -40,11 +41,10 @@ Secrets: `SUPABASE_KG_DB_URL`, `SANDBOX_DB_PASSWORD` (or
 `SANDBOX_SUPABASE_DB_URL` as a `postgresql://` Session pooler URI),
 `SANDBOX_SUPABASE_ANON_KEY`, `SANDBOX_GITHUB_PAT` (write access to the sandbox
 site repo).
-Variables: `SANDBOX_PAGES_REPO` (`owner/repo` of the sandbox site repository —
-required to publish), and optionally `SANDBOX_PAGES_BRANCH` (default `gh-pages`),
-`SANDBOX_PROJECT_REF` (default `vzfsndsqveacpefoqwsu`), `SANDBOX_DB_REGION`,
-`SANDBOX_BASE_PATH` (set to `/<repo-name>/` unless the sandbox repo is a
-`<user>.github.io` site).
+Variables (all optional, defaults in the workflow): `SANDBOX_PAGES_REPO`
+(default `brain-bbqs/bbqs-website-sandbox`), `SANDBOX_PAGES_BRANCH` (default
+`gh-pages`), `SANDBOX_PROJECT_REF` (default `vzfsndsqveacpefoqwsu`),
+`SANDBOX_DB_REGION`, `SANDBOX_BASE_PATH` (default `/bbqs-website-sandbox/`).
 
 The only automatic gate on pull requests into `main` is:
 
