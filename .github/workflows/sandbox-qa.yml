@@ -1,0 +1,217 @@
+name: Sandbox QA (clone prod -> build -> Pages)
+
+# ONE workflow, MANUAL ONLY for now. Rebuilt from scratch on 2026-08-11 after the
+# old qa.yml / sync-sandbox-schema.yml pair was deleted.
+#
+# Order of operations (each stage gates the next):
+#   1. verify-prod  – is PRODUCTION's schema still exactly what this repo says it is?
+#                     Any pending/extra migration is DRIFT and stops the run.
+#   2. approve      – GitHub Environment gate. Required when drift was found (or when
+#                     the operator asks for it). A human approves before we touch data.
+#   3. sandbox      – push migrations to the SANDBOX project, then clone prod data into
+#                     it so the sandbox is an exact replica.
+#   4. build        – npm build of the frontend pointed at the SANDBOX database.
+#   5. deploy       – publish that build to GitHub Pages.
+#
+# Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
+# the manual loop is green.
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_drift:
+        description: 'Continue even if production schema drifts from the repo'
+        type: boolean
+        default: false
+      clone_data:
+        description: 'Clone production data into the sandbox (exact replica)'
+        type: boolean
+        default: true
+      deploy_pages:
+        description: 'Deploy the sandbox build to GitHub Pages'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sandbox-qa
+  cancel-in-progress: false
+
+jobs:
+  # 1 ── Production must match the repo before anything downstream runs.
+  verify-prod:
+    name: 1. Verify production schema
+    runs-on: ubuntu-latest
+    outputs:
+      drift: ${{ steps.drift.outputs.drift }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check prod secret is present
+        run: '[ -n "$DB_URL" ] || { echo "::error::Missing secret SUPABASE_KG_DB_URL"; exit 1; }'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+
+      - name: Normalize prod DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+
+      - name: Resolve IPv4 (best effort)
+        continue-on-error: true
+        run: source .github/scripts/pg-ipv4-env.sh PROD_URL_SAFE
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Compare repo migrations against production
+        id: drift
+        run: |
+          set -euo pipefail
+          supabase migration list --db-url "$PROD_URL_SAFE" | tee /tmp/mig.txt
+          # A row with a Local version but no Remote version = not applied to prod.
+          # A row with a Remote version but no Local version = applied by hand, not in repo.
+          pending=$(awk -F'|' 'NR>2 && NF>=3 {
+              gsub(/ /,"",$1); gsub(/ /,"",$2);
+              if ($1 != "" && $2 == "") print $1;
+              if ($1 == "" && $2 != "") print $2;
+            }' /tmp/mig.txt)
+          if [ -n "$pending" ]; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### :warning: Production schema drift"
+              echo ''
+              echo 'These migration versions differ between the repo and production:'
+              echo '```'
+              echo "$pending"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "### :white_check_mark: Production schema matches the repo" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stop on drift
+        if: ${{ steps.drift.outputs.drift == 'true' && inputs.allow_drift == false }}
+        run: |
+          echo "::error::Production schema drifts from the repo. Reconcile it (Apply prod schema workflow) or re-run with allow_drift = true, which requires approval."
+          exit 1
+
+  # 2 ── Human approval. Protect the `sandbox-approval` environment with required
+  #      reviewers in Settings → Environments; that is what makes this a real gate.
+  approve:
+    name: 2. Approval
+    needs: verify-prod
+    runs-on: ubuntu-latest
+    environment: sandbox-approval
+    steps:
+      - run: echo "Approved. Prod drift = ${{ needs.verify-prod.outputs.drift }}"
+
+  # 3 ── Sandbox becomes an exact replica of production.
+  sandbox:
+    name: 3. Migrate + clone sandbox
+    needs: [verify-prod, approve]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check sandbox credentials
+        run: |
+          if [ -z "${SANDBOX_DB_URL}" ] && [ -z "${SANDBOX_DB_PASSWORD}" ]; then
+            echo "::error::Set secret SANDBOX_DB_PASSWORD (preferred) or SANDBOX_SUPABASE_DB_URL (postgresql:// Session pooler URI)."
+            exit 1
+          fi
+        env:
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          SANDBOX_DB_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
+
+      - name: Normalize sandbox DB URL
+        run: source .github/scripts/pg-url-normalize.sh SANDBOX_DB_URL SANDBOX_URL_SAFE
+        env:
+          SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
+          FALLBACK_REF: ${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}
+          FALLBACK_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'us-east-1' }}
+
+      - name: Normalize prod DB URL
+        run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
+        env:
+          DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install postgres client 15
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          sudo sed -i 's|deb |deb [signed-by=/usr/share/keyrings/pgdg.gpg] |' /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-15
+
+      - name: Push migrations to sandbox
+        run: supabase db push --db-url "$SANDBOX_URL_SAFE" --include-all
+
+      - name: Clone production data into sandbox
+        if: ${{ inputs.clone_data }}
+        run: bash .github/scripts/clone-prod-to-sandbox.sh
+        env:
+          PROD_URL: ${{ env.PROD_URL_SAFE }}
+          SANDBOX_URL: ${{ env.SANDBOX_URL_SAFE }}
+          CLONE_AUTH: 'true'
+
+      - name: Neutralize production-only jobs/secrets in sandbox
+        if: ${{ inputs.clone_data }}
+        run: psql "$SANDBOX_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
+
+  # 4 ── Build the frontend against the sandbox database.
+  build:
+    name: 4. Build (npm, sandbox env)
+    needs: sandbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+          VITE_AUTH_COOKIE_DOMAIN: ''
+          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/' }}
+
+      - name: SPA fallback for GitHub Pages
+        run: |
+          touch dist/.nojekyll
+          cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  # 5 ── Deploy the sandbox build to GitHub Pages.
+  deploy:
+    name: 5. Deploy to GitHub Pages
+    needs: build
+    if: ${{ inputs.deploy_pages }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
