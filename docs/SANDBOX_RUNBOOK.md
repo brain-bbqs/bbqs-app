@@ -146,6 +146,7 @@ Because `VITE_AUTH_COOKIE_DOMAIN` is empty in `.env.sandbox`, auth cookies will 
 1. Open a PR.
 2. The workflow posts a **drift report comment** listing pending migrations (if any).
 3. If `SANDBOX_MIGRATIONS_ENABLED=true` and the PR touches `supabase/migrations/`, those migrations are applied to the sandbox.
+3b. If `SANDBOX_SEED_DATA_ENABLED=true` (or manual dispatch with `seed_data=true`), the workflow calls `seed-staging-fakes` on the sandbox project to regenerate fake rows. **Production data is never copied.**
 4. The workflow **builds the frontend with `.env.sandbox`** and deploys it to `brain-bbqs/bbqs-website-sandbox`.
 5. If `SANDBOX_PREVIEW_URL` is set, the workflow runs the **Sandbox QA** job: Playwright functional tests against the live sandbox preview (`api-health`, `data-integrity`, `console-errors`, `navigation`, `smoke`).
 6. If Sandbox QA passes and `SANDBOX_AUTO_MERGE_ENABLED=true`, the workflow enables GitHub auto-merge (`gh pr merge --auto --squash`). The PR merges once all required status checks and branch-protection rules are satisfied.
