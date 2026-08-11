@@ -236,8 +236,10 @@ jobs:
   deploy-frontend:
     name: Deploy sandbox frontend
     runs-on: ubuntu-latest
-    needs: migrate
-    if: always() && needs.migrate.result == 'success'
+    needs: [migrate, clone-prod, seed-data]
+    # Waits for whichever data step ran (clone or fake seed) so QA sees a
+    # populated sandbox; both are allowed to be skipped.
+    if: ${{ always() && needs.migrate.result == 'success' && needs.clone-prod.result != 'failure' && needs.seed-data.result != 'failure' }}
     outputs:
       preview_url: ${{ vars.SANDBOX_PREVIEW_URL || 'https://brain-bbqs.github.io/bbqs-website-sandbox' }}
     steps:
