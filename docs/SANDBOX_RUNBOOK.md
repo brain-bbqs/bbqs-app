@@ -54,7 +54,8 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 | Name | Value |
 |---|---|
 | `SANDBOX_SUPABASE_DB_URL` | sandbox Session pooler URI from step 1 |
-| `PROD_SUPABASE_DB_URL` | production Session pooler URI (port 5432), used as the clone source |
+| `SANDBOX_DB_PASSWORD` | sandbox DB password. **Fallback** — if `SANDBOX_SUPABASE_DB_URL` is missing or malformed, the workflow assembles `postgresql://postgres.vzfsndsqveacpefoqwsu:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres` from this. Setting it alone is enough. |
+| `STAGING_SEED_TOKEN` | same value as `STAGING_SEED_TOKEN` in the sandbox edge-function secrets; used to invoke `seed-staging-fakes` |
 | `SANDBOX_SUPABASE_ANON_KEY` | the anon key from step 1 |
 | `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 | `SANDBOX_GITHUB_PAT` | classic PAT with `repo` scope (and SSO authorized if the org uses SAML) for `brain-bbqs/bbqs-website-sandbox` |
@@ -65,7 +66,16 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 |---|---|---|
 | `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | URL QA targets. Example: `https://brain-bbqs.github.io/bbqs-website-sandbox` or `https://sandbox.brain-bbqs.org`. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
+| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed the sandbox with generated fake rows on every run. Leave unset to seed only on manual dispatch. |
+| `SANDBOX_DB_REGION` | e.g. `us-east-1` | Pooler region used when the DB URI is assembled from `SANDBOX_DB_PASSWORD`. Defaults to `us-east-1`. |
 | `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
+
+### Diagnosing a bad DB secret
+
+Run **Actions → Validate DB secrets → Run workflow**. It reports which secrets
+are present (lengths only, never values), normalizes the connection string, and
+runs a single `select` against the sandbox database. Use it before re-running
+the full pipeline.
 
 Merges to `main` always push migrations. Manual workflow runs default to dry-run.
 
