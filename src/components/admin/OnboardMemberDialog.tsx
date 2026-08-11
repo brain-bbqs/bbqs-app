@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -68,6 +69,34 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const [smartText, setSmartText] = useState("");
   const [parsing, setParsing] = useState(false);
 
+  // Arriving from "Approve & onboard" on an access request: /admin?tab=onboarding&prefill=…&request=…
+  // Open the wizard, seed Smart fill from the request, and remember which request to close.
+  // Previously that button opened the AGENT with a sentence to re-parse; the request already holds
+  // structured fields, so they come straight here instead.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const prefill = searchParams.get("prefill");
+  // StrictMode double-invokes effects in dev, and parse-onboard is a paid LLM call. The URL strip
+  // below is not enough to guard it, since both runs happen before the re-render lands.
+  const prefillHandled = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!prefill || prefillHandled.current === prefill) return;
+    prefillHandled.current = prefill;
+    const req = searchParams.get("request");
+    setSmartText(prefill);
+    setRequestId(req);
+    setOpen(true);
+    // Strip both params so a refresh or a later close does not reopen the wizard.
+    const next = new URLSearchParams(searchParams);
+    next.delete("prefill");
+    next.delete("request");
+    setSearchParams(next, { replace: true });
+    // Parse immediately: the admin asked for a pre-filled form, not a textarea to click through.
+    void smartFillFrom(prefill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
+
   const { data: grantResults = [] } = useQuery({
     queryKey: ["grant-search", grantQuery],
     enabled: open && grantQuery.trim().length >= 2 && !grant,
@@ -87,15 +116,17 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
     setEmail(""); setSecondary(""); setName(""); setRole("research_staff"); setWgs(new Set()); setTier("member");
     setInstitution(""); setGrantQuery(""); setGrant(null);
     setSubmitting(false); setResult(null); setSendingEmail(false); setEmailSent(false);
-    setSmartText(""); setParsing(false);
+    setSmartText(""); setParsing(false); setRequestId(null);
   };
 
   // Smart-fill: LLM parses free text → pre-fills the fields below (admin reviews, then submits).
-  const smartFill = async () => {
-    if (!smartText.trim()) return;
+  const smartFill = () => smartFillFrom(smartText);
+
+  async function smartFillFrom(text: string) {
+    if (!text.trim()) return;
     setParsing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("parse-onboard", { body: { text: smartText } });
+      const { data, error } = await supabase.functions.invoke("parse-onboard", { body: { text } });
       if (error || !data?.ok) throw new Error(await edgeError(error, data));
       const f = (data as any).fields;
       if (f.email) setEmail(f.email);
@@ -112,7 +143,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
     } finally {
       setParsing(false);
     }
-  };
+  }
 
   const onOpenChange = (o: boolean) => { setOpen(o); if (!o) reset(); };
 
@@ -126,7 +157,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const submit = async () => {
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("onboard_member" as any, {
+      const { data, error } = await supabase.rpc("onboard_member", {
         _email: email.trim(),
         _name: name.trim(),
         _role: role,
@@ -147,6 +178,23 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
             : `Onboarded ${name.trim()}`,
       );
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline"] });
+
+      // Came in from "Approve & onboard"? Close that request now. Without this the console left the
+      // row pending for a member it had just fully provisioned, so an admin had to go back and
+      // dismiss it by hand — the agent path already cleared it (workflow.ts Step 1b) and the console
+      // did not.
+      if (requestId) {
+        const { error: reqErr } = await supabase
+          .from("access_requests")
+          .update({
+            status: "approved",
+            reviewed_at: new Date().toISOString(),
+            review_notes: "Approved and onboarded via the admin console wizard",
+          })
+          .eq("id", requestId);
+        if (reqErr) toast.warning(`Onboarded, but the access request stayed pending: ${reqErr.message}`);
+        else queryClient.invalidateQueries({ queryKey: ["access-requests"] });
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Onboarding failed");
     } finally {
@@ -162,7 +210,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
         body: { to: result.email, name: name.trim(), role: result.role },
       });
       if (error || (data && (data as any).success === false)) throw new Error(await edgeError(error, data));
-      await supabase.rpc("set_onboarding_step" as any, {
+      await supabase.rpc("set_onboarding_step", {
         _investigator_id: result.investigator_id, _step: "welcome_email", _status: "done",
       });
       setEmailSent(true);

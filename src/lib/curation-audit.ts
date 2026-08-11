@@ -58,7 +58,7 @@ export async function recordCurationAudit(input: AuditWriteInput): Promise<strin
  * Call the universal revert RPC.
  */
 export async function revertCurationChange(auditId: string): Promise<boolean> {
-  const { error } = await supabase.rpc("revert_curation_change" as any, {
+  const { error } = await supabase.rpc("revert_curation_change", {
     _audit_id: auditId,
   });
   if (error) {

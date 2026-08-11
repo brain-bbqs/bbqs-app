@@ -323,6 +323,7 @@ export type Database = {
       budget_snapshots: {
         Row: {
           captured_at: string
+          created_at: string
           id: string
           metric_key: string
           metric_label: string | null
@@ -335,6 +336,7 @@ export type Database = {
         }
         Insert: {
           captured_at?: string
+          created_at?: string
           id?: string
           metric_key: string
           metric_label?: string | null
@@ -347,6 +349,7 @@ export type Database = {
         }
         Update: {
           captured_at?: string
+          created_at?: string
           id?: string
           metric_key?: string
           metric_label?: string | null
@@ -361,22 +364,28 @@ export type Database = {
       }
       cohort_summaries: {
         Row: {
+          created_at: string
           generated_at: string
           mechanism: string
           n_grants: number
           summary: string
+          updated_at: string
         }
         Insert: {
+          created_at?: string
           generated_at?: string
           mechanism: string
           n_grants?: number
           summary: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           generated_at?: string
           mechanism?: string
           n_grants?: number
           summary?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -531,6 +540,7 @@ export type Database = {
       data_audit_log: {
         Row: {
           actor_id: string | null
+          actor_label: string | null
           actor_role: string | null
           changed_fields: Json | null
           client_source: string | null
@@ -544,6 +554,7 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
+          actor_label?: string | null
           actor_role?: string | null
           changed_fields?: Json | null
           client_source?: string | null
@@ -557,6 +568,7 @@ export type Database = {
         }
         Update: {
           actor_id?: string | null
+          actor_label?: string | null
           actor_role?: string | null
           changed_fields?: Json | null
           client_source?: string | null
@@ -1283,22 +1295,28 @@ export type Database = {
       }
       grant_investigators: {
         Row: {
+          created_at: string
           grant_id: string | null
           investigator_id: string
           role: string
           role_source: string
+          updated_at: string
         }
         Insert: {
+          created_at?: string
           grant_id?: string | null
           investigator_id: string
           role?: string
           role_source?: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           grant_id?: string | null
           investigator_id?: string
           role?: string
           role_source?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1375,6 +1393,7 @@ export type Database = {
           stimulation_params: Json | null
           study_arm: string | null
           subject_n: number | null
+          updated_at: string
           use_case: string | null
         }
         Insert: {
@@ -1413,6 +1432,7 @@ export type Database = {
           stimulation_params?: Json | null
           study_arm?: string | null
           subject_n?: number | null
+          updated_at?: string
           use_case?: string | null
         }
         Update: {
@@ -1451,6 +1471,7 @@ export type Database = {
           stimulation_params?: Json | null
           study_arm?: string | null
           subject_n?: number | null
+          updated_at?: string
           use_case?: string | null
         }
         Relationships: [
@@ -1473,6 +1494,7 @@ export type Database = {
           replan_count: number
           seed_grant_number: string
           terminal_evidence_id: string | null
+          updated_at: string
         }
         Insert: {
           chain_score?: number
@@ -1483,6 +1505,7 @@ export type Database = {
           replan_count?: number
           seed_grant_number: string
           terminal_evidence_id?: string | null
+          updated_at?: string
         }
         Update: {
           chain_score?: number
@@ -1493,6 +1516,7 @@ export type Database = {
           replan_count?: number
           seed_grant_number?: string
           terminal_evidence_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1513,6 +1537,7 @@ export type Database = {
           grant_number: string
           id: string
           nih_link: string | null
+          reporter_project_num: string | null
           resource_id: string | null
           title: string
           updated_at: string
@@ -1525,6 +1550,7 @@ export type Database = {
           grant_number: string
           id?: string
           nih_link?: string | null
+          reporter_project_num?: string | null
           resource_id?: string | null
           title: string
           updated_at?: string
@@ -1537,6 +1563,7 @@ export type Database = {
           grant_number?: string
           id?: string
           nih_link?: string | null
+          reporter_project_num?: string | null
           resource_id?: string | null
           title?: string
           updated_at?: string
@@ -1550,6 +1577,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      group_audit_dismissals: {
+        Row: {
+          dismissed_at: string
+          dismissed_by: string | null
+          group_email: string
+          member_email: string
+          reason: string | null
+          role_at_dismissal: string | null
+        }
+        Insert: {
+          dismissed_at?: string
+          dismissed_by?: string | null
+          group_email: string
+          member_email: string
+          reason?: string | null
+          role_at_dismissal?: string | null
+        }
+        Update: {
+          dismissed_at?: string
+          dismissed_by?: string | null
+          group_email?: string
+          member_email?: string
+          reason?: string | null
+          role_at_dismissal?: string | null
+        }
+        Relationships: []
       }
       harvester_keywords: {
         Row: {
@@ -1753,6 +1807,7 @@ export type Database = {
           batch_paused: boolean
           beam_width: number
           chain_score_threshold: number
+          created_at: string
           id: number
           max_hops: number
           max_publications_per_seed: number
@@ -1765,6 +1820,7 @@ export type Database = {
           batch_paused?: boolean
           beam_width?: number
           chain_score_threshold?: number
+          created_at?: string
           id?: number
           max_hops?: number
           max_publications_per_seed?: number
@@ -1777,6 +1833,7 @@ export type Database = {
           batch_paused?: boolean
           beam_width?: number
           chain_score_threshold?: number
+          created_at?: string
           id?: number
           max_hops?: number
           max_publications_per_seed?: number
@@ -1816,16 +1873,22 @@ export type Database = {
       }
       investigator_organizations: {
         Row: {
+          created_at: string
           investigator_id: string
           organization_id: string
+          updated_at: string
         }
         Insert: {
+          created_at?: string
           investigator_id: string
           organization_id: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           investigator_id?: string
           organization_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2284,30 +2347,36 @@ export type Database = {
       personality_scores: {
         Row: {
           big_five: Json
+          created_at: string
           hexaco: Json
           investigator_id: string
           last_computed_at: string
           matched_count: number
           token_count: number
           top_adjectives: Json
+          updated_at: string
         }
         Insert: {
           big_five?: Json
+          created_at?: string
           hexaco?: Json
           investigator_id: string
           last_computed_at?: string
           matched_count?: number
           token_count?: number
           top_adjectives?: Json
+          updated_at?: string
         }
         Update: {
           big_five?: Json
+          created_at?: string
           hexaco?: Json
           investigator_id?: string
           last_computed_at?: string
           matched_count?: number
           token_count?: number
           top_adjectives?: Json
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2551,6 +2620,7 @@ export type Database = {
           rcr: number | null
           resource_id: string | null
           title: string
+          updated_at: string
           year: number | null
         }
         Insert: {
@@ -2567,6 +2637,7 @@ export type Database = {
           rcr?: number | null
           resource_id?: string | null
           title: string
+          updated_at?: string
           year?: number | null
         }
         Update: {
@@ -2583,6 +2654,7 @@ export type Database = {
           rcr?: number | null
           resource_id?: string | null
           title?: string
+          updated_at?: string
           year?: number | null
         }
         Relationships: [
@@ -3017,6 +3089,19 @@ export type Database = {
         }
         Relationships: []
       }
+      group_audit_dismissals_live: {
+        Row: {
+          current_role: string | null
+          dismissed_at: string | null
+          group_email: string | null
+          member_email: string | null
+          member_name: string | null
+          reason: string | null
+          role_at_dismissal: string | null
+          role_changed: boolean | null
+        }
+        Relationships: []
+      }
       investigator_cohorts: {
         Row: {
           cohort: string | null
@@ -3329,9 +3414,14 @@ export type Database = {
         }
         Returns: number
       }
+      current_actor_via: { Args: never; Returns: string }
       decrement_vote_count: {
         Args: { _suggestion_id: string }
         Returns: undefined
+      }
+      dismiss_group_audit_entry: {
+        Args: { _group_email: string; _member_email: string; _reason?: string }
+        Returns: Json
       }
       email_is_consortium_member: { Args: { _email: string }; Returns: boolean }
       get_investigator_attention: {
@@ -3418,6 +3508,7 @@ export type Database = {
           title: string
         }[]
       }
+      set_actor: { Args: { _label: string }; Returns: string }
       set_onboarding_step: {
         Args: { _investigator_id: string; _status: string; _step: string }
         Returns: Json
@@ -3431,6 +3522,10 @@ export type Database = {
           score: number
           title: string
         }[]
+      }
+      undismiss_group_audit_entry: {
+        Args: { _group_email: string; _member_email: string }
+        Returns: Json
       }
       upsert_access_request: {
         Args: {

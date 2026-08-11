@@ -84,7 +84,7 @@ export function MemberProfileEditor() {
   const save = async () => {
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("member_self_update" as any, {
+      const { data, error } = await supabase.rpc("member_self_update", {
         _institution: institution.trim() || null,
         _orcid: orcid.trim() || null,
         _research_areas: toList(areas),

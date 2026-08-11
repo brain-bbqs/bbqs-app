@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserTier } from "@/hooks/useUserTier";
@@ -23,11 +23,6 @@ import {
 
 type Status = "pending" | "approved" | "dismissed";
 
-// The onboarding agent (shares the *.brain-bbqs.org Supabase session cookie, so an
-// admin clicking through lands already signed in). `?ask=<text>` pre-fills its
-// composer — see the agent route's validateSearch.
-const AGENT_URL = "https://agent.brain-bbqs.org";
-
 interface AccessRequest {
   id: string;
   email: string;
@@ -47,9 +42,11 @@ interface AccessRequest {
   association?: string | null;
 }
 
-/** A BBQS/NIH award number stated in the free-text association, if there is one —
- *  lets "Approve & onboard" hand the grant straight to the agent instead of making
- *  the admin re-type it. Matches e.g. U24MH136628 / 1R61MH135106-01. */
+/** A BBQS/NIH award number stated in the free-text association, if there is one — lets
+ *  "Approve & onboard" hand the grant straight to the wizard instead of making the admin re-type
+ *  it. Matches e.g. U24MH136628 / 1R61MH135106-01. Kept prefix- and suffix-tolerant on purpose:
+ *  a requester may type the full award number even though grants.grant_number now stores the
+ *  stable core (migration 20260810170000), and the grant lookup strips both ends anyway. */
 function grantNumberFrom(association?: string | null): string | null {
   const m = (association ?? "").match(/\b\d?[A-Z]\d{2}[A-Z]{2}\d{5,6}\b/i);
   return m ? m[0].toUpperCase() : null;
@@ -76,6 +73,7 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
   const [busyId, setBusyId] = useState<string | null>(null);
   const [collision, setCollision] = useState<NameCollision | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AccessRequest | null>(null);
+  const navigate = useNavigate();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["access-requests"],
@@ -242,30 +240,36 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
     }
   };
 
-  // "Approve & onboard" — FULL provisioning. Hands off to the agent's onboarding
-  // workflow (the single provisioning path: mailing lists + welcome + role), which
-  // live-checks/reconciles an existing member and auto-clears this pending request on
-  // completion (agent workflow.ts Step 1b). No DB write here — onboarding owns it.
-  // The request's captured requested_role rides along in the pre-filled prompt.
+  // "Approve & onboard" — FULL provisioning, in the ADMIN CONSOLE rather than the agent.
+  //
+  // This used to open the agent with ?ask=Onboard <name> (<email>), handing a deterministic task to
+  // an LLM that then had to re-derive every field from a sentence. The console's Onboard wizard is
+  // the deterministic path, and the request already holds everything the wizard needs — name, email,
+  // institution, requested_role, and the association naming their PI or grant. So carry those
+  // straight into Smart fill instead of round-tripping through prose.
+  //
+  // The request id rides along so the wizard can mark THIS request approved once the onboard
+  // succeeds. Previously nothing closed the loop from the console side: the agent workflow
+  // auto-cleared the request (workflow.ts Step 1b) but a console onboard did not, leaving a pending
+  // row for an already-provisioned member.
   const approveAndOnboard = (r: AccessRequest) => {
     const name = (r.full_name || r.globus_name || r.email.split("@")[0] || "Unknown").trim();
-    const email = r.email.toLowerCase();
-    const roleHint = r.requested_role ? ` as ${r.requested_role}` : "";
-    // Carry the declared grant through so the agent can link the roster in the same
-    // pass; a PI/lab name (no award number) rides along as the by-group phrase, which
-    // the agent resolves via resolveGrant.
+    const parts = [name, r.email.toLowerCase()];
+    if (r.requested_role) parts.push(r.requested_role);
+    if (r.institution) parts.push(r.institution);
+    // Prefer an explicit award number when the association states one — Smart fill resolves
+    // "grant <number>" far more reliably than a lab name. A PI/lab name rides along as prose for
+    // grant_hint to match on. An explicit "not affiliated" declaration is deliberately dropped:
+    // it is meaningful to a REVIEWER but would only mislead the grant search.
     const grant = grantNumberFrom(r.association);
     const assoc = (r.association ?? "").trim();
-    const grantHint = grant
-      ? `, grant ${grant}`
-      : assoc && !/^not affiliated/i.test(assoc)
-        ? ` from ${assoc}`
-        : "";
-    const url = `${AGENT_URL}/?ask=${encodeURIComponent(`Onboard ${name} (${email})${roleHint}${grantHint}`)}`;
-    window.open(url, "_blank", "noopener");
-    toast.info(
-      "Opening full onboarding in the agent — complete the workflow there. This request clears automatically once they're provisioned.",
+    if (grant) parts.push(`grant ${grant}`);
+    else if (assoc && !/^not affiliated/i.test(assoc)) parts.push(`works with ${assoc}`);
+    navigate(
+      `/admin?tab=onboarding&prefill=${encodeURIComponent(parts.join(", "))}` +
+        `&request=${encodeURIComponent(r.id)}`,
     );
+    toast.info("Opening the onboard wizard with this request pre-filled — review the fields, then submit.");
   };
 
   const linkAsSecondaryEmail = async () => {

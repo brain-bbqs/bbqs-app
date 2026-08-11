@@ -56,7 +56,7 @@ export function WorkingGroupRequestsPanel() {
 
   const approve = (r: ReqRow) =>
     act(r.id, async () => {
-      const { data, error } = await supabase.rpc("approve_working_groups" as any, { _investigator_id: r.id });
+      const { data, error } = await supabase.rpc("approve_working_groups", { _investigator_id: r.id });
       if (error || (data as any)?.ok === false) throw new Error(await edgeError(error, data));
     }, "Working groups approved");
 

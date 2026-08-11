@@ -122,7 +122,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       const { data, error } = await supabase.functions.invoke("send-onboarding-reminder", { body: { to: r.email, name: r.name, steps } });
       if (error || (data as any)?.success === false) throw new Error(await edgeError(error, data));
       // Stamp it so the panel shows "reminded Nd ago" and the cooldown can bite.
-      await supabase.rpc("record_onboarding_reminder" as any, { _investigator_id: r.id });
+      await supabase.rpc("record_onboarding_reminder", { _investigator_id: r.id });
     }, "Reminder sent");
 
   if (tier.isLoading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;

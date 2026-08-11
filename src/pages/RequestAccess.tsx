@@ -140,6 +140,31 @@ export default function RequestAccess() {
 
     setSubmitting(true);
     try {
+      // ALREADY A MEMBER? Then there is nothing to approve, and filing a request creates
+      // make-work: an admin re-approves someone who was onboarded days earlier.
+      //
+      // Confirmed 2026-08-11. Katherine Scangos was onboarded on 2026-08-10 19:42:50 (her email
+      // written to investigators then) and still submitted this form at 2026-08-11 17:16:21, naming
+      // "Bijan Pesaran" as her association — exactly as the onboarding email instructs new members
+      // to do. The request had globus_subject NULL, so it came from this form and not from a bounced
+      // sign-in: the strict membership gate in globus-auth would have let her straight in. She had no
+      // way to know she was already on the roster, because her welcome_email step was never sent.
+      //
+      // So check membership here, where the gate does not run. Same predicate globus-auth uses, so
+      // the two surfaces cannot disagree about who is a member.
+      const { data: alreadyMember } = await supabase.rpc("email_is_consortium_member", {
+        _email: parsed.data.email.toLowerCase(),
+      });
+      if (alreadyMember) {
+        setSubmitting(false);
+        toast.success(
+          "You are already registered with the BBQS consortium — no request needed. " +
+            "Just sign in with this email address via Globus.",
+          { duration: 10000 },
+        );
+        return;
+      }
+
       // Route through the shared SECURITY DEFINER upsert so these details ENRICH the
       // pending row the failed Globus sign-in may have already auto-filed for this
       // email (rather than colliding on the one-pending-per-email unique index and

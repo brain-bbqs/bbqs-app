@@ -59,6 +59,8 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 | `SANDBOX_SUPABASE_ANON_KEY` | the anon key from step 1 |
 | `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 | `SANDBOX_GITHUB_PAT` | classic PAT with `repo` scope (and SSO authorized if the org uses SAML) for `brain-bbqs/bbqs-website-sandbox` |
+| `PROD_SUPABASE_DB_URL` | production Session pooler URI — **read-only use**, needed for the exact-clone job |
+| `PROD_DB_PASSWORD` | production DB password. Fallback used to assemble the prod pooler URI when `PROD_SUPABASE_DB_URL` is absent or malformed. |
 
 **Repository variables:**
 
@@ -66,7 +68,10 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 |---|---|---|
 | `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | URL QA targets. Example: `https://brain-bbqs.github.io/bbqs-website-sandbox` or `https://sandbox.brain-bbqs.org`. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
-| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed the sandbox with generated fake rows on every run. Leave unset to seed only on manual dispatch. |
+| `SANDBOX_CLONE_PROD_ENABLED` | `false` | **Cloning is ON by default.** Set to `false` to stop copying production data and fall back to fake seeding. |
+| `SANDBOX_CLONE_AUTH` | `false` | Skip cloning `auth.users` / `storage` metadata; `public` data only. Defaults to `true`. |
+| `PROD_DB_REGION` | e.g. `us-east-1` | Pooler region used when the prod URI is assembled from `PROD_DB_PASSWORD`. |
+| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed with generated fake rows. Ignored while cloning is enabled. |
 | `SANDBOX_DB_REGION` | e.g. `us-east-1` | Pooler region used when the DB URI is assembled from `SANDBOX_DB_PASSWORD`. Defaults to `us-east-1`. |
 | `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
 
@@ -107,9 +112,37 @@ Register the sandbox Globus redirect URI as `https://<sandbox-host>/auth/callbac
 
 ---
 
-## 6. Seeding data
+## 6. Filling the sandbox with data
 
-**No prod data is ever copied.** Use `supabase/functions/seed-staging-fakes/` (faker-generated rows matching prod row counts, gated on `STAGING_MODE=true` plus a shared `x-seed-token`). Deploy it to the sandbox and set:
+There are two mutually exclusive modes. **Exact clone is the default.**
+
+### 6a. Exact clone of production (default)
+
+Every run, after migrations are pushed, the `clone-prod` job dumps production's
+data and restores it into the sandbox, so the sandbox is a byte-for-byte copy of
+prod's rows (`.github/scripts/clone-prod-to-sandbox.sh`):
+
+1. `pg_dump --data-only` of `public` (plus `auth` and `storage` unless
+   `SANDBOX_CLONE_AUTH=false`), excluding session/refresh-token tables.
+2. `TRUNCATE ... RESTART IDENTITY CASCADE` on every sandbox `public` table.
+3. `pg_restore --data-only --disable-triggers` into the sandbox.
+4. A per-table row-count comparison prod vs sandbox is printed; mismatches are
+   flagged in the log.
+5. `.github/sql/sandbox-localize.sql` runs again to unschedule cron and clear
+   any prod credential.
+
+Requires one of these secrets: `PROD_SUPABASE_DB_URL` (production Session
+pooler URI) or `PROD_DB_PASSWORD`. The script refuses to run if the *target*
+URL points at the production ref.
+
+> **Confidentiality:** cloning copies real data, including PII. The sandbox now
+> carries production confidentiality — restrict access to the same people who
+> can read prod, and never expose the sandbox site publicly. Set repo variable
+> `SANDBOX_CLONE_PROD_ENABLED=false` to go back to fake data.
+
+### 6b. Generated fake data (when cloning is off)
+
+Used only when `SANDBOX_CLONE_PROD_ENABLED=false`. Use `supabase/functions/seed-staging-fakes/` (faker-generated rows matching prod row counts, gated on `STAGING_MODE=true` plus a shared `x-seed-token`). Deploy it to the sandbox and set:
 
 ```
 STAGING_MODE=true
@@ -146,7 +179,7 @@ Because `VITE_AUTH_COOKIE_DOMAIN` is empty in `.env.sandbox`, auth cookies will 
 1. Open a PR.
 2. The workflow posts a **drift report comment** listing pending migrations (if any).
 3. If `SANDBOX_MIGRATIONS_ENABLED=true` and the PR touches `supabase/migrations/`, those migrations are applied to the sandbox.
-3b. If `SANDBOX_SEED_DATA_ENABLED=true` (or manual dispatch with `seed_data=true`), the workflow calls `seed-staging-fakes` on the sandbox project to regenerate fake rows. **Production data is never copied.**
+3b. Unless `SANDBOX_CLONE_PROD_ENABLED=false`, the workflow clones production data into the sandbox (exact copy). When cloning is off and `SANDBOX_SEED_DATA_ENABLED=true`, it calls `seed-staging-fakes` instead.
 4. The workflow **builds the frontend with `.env.sandbox`** and deploys it to `brain-bbqs/bbqs-website-sandbox`.
 5. If `SANDBOX_PREVIEW_URL` is set, the workflow runs the **Sandbox QA** job: Playwright functional tests against the live sandbox preview (`api-health`, `data-integrity`, `console-errors`, `navigation`, `smoke`).
 6. If Sandbox QA passes and `SANDBOX_AUTO_MERGE_ENABLED=true`, the workflow enables GitHub auto-merge (`gh pr merge --auto --squash`). The PR merges once all required status checks and branch-protection rules are satisfied.

@@ -2,12 +2,12 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck, Wrench, AlertTriangle, UserMinus } from "lucide-react";
+import { Loader2, ShieldCheck, Wrench, AlertTriangle, UserMinus, BellOff, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
 type Summary = Record<string, { expected: number; in_google: number; missing: number; extra: number }>;
-type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
+type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; dismissed_by_group?: Record<string, string[]>; protected_by_group?: Record<string, string[]>; additive_only_groups?: string[]; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
 
 /** Audit ACTUAL Google Group membership vs what the KG implies, and optionally repair.
  *  Necessary because working_groups is an intent record: the sync trigger only fires on
@@ -33,6 +33,31 @@ export function GroupAuditDialog() {
       }
     } catch (e: any) {
       toast.error(e?.message ?? "Audit failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Record that a flagged member may stay (or undo that), then re-audit so the lists move.
+   *  A dismissal is scoped to ONE group and stamped with the member's current role, so it lapses
+   *  if their role changes — an admin judged the person as the KG then described them. */
+  const setDismissed = async (group: string, email: string, dismiss: boolean, reason?: string) => {
+    setBusy(true);
+    try {
+      // Branched rather than a ternary on the RPC name: the two take different arguments, so a
+      // union would only typecheck behind a cast — which is exactly what hid the argument shapes.
+      const { data, error } = dismiss
+        ? await supabase.rpc("dismiss_group_audit_entry", {
+            _group_email: group, _member_email: email, _reason: reason ?? null,
+          })
+        : await supabase.rpc("undismiss_group_audit_entry", {
+            _group_email: group, _member_email: email,
+          });
+      if (error) throw new Error(await edgeError(error, data));
+      toast.success(dismiss ? `Dismissed ${email}` : `Restored ${email} to the review list`);
+      await run("audit");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not update the dismissal");
     } finally {
       setBusy(false);
     }
@@ -128,6 +153,96 @@ This is a real Google Group removal. Only consortium members with plain MEMBER s
                       >
                         <UserMinus className="mr-1.5 h-3.5 w-3.5" />Remove {v.length}
                       </Button>
+                    </div>
+                    {/* One row per address so a judgement can be recorded per PERSON. Dismissing is
+                        the answer to an entry that is neither clearly wrong nor removable — without
+                        it the only way to clear the list is to remove someone. */}
+                    <ul className="mt-1.5 divide-y divide-border">
+                      {v.map((email) => (
+                        <li key={email} className="flex items-center justify-between gap-2 py-1">
+                          <span className="font-mono text-[11px] text-muted-foreground break-all">{email}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 shrink-0 px-2 text-[11px]"
+                            disabled={busy}
+                            onClick={() => {
+                              const reason = prompt(`Keep ${email} on ${g}?\n\nOptional note (why this is fine):`);
+                              if (reason === null) return;   // cancelled
+                              setDismissed(g, email, true, reason);
+                            }}
+                          >
+                            <BellOff className="mr-1 h-3 w-3" />Dismiss
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {res?.dismissed_by_group && Object.values(res.dismissed_by_group).some((v) => v.length) && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">
+                Reviewed and kept —{" "}
+                {Object.values(res.dismissed_by_group).reduce((a, v) => a + v.length, 0)}
+              </summary>
+              <p className="mt-1 text-muted-foreground">
+                Entries an admin judged acceptable. They are excluded from the review list and from
+                Remove, so a bulk removal can never sweep them up. A dismissal lapses if the
+                member's role changes — the judgement was made about the role they held then.
+              </p>
+              <div className="mt-2 space-y-2">
+                {Object.entries(res.dismissed_by_group).filter(([, v]) => v.length).map(([g, v]) => (
+                  <div key={g} className="rounded border border-border p-2">
+                    <div className="font-mono text-[11px] text-foreground">{g} — {v.length}</div>
+                    <ul className="mt-1.5 divide-y divide-border">
+                      {v.map((email) => (
+                        <li key={email} className="flex items-center justify-between gap-2 py-1">
+                          <span className="font-mono text-[11px] text-muted-foreground break-all">{email}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 shrink-0 px-2 text-[11px]"
+                            disabled={busy}
+                            onClick={() => setDismissed(g, email, false)}
+                          >
+                            <RotateCcw className="mr-1 h-3 w-3" />Undo
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {res?.protected_by_group && Object.values(res.protected_by_group).some((v) => v.length) && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">
+                In the group, not KG-entitled, not proposed for removal —{" "}
+                {Object.values(res.protected_by_group).reduce((a, v) => a + v.length, 0)}
+              </summary>
+              <p className="mt-1 text-muted-foreground">
+                Shown for visibility only, with no action attached: service accounts, nested groups,
+                owners and managers, roles the KG cannot classify, and every member of an
+                additive-only group. An address here with no knowledge-graph record is worth
+                following up — they receive consortium mail while being invisible to every roster,
+                reminder and offboarding path.
+              </p>
+              <div className="mt-2 space-y-2">
+                {Object.entries(res.protected_by_group).filter(([, v]) => v.length).map(([g, v]) => (
+                  <div key={g} className="rounded border border-border p-2">
+                    <div className="font-mono text-[11px] text-foreground">
+                      {g} — {v.length}
+                      {res.additive_only_groups?.includes(g) && (
+                        <span className="ml-1.5 font-sans text-muted-foreground">
+                          (additive-only: membership is never revoked here)
+                        </span>
+                      )}
                     </div>
                     <div className="text-muted-foreground break-all mt-1">{v.join(", ")}</div>
                   </div>
