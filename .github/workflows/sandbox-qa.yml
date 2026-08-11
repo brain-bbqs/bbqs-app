@@ -60,6 +60,11 @@ jobs:
         run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
         env:
           DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+          # Self-heal: if SUPABASE_KG_DB_URL is the IPv6-only direct host (unreachable
+          # from GitHub runners), rebuild a Session pooler URI from ref + password.
+          FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
 
       - name: Resolve IPv4 (best effort)
         continue-on-error: true
@@ -142,6 +147,11 @@ jobs:
         run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
         env:
           DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+          # Self-heal: if SUPABASE_KG_DB_URL is the IPv6-only direct host (unreachable
+          # from GitHub runners), rebuild a Session pooler URI from ref + password.
+          FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
 
       - uses: supabase/setup-cli@v1
         with:
