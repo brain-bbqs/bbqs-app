@@ -3320,6 +3320,15 @@ export type Database = {
         Returns: Json
       }
       canonical_working_group: { Args: { _wg: string }; Returns: string }
+      cron_invoke: {
+        Args: {
+          _body?: Json
+          _function: string
+          _query?: string
+          _timeout_ms?: number
+        }
+        Returns: number
+      }
       decrement_vote_count: {
         Args: { _suggestion_id: string }
         Returns: undefined
