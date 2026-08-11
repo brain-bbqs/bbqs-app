@@ -23,9 +23,17 @@
 -- (1U01MH144347-01). AFTER: 31 bare core.
 --
 -- BLAST RADIUS. grant_number is a TEXT foreign key, not a real FK, so nothing cascades and every
--- copy must be rewritten in the same transaction or the joins silently return nothing. All nine
--- columns are updated below. Full-award numbers remain resolvable: RePORTER keeps them, and
--- reporter_project_num (added here) records the live one per grant.
+-- copy must be rewritten in the same transaction or the joins silently return nothing. All EIGHT
+-- base-table columns are updated below. Two further objects expose grant_number and are deliberately
+-- NOT written to -- project_device_usage and project_devices_v are VIEWS that derive it, and a first
+-- attempt at this migration failed on exactly that:
+--   55000: cannot update view "project_device_usage"
+--   DETAIL: Views containing GROUP BY are not automatically updatable.
+-- The reference list therefore comes from pg_class relkind='r', not information_schema.columns,
+-- which lists views alongside tables.
+--
+-- Full-award numbers remain resolvable: RePORTER keeps them, and reporter_project_num (added here)
+-- records the live one per grant.
 --
 -- KG migrations are NOT applied by db push -- run this in the KG SQL editor (vpexxhfpvghlejljwpvt).
 
@@ -58,7 +66,6 @@ UPDATE public.grants SET grant_number = 'R61MH138612' WHERE grant_number = '1R61
 UPDATE public.projects SET grant_number = 'R61MH138612' WHERE grant_number = '1R61MH138612';
 UPDATE public.curation_audit_log SET grant_number = 'R61MH138612' WHERE grant_number = '1R61MH138612';
 UPDATE public.edit_history SET grant_number = 'R61MH138612' WHERE grant_number = '1R61MH138612';
-UPDATE public.project_device_usage SET grant_number = 'R61MH138612' WHERE grant_number = '1R61MH138612';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'R61MH138612' WHERE seed_grant_number = '1R61MH138612';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'R61MH138612' WHERE source_grant_number = '1R61MH138612';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'R61MH138612' WHERE seed_grant_number = '1R61MH138612';
@@ -69,7 +76,6 @@ UPDATE public.grants SET grant_number = 'R61MH138967' WHERE grant_number = '1R61
 UPDATE public.projects SET grant_number = 'R61MH138967' WHERE grant_number = '1R61MH138967';
 UPDATE public.curation_audit_log SET grant_number = 'R61MH138967' WHERE grant_number = '1R61MH138967';
 UPDATE public.edit_history SET grant_number = 'R61MH138967' WHERE grant_number = '1R61MH138967';
-UPDATE public.project_device_usage SET grant_number = 'R61MH138967' WHERE grant_number = '1R61MH138967';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'R61MH138967' WHERE seed_grant_number = '1R61MH138967';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'R61MH138967' WHERE source_grant_number = '1R61MH138967';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'R61MH138967' WHERE seed_grant_number = '1R61MH138967';
@@ -80,7 +86,6 @@ UPDATE public.grants SET grant_number = 'U01DA063534' WHERE grant_number = '1U01
 UPDATE public.projects SET grant_number = 'U01DA063534' WHERE grant_number = '1U01DA063534';
 UPDATE public.curation_audit_log SET grant_number = 'U01DA063534' WHERE grant_number = '1U01DA063534';
 UPDATE public.edit_history SET grant_number = 'U01DA063534' WHERE grant_number = '1U01DA063534';
-UPDATE public.project_device_usage SET grant_number = 'U01DA063534' WHERE grant_number = '1U01DA063534';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'U01DA063534' WHERE seed_grant_number = '1U01DA063534';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'U01DA063534' WHERE source_grant_number = '1U01DA063534';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'U01DA063534' WHERE seed_grant_number = '1U01DA063534';
@@ -91,7 +96,6 @@ UPDATE public.grants SET grant_number = 'U01DA063565' WHERE grant_number = '1U01
 UPDATE public.projects SET grant_number = 'U01DA063565' WHERE grant_number = '1U01DA063565';
 UPDATE public.curation_audit_log SET grant_number = 'U01DA063565' WHERE grant_number = '1U01DA063565';
 UPDATE public.edit_history SET grant_number = 'U01DA063565' WHERE grant_number = '1U01DA063565';
-UPDATE public.project_device_usage SET grant_number = 'U01DA063565' WHERE grant_number = '1U01DA063565';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'U01DA063565' WHERE seed_grant_number = '1U01DA063565';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'U01DA063565' WHERE source_grant_number = '1U01DA063565';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'U01DA063565' WHERE seed_grant_number = '1U01DA063565';
@@ -102,7 +106,6 @@ UPDATE public.grants SET grant_number = 'U01DA063581' WHERE grant_number = '1U01
 UPDATE public.projects SET grant_number = 'U01DA063581' WHERE grant_number = '1U01DA063581';
 UPDATE public.curation_audit_log SET grant_number = 'U01DA063581' WHERE grant_number = '1U01DA063581';
 UPDATE public.edit_history SET grant_number = 'U01DA063581' WHERE grant_number = '1U01DA063581';
-UPDATE public.project_device_usage SET grant_number = 'U01DA063581' WHERE grant_number = '1U01DA063581';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'U01DA063581' WHERE seed_grant_number = '1U01DA063581';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'U01DA063581' WHERE source_grant_number = '1U01DA063581';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'U01DA063581' WHERE seed_grant_number = '1U01DA063581';
@@ -113,7 +116,6 @@ UPDATE public.grants SET grant_number = 'U01MH144347' WHERE grant_number = '1U01
 UPDATE public.projects SET grant_number = 'U01MH144347' WHERE grant_number = '1U01MH144347-01';
 UPDATE public.curation_audit_log SET grant_number = 'U01MH144347' WHERE grant_number = '1U01MH144347-01';
 UPDATE public.edit_history SET grant_number = 'U01MH144347' WHERE grant_number = '1U01MH144347-01';
-UPDATE public.project_device_usage SET grant_number = 'U01MH144347' WHERE grant_number = '1U01MH144347-01';
 UPDATE public.grant_methods_evidence SET seed_grant_number = 'U01MH144347' WHERE seed_grant_number = '1U01MH144347-01';
 UPDATE public.grant_methods_evidence SET source_grant_number = 'U01MH144347' WHERE source_grant_number = '1U01MH144347-01';
 UPDATE public.grant_methods_traversal_paths SET seed_grant_number = 'U01MH144347' WHERE seed_grant_number = '1U01MH144347-01';
@@ -132,7 +134,8 @@ SELECT 'projects' AS src, p.grant_number
   FROM public.projects p LEFT JOIN public.grants g ON g.grant_number = p.grant_number
  WHERE p.grant_number IS NOT NULL AND g.grant_number IS NULL
 UNION ALL
-SELECT 'project_device_usage', d.grant_number
+-- Read-only check on the derived view: it should now agree with the normalized base tables.
+SELECT 'project_device_usage (view)', d.grant_number
   FROM public.project_device_usage d LEFT JOIN public.grants g ON g.grant_number = d.grant_number
  WHERE d.grant_number IS NOT NULL AND g.grant_number IS NULL;
 
