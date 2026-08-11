@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserTier } from "@/hooks/useUserTier";
@@ -23,11 +23,6 @@ import {
 
 type Status = "pending" | "approved" | "dismissed";
 
-// The onboarding agent (shares the *.brain-bbqs.org Supabase session cookie, so an
-// admin clicking through lands already signed in). `?ask=<text>` pre-fills its
-// composer — see the agent route's validateSearch.
-const AGENT_URL = "https://agent.brain-bbqs.org";
-
 interface AccessRequest {
   id: string;
   email: string;
@@ -41,6 +36,8 @@ interface AccessRequest {
   full_name?: string | null;
   institution?: string | null;
   requested_role?: string | null;
+  /** Free text naming the PI or grant the requester works with; resolves to the wizard grant hint. */
+  association?: string | null;
 }
 
 interface NameCollision {
@@ -64,6 +61,7 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
   const [busyId, setBusyId] = useState<string | null>(null);
   const [collision, setCollision] = useState<NameCollision | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AccessRequest | null>(null);
+  const navigate = useNavigate();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["access-requests"],
@@ -230,20 +228,30 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
     }
   };
 
-  // "Approve & onboard" — FULL provisioning. Hands off to the agent's onboarding
-  // workflow (the single provisioning path: mailing lists + welcome + role), which
-  // live-checks/reconciles an existing member and auto-clears this pending request on
-  // completion (agent workflow.ts Step 1b). No DB write here — onboarding owns it.
-  // The request's captured requested_role rides along in the pre-filled prompt.
+  // "Approve & onboard" — FULL provisioning, in the ADMIN CONSOLE rather than the agent.
+  //
+  // This used to open the agent with ?ask=Onboard <name> (<email>), handing a deterministic task to
+  // an LLM that then had to re-derive every field from a sentence. The console's Onboard wizard is
+  // the deterministic path, and the request already holds everything the wizard needs — name, email,
+  // institution, requested_role, and the association naming their PI or grant. So carry those
+  // straight into Smart fill instead of round-tripping through prose.
+  //
+  // The request id rides along so the wizard can mark THIS request approved once the onboard
+  // succeeds. Previously nothing closed the loop from the console side: the agent workflow
+  // auto-cleared the request (workflow.ts Step 1b) but a console onboard did not, leaving a pending
+  // row for an already-provisioned member.
   const approveAndOnboard = (r: AccessRequest) => {
     const name = (r.full_name || r.globus_name || r.email.split("@")[0] || "Unknown").trim();
-    const email = r.email.toLowerCase();
-    const roleHint = r.requested_role ? ` as ${r.requested_role}` : "";
-    const url = `${AGENT_URL}/?ask=${encodeURIComponent(`Onboard ${name} (${email})${roleHint}`)}`;
-    window.open(url, "_blank", "noopener");
-    toast.info(
-      "Opening full onboarding in the agent — complete the workflow there. This request clears automatically once they're provisioned.",
+    const parts = [name, r.email.toLowerCase()];
+    if (r.requested_role) parts.push(r.requested_role);
+    if (r.institution) parts.push(r.institution);
+    // association is free text naming a PI or a grant number — exactly what grant_hint resolves.
+    if (r.association) parts.push(`works with ${r.association}`);
+    navigate(
+      `/admin?tab=onboarding&prefill=${encodeURIComponent(parts.join(", "))}` +
+        `&request=${encodeURIComponent(r.id)}`,
     );
+    toast.info("Opening the onboard wizard with this request pre-filled — review the fields, then submit.");
   };
 
   const linkAsSecondaryEmail = async () => {
