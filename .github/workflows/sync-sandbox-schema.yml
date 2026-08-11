@@ -30,10 +30,9 @@ name: Sync sandbox schema + QA + auto-merge
 #   SANDBOX_AUTO_MERGE_ENABLED    'true' to enable auto-merge after sandbox QA passes
 
 on:
-  # Active during dev-branch testing: every push to `dev` re-runs the full
-  # sandbox loop (migrate -> clone prod -> deploy -> QA) from scratch.
-  # PRs into dev/main get a drift report (and push only when
-  # SANDBOX_MIGRATIONS_ENABLED=true).
+  # Dev-branch testing only: pushes to `dev` re-run the full sandbox loop
+  # (migrate -> clone prod -> deploy -> QA). Pull requests do NOT trigger this
+  # workflow — no drift comments, no sandbox jobs on PRs into main.
   push:
     branches: [dev]
     paths:
