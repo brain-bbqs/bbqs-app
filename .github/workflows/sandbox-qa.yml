@@ -1,4 +1,4 @@
-name: Sandbox QA (clone prod -> build -> Pages)
+name: Sandbox QA (clone prod -> build -> sandbox repo)
 
 # ONE workflow, MANUAL ONLY for now. Rebuilt from scratch on 2026-08-11 after the
 # old qa.yml / sync-sandbox-schema.yml pair was deleted.
@@ -11,7 +11,9 @@ name: Sandbox QA (clone prod -> build -> Pages)
 #   3. sandbox      – push migrations to the SANDBOX project, then clone prod data into
 #                     it so the sandbox is an exact replica.
 #   4. build        – npm build of the frontend pointed at the SANDBOX database.
-#   5. deploy       – publish that build to GitHub Pages.
+#                     The build is then force-pushed to a SEPARATE sandbox repository
+#                     (vars.SANDBOX_PAGES_REPO), which serves it from its own GitHub
+#                     Pages site and URL. Production Pages is never touched.
 #
 # Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
 # the manual loop is green.
@@ -28,14 +30,12 @@ on:
         type: boolean
         default: true
       deploy_pages:
-        description: 'Deploy the sandbox build to GitHub Pages'
+        description: 'Publish the build to the sandbox repository (its own Pages site)'
         type: boolean
         default: true
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: sandbox-qa
