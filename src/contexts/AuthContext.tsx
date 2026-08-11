@@ -12,9 +12,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Minimal fake user object for preview mode
+// Minimal fake user object for preview mode.
+// The id must be a valid UUID: it is sent to PostgREST in `id=eq.<uuid>`
+// filters (profiles, dashboard layouts, ...) and a non-UUID makes every one
+// of those requests fail with a 400 on every page load.
 const PREVIEW_USER = {
-  id: "preview-user",
+  id: "00000000-0000-0000-0000-000000000000",
   email: "preview@lovable.app",
   user_metadata: { full_name: "Preview User" },
   app_metadata: {},
