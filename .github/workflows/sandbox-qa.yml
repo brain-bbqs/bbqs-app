@@ -1,4 +1,4 @@
-name: Sandbox QA (clone prod -> build -> Pages)
+name: Sandbox QA (clone prod -> build -> sandbox repo)
 
 # ONE workflow, MANUAL ONLY for now. Rebuilt from scratch on 2026-08-11 after the
 # old qa.yml / sync-sandbox-schema.yml pair was deleted.
@@ -11,7 +11,9 @@ name: Sandbox QA (clone prod -> build -> Pages)
 #   3. sandbox      – push migrations to the SANDBOX project, then clone prod data into
 #                     it so the sandbox is an exact replica.
 #   4. build        – npm build of the frontend pointed at the SANDBOX database.
-#   5. deploy       – publish that build to GitHub Pages.
+#                     The build is then force-pushed to a SEPARATE sandbox repository
+#                     (vars.SANDBOX_PAGES_REPO), which serves it from its own GitHub
+#                     Pages site and URL. Production Pages is never touched.
 #
 # Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
 # the manual loop is green.
@@ -28,14 +30,12 @@ on:
         type: boolean
         default: true
       deploy_pages:
-        description: 'Deploy the sandbox build to GitHub Pages'
+        description: 'Publish the build to the sandbox repository (its own Pages site)'
         type: boolean
         default: true
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: sandbox-qa
@@ -170,9 +170,10 @@ jobs:
         if: ${{ inputs.clone_data }}
         run: psql "$SANDBOX_URL_SAFE" -v ON_ERROR_STOP=1 -f .github/sql/sandbox-localize.sql
 
-  # 4 ── Build the frontend against the sandbox database.
-  build:
-    name: 4. Build (npm, sandbox env)
+  # 4 ── Build the frontend against the sandbox database, then publish it to the
+  #      SEPARATE sandbox repository, which serves it with its own GitHub Pages URL.
+  build-deploy:
+    name: 4. Build + publish to sandbox repo
     needs: sandbox
     runs-on: ubuntu-latest
     steps:
@@ -199,19 +200,44 @@ jobs:
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Keep the build as an artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: sandbox-dist
           path: dist
+          retention-days: 7
 
-  # 5 ── Deploy the sandbox build to GitHub Pages.
-  deploy:
-    name: 5. Deploy to GitHub Pages
-    needs: build
-    if: ${{ inputs.deploy_pages }}
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # Publishes to a SEPARATE repository (vars.SANDBOX_PAGES_REPO, e.g.
+      # "org/bbqs-sandbox") on its `gh-pages` branch. That repo owns its own Pages
+      # site and URL, so a sandbox deploy can never overwrite production.
+      # Requires secret SANDBOX_GITHUB_PAT with `repo` scope on the target repo.
+      - name: Publish to the sandbox repository
+        if: ${{ inputs.deploy_pages }}
+        env:
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO }}
+          TARGET_BRANCH: ${{ vars.SANDBOX_PAGES_BRANCH || 'gh-pages' }}
+          PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TARGET_REPO" ]; then
+            echo "::error::Set repository variable SANDBOX_PAGES_REPO (owner/repo of the sandbox site repository)."
+            exit 1
+          fi
+          if [ -z "$PAT" ]; then
+            echo "::error::Set secret SANDBOX_GITHUB_PAT (token with write access to $TARGET_REPO)."
+            exit 1
+          fi
+          if [ "$TARGET_REPO" = "$GITHUB_REPOSITORY" ]; then
+            echo "::error::SANDBOX_PAGES_REPO points at this repository. The sandbox must live in its own repo."
+            exit 1
+          fi
+          cd dist
+          git init -q
+          git checkout -q -B "$TARGET_BRANCH"
+          git config user.name  "bbqs-sandbox-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -q -m "sandbox build from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$TARGET_BRANCH"
+          echo "### Sandbox published" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed to \`${TARGET_REPO}\` (branch \`${TARGET_BRANCH}\`) — served at that repo's own Pages URL." >> "$GITHUB_STEP_SUMMARY"
