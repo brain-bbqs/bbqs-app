@@ -1551,6 +1551,33 @@ export type Database = {
           },
         ]
       }
+      group_audit_dismissals: {
+        Row: {
+          dismissed_at: string
+          dismissed_by: string | null
+          group_email: string
+          member_email: string
+          reason: string | null
+          role_at_dismissal: string | null
+        }
+        Insert: {
+          dismissed_at?: string
+          dismissed_by?: string | null
+          group_email: string
+          member_email: string
+          reason?: string | null
+          role_at_dismissal?: string | null
+        }
+        Update: {
+          dismissed_at?: string
+          dismissed_by?: string | null
+          group_email?: string
+          member_email?: string
+          reason?: string | null
+          role_at_dismissal?: string | null
+        }
+        Relationships: []
+      }
       harvester_keywords: {
         Row: {
           canonical_term: string | null
@@ -3017,6 +3044,19 @@ export type Database = {
         }
         Relationships: []
       }
+      group_audit_dismissals_live: {
+        Row: {
+          current_role: string | null
+          dismissed_at: string | null
+          group_email: string | null
+          member_email: string | null
+          member_name: string | null
+          reason: string | null
+          role_at_dismissal: string | null
+          role_changed: boolean | null
+        }
+        Relationships: []
+      }
       investigator_cohorts: {
         Row: {
           cohort: string | null
@@ -3333,6 +3373,10 @@ export type Database = {
         Args: { _suggestion_id: string }
         Returns: undefined
       }
+      dismiss_group_audit_entry: {
+        Args: { _group_email: string; _member_email: string; _reason?: string }
+        Returns: Json
+      }
       email_is_consortium_member: { Args: { _email: string }; Returns: boolean }
       get_investigator_attention: {
         Args: never
@@ -3431,6 +3475,10 @@ export type Database = {
           score: number
           title: string
         }[]
+      }
+      undismiss_group_audit_entry: {
+        Args: { _group_email: string; _member_email: string }
+        Returns: Json
       }
       upsert_access_request: {
         Args: {
