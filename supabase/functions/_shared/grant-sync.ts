@@ -95,7 +95,17 @@ export async function syncReporterPis(
       // explicitly says contact_pi (in which case desiredRole already reflects it).
       const isPromotionToContact = desiredRole === "contact_pi";
       const isCurrentlyPiLike = PI_LIKE.has((existing.role || "").toLowerCase());
-      if (!isCurrentlyPiLike || isPromotionToContact) {
+      // EXCEPTION — contact_pi is a SINGLETON. RePORTER marks exactly one PI per project with
+      // is_contact_pi, so "this row says contact_pi but RePORTER says they are not" is not a
+      // curator's judgement to protect, it is a stale fact that no later sync could ever correct.
+      // Blanket never-demote made a wrong contact_pi permanent: 1R61MH138967 carried TWO
+      // contact_pi rows (Ghuman, correct per RePORTER, and Neimat, wrong), both role_source
+      // 'reporter'. Neimat went co_pi -> contact_pi on 2026-08-08 in the same instant another
+      // contact_pi row was deleted -- a merge that let the incoming role win -- and every
+      // re-import afterwards left it alone by design. Curator rows are still untouchable; this
+      // only re-syncs rows RePORTER itself seeded.
+      const isStaleContactPi = existing.role === "contact_pi" && desiredRole !== "contact_pi";
+      if (!isCurrentlyPiLike || isPromotionToContact || isStaleContactPi) {
         const { error } = await supabase
           .from("grant_investigators")
           .update({ role: desiredRole, role_source: "reporter" })
