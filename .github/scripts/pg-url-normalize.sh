@@ -11,9 +11,16 @@ set -euo pipefail
 VAR_NAME="${1:-}"
 OUT_NAME="${2:-DB_URL_SAFE}"
 [ -n "$VAR_NAME" ] || { echo "::error::Usage: source $0 <ENV_VAR_NAME> [OUT_VAR_NAME]" >&2; exit 1; }
-URL="${!VAR_NAME}"
-[ -n "$URL" ] || { echo "::error::$VAR_NAME is empty" >&2; exit 1; }
-export URL VAR_NAME OUT_NAME
+URL="${!VAR_NAME:-}"
+# Component fallback: when the full URI secret is missing or malformed we can
+# still assemble a valid Session pooler URI from a project ref + password.
+FALLBACK_REF="${FALLBACK_REF:-}"
+FALLBACK_PASSWORD="${FALLBACK_PASSWORD:-}"
+FALLBACK_REGION="${FALLBACK_REGION:-us-east-1}"
+if [ -z "$URL" ] && [ -z "$FALLBACK_PASSWORD" ]; then
+  echo "::error::$VAR_NAME is empty" >&2; exit 1
+fi
+export URL VAR_NAME OUT_NAME FALLBACK_REF FALLBACK_PASSWORD FALLBACK_REGION
 
 python3 - <<'PY'
 import os, re, sys, urllib.parse
@@ -21,6 +28,19 @@ import os, re, sys, urllib.parse
 raw = os.environ['URL'].strip()
 var_name = os.environ['VAR_NAME']
 out_name = os.environ['OUT_NAME']
+fb_ref = os.environ.get('FALLBACK_REF', '').strip()
+fb_pw = os.environ.get('FALLBACK_PASSWORD', '').strip()
+fb_region = os.environ.get('FALLBACK_REGION', 'us-east-1').strip() or 'us-east-1'
+
+def pooler_uri():
+    """Assemble the Supabase Session pooler URI from components."""
+    if not (fb_ref and fb_pw):
+        return None
+    pw = urllib.parse.quote(fb_pw, safe='')
+    return (
+        f"postgresql://postgres.{fb_ref}:{pw}"
+        f"@aws-0-{fb_region}.pooler.supabase.com:5432/postgres"
+    )
 
 def shape(value):
     """Redacted description of the secret so we can debug without leaking it."""
@@ -32,6 +52,24 @@ def shape(value):
         f"quoted={value[:1] in chr(34) + chr(39)}"
     )
 
+def emit(safe, host, note=''):
+    env_path = os.environ.get('GITHUB_ENV')
+    if env_path:
+        with open(env_path, 'a') as f:
+            f.write(f"{out_name}={safe}\n")
+    print(f"::add-mask::{safe}")
+    print(f"Normalized {var_name} -> {out_name} (host {host}){note}")
+    sys.exit(0)
+
+# No full URI at all, but components are available: build it.
+if not raw:
+    built = pooler_uri()
+    if built:
+        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+             " [assembled from project ref + password]")
+    print(f"::error::{var_name} is empty", file=sys.stderr)
+    sys.exit(1)
+
 # Tolerate a copied "NAME=postgresql://..." assignment line.
 raw = re.sub(r'^[A-Za-z_][A-Za-z0-9_]*=', '', raw)
 
@@ -41,6 +79,11 @@ command = re.fullmatch(r"psql\s+(?:--dbname(?:=|\s+))?(['\"])(.+)\1", raw, re.S)
 url = command.group(2).strip() if command else raw.strip('"').strip("'")
 
 if any(char in url for char in ('\n', '\r', '\t', ' ')):
+    built = pooler_uri()
+    if built:
+        print(f"::warning::{var_name} contains whitespace; using the assembled Session pooler URI instead.")
+        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+             " [assembled from project ref + password]")
     print(
         f"::error::{var_name} contains whitespace inside the database URI. "
         "Save only the Session pooler URI on one line (the psql wrapper is also accepted).",
@@ -54,6 +97,14 @@ m = re.fullmatch(
     re.S,
 )
 if not m:
+    built = pooler_uri()
+    if built:
+        print(
+            f"::warning::{var_name} is not a valid PostgreSQL URI ({shape(url)}); "
+            "falling back to the Session pooler URI assembled from the project ref and password."
+        )
+        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+             " [assembled from project ref + password]")
     hint = ""
     if not url.startswith(("postgres://", "postgresql://")):
         hint = " The value must begin with postgresql:// (not the Supabase HTTPS project URL)."
@@ -77,6 +128,11 @@ user = urllib.parse.quote(urllib.parse.unquote(user), safe='')
 safe = f"{scheme}://{user}:{password}@{hostport}{path or '/postgres'}{query or ''}"
 
 if host.startswith('db.') and host.endswith('.supabase.co'):
+    built = pooler_uri()
+    if built:
+        print(f"::warning::{var_name} uses the IPv6-only direct host; using the assembled Session pooler URI instead.")
+        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+             " [assembled from project ref + password]")
     print(
         f"::error::{var_name} uses Supabase's IPv6-only direct host ({host}). "
         "Use the Session pooler connection string (port 5432) instead.",
@@ -84,11 +140,5 @@ if host.startswith('db.') and host.endswith('.supabase.co'):
     )
     sys.exit(1)
 
-env_path = os.environ.get('GITHUB_ENV')
-line = f"{out_name}={safe}"
-if env_path:
-    with open(env_path, 'a') as f:
-        f.write(line + '\n')
-print(f"::add-mask::{safe}")
-print(f"Normalized {var_name} -> {out_name} (host {host})")
+emit(safe, host)
 PY
