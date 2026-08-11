@@ -44,12 +44,15 @@ export function GroupAuditDialog() {
   const setDismissed = async (group: string, email: string, dismiss: boolean, reason?: string) => {
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc(
-        (dismiss ? "dismiss_group_audit_entry" : "undismiss_group_audit_entry") as any,
-        dismiss
-          ? { _group_email: group, _member_email: email, _reason: reason ?? null }
-          : { _group_email: group, _member_email: email },
-      );
+      // Branched rather than a ternary on the RPC name: the two take different arguments, so a
+      // union would only typecheck behind a cast — which is exactly what hid the argument shapes.
+      const { data, error } = dismiss
+        ? await supabase.rpc("dismiss_group_audit_entry", {
+            _group_email: group, _member_email: email, _reason: reason ?? null,
+          })
+        : await supabase.rpc("undismiss_group_audit_entry", {
+            _group_email: group, _member_email: email,
+          });
       if (error) throw new Error(await edgeError(error, data));
       toast.success(dismiss ? `Dismissed ${email}` : `Restored ${email} to the review list`);
       await run("audit");

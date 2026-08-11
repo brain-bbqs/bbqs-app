@@ -67,7 +67,7 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
   };
 
   const markStep = async (status: "done" | "skipped") => {
-    const { error } = await supabase.rpc("set_onboarding_step" as any, {
+    const { error } = await supabase.rpc("set_onboarding_step", {
       _investigator_id: target.id, _step: stage, _status: status,
     });
     if (error) throw error;
@@ -76,7 +76,7 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
   // wg_groups: write the real membership (trg_sync_member_groups provisions wg-*@ lists).
   const saveWorkingGroups = () =>
     run(async () => {
-      const { data, error } = await supabase.rpc("approve_working_groups" as any, {
+      const { data, error } = await supabase.rpc("approve_working_groups", {
         _investigator_id: target.id, _groups: [...wgs],
       });
       if (error || (data as any)?.ok === false) throw new Error(await edgeError(error, data));

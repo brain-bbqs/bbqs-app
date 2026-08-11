@@ -126,7 +126,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const submit = async () => {
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("onboard_member" as any, {
+      const { data, error } = await supabase.rpc("onboard_member", {
         _email: email.trim(),
         _name: name.trim(),
         _role: role,
@@ -162,7 +162,7 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
         body: { to: result.email, name: name.trim(), role: result.role },
       });
       if (error || (data && (data as any).success === false)) throw new Error(await edgeError(error, data));
-      await supabase.rpc("set_onboarding_step" as any, {
+      await supabase.rpc("set_onboarding_step", {
         _investigator_id: result.investigator_id, _step: "welcome_email", _status: "done",
       });
       setEmailSent(true);

@@ -65,7 +65,7 @@ export function OffboardMemberDialog() {
     if (!member || grantId === null) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("offboard_member" as any, {
+      const { data, error } = await supabase.rpc("offboard_member", {
         _investigator_id: member.id,
         _grant_id: grantId === "ALL" ? null : grantId,
       });

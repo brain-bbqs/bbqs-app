@@ -25,7 +25,7 @@ export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | n
     queryKey: ["grant-suggestions", member?.id],
     enabled: !!member,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("suggest_grants_for_investigator" as any, { _investigator_id: member!.id });
+      const { data, error } = await supabase.rpc("suggest_grants_for_investigator", { _investigator_id: member!.id });
       if (error) throw error;
       return (data ?? []) as Suggestion[];
     },
@@ -48,7 +48,7 @@ export function ResolveGrantLinkDialog({ member, onClose }: { member: Member | n
     if (!member) return;
     setLinking(grantId);
     try {
-      const { data, error } = await supabase.rpc("link_investigator_grant" as any, {
+      const { data, error } = await supabase.rpc("link_investigator_grant", {
         _investigator_id: member.id, _grant_id: grantId, _role: null,
       });
       if (error || (data as any)?.ok === false) throw new Error(await edgeError(error, data));
