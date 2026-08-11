@@ -175,8 +175,41 @@ Deno.serve(async (req) => {
         .map((r: { investigator_id: string }) => r.investigator_id),
     );
 
+    // Admin judgements that a flagged member may stay (migration 20260810150000). Keyed
+    // "<group>|<member>", valued by the role stamped at dismissal: the entry stays silenced only
+    // while the KG still describes the person that way, because the judgement was made about that
+    // description. A role change resurfaces it rather than muting it forever.
+    const dismissed = new Map<string, string>();
+    {
+      const { data: rows, error: dErr } = await admin
+        .from("group_audit_dismissals")
+        .select("group_email,member_email,role_at_dismissal");
+      // Degrade gracefully: if the migration has not been applied yet, audit as before.
+      if (!dErr) {
+        for (const r of rows ?? []) {
+          dismissed.set(
+            `${String(r.group_email).toLowerCase()}|${String(r.member_email).toLowerCase()}`,
+            String(r.role_at_dismissal ?? ""),
+          );
+        }
+      }
+    }
+    const roleForAddress = new Map<string, string>();
+    for (const p of people ?? []) {
+      const r = String(p.role ?? "");
+      const e = (p.email ?? "").toLowerCase().trim();
+      if (e) roleForAddress.set(e, r);
+      for (const sx of p.secondary_emails ?? []) roleForAddress.set(String(sx).toLowerCase(), r);
+    }
+    /** Dismissed AND the role is unchanged since the dismissal was recorded. */
+    const isDismissed = (group: string, email: string): boolean => {
+      const key = `${group.toLowerCase()}|${email.toLowerCase()}`;
+      if (!dismissed.has(key)) return false;
+      return (roleForAddress.get(email.toLowerCase()) ?? "") === (dismissed.get(key) ?? "");
+    };
+
     const token = await getAccessToken();
-    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number; extra?: string[]; extra_protected?: string[] }> = {};
+    const groups: Record<string, { expected: string[]; actual_count: number; missing: string[]; extra_count: number; extra?: string[]; extra_protected?: string[]; extra_dismissed?: string[] }> = {};
 
     // Build the expected membership per group from the KG.
     const expect: Record<string, Set<string>> = {};
@@ -232,9 +265,13 @@ Deno.serve(async (req) => {
       // FAIL SAFE: only propose removal when the member's role is classifiable. An
       // unrecognized/blank role means we cannot prove they are NOT entitled, so they are
       // protected rather than removed.
-      const extra = [...actual].filter(
+      const removable = [...actual].filter(
         (e) => !entitled.has(e) && knownMembers.has(e) && roleOf.get(e) === "MEMBER" && !unknownRole.has(e),
       );
+      // Dismissed entries drop out of the review list AND out of everything remove_extra iterates,
+      // so "Remove N" can never sweep up a member an admin explicitly kept.
+      const extra = removable.filter((e) => !isDismissed(group, e));
+      const extraDismissed = removable.filter((e) => isDismissed(group, e));
       const extraProtected = [...actual].filter(
         (e) => !entitled.has(e) && (!knownMembers.has(e) || roleOf.get(e) !== "MEMBER" || unknownRole.has(e)),
       );
@@ -245,6 +282,7 @@ Deno.serve(async (req) => {
         extra_count: extra.length,
         extra,
         extra_protected: extraProtected,
+        extra_dismissed: extraDismissed,
       };
       if (action === "remove_extra" && targetGroup && group === targetGroup) {
         for (const e of extra) {
@@ -269,6 +307,9 @@ Deno.serve(async (req) => {
       summary,
       missing_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, v.missing])),
       extra_by_group: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, (v as { extra?: string[] }).extra ?? []])),
+      dismissed_by_group: Object.fromEntries(
+        Object.entries(groups).map(([g, v]) => [g, (v as { extra_dismissed?: string[] }).extra_dismissed ?? []]),
+      ),
       repaired: action === "repair" ? repaired : undefined,
       removed: action === "remove_extra" ? removed : undefined,
       removed_from: action === "remove_extra" ? targetGroup : undefined,
