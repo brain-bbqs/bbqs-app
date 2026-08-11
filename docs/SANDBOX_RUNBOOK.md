@@ -54,7 +54,8 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 | Name | Value |
 |---|---|
 | `SANDBOX_SUPABASE_DB_URL` | sandbox Session pooler URI from step 1 |
-| `PROD_SUPABASE_DB_URL` | production Session pooler URI (port 5432), used as the clone source |
+| `SANDBOX_DB_PASSWORD` | sandbox DB password. **Fallback** — if `SANDBOX_SUPABASE_DB_URL` is missing or malformed, the workflow assembles `postgresql://postgres.vzfsndsqveacpefoqwsu:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres` from this. Setting it alone is enough. |
+| `STAGING_SEED_TOKEN` | same value as `STAGING_SEED_TOKEN` in the sandbox edge-function secrets; used to invoke `seed-staging-fakes` |
 | `SANDBOX_SUPABASE_ANON_KEY` | the anon key from step 1 |
 | `CI_AUTH_SECRET` | shared token used by the `ci-auth` edge function to bypass Globus in tests |
 | `SANDBOX_GITHUB_PAT` | classic PAT with `repo` scope (and SSO authorized if the org uses SAML) for `brain-bbqs/bbqs-website-sandbox` |
@@ -65,7 +66,16 @@ In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secret
 |---|---|---|
 | `SANDBOX_PREVIEW_URL` | `https://<sandbox-host>` | URL QA targets. Example: `https://brain-bbqs.github.io/bbqs-website-sandbox` or `https://sandbox.brain-bbqs.org`. **Required** for the QA job. |
 | `SANDBOX_MIGRATIONS_ENABLED` | `true` | PRs actually push migrations to sandbox. Leave unset for drift-report-only on PRs. |
+| `SANDBOX_SEED_DATA_ENABLED` | `true` | Reseed the sandbox with generated fake rows on every run. Leave unset to seed only on manual dispatch. |
+| `SANDBOX_DB_REGION` | e.g. `us-east-1` | Pooler region used when the DB URI is assembled from `SANDBOX_DB_PASSWORD`. Defaults to `us-east-1`. |
 | `SANDBOX_AUTO_MERGE_ENABLED` | `true` | Enables auto-merge after sandbox QA passes. Leave unset to keep QA reports only. |
+
+### Diagnosing a bad DB secret
+
+Run **Actions → Validate DB secrets → Run workflow**. It reports which secrets
+are present (lengths only, never values), normalizes the connection string, and
+runs a single `select` against the sandbox database. Use it before re-running
+the full pipeline.
 
 Merges to `main` always push migrations. Manual workflow runs default to dry-run.
 
@@ -136,6 +146,7 @@ Because `VITE_AUTH_COOKIE_DOMAIN` is empty in `.env.sandbox`, auth cookies will 
 1. Open a PR.
 2. The workflow posts a **drift report comment** listing pending migrations (if any).
 3. If `SANDBOX_MIGRATIONS_ENABLED=true` and the PR touches `supabase/migrations/`, those migrations are applied to the sandbox.
+3b. If `SANDBOX_SEED_DATA_ENABLED=true` (or manual dispatch with `seed_data=true`), the workflow calls `seed-staging-fakes` on the sandbox project to regenerate fake rows. **Production data is never copied.**
 4. The workflow **builds the frontend with `.env.sandbox`** and deploys it to `brain-bbqs/bbqs-website-sandbox`.
 5. If `SANDBOX_PREVIEW_URL` is set, the workflow runs the **Sandbox QA** job: Playwright functional tests against the live sandbox preview (`api-health`, `data-integrity`, `console-errors`, `navigation`, `smoke`).
 6. If Sandbox QA passes and `SANDBOX_AUTO_MERGE_ENABLED=true`, the workflow enables GitHub auto-merge (`gh pr merge --auto --squash`). The PR merges once all required status checks and branch-protection rules are satisfied.
@@ -157,3 +168,76 @@ For the auto-merge step to actually merge the PR when QA passes, configure the b
 - **QA passes but PR did not merge** — check branch protection rules and `SANDBOX_AUTO_MERGE_ENABLED`.
 - **Push fails on an old migration** — run once with `--include-all` from your machine to backfill history.
 - **Assets 404 on the sandbox site** — check that `VITE_BASE_PATH` in `.env.sandbox` matches your Pages URL. For a custom domain it should be `/`; for `https://brain-bbqs.github.io/bbqs-website-sandbox` it should be `/bbqs-website-sandbox/`.
+
+---
+
+## Staging a change for testing — the exact chain
+
+This is the order the pipeline runs in, and the order you should work in. Each
+step gates the next: nothing is deployed or tested until the migration lands.
+
+```text
+open PR
+  │
+  ├─ 1. migrate         list drift → push migrations to sandbox DB
+  │                     → neutralize prod pointers (sandbox-localize.sql)
+  │
+  ├─ 2. seed-data       (optional) call seed-staging-fakes on sandbox
+  │        needs: migrate
+  │
+  ├─ 3. deploy-frontend build with .env.sandbox → push to bbqs-website-sandbox gh-pages
+  │        needs: migrate
+  │
+  ├─ 4. qa              Playwright against the deployed sandbox URL
+  │        needs: deploy-frontend
+  │
+  └─ 5. auto-merge      squash-merge the PR (only if SANDBOX_AUTO_MERGE_ENABLED=true)
+           needs: qa
+```
+
+### One-time setup (do this before the first real test)
+
+1. **Validate the DB secret.** Actions → **Validate DB secrets** → *Run workflow*.
+   It prints redacted secret shapes and runs one `select` against the sandbox.
+   Do not proceed until this is green — every other job depends on it.
+2. **Turn on migration pushes.** Settings → Secrets and variables → Actions →
+   *Variables* → `SANDBOX_MIGRATIONS_ENABLED = true`. Without it, PRs only
+   produce a drift comment and nothing is applied.
+3. **Turn on seeding** (first run at least): `SANDBOX_SEED_DATA_ENABLED = true`.
+4. Leave `SANDBOX_AUTO_MERGE_ENABLED` **unset** until you've watched a few full
+   runs pass.
+
+### Dry run before touching a PR
+
+Actions → **Sync sandbox schema + QA + auto-merge** → *Run workflow*:
+
+- `dry_run: true` → only lists pending migrations. Read the list; if it contains
+  a migration you didn't expect, stop and reconcile before pushing.
+- Then re-run with `dry_run: false`, `seed_data: true` to actually apply the
+  schema and seed fakes. This is the safest way to prime a fresh sandbox.
+
+### Then, per change
+
+1. Branch off `dev`, add the migration + code, open a PR into `dev`.
+2. Read the **schema drift comment** the workflow posts on the PR.
+3. Watch `migrate` → `deploy-frontend` → `qa` in order. A red `migrate` means
+   nothing downstream ran — fix the SQL, push, the chain restarts.
+4. Open the sandbox preview URL and click through the change by hand.
+5. Merge to `dev`; `dev → main` triggers the push-to-main path.
+6. Apply the same migrations to production via the **Sync prod schema**
+   workflow (defaults to dry-run; needs `PROD_MIGRATIONS_ENABLED=true`).
+
+### Scheduled jobs in the sandbox
+
+`sandbox-localize.sql` unschedules **every** `pg_cron` job in the sandbox right
+after migrations, so the sandbox scheduler can never fire at production. Cron
+behavior is therefore not testable in the sandbox — invoke the edge function
+directly with curl if you need to exercise it.
+
+### Cron credentials (production)
+
+All scheduled HTTP jobs now go through `public.cron_invoke(function, body, query)`,
+which reads the project URL and credential from the Vault (`project_url`,
+`project_service_role_key`, falling back to `project_anon_key`). No key is
+hardcoded in a cron command anymore. To rotate: update the vault secret in
+Supabase → Vault; nothing else needs to change.
