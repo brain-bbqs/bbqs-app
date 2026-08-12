@@ -18,6 +18,7 @@ import { ConsortiumOverviewWidget } from "@/components/dashboard/widgets/Consort
 import { FundingByYearWidget } from "@/components/dashboard/widgets/FundingByYearWidget";
 import { PublicationsTrendWidget } from "@/components/dashboard/widgets/PublicationsTrendWidget";
 import { SpeciesCoverageWidget } from "@/components/dashboard/widgets/SpeciesCoverageWidget";
+import { MemberProfileEditor } from "@/components/profile/MemberProfileEditor";
 import { ArrowDown, ArrowUp, LayoutDashboard, RotateCcw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -94,6 +95,8 @@ export default function Dashboard() {
     switch (key) {
       case "consortium_overview":
         return <ConsortiumOverviewWidget />;
+      case "my_profile":
+        return <MemberProfileEditor embedded />;
       case "my_projects":
         return <MyProjectsWidget investigatorId={investigatorId} />;
       case "working_group_members":
