@@ -33,7 +33,7 @@ const toList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 /** Self-serve profile editor: benign fields write directly to the member's own record;
  *  working groups are submitted as a REQUEST an admin approves (no mailing-list change). */
-export function MemberProfileEditor() {
+export function MemberProfileEditor({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const [institution, setInstitution] = useState("");
   const [orcid, setOrcid] = useState("");
