@@ -68,6 +68,24 @@ RETURNS boolean LANGUAGE sql IMMUTABLE AS $fn$
   END
 $fn$;
 
+
+/** The live responder URL for the BBQS Data Questionnaire.
+ *
+ *  Verified against the Forms API on 2026-08-11: form
+ *  1oQ9R8uEt8IbgY3h5-mSZ821F2dbUQ7efXkeLN8tl-u4 reports this responderUri. Two forms.gle short links
+ *  are in circulation (zTNq5yijMgPVay4dA in the agent's consortium_settings default, and
+ *  7JUR5xR9iVgFm41P7 in the PI onboarding email) and BOTH resolve here, so neither is wrong — but a
+ *  short link hides which form it points at, and this one does not.
+ *
+ *  A function rather than a hardcoded string in the React component, so the console, the agent and any
+ *  reminder read one definition and a new form is a one-line migration instead of a grep. */
+CREATE OR REPLACE FUNCTION public.questionnaire_form_url()
+RETURNS text LANGUAGE sql IMMUTABLE AS $fn$
+  SELECT 'https://docs.google.com/forms/d/e/1FAIpQLSd-L-B74LRv3z1hT964nVpN5uLcsP-D1VCzHwqkw9nCGdtCyw/viewform'
+$fn$;
+
+GRANT EXECUTE ON FUNCTION public.questionnaire_form_url() TO authenticated, service_role;
+
 CREATE OR REPLACE VIEW public.project_questionnaire_status
 WITH (security_invoker = true)
 AS
@@ -143,7 +161,8 @@ SELECT c.grant_id,
        (SELECT i.email FROM public.grant_investigators gi
           JOIN public.investigators i ON i.id = gi.investigator_id
          WHERE gi.grant_id = c.grant_id AND lower(gi.role) = 'contact_pi'
-         ORDER BY i.name LIMIT 1) AS owner_email
+         ORDER BY i.name LIMIT 1) AS owner_email,
+       public.questionnaire_form_url() AS form_url
   FROM counted c;
 
 COMMENT ON VIEW public.project_questionnaire_status IS

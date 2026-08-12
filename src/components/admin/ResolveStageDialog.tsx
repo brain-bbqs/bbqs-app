@@ -352,6 +352,43 @@ function QuestionnaireStatus({ email }: { email: string }) {
                 Still blank: <span className="break-all">{q.missing_fields.join(", ")}</span>
               </div>
             ) : null}
+            {/* Open the actual form. The URL comes from the view (public.questionnaire_form_url), not
+                a constant here, so the console, the agent and any reminder cannot drift apart. */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="secondary" className="h-7 text-[11px]" asChild>
+                <a href={q.form_url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-1 h-3 w-3" />Open questionnaire form
+                </a>
+              </Button>
+              {q.owner_email && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px]" asChild>
+                  <a
+                    href={`mailto:${q.owner_email}?subject=${encodeURIComponent(
+                      `BBQS Data Questionnaire — ${q.grant_number}`,
+                    )}&body=${encodeURIComponent(
+                      `Hi ${(q.owner_name ?? "").split(" ")[0] || "there"},
+
+` +
+                        `The BBQS Data Questionnaire for ${q.grant_number} is ${q.status.replace("_", " ")} ` +
+                        `(${q.fields_filled} of ${q.fields_total} sections answered).
+
+` +
+                        (q.missing_fields?.length
+                          ? `Still needed: ${q.missing_fields.join(", ")}
+
+`
+                          : "") +
+                        `You can complete it here: ${q.form_url}
+
+Thanks,
+`,
+                    )}`}
+                  >
+                    <Mail className="mr-1 h-3 w-3" />Email the owner
+                  </a>
+                </Button>
+              )}
+            </div>
           </div>
         );
       })}
