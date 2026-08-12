@@ -178,8 +178,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-15
 
-      - name: Push migrations to sandbox
-        run: supabase db push --db-url "$SANDBOX_URL_SAFE" --include-all
+      # The repo's migration chain is NOT self-contained (the oldest migrations assume
+      # tables created in Lovable before history was recorded), so `supabase db push`
+      # into a fresh project fails with 42P01. For an exact replica we clone prod's
+      # schema directly instead, then copy prod's migration history so drift checks
+      # keep working.
+      - name: Clone production schema into sandbox
+        run: bash .github/scripts/clone-prod-schema-to-sandbox.sh
+        env:
+          PROD_URL: ${{ env.PROD_URL_SAFE }}
+          SANDBOX_URL: ${{ env.SANDBOX_URL_SAFE }}
 
       - name: Clone production data into sandbox
         if: ${{ inputs.clone_data }}
