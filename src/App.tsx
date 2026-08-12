@@ -105,6 +105,7 @@ const App = () => (
               <Route path="/tutorials" element={<Tutorials />} />
               <Route path="/data-provenance" element={<DataProvenance />} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               {/* Data Provenance Docs and Self-Autonomy Docs removed */}
               <Route path="/suggest-feature" element={<FeatureSuggestions />} />
