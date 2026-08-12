@@ -65,6 +65,7 @@ jobs:
           FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
           FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - name: Resolve IPv4 (best effort)
         continue-on-error: true
@@ -142,6 +143,7 @@ jobs:
           FALLBACK_REF: ${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}
           FALLBACK_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
           FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.SANDBOX_DB_HOST }}
 
       - name: Normalize prod DB URL
         run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
@@ -152,6 +154,7 @@ jobs:
           FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
           FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - uses: supabase/setup-cli@v1
         with:

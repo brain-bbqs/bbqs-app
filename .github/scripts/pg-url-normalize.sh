@@ -20,7 +20,7 @@ FALLBACK_REGION="${FALLBACK_REGION:-us-east-1}"
 if [ -z "$URL" ] && [ -z "$FALLBACK_PASSWORD" ]; then
   echo "::error::$VAR_NAME is empty" >&2; exit 1
 fi
-export URL VAR_NAME OUT_NAME FALLBACK_REF FALLBACK_PASSWORD FALLBACK_REGION
+export URL VAR_NAME OUT_NAME FALLBACK_REF FALLBACK_PASSWORD FALLBACK_REGION FALLBACK_HOST
 
 python3 - <<'PY'
 import os, re, sys, urllib.parse
@@ -31,6 +31,10 @@ out_name = os.environ['OUT_NAME']
 fb_ref = os.environ.get('FALLBACK_REF', '').strip()
 fb_pw = os.environ.get('FALLBACK_PASSWORD', '').strip()
 fb_region = os.environ.get('FALLBACK_REGION', 'us-east-1').strip() or 'us-east-1'
+# Newer Supabase projects sit on the "aws-1-<region>" pooler cluster. Copy the host
+# verbatim from Connect -> Session pooler; a wrong cluster yields
+# "FATAL: (ENOTFOUND) tenant/user postgres.<ref> not found".
+fb_host = os.environ.get('FALLBACK_HOST', '').strip() or f"aws-0-{fb_region}.pooler.supabase.com"
 
 def pooler_uri():
     """Assemble the Supabase Session pooler URI from components."""
@@ -39,7 +43,7 @@ def pooler_uri():
     pw = urllib.parse.quote(fb_pw, safe='')
     return (
         f"postgresql://postgres.{fb_ref}:{pw}"
-        f"@aws-0-{fb_region}.pooler.supabase.com:5432/postgres"
+        f"@{fb_host}:5432/postgres"
     )
 
 def shape(value):
@@ -65,7 +69,7 @@ def emit(safe, host, note=''):
 if not raw:
     built = pooler_uri()
     if built:
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(f"::error::{var_name} is empty", file=sys.stderr)
     sys.exit(1)
@@ -82,7 +86,7 @@ if any(char in url for char in ('\n', '\r', '\t', ' ')):
     built = pooler_uri()
     if built:
         print(f"::warning::{var_name} contains whitespace; using the assembled Session pooler URI instead.")
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(
         f"::error::{var_name} contains whitespace inside the database URI. "
@@ -103,7 +107,7 @@ if not m:
             f"::warning::{var_name} is not a valid PostgreSQL URI ({shape(url)}); "
             "falling back to the Session pooler URI assembled from the project ref and password."
         )
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     hint = ""
     if not url.startswith(("postgres://", "postgresql://")):
@@ -131,7 +135,7 @@ if host.startswith('db.') and host.endswith('.supabase.co'):
     built = pooler_uri()
     if built:
         print(f"::warning::{var_name} uses the IPv6-only direct host; using the assembled Session pooler URI instead.")
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(
         f"::error::{var_name} uses Supabase's IPv6-only direct host ({host}). "
