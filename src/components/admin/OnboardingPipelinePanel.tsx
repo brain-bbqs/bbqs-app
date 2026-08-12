@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 import { OnboardMemberDialog } from "@/components/admin/OnboardMemberDialog";
+import { useSortableTable } from "@/components/admin/useSortableTable";
 import { GroupAuditDialog } from "@/components/admin/GroupAuditDialog";
 import { SlackInvitesDialog } from "@/components/admin/SlackInvitesDialog";
 import { OffboardMemberDialog } from "@/components/admin/OffboardMemberDialog";
@@ -91,6 +92,10 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
     if (filter === "in_progress") return rows.filter((r) => r.steps_done > 0);
     return rows;
   }, [rows, filter]);
+
+  // Sorting sits OUTSIDE the filter so the two compose: filter to "stuck", then sort by Role to
+  // group the PIs. Default order is unsorted (server order) until a header is clicked.
+  const { sorted, SortableHead } = useSortableTable<PipelineRow>(filtered);
   const stuckCount = useMemo(() => rows.filter((r) => r.is_stuck).length, [rows]);
   // Everyone whose Slack step is still open — fed to the batch guest-invite triage.
   const slackPending = useMemo(
@@ -173,16 +178,20 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="whitespace-nowrap">Progress</TableHead>
-                <TableHead>Remaining stages <span className="font-normal text-muted-foreground">(click to resolve)</span></TableHead>
-                <TableHead className="whitespace-nowrap">In flight</TableHead>
+                <SortableHead columnKey="member" accessor={(r) => r.name ?? r.email}>Member</SortableHead>
+                <SortableHead columnKey="role" accessor={(r) => r.role}>Role</SortableHead>
+                <SortableHead columnKey="progress" className="whitespace-nowrap"
+                  accessor={(r) => (r.steps_total ? r.steps_done / r.steps_total : 0)}>Progress</SortableHead>
+                <SortableHead columnKey="remaining" accessor={(r) => remainingSteps(r).length}>
+                  Remaining stages <span className="font-normal text-muted-foreground">(click to resolve)</span>
+                </SortableHead>
+                <SortableHead columnKey="in_flight" className="whitespace-nowrap"
+                  accessor={(r) => r.days_since_created}>In flight</SortableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((r) => {
+              {sorted.map((r) => {
                 const checklist = r.checklist ?? {};
                 const stages = STAGE_ORDER.filter((k) => k in checklist);
                 const hasRemaining = remainingSteps(r).length > 0;
