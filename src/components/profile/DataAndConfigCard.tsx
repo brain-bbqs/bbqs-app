@@ -40,7 +40,7 @@ export function DataAndConfigCard() {
   const fetchProvenance = async () => {
     const { data, error } = await supabase
       .from("data_audit_log")
-      .select("id, table_name, record_id, operation, changed_fields, occurred_at, via")
+      .select("id, table_name, record_id, operation, changed_fields, occurred_at, actor_via")
       .eq("actor_id", user!.id)
       .order("occurred_at", { ascending: false })
       .limit(1000);
