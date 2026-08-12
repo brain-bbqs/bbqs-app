@@ -237,6 +237,10 @@ jobs:
         run: |
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
+          # public/CNAME carries the PRODUCTION domain (app.brain-bbqs.org). Shipping it
+          # to the sandbox repo makes its Pages site claim that custom domain, so the
+          # sandbox github.io URL never serves the build (and it fights production).
+          rm -f dist/CNAME
 
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
