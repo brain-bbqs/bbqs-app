@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -248,17 +249,7 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
             </>
           )}
 
-          {stage === "data_questionnaire" && (
-            <>
-              <p className="text-sm text-muted-foreground">
-                The data questionnaire is <strong>PI-owned</strong> and filled per project. Ask the PI
-                to complete it from their project page, or check status via the agent.
-              </p>
-              <Button variant="secondary" onClick={() => askAgent(`What is the data questionnaire status for ${target.email}?`)}>
-                <ExternalLink className="mr-1.5 h-4 w-4" />Check questionnaire status
-              </Button>
-            </>
-          )}
+          {stage === "data_questionnaire" && <QuestionnaireStatus email={target.email} />}
 
           {stage === "kg_created" && (
             <p className="text-sm text-muted-foreground">
@@ -282,5 +273,88 @@ export function ResolveStageDialog({ target, onClose }: { target: StageTarget | 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Deterministic Data Questionnaire status, read from project_questionnaire_status.
+ *
+ *  This used to open the CHAT AGENT with "What is the data questionnaire status for <email>?" — an
+ *  exact question handed to an LLM, whose answer then came from projects.metadata_completeness, a
+ *  column reading 86 for almost every project regardless of content. The console already knows the
+ *  member, so it can resolve grant → project → the ten canonical fields itself and say which are
+ *  blank. Percentages here are COMPUTED, never the stored column.
+ */
+function QuestionnaireStatus({ email }: { email: string }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["questionnaire-status", email],
+    queryFn: async () => {
+      // Their grants, then the status row per grant. A member can be on several; a scalar answer
+      // would have to pick one arbitrarily, so show them all.
+      const { data: inv, error: e1 } = await supabase
+        .from("investigators").select("id").ilike("email", email).maybeSingle();
+      if (e1) throw e1;
+      if (!inv) return [];
+      const { data: rows, error: e2 } = await supabase
+        .from("grant_investigators").select("grant_id, role").eq("investigator_id", inv.id);
+      if (e2) throw e2;
+      const ids = (rows ?? []).map((r) => r.grant_id);
+      if (!ids.length) return [];
+      const { data: st, error: e3 } = await supabase
+        .from("project_questionnaire_status").select("*").in("grant_id", ids);
+      if (e3) throw e3;
+      return st ?? [];
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>;
+  if (error) return <p className="text-sm text-destructive">Could not read questionnaire status: {(error as Error).message}</p>;
+  if (!data?.length) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        They are on no grant roster, so there is no project questionnaire for them. Link a grant first.
+      </p>
+    );
+  }
+
+  const STANDING: Record<string, { label: string; cls: string }> = {
+    pi:             { label: "submitted by a PI on this grant",        cls: "text-emerald-600 dark:text-emerald-400" },
+    project_member: { label: "submitted by a project member, not a PI", cls: "text-amber-600 dark:text-amber-400" },
+    not_on_roster:  { label: "submitter is NOT on this grant's roster", cls: "text-destructive" },
+    unknown:        { label: "submitter unknown — imported before provenance was recorded", cls: "text-muted-foreground" },
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        The questionnaire is <strong>contact-PI-owned</strong> and filled per project. Percentages are
+        computed from the ten canonical fields, not from the stored completeness column.
+      </p>
+      {data.map((q: any) => {
+        const st = STANDING[q.submitter_standing] ?? STANDING.unknown;
+        return (
+          <div key={q.grant_id} className="rounded-md border border-border p-3 text-xs space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[11px] text-foreground">{q.grant_number}</span>
+              <span className={q.status === "complete" ? "text-emerald-600 dark:text-emerald-400"
+                : q.status === "partial" ? "text-amber-600 dark:text-amber-400" : "text-destructive"}>
+                {q.status.replace("_", " ")} · {q.fields_filled}/{q.fields_total} ({q.pct}%)
+              </span>
+            </div>
+            {q.owner_name && (
+              <div className="text-muted-foreground">Owner (contact PI): {q.owner_name}{q.owner_email ? ` — ${q.owner_email}` : ""}</div>
+            )}
+            <div className={st.cls}>
+              {q.submitted_by ? `${q.submitted_by} — ${st.label}` : st.label}
+              {q.submitted_at ? ` (${new Date(q.submitted_at).toLocaleDateString()})` : ""}
+            </div>
+            {q.missing_fields?.length ? (
+              <div className="text-muted-foreground">
+                Still blank: <span className="break-all">{q.missing_fields.join(", ")}</span>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }

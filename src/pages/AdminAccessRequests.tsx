@@ -12,6 +12,7 @@ import { Loader2, Lock, Mail, Check, X, UserPlus, AlertTriangle, Trash2 } from "
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PageMeta } from "@/components/PageMeta";
+import { useSortableTable } from "@/components/admin/useSortableTable";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,15 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
   // Authoritative display name for a request: roster name → filed full_name → globus_name.
   const personName = (r: AccessRequest) =>
     invNameByEmail[r.email.toLowerCase()] || r.full_name || r.globus_name || "—";
+
+  const pending = requests.filter((r) => r.status === "pending");
+  const decided = requests.filter((r) => r.status !== "pending");
+
+  // Sortable columns on both queues. Independent sorters so sorting the pending list does not
+  // reorder the decided one. Person sorts on the RESOLVED display name (roster name first), which is
+  // what is actually on screen — sorting by the stored globus_name would look arbitrary.
+  const pendingSort = useSortableTable<AccessRequest>(pending);
+  const decidedSort = useSortableTable<AccessRequest>(decided);
 
   const sendApprovalEmail = async (to: string, name: string, note?: string) => {
     try {
@@ -447,8 +457,6 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
     );
   }
 
-  const pending = requests.filter((r) => r.status === "pending");
-  const decided = requests.filter((r) => r.status !== "pending");
 
   const renderRow = (r: AccessRequest, withActions: boolean) => (
     <TableRow key={r.id}>
@@ -627,13 +635,13 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Person</TableHead>
-                        <TableHead>Requested</TableHead>
-                        <TableHead>Status</TableHead>
+                        <pendingSort.SortableHead columnKey="person" accessor={(r) => personName(r)}>Person</pendingSort.SortableHead>
+                        <pendingSort.SortableHead columnKey="requested" accessor={(r) => new Date(r.created_at)}>Requested</pendingSort.SortableHead>
+                        <pendingSort.SortableHead columnKey="status" accessor={(r) => r.status}>Status</pendingSort.SortableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>{pending.map((r) => renderRow(r, true))}</TableBody>
+                    <TableBody>{pendingSort.sorted.map((r) => renderRow(r, true))}</TableBody>
                   </Table>
                 </div>
               )}
@@ -656,14 +664,14 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Person</TableHead>
-                        <TableHead>Requested</TableHead>
-                        <TableHead>Status</TableHead>
+                        <decidedSort.SortableHead columnKey="person" accessor={(r) => personName(r)}>Person</decidedSort.SortableHead>
+                        <decidedSort.SortableHead columnKey="requested" accessor={(r) => new Date(r.created_at)}>Requested</decidedSort.SortableHead>
+                        <decidedSort.SortableHead columnKey="status" accessor={(r) => r.status}>Status</decidedSort.SortableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {decided.map((r) => (
+                      {decidedSort.sorted.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell>
                             <div className="font-medium text-foreground">
