@@ -65,6 +65,7 @@ jobs:
           FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
           FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - name: Resolve IPv4 (best effort)
         continue-on-error: true
@@ -152,6 +153,7 @@ jobs:
           FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
           FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - uses: supabase/setup-cli@v1
         with:
