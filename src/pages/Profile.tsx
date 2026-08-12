@@ -13,6 +13,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
 import { MemberProfileEditor } from "@/components/profile/MemberProfileEditor";
+import { DataAndConfigCard } from "@/components/profile/DataAndConfigCard";
 import { InvestigatorSummary } from "@/components/entity-summary/summaries/InvestigatorSummary";
 import { format } from "date-fns";
 import { toast } from "sonner";
