@@ -354,10 +354,34 @@ function QuestionnaireStatus({ email }: { email: string }) {
             ) : null}
             {/* Open the actual form. The URL comes from the view (public.questionnaire_form_url), not
                 a constant here, so the console, the agent and any reminder cannot drift apart. */}
+            {/* THE SUBMISSION ITSELF. An admin reviewing a questionnaire wants to read the answers;
+                the blank responder form shows an empty questionnaire and is only useful for sending
+                to a PI who has not filled it. Answers come from the imported response in
+                projects.metadata, so this works with no Google call. */}
+            {answerEntries(q.answers).length > 0 && (
+              <details className="pt-1">
+                <summary className="cursor-pointer text-foreground">
+                  Read the {answerEntries(q.answers).length} submitted answer(s)
+                </summary>
+                <dl className="mt-1.5 space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {answerEntries(q.answers).map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="text-muted-foreground">{k.replace(/_/g, " ")}</dt>
+                      <dd className="text-foreground break-words">{formatAnswer(v)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            )}
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="secondary" className="h-7 text-[11px]" asChild>
+                <a href={q.responses_url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-1 h-3 w-3" />All responses in Google Forms
+                </a>
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[11px]" asChild>
                 <a href={q.form_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-1 h-3 w-3" />Open questionnaire form
+                  <ExternalLink className="mr-1 h-3 w-3" />Blank form (to send)
                 </a>
               </Button>
               {q.owner_email && (
@@ -394,4 +418,22 @@ Thanks,
       })}
     </div>
   );
+}
+
+/** Populated answers only, in a stable order. A key present with '' / [] / {} is not an answer. */
+function answerEntries(answers: unknown): Array<[string, unknown]> {
+  if (!answers || typeof answers !== "object") return [];
+  return Object.entries(answers as Record<string, unknown>)
+    .filter(([, v]) =>
+      v !== null && v !== undefined &&
+      !(typeof v === "string" && v.trim() === "") &&
+      !(Array.isArray(v) && v.length === 0))
+    .sort(([a], [b]) => a.localeCompare(b));
+}
+
+/** Render an answer the way the respondent gave it: checkbox groups are arrays, Yes/No are booleans. */
+function formatAnswer(v: unknown): string {
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  return String(v);
 }

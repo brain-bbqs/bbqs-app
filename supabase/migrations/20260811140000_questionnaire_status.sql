@@ -84,7 +84,19 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $fn$
   SELECT 'https://docs.google.com/forms/d/e/1FAIpQLSd-L-B74LRv3z1hT964nVpN5uLcsP-D1VCzHwqkw9nCGdtCyw/viewform'
 $fn$;
 
+/** The Forms RESPONSES tab, for reading what people actually submitted.
+ *
+ *  The blank responder form is the wrong link for an admin reviewing a submission — it shows an empty
+ *  questionnaire. This is the editor's responses view, which requires edit access on the form (the
+ *  DCAIC admins have it). Built from the form ID rather than the /d/e/ published ID, because the two
+ *  differ: the published ID appears in responder links, the form ID in editor links. */
+CREATE OR REPLACE FUNCTION public.questionnaire_responses_url()
+RETURNS text LANGUAGE sql IMMUTABLE AS $fn$
+  SELECT 'https://docs.google.com/forms/d/1oQ9R8uEt8IbgY3h5-mSZ821F2dbUQ7efXkeLN8tl-u4/edit#responses'
+$fn$;
+
 GRANT EXECUTE ON FUNCTION public.questionnaire_form_url() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.questionnaire_responses_url() TO authenticated, service_role;
 
 CREATE OR REPLACE VIEW public.project_questionnaire_status
 WITH (security_invoker = true)
@@ -162,7 +174,13 @@ SELECT c.grant_id,
           JOIN public.investigators i ON i.id = gi.investigator_id
          WHERE gi.grant_id = c.grant_id AND lower(gi.role) = 'contact_pi'
          ORDER BY i.name LIMIT 1) AS owner_email,
-       public.questionnaire_form_url() AS form_url
+       public.questionnaire_form_url() AS form_url,
+       public.questionnaire_responses_url() AS responses_url,
+       -- THE ANSWERS THEMSELVES. An admin reviewing a questionnaire wants to read the submission, not
+       -- open a blank form. This is the imported response with the provenance keys stripped, so what
+       -- remains is purely what the respondent answered (60-72 keys, ~8KB for a full one).
+       (c.metadata - 'questionnaire_submitted_by' - 'questionnaire_submitted_at'
+                   - 'questionnaire_response_id') AS answers
   FROM counted c;
 
 COMMENT ON VIEW public.project_questionnaire_status IS
