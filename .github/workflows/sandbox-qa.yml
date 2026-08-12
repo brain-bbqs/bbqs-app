@@ -231,16 +231,21 @@ jobs:
           VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           VITE_AUTH_COOKIE_DOMAIN: ''
-          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/bbqs-website-sandbox/' }}
+          # Served from a custom domain at the root, so the base path is '/'.
+          # Set var SANDBOX_BASE_PATH to '/bbqs-website-sandbox/' if you ever go back
+          # to the bare github.io project URL.
+          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/' }}
 
       - name: SPA fallback for GitHub Pages
+        env:
+          SANDBOX_DOMAIN: ${{ vars.SANDBOX_DOMAIN || 'sandbox.brain-bbqs.org' }}
         run: |
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
           # public/CNAME carries the PRODUCTION domain (app.brain-bbqs.org). Shipping it
-          # to the sandbox repo makes its Pages site claim that custom domain, so the
-          # sandbox github.io URL never serves the build (and it fights production).
-          rm -f dist/CNAME
+          # to the sandbox repo would make the sandbox Pages site claim production's
+          # domain, so overwrite it with the sandbox domain instead.
+          printf '%s\n' "$SANDBOX_DOMAIN" > dist/CNAME
 
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
