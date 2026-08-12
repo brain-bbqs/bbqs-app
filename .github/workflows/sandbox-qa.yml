@@ -231,20 +231,20 @@ jobs:
           VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           VITE_AUTH_COOKIE_DOMAIN: ''
-          # This deployment is served from app.brain-bbqs.org at the domain root.
+          # This deployment is served from sandbox.brain-bbqs.org at the domain root.
           # Do not inherit a stale repository base-path variable: that makes index.html
           # request /bbqs-website-sandbox/assets/* and produces a blank page.
           VITE_BASE_PATH: /
 
       - name: SPA fallback for GitHub Pages
         env:
-          SANDBOX_DOMAIN: ${{ vars.SANDBOX_DOMAIN || 'app.brain-bbqs.org' }}
+          SANDBOX_DOMAIN: ${{ vars.SANDBOX_DOMAIN || 'sandbox.brain-bbqs.org' }}
         run: |
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
           # public/CNAME carries the PRODUCTION domain (app.brain-bbqs.org). Shipping it
           # to the sandbox repo would make the sandbox Pages site claim production's
-          # domain, so overwrite it with the sandbox domain instead.
+          # domain (both repos cannot own it), so overwrite with the sandbox domain.
           printf '%s\n' "$SANDBOX_DOMAIN" > dist/CNAME
 
       - name: Keep the build as an artifact
