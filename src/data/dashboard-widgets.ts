@@ -1,8 +1,9 @@
-import { FolderOpen, Users, Bell, Gauge, DollarSign, FileText, Bug } from "lucide-react";
+import { FolderOpen, Users, Bell, Gauge, DollarSign, FileText, Bug, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type WidgetKey =
   | "consortium_overview"
+  | "my_profile"
   | "my_projects"
   | "working_group_members"
   | "working_group_feed"
@@ -25,6 +26,13 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     title: "Consortium at a glance",
     description: "Headline counts of projects, people, publications, species and resources.",
     icon: Gauge,
+    wide: true,
+  },
+  {
+    key: "my_profile",
+    title: "My profile",
+    description: "Edit your institution, ORCID, research areas, skills and working groups.",
+    icon: UserCog,
     wide: true,
   },
   {
