@@ -311,4 +311,37 @@ jobs:
           git commit -q -m "sandbox build from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
           git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$TARGET_BRANCH"
           echo "### Sandbox published" >> "$GITHUB_STEP_SUMMARY"
+
+      # The gh-pages branch holds ONLY the compiled site, which is why the sandbox repo
+      # looks empty when browsed. Mirror the full application source (src/, public/,
+      # supabase/, config, workflows) onto the sandbox repo's default branch so it is a
+      # complete clone of this repository, not just a build artifact.
+      - name: Mirror application source to the sandbox repository
+        if: ${{ inputs.deploy_pages }}
+        env:
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-website-sandbox' }}
+          SOURCE_BRANCH: ${{ vars.SANDBOX_SOURCE_BRANCH || 'main' }}
+          PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET_REPO" = "$GITHUB_REPOSITORY" ]; then
+            echo "::error::SANDBOX_PAGES_REPO points at this repository."
+            exit 1
+          fi
+          mirror=$(mktemp -d)
+          # Copy the checked-out working tree, minus git metadata and build output.
+          rsync -a --exclude='.git' --exclude='.git/**' --exclude='node_modules' \
+                   --exclude='dist' --exclude='.github/workflows' ./ "$mirror/"
+          # public/CNAME would make this branch claim production's domain if Pages were
+          # ever pointed at it; the sandbox domain is written into the build instead.
+          rm -f "$mirror/public/CNAME"
+          cd "$mirror"
+          git init -q
+          git checkout -q -B "$SOURCE_BRANCH"
+          git config user.name  "bbqs-sandbox-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -q -m "source mirror from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$SOURCE_BRANCH"
+          echo "Mirrored source to \`${TARGET_REPO}\` (branch \`${SOURCE_BRANCH}\`)." >> "$GITHUB_STEP_SUMMARY"
           echo "Pushed to \`${TARGET_REPO}\` (branch \`${TARGET_BRANCH}\`) — served at that repo's own Pages URL." >> "$GITHUB_STEP_SUMMARY"
