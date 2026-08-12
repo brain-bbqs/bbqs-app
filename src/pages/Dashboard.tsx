@@ -14,6 +14,10 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DashboardSetup } from "@/components/dashboard/DashboardSetup";
 import { WorkingGroupMembersWidget } from "@/components/dashboard/widgets/WorkingGroupMembersWidget";
 import { WorkingGroupFeedWidget } from "@/components/dashboard/widgets/WorkingGroupFeedWidget";
+import { ConsortiumOverviewWidget } from "@/components/dashboard/widgets/ConsortiumOverviewWidget";
+import { FundingByYearWidget } from "@/components/dashboard/widgets/FundingByYearWidget";
+import { PublicationsTrendWidget } from "@/components/dashboard/widgets/PublicationsTrendWidget";
+import { SpeciesCoverageWidget } from "@/components/dashboard/widgets/SpeciesCoverageWidget";
 import { ArrowDown, ArrowUp, LayoutDashboard, RotateCcw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -88,19 +92,27 @@ export default function Dashboard() {
 
   const renderWidget = (key: string) => {
     switch (key) {
+      case "consortium_overview":
+        return <ConsortiumOverviewWidget />;
       case "my_projects":
         return <MyProjectsWidget investigatorId={investigatorId} />;
       case "working_group_members":
         return <WorkingGroupMembersWidget workingGroups={workingGroups} investigatorId={investigatorId} />;
       case "working_group_feed":
         return <WorkingGroupFeedWidget workingGroups={workingGroups} />;
+      case "funding_by_year":
+        return <FundingByYearWidget />;
+      case "publications_trend":
+        return <PublicationsTrendWidget />;
+      case "species_coverage":
+        return <SpeciesCoverageWidget />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <PageMeta title="Dashboard" description="Your personalized BBQS dashboard of projects and working group activity." />
 
       <DashboardHero
@@ -180,7 +192,7 @@ export default function Dashboard() {
             if (!def) return null;
             const Icon = def.icon;
             return (
-              <Card key={w.key}>
+              <Card key={w.key} className={def.wide ? "md:col-span-2" : undefined}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Icon className="h-4 w-4 text-primary" />
