@@ -60,6 +60,12 @@ jobs:
         run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
         env:
           DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+          # Self-heal: if SUPABASE_KG_DB_URL is the IPv6-only direct host (unreachable
+          # from GitHub runners), rebuild a Session pooler URI from ref + password.
+          FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - name: Resolve IPv4 (best effort)
         continue-on-error: true
@@ -126,9 +132,19 @@ jobs:
             echo "::error::Set secret SANDBOX_DB_PASSWORD (preferred) or SANDBOX_SUPABASE_DB_URL (postgresql:// Session pooler URI)."
             exit 1
           fi
+          if [ -z "${SANDBOX_DB_URL}" ] && [ -z "${SANDBOX_DB_HOST}" ]; then
+            echo "::error::SANDBOX_DB_HOST was not received. Set it to the hostname only (for example aws-0-ca-central-1.pooler.supabase.com) as a repository Actions Variable or Secret. Environment-only values are not visible to this job."
+            exit 1
+          fi
+          if [ -z "${SANDBOX_DB_URL}" ]; then
+            echo "Sandbox connection will be assembled with host: ${SANDBOX_DB_HOST}"
+          else
+            echo "Sandbox connection will use SANDBOX_SUPABASE_DB_URL."
+          fi
         env:
           SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
           SANDBOX_DB_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
+          SANDBOX_DB_HOST: ${{ secrets.SANDBOX_DB_HOST || vars.SANDBOX_DB_HOST }}
 
       - name: Normalize sandbox DB URL
         run: source .github/scripts/pg-url-normalize.sh SANDBOX_DB_URL SANDBOX_URL_SAFE
@@ -136,12 +152,19 @@ jobs:
           SANDBOX_DB_URL: ${{ secrets.SANDBOX_SUPABASE_DB_URL }}
           FALLBACK_REF: ${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}
           FALLBACK_PASSWORD: ${{ secrets.SANDBOX_DB_PASSWORD }}
-          FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'us-east-1' }}
+          FALLBACK_REGION: ${{ vars.SANDBOX_DB_REGION || 'ca-central-1' }}
+          FALLBACK_HOST: ${{ secrets.SANDBOX_DB_HOST || vars.SANDBOX_DB_HOST }}
 
       - name: Normalize prod DB URL
         run: source .github/scripts/pg-url-normalize.sh DB_URL PROD_URL_SAFE
         env:
           DB_URL: ${{ secrets.SUPABASE_KG_DB_URL }}
+          # Self-heal: if SUPABASE_KG_DB_URL is the IPv6-only direct host (unreachable
+          # from GitHub runners), rebuild a Session pooler URI from ref + password.
+          FALLBACK_REF: ${{ vars.PROD_PROJECT_REF || 'vpexxhfpvghlejljwpvt' }}
+          FALLBACK_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          FALLBACK_REGION: ${{ vars.PROD_DB_REGION || 'us-east-1' }}
+          FALLBACK_HOST: ${{ vars.PROD_DB_HOST }}
 
       - uses: supabase/setup-cli@v1
         with:
