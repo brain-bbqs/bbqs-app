@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
 
 type Summary = Record<string, { expected: number; in_google: number; missing: number; extra: number }>;
-type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; dismissed_by_group?: Record<string, string[]>; protected_by_group?: Record<string, string[]>; additive_only_groups?: string[]; repaired?: number; removed?: number; removed_from?: string; failures?: string[]; error?: string };
+type Result = { ok?: boolean; summary?: Summary; missing_by_group?: Record<string, string[]>; extra_by_group?: Record<string, string[]>; dismissed_by_group?: Record<string, string[]>; protected_by_group?: Record<string, string[]>; additive_only_groups?: string[]; repaired?: number; already_member?: string[]; aliases_learned?: string[]; removed?: number; removed_from?: string; failures?: string[]; error?: string };
 
 /** Audit ACTUAL Google Group membership vs what the KG implies, and optionally repair.
  *  Necessary because working_groups is an intent record: the sync trigger only fires on
@@ -25,7 +25,16 @@ export function GroupAuditDialog() {
       const r = (data ?? {}) as Result;
       setRes(r);
       if (r.error) toast.error(r.error);
-      else if (action === "repair") toast.success(`Added ${r.repaired ?? 0} missing membership(s)`);
+      else if (action === "repair") {
+        // Report added and already-a-member SEPARATELY. Conflating them is what let Repair claim
+        // "added 1" forever while changing nothing (Google 409s an alias of an existing member).
+        const already = r.already_member?.length ?? 0;
+        const learned = r.aliases_learned?.length ?? 0;
+        const bits = [`Added ${r.repaired ?? 0}`];
+        if (already) bits.push(`${already} already a member under another address`);
+        if (learned) bits.push(`${learned} alias(es) recorded`);
+        toast[(r.repaired ?? 0) === 0 && already ? "warning" : "success"](bits.join(" · "));
+      }
       else if (action === "remove_extra") toast.success(`Removed ${r.removed ?? 0} from ${r.removed_from}`);
       else {
         const miss = Object.values(r.summary ?? {}).reduce((a, v) => a + v.missing, 0);

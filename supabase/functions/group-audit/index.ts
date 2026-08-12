@@ -115,25 +115,49 @@ async function removeMember(email: string, group: string, token: string): Promis
   return `${res.status}: ${(await res.text()).slice(0, 120)}`;
 }
 
-async function addMember(email: string, group: string, token: string): Promise<string | null> {
+/** Result of an add attempt. `already` is NOT success: Google resolved the address to an identity
+ *  that is ALREADY a member under a DIFFERENT stored address, so nothing changed and the audit will
+ *  propose the same address again next run. Reporting that as "added" is what made Repair claim
+ *  progress forever on niegil.francis@nyu.edu -- Google resolves it to member id
+ *  114753211097378846591 whose stored email is nm4075@nyu.edu, so the POST 409s and members.list
+ *  never gains the alias. `storedEmail` is what Google actually has, so the caller can record it. */
+type AddResult = { added: boolean; already: boolean; storedEmail?: string; error?: string };
+
+/** Ask Google which address it actually stores for this member, so an alias can be recorded. */
+async function storedEmailFor(email: string, group: string, token: string): Promise<string | undefined> {
+  const res = await fetch(
+    `https://admin.googleapis.com/admin/directory/v1/groups/${encodeURIComponent(group)}/members/${encodeURIComponent(email)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return undefined;
+  const j = await res.json();
+  const stored = String(j?.email ?? "").toLowerCase();
+  return stored && stored !== email.toLowerCase() ? stored : undefined;
+}
+
+async function addMember(email: string, group: string, token: string): Promise<AddResult> {
   const res = await fetch(`https://admin.googleapis.com/admin/directory/v1/groups/${encodeURIComponent(group)}/members`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ email, role: "MEMBER", type: "USER" }),
   });
-  if (res.ok) return null;
+  if (res.ok) return { added: true, already: false };
   const t = await res.text();
-  if (t.includes("duplicate") || t.includes("Member already exists")) return null;   // already there
+  if (res.status === 409 || t.includes("duplicate") || t.includes("Member already exists")) {
+    // Same identity, different address. Nothing was added; tell the truth and hand back the address
+    // Google stores so the caller can record it as an alias and stop re-proposing this one.
+    return { added: false, already: true, storedEmail: await storedEmailFor(email, group, token) };
+  }
   // Google returns 404 "Resource Not Found: <email>" when the ADDRESS cannot be added — it is
   // not a real account and the group does not accept it. That is a DATA problem (a typo, or a
   // leftover test fixture in investigators), not a sync failure, so say so.
   if (res.status === 404) {
-    return `${email} could not be added — Google does not recognise that address. Check it is a real, current address (leftover test records are a common cause).`;
+    return { added: false, already: false, error: `${email} could not be added — Google does not recognise that address. Check it is a real, current address (leftover test records are a common cause).` };
   }
   if (res.status === 403) {
-    return `${email}: permission denied by Google (the group may not allow external members).`;
+    return { added: false, already: false, error: `${email}: permission denied by Google (the group may not allow external members).` };
   }
-  return `${email}: ${res.status} ${t.slice(0, 100)}`;
+  return { added: false, already: false, error: `${email}: ${res.status} ${t.slice(0, 100)}` };
 }
 
 Deno.serve(async (req) => {
@@ -265,6 +289,10 @@ Deno.serve(async (req) => {
     }
 
     let repaired = 0;
+
+    const alreadyMember: string[] = [];
+
+    const aliasesLearned: string[] = [];
     let removed = 0;
     const failures: string[] = [];
     // Removal is scoped to ONE named group per call — never "clean every group" in one shot.
@@ -324,8 +352,22 @@ Deno.serve(async (req) => {
       }
       if (action === "repair") {
         for (const e of missing) {
-          const err = await addMember(e, group, token);
-          if (err) failures.push(`${group} <- ${e}: ${err}`); else repaired++;
+          const r = await addMember(e, group, token);
+          if (r.error) { failures.push(`${group} <- ${e}: ${r.error}`); continue; }
+          if (r.added) { repaired++; continue; }
+          // ALREADY a member under a different stored address. Count it separately -- calling this
+          // "added" is what let Repair report progress forever without changing anything. Then LEARN
+          // the alias from Google so the audit stops proposing this address at all: recording it in
+          // secondary_emails is exactly what the alt-address matching above already consumes.
+          alreadyMember.push(`${group}: ${e} is already a member as ${r.storedEmail ?? "another address"}`);
+          if (r.storedEmail) {
+            const { error: aliasErr } = await admin.rpc("record_investigator_alias", {
+              _primary_email: e,
+              _alias: r.storedEmail,
+            });
+            if (aliasErr) failures.push(`${group} <- ${e}: alias not recorded (${aliasErr.message})`);
+            else aliasesLearned.push(`${e} -> ${r.storedEmail}`);
+          }
         }
       }
     }
@@ -352,6 +394,9 @@ Deno.serve(async (req) => {
       ),
       additive_only_groups: [...ADDITIVE_ONLY_GROUPS],
       repaired: action === "repair" ? repaired : undefined,
+      // Reported separately from `repaired` so "added N" can never again mean "changed nothing".
+      already_member: action === "repair" && alreadyMember.length ? alreadyMember : undefined,
+      aliases_learned: action === "repair" && aliasesLearned.length ? aliasesLearned : undefined,
       removed: action === "remove_extra" ? removed : undefined,
       removed_from: action === "remove_extra" ? targetGroup : undefined,
       failures: failures.length ? failures : undefined,

@@ -3487,6 +3487,10 @@ export type Database = {
         Returns: Json
       }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
+      record_investigator_alias: {
+        Args: { _alias: string; _primary_email: string }
+        Returns: Json
+      }
       record_onboarding_reminder: {
         Args: { _investigator_id: string }
         Returns: Json

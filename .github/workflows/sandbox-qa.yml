@@ -231,12 +231,48 @@ jobs:
           VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           VITE_AUTH_COOKIE_DOMAIN: ''
-          VITE_BASE_PATH: ${{ vars.SANDBOX_BASE_PATH || '/bbqs-website-sandbox/' }}
+          # This deployment is served from sandbox.brain-bbqs.org at the domain root.
+          # Do not inherit a stale repository base-path variable: that makes index.html
+          # request /bbqs-website-sandbox/assets/* and produces a blank page.
+          VITE_BASE_PATH: /
 
       - name: SPA fallback for GitHub Pages
+        env:
+          SANDBOX_DOMAIN: ${{ vars.SANDBOX_DOMAIN || 'sandbox.brain-bbqs.org' }}
         run: |
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
+          # public/CNAME carries the PRODUCTION domain (app.brain-bbqs.org). Shipping it
+          # to the sandbox repo would make the sandbox Pages site claim production's
+          # domain (both repos cannot own it), so overwrite with the sandbox domain.
+          printf '%s\n' "$SANDBOX_DOMAIN" > dist/CNAME
+
+      # Fails loudly instead of shipping a blank page: if index.html asks for assets
+      # under any prefix other than /assets, the base path leaked in from somewhere.
+      - name: Verify asset base path is the domain root
+        run: |
+          set -euo pipefail
+          bad=$(grep -Eo '(src|href)="/[^"]+"' dist/index.html | grep -v '="/assets/' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::dist/index.html references non-root paths — the build used a base path other than '/':"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK: assets are referenced from the domain root."
+          grep -Eo '(src|href)="/assets/[^"]+"' dist/index.html
+          # Every referenced bundle must actually exist in the output, or Pages will
+          # serve a 200 index.html whose scripts all 404 (the blank-page signature).
+          missing=0
+          while read -r ref; do
+            [ -n "$ref" ] || continue
+            if [ ! -f "dist${ref}" ]; then
+              echo "::error::index.html references ${ref} but dist${ref} does not exist."
+              missing=1
+            fi
+          done < <(grep -Eo '(src|href)="/assets/[^"]+"' dist/index.html | sed -E 's/.*="([^"]+)"/\1/')
+          [ "$missing" -eq 0 ] || exit 1
+          echo "OK: every referenced bundle exists in dist/."
+        shell: bash
 
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
@@ -275,4 +311,37 @@ jobs:
           git commit -q -m "sandbox build from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
           git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$TARGET_BRANCH"
           echo "### Sandbox published" >> "$GITHUB_STEP_SUMMARY"
+
+      # The gh-pages branch holds ONLY the compiled site, which is why the sandbox repo
+      # looks empty when browsed. Mirror the full application source (src/, public/,
+      # supabase/, config, workflows) onto the sandbox repo's default branch so it is a
+      # complete clone of this repository, not just a build artifact.
+      - name: Mirror application source to the sandbox repository
+        if: ${{ inputs.deploy_pages }}
+        env:
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-website-sandbox' }}
+          SOURCE_BRANCH: ${{ vars.SANDBOX_SOURCE_BRANCH || 'main' }}
+          PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET_REPO" = "$GITHUB_REPOSITORY" ]; then
+            echo "::error::SANDBOX_PAGES_REPO points at this repository."
+            exit 1
+          fi
+          mirror=$(mktemp -d)
+          # Copy the checked-out working tree, minus git metadata and build output.
+          rsync -a --exclude='.git' --exclude='.git/**' --exclude='node_modules' \
+                   --exclude='dist' --exclude='.github/workflows' ./ "$mirror/"
+          # public/CNAME would make this branch claim production's domain if Pages were
+          # ever pointed at it; the sandbox domain is written into the build instead.
+          rm -f "$mirror/public/CNAME"
+          cd "$mirror"
+          git init -q
+          git checkout -q -B "$SOURCE_BRANCH"
+          git config user.name  "bbqs-sandbox-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -q -m "source mirror from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$SOURCE_BRANCH"
+          echo "Mirrored source to \`${TARGET_REPO}\` (branch \`${SOURCE_BRANCH}\`)." >> "$GITHUB_STEP_SUMMARY"
           echo "Pushed to \`${TARGET_REPO}\` (branch \`${TARGET_BRANCH}\`) — served at that repo's own Pages URL." >> "$GITHUB_STEP_SUMMARY"
