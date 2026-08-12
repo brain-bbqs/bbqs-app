@@ -62,7 +62,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
-    "js-yaml": "^5.2.3",
+    "js-yaml": "4.1.0",
     "lucide-react": "^0.462.0",
     "mcp-lite": "^0.10.0",
     "next-themes": "^0.3.0",
