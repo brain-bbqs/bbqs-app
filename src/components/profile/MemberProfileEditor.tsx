@@ -102,10 +102,8 @@ export function MemberProfileEditor({ embedded = false }: { embedded?: boolean }
     }
   };
 
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-lg">Edit my profile</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
+  const body = (
+    <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><Label htmlFor="mp-inst">Institution</Label><Input id="mp-inst" value={institution} onChange={(e) => setInstitution(e.target.value)} /></div>
           <div><Label htmlFor="mp-orcid">ORCID</Label><Input id="mp-orcid" value={orcid} onChange={(e) => setOrcid(e.target.value)} placeholder="0000-0000-0000-0000" /></div>
@@ -137,7 +135,15 @@ export function MemberProfileEditor({ embedded = false }: { embedded?: boolean }
         <div className="flex justify-end">
           <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}</Button>
         </div>
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-lg">Edit my profile</CardTitle></CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }
