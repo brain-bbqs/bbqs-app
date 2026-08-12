@@ -260,6 +260,19 @@ jobs:
           fi
           echo "OK: assets are referenced from the domain root."
           grep -Eo '(src|href)="/assets/[^"]+"' dist/index.html
+          # Every referenced bundle must actually exist in the output, or Pages will
+          # serve a 200 index.html whose scripts all 404 (the blank-page signature).
+          missing=0
+          while read -r ref; do
+            [ -n "$ref" ] || continue
+            if [ ! -f "dist${ref}" ]; then
+              echo "::error::index.html references ${ref} but dist${ref} does not exist."
+              missing=1
+            fi
+          done < <(grep -Eo '(src|href)="/assets/[^"]+"' dist/index.html | sed -E 's/.*="([^"]+)"/\1/')
+          [ "$missing" -eq 0 ] || exit 1
+          echo "OK: every referenced bundle exists in dist/."
+        shell: bash
 
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
