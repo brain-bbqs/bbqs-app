@@ -52,8 +52,8 @@ export interface NavGroup {
 const mainItems: NavItem[] = [
   { title: "Home", url: "/", icon: Home },
   { title: "About", url: "/about", icon: Info },
-  { title: "My Dashboard", url: "/dashboard", icon: LayoutDashboard, authRequired: true },
   { title: "Settings", url: "/settings", icon: Settings, authRequired: true },
+  { title: "My Dashboard", url: "/dashboard", icon: LayoutDashboard, authRequired: true },
   { title: "BBQS Agent", url: "https://agent.brain-bbqs.org", icon: Bot, external: true },
 ];
 
