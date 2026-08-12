@@ -247,6 +247,20 @@ jobs:
           # domain (both repos cannot own it), so overwrite with the sandbox domain.
           printf '%s\n' "$SANDBOX_DOMAIN" > dist/CNAME
 
+      # Fails loudly instead of shipping a blank page: if index.html asks for assets
+      # under any prefix other than /assets, the base path leaked in from somewhere.
+      - name: Verify asset base path is the domain root
+        run: |
+          set -euo pipefail
+          bad=$(grep -Eo '(src|href)="/[^"]+"' dist/index.html | grep -v '="/assets/' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::dist/index.html references non-root paths — the build used a base path other than '/':"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK: assets are referenced from the domain root."
+          grep -Eo '(src|href)="/assets/[^"]+"' dist/index.html
+
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
         with:
