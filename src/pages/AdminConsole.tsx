@@ -6,6 +6,7 @@ import { ShieldCheck, UserPlus, AlertTriangle, FolderPlus, Wallet, Newspaper, La
 import AdminUsers from "./AdminUsers";
 import AdminAccessRequests from "./AdminAccessRequests";
 import { OnboardingPipelinePanel } from "@/components/admin/OnboardingPipelinePanel";
+import { SlackBacklogPanel } from "@/components/admin/SlackBacklogPanel";
 import { WorkingGroupRequestsPanel } from "@/components/admin/WorkingGroupRequestsPanel";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
 import { BudgetsPanel } from "@/components/admin/BudgetsPanel";
@@ -95,6 +96,7 @@ export default function AdminConsole() {
         </TabsContent>
 
         <TabsContent value="onboarding" className="mt-0">
+          <div className="mb-4"><SlackBacklogPanel /></div>
           <WorkingGroupRequestsPanel />
           <OnboardingPipelinePanel embedded />
         </TabsContent>
