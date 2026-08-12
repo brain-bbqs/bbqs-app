@@ -44,6 +44,28 @@ export function SlackBacklogPanel() {
     refetchInterval: 120_000,
   });
 
+  // What the KG expects per channel — computed from the database alone, so it renders before any
+  // survey and without a Slack token. Without this the panel is blank until someone guesses that a
+  // button must be pressed, which is exactly the wrong first impression for a status panel.
+  const { data: expected = [] } = useQuery({
+    queryKey: ["slack-expected"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slack_channel_expected")
+        .select("channel_id, channel_name, email, name");
+      if (error) throw error;
+      return (data ?? []) as Array<{ channel_id: string; channel_name: string; email: string; name: string | null }>;
+    },
+  });
+
+  const expectedByChannel = expected.reduce<Record<string, { channel_name: string; people: Array<{ email: string; name: string | null }> }>>(
+    (acc, r) => {
+      (acc[r.channel_id] ??= { channel_name: r.channel_name, people: [] }).people.push({ email: r.email, name: r.name });
+      return acc;
+    },
+    {},
+  );
+
   const runSurvey = async () => {
     setSurveying(true);
     try {
@@ -116,10 +138,39 @@ export function SlackBacklogPanel() {
         {isLoading ? (
           <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
         ) : backlog.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nothing waiting. Note that an empty list also means "not surveyed yet" if you have never run
-            a survey — the backlog is only populated by one.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {lastSurveyed
+                ? "Every channel matches the knowledge graph — nothing waiting."
+                : "No survey has run yet, so nothing is known about live Slack membership. Press "
+                  + "“Survey now” to compute who is missing from each channel."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Meanwhile, this is who the knowledge graph says belongs in each channel — expand a channel
+              to see the names and addresses. A survey narrows these to just the people Slack is missing.
+            </p>
+            <div className="space-y-1.5">
+              {Object.entries(expectedByChannel)
+                .sort((a, b) => b[1].people.length - a[1].people.length)
+                .map(([id, c]) => (
+                  <details key={id} className="rounded-md border border-border p-2">
+                    <summary className="cursor-pointer font-mono text-xs text-foreground">
+                      {c.channel_name}
+                      <span className="ml-2 font-sans text-muted-foreground">{c.people.length} expected</span>
+                    </summary>
+                    <div className="mt-1.5 space-y-0.5 max-h-56 overflow-y-auto">
+                      {c.people
+                        .sort((x, y) => (x.name ?? x.email).localeCompare(y.name ?? y.email))
+                        .map((p) => (
+                          <div key={p.email} className="text-[11px] text-muted-foreground">
+                            {p.name ?? "(no name)"} — <span className="break-all">{p.email}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </details>
+                ))}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
