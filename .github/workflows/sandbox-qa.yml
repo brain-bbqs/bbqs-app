@@ -170,13 +170,20 @@ jobs:
         with:
           version: latest
 
-      - name: Install postgres client 15
+      # Supabase now runs Postgres 17; pg_dump refuses to dump a newer server, so the
+      # client major version must be >= the server's.
+      - name: Install postgres client 17
         run: |
           sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
           sudo sed -i 's|deb |deb [signed-by=/usr/share/keyrings/pgdg.gpg] |' /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-15
+          sudo apt-get install -y -qq postgresql-client-17
+          # Ubuntu runners ship an older client first on PATH; pin 17 for this job.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Show client version
+        run: pg_dump --version
 
       # The repo's migration chain is NOT self-contained (the oldest migrations assume
       # tables created in Lovable before history was recorded), so `supabase db push`
