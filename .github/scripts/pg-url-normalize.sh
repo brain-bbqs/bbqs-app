@@ -69,7 +69,7 @@ def emit(safe, host, note=''):
 if not raw:
     built = pooler_uri()
     if built:
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(f"::error::{var_name} is empty", file=sys.stderr)
     sys.exit(1)
@@ -86,7 +86,7 @@ if any(char in url for char in ('\n', '\r', '\t', ' ')):
     built = pooler_uri()
     if built:
         print(f"::warning::{var_name} contains whitespace; using the assembled Session pooler URI instead.")
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(
         f"::error::{var_name} contains whitespace inside the database URI. "
@@ -107,7 +107,7 @@ if not m:
             f"::warning::{var_name} is not a valid PostgreSQL URI ({shape(url)}); "
             "falling back to the Session pooler URI assembled from the project ref and password."
         )
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     hint = ""
     if not url.startswith(("postgres://", "postgresql://")):
@@ -135,7 +135,7 @@ if host.startswith('db.') and host.endswith('.supabase.co'):
     built = pooler_uri()
     if built:
         print(f"::warning::{var_name} uses the IPv6-only direct host; using the assembled Session pooler URI instead.")
-        emit(built, f"aws-0-{fb_region}.pooler.supabase.com",
+        emit(built, fb_host,
              " [assembled from project ref + password]")
     print(
         f"::error::{var_name} uses Supabase's IPv6-only direct host ({host}). "
