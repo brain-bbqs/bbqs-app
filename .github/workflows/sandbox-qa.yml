@@ -33,6 +33,14 @@ on:
         description: 'Publish the build to the sandbox repository (its own Pages site)'
         type: boolean
         default: true
+      run_smoke:
+        description: 'Run the generic Playwright smoke QA against the sandbox (step 5)'
+        type: boolean
+        default: true
+      smoke_soft_fail:
+        description: 'Report smoke QA results without failing the run'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -352,3 +360,88 @@ jobs:
           git commit -q -m "source mirror from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
           git push -q --force "https://x-access-token:${PAT}@github.com/${TARGET_REPO}.git" "$SOURCE_BRANCH"
           echo "Mirrored source to \`${TARGET_REPO}\` (branch \`${SOURCE_BRANCH}\`)." >> "$GITHUB_STEP_SUMMARY"
+
+  # 5 ── Generic smoke QA against the freshly deployed sandbox. Deliberately dumb:
+  #      pages render, tables have rows, edge functions answer. No business logic.
+  smoke:
+    name: 5. Sandbox smoke QA
+    needs: build-deploy
+    if: ${{ inputs.run_smoke }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npx playwright install --with-deps chromium
+
+      # A deploy_pages run tests the live sandbox site; a build-only run serves the
+      # artifact locally so the suite still means something.
+      - name: Download build artifact
+        if: ${{ !inputs.deploy_pages }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sandbox-dist
+          path: dist
+
+      - name: Serve build locally
+        if: ${{ !inputs.deploy_pages }}
+        run: |
+          npx --yes serve -s dist -l 4173 > /tmp/serve.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:4173/ && break; sleep 1; done
+          echo "BASE_URL=http://localhost:4173" >> "$GITHUB_ENV"
+
+      # Never grade a stale deploy: wait until Pages serves the hash we just built.
+      - name: Wait for the sandbox site to serve this build
+        if: ${{ inputs.deploy_pages }}
+        env:
+          SITE: https://${{ vars.SANDBOX_DOMAIN || 'sandbox.brain-bbqs.org' }}
+        run: |
+          set -uo pipefail
+          echo "BASE_URL=$SITE" >> "$GITHUB_ENV"
+          for i in $(seq 1 36); do
+            body=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/" || true)
+            asset=$(printf '%s' "$body" | grep -Eo 'src="/assets/[^"]+\.js"' | head -1 | sed -E 's/.*="([^"]+)"/\1/')
+            if [ -n "$asset" ] && curl -fsS -o /dev/null "$SITE$asset"; then
+              echo "Live build serving $asset"; exit 0
+            fi
+            echo "Waiting for Pages... ($i)"; sleep 5
+          done
+          echo "::error::Sandbox site never served a working build at $SITE"
+          exit 1
+
+      - name: Run smoke suite
+        id: smoke
+        continue-on-error: ${{ inputs.smoke_soft_fail }}
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+        run: npx playwright test --reporter=list,html,github
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Sandbox smoke QA"
+            echo ''
+            echo "Target: \`${BASE_URL:-unknown}\`"
+            echo ''
+            echo "Result: ${{ steps.smoke.outcome }}"
+            echo ''
+            echo "Full report is attached as the \`playwright-report\` artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
