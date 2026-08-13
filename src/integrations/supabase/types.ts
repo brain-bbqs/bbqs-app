@@ -1372,6 +1372,13 @@ export type Database = {
             foreignKeyName: "grant_investigators_investigator_id_fkey"
             columns: ["investigator_id"]
             isOneToOne: false
+            referencedRelation: "onboarding_completed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grant_investigators_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
             referencedRelation: "onboarding_pipeline"
             referencedColumns: ["id"]
           },
@@ -1937,6 +1944,13 @@ export type Database = {
             foreignKeyName: "investigator_organizations_investigator_id_fkey"
             columns: ["investigator_id"]
             isOneToOne: false
+            referencedRelation: "onboarding_completed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investigator_organizations_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
             referencedRelation: "onboarding_pipeline"
             referencedColumns: ["id"]
           },
@@ -2419,6 +2433,13 @@ export type Database = {
             columns: ["investigator_id"]
             isOneToOne: true
             referencedRelation: "investigators_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personality_scores_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: true
+            referencedRelation: "onboarding_completed"
             referencedColumns: ["id"]
           },
           {
@@ -3270,6 +3291,13 @@ export type Database = {
             foreignKeyName: "grant_investigators_investigator_id_fkey"
             columns: ["investigator_id"]
             isOneToOne: false
+            referencedRelation: "onboarding_completed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grant_investigators_investigator_id_fkey"
+            columns: ["investigator_id"]
+            isOneToOne: false
             referencedRelation: "onboarding_pipeline"
             referencedColumns: ["id"]
           },
@@ -3401,6 +3429,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      onboarding_completed: {
+        Row: {
+          checklist: Json | null
+          completed_at: string | null
+          created_at: string | null
+          days_to_complete: number | null
+          email: string | null
+          id: string | null
+          live_grant_count: number | null
+          name: string | null
+          role: string | null
+          skipped_steps: string[] | null
+          started_at: string | null
+          steps_done: number | null
+          steps_total: number | null
+          working_groups: string[] | null
+        }
+        Insert: {
+          checklist?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          days_to_complete?: never
+          email?: string | null
+          id?: string | null
+          live_grant_count?: never
+          name?: string | null
+          role?: string | null
+          skipped_steps?: never
+          started_at?: never
+          steps_done?: never
+          steps_total?: never
+          working_groups?: string[] | null
+        }
+        Update: {
+          checklist?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          days_to_complete?: never
+          email?: string | null
+          id?: string | null
+          live_grant_count?: never
+          name?: string | null
+          role?: string | null
+          skipped_steps?: never
+          started_at?: never
+          steps_done?: never
+          steps_total?: never
+          working_groups?: string[] | null
+        }
+        Relationships: []
       }
       onboarding_pipeline: {
         Row: {
@@ -3685,6 +3764,7 @@ export type Database = {
         }
         Returns: Json
       }
+      onboarding_required_open: { Args: { _checklist: Json }; Returns: number }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
       questionnaire_fields: { Args: never; Returns: string[] }
       questionnaire_form_url: { Args: never; Returns: string }
