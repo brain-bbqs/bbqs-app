@@ -2,17 +2,6 @@
 
 The **BBQS** program is an NIH-funded basic research initiative to develop new tools and approaches for a more comprehensive, mechanistic understanding of the neural basis of behavior. This repository powers the [BBQS consortium website](https://brain-bbqs.org), serving as the central hub for the community.
 
-## Status
-
-| | Pipeline | Status |
-|---|---|---|
-| ✅ | Sandbox QA | [![Sandbox QA](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml) |
-| ✅ | Backup | [![Database Backup](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml) |
-| ✅ | Guards | [![Guards](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml) |
-| ✅ | Deploy | [![Deploy](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml) |
-
-Green badge = live, red = dead.
-
 ## About the Program
 
 BBQS brings together a cross-disciplinary consortium of researchers to:
@@ -20,6 +9,17 @@ BBQS brings together a cross-disciplinary consortium of researchers to:
 - **Measure behavior** — Develop tools for simultaneous, multimodal measurement of behavior within complex, dynamic physical and social environments, synchronized with neural recordings.
 - **Model brain-behavior relationships** — Create novel computational models that capture dynamic behavior-environment relationships across multiple timescales, integrated with correlated neural activity.
 - **Share data and tools** — Establish shared data archives (EMBER), ontologies, standards, and ethical frameworks that transform how mechanistic brain-behavioral research is conducted.
+
+## Status
+
+| | Pipeline | What it does | Status |
+|:---:|---|---|:---|
+| ✅ | Sandbox QA | Clones prod into the sandbox project, deploys the sandbox site, runs smoke tests | [![Sandbox QA](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml) |
+| ✅ | Backup | Nightly `pg_dump` of the production database to a retained artifact | [![Database Backup](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml) |
+| ✅ | Guards | Cross-layer invariant tests on every PR (CORS parity, roles, schema) | [![Guards](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml) |
+| ✅ | Deploy | Builds and publishes the production site to GitHub Pages | [![Deploy](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml) |
+
+Green badge = live, red = dead.
 
 ## What This Site Provides
 
