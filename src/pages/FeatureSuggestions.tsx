@@ -18,6 +18,7 @@ import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "@/styles/ag-grid-theme.css";
+import { PipelineBar } from "@/components/suggestions/PipelineBar";
 
 interface Suggestion {
   id: string;
