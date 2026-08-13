@@ -10,14 +10,15 @@ test.describe("tables load with data", () => {
   test.describe.configure({ mode: "serial" });
   test.skip(!SUPABASE_URL || !ANON_KEY, "SUPABASE_URL / SUPABASE_ANON_KEY not set");
 
-  // One clear failure instead of ten identical ones when the key is wrong.
-  test("anon key is accepted by the sandbox REST API", async ({ request }) => {
-    const res = await request.get(`${SUPABASE_URL}/rest/v1/`, {
+  // Use Auth settings for key validation. Supabase now restricts the bare
+  // /rest/v1/ schema endpoint to service_role even when the anon key is valid.
+  test("anon key is accepted by the sandbox API", async ({ request }) => {
+    const res = await request.get(`${SUPABASE_URL}/auth/v1/settings`, {
       headers: AUTH_HEADERS,
     });
     expect(
       res.status(),
-      `REST root -> ${res.status()}. 401 means SANDBOX_SUPABASE_ANON_KEY does not belong to ${SUPABASE_URL}; use that sandbox project's publishable key.`
+      `Auth settings -> ${res.status()}. 401 means the API key does not belong to ${SUPABASE_URL}.`
     ).toBeLessThan(400);
   });
 
