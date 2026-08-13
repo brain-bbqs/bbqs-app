@@ -1112,11 +1112,14 @@ export type Database = {
           description: string | null
           github_issue_number: number | null
           github_issue_url: string | null
+          github_username: string | null
           id: string
           organization_id: string | null
+          qa_status: string
           status: string
           submitted_by: string | null
           submitter_name: string | null
+          target_version: string | null
           title: string
           updated_at: string
           votes: number
@@ -1126,11 +1129,14 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string
           organization_id?: string | null
+          qa_status?: string
           status?: string
           submitted_by?: string | null
           submitter_name?: string | null
+          target_version?: string | null
           title: string
           updated_at?: string
           votes?: number
@@ -1140,11 +1146,14 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string
           organization_id?: string | null
+          qa_status?: string
           status?: string
           submitted_by?: string | null
           submitter_name?: string | null
+          target_version?: string | null
           title?: string
           updated_at?: string
           votes?: number
@@ -3217,8 +3226,11 @@ export type Database = {
           description: string | null
           github_issue_number: number | null
           github_issue_url: string | null
+          github_username: string | null
           id: string | null
+          qa_status: string | null
           status: string | null
+          target_version: string | null
           title: string | null
           updated_at: string | null
           votes: number | null
@@ -3228,8 +3240,11 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string | null
+          qa_status?: string | null
           status?: string | null
+          target_version?: string | null
           title?: string | null
           updated_at?: string | null
           votes?: number | null
@@ -3239,8 +3254,11 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string | null
+          qa_status?: string | null
           status?: string | null
+          target_version?: string | null
           title?: string | null
           updated_at?: string | null
           votes?: number | null
