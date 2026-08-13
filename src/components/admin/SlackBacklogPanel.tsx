@@ -111,7 +111,8 @@ export function SlackBacklogPanel() {
   };
 
   const totalWaiting = backlog.reduce((a, r) => a + r.waiting, 0);
-  const lastSurveyed = backlog.map((r) => r.last_surveyed).filter(Boolean).sort().at(-1);
+  const surveyedDates = backlog.map((r) => r.last_surveyed).filter(Boolean).sort();
+  const lastSurveyed = surveyedDates[surveyedDates.length - 1];
 
   return (
     <Card>
