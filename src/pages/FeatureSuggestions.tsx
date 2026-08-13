@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUserTier } from "@/hooks/useUserTier";
 import { toast } from "sonner";
-import { Lightbulb, Star, Loader2, Send } from "lucide-react";
+import { Lightbulb, Star, Loader2, Send, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { AgGridReact } from "ag-grid-react";
@@ -26,7 +28,21 @@ interface Suggestion {
   status: string;
   votes: number;
   created_at: string;
+  github_username: string | null;
+  qa_status: string | null;
+  target_version: string | null;
 }
+
+const QA_STAGES = ["submitted", "triage", "in-qa", "approved", "merged", "declined"] as const;
+
+const QA_VARIANT: Record<string, "secondary" | "outline" | "default" | "destructive"> = {
+  submitted: "secondary",
+  triage: "secondary",
+  "in-qa": "outline",
+  approved: "default",
+  merged: "default",
+  declined: "destructive",
+};
 
 interface Vote {
   suggestion_id: string;
@@ -34,9 +50,13 @@ interface Vote {
 
 export default function FeatureSuggestions() {
   const { user } = useAuth();
+  const { isCurator } = useUserTier();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [githubUsername, setGithubUsername] = useState("");
+  const [search, setSearch] = useState("");
+  const [qaFilter, setQaFilter] = useState<string>("all");
 
   const { data: suggestions = [], isLoading } = useQuery<Suggestion[]>({
     queryKey: ["feature-suggestions"],
