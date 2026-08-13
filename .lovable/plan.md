@@ -47,7 +47,10 @@ Playwright was removed earlier; this re-adds `@playwright/test` as a devDependen
 
 ## How it runs in the workflow
 
-New job **`5. Sandbox smoke QA`**, `needs: build-deploy`, in `.github/workflows/sandbox-qa.yml`:
+No new workflow file. This is a fifth job **inside** the existing
+`.github/workflows/sandbox-qa.yml`, named **`5. Sandbox smoke QA`**, with
+`needs: build-deploy` so it runs immediately after "4. Build + publish to sandbox repo"
+and appears as step 5 in the same run:
 
 1. Checkout, `npm install`, `npx playwright install --with-deps chromium`.
 2. `BASE_URL` = `https://sandbox.brain-bbqs.org` when `deploy_pages` was true; otherwise it
