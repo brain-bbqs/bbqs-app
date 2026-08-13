@@ -73,7 +73,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.114.0
 
       - name: Compare repo migrations against production
         id: drift
@@ -168,7 +168,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.114.0
 
       # Supabase now runs Postgres 17; pg_dump refuses to dump a newer server, so the
       # client major version must be >= the server's.
