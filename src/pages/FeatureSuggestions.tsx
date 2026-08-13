@@ -219,6 +219,42 @@ export default function FeatureSuggestions() {
       ),
     },
     {
+      headerName: "QA stage",
+      field: "qa_status",
+      width: 130,
+      sortable: true,
+      unSortIcon: true,
+      editable: isCurator,
+      cellEditor: "agSelectCellEditor",
+      cellEditorParams: { values: QA_STAGES },
+      cellRenderer: (params: ICellRendererParams) => {
+        const v = (params.value as string) || "submitted";
+        return <Badge variant={QA_VARIANT[v] || "outline"} className="text-[10px]">{v}</Badge>;
+      },
+    },
+    {
+      headerName: "Version",
+      field: "target_version",
+      width: 110,
+      sortable: true,
+      unSortIcon: true,
+      editable: isCurator,
+      valueFormatter: (p) => p.value || "—",
+    },
+    {
+      headerName: "GitHub ID",
+      field: "github_username",
+      width: 130,
+      sortable: true,
+      unSortIcon: true,
+      cellRenderer: (params: ICellRendererParams) =>
+        params.value ? (
+          <a href={`https://github.com/${params.value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            @{params.value}
+          </a>
+        ) : null,
+    },
+    {
       headerName: "Submitted",
       field: "created_at",
       width: 130,
@@ -254,7 +290,7 @@ export default function FeatureSuggestions() {
         );
       },
     },
-  ], [VoteCellRenderer]);
+  ], [VoteCellRenderer, isCurator]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -298,6 +334,16 @@ export default function FeatureSuggestions() {
                   rows={4}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="suggestion-gh">Your GitHub ID (optional)</Label>
+                <Input
+                  id="suggestion-gh"
+                  placeholder="e.g. octocat"
+                  value={githubUsername}
+                  onChange={(e) => setGithubUsername(e.target.value)}
+                  maxLength={64}
+                />
+              </div>
               <Button type="submit" disabled={submitMutation.isPending}>
                 {submitMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -314,6 +360,27 @@ export default function FeatureSuggestions() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">All Suggestions</CardTitle>
+          <div className="flex flex-wrap items-center gap-2 pt-3">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Search suggestions, GitHub ID, issue #, version..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={qaFilter} onValueChange={setQaFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="QA stage" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All QA stages</SelectItem>
+                {QA_STAGES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -324,13 +391,22 @@ export default function FeatureSuggestions() {
             <div className="ag-grid-mobile-wrapper">
             <div className="ag-theme-custom">
               <AgGridReact
-                rowData={suggestions}
+                rowData={filtered}
                 columnDefs={colDefs}
                 domLayout="autoHeight"
                 suppressCellFocus={true}
                 pagination={true}
                 paginationPageSize={25}
                 defaultColDef={{ resizable: true, sortable: true, unSortIcon: true }}
+                onCellValueChanged={(e) => {
+                  const field = e.colDef.field;
+                  if (!field || !isCurator) return;
+                  if (field !== "qa_status" && field !== "target_version") return;
+                  trackingMutation.mutate({
+                    id: (e.data as Suggestion).id,
+                    patch: { [field]: (e.newValue as string)?.trim() || null },
+                  });
+                }}
               />
             </div>
             </div>
