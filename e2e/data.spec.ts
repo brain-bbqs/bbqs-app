@@ -7,6 +7,7 @@ const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
 const AUTH_HEADERS = supabaseAnonymousHeaders(ANON_KEY);
 
 test.describe("tables load with data", () => {
+  test.describe.configure({ mode: "serial" });
   test.skip(!SUPABASE_URL || !ANON_KEY, "SUPABASE_URL / SUPABASE_ANON_KEY not set");
 
   // One clear failure instead of ten identical ones when the key is wrong.
@@ -33,7 +34,7 @@ test.describe("tables load with data", () => {
       );
       expect(
         res.status(),
-        `${table} REST status -> ${res.status()}${res.status() === 401 ? " (bad/expired sandbox anon key)" : ""}`
+        `${table} REST status -> ${res.status()}${res.status() === 401 ? " (API key was rejected or does not belong to this sandbox project)" : ""}`
       ).toBeLessThan(400);
       const range = res.headers()["content-range"] ?? "";
       const total = Number(range.split("/")[1] ?? "0");
