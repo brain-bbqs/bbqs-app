@@ -232,12 +232,18 @@ jobs:
       # No package-lock.json in this repo (bun.lock is the committed lockfile), so `npm ci` cannot run.
       - run: npm install
 
+      - name: Resolve + verify sandbox API key
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SANDBOX_PROJECT_REF: ${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}
+          SANDBOX_API_KEY_FALLBACK: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+        run: bash .github/scripts/resolve-sandbox-api-key.sh
+
       - name: Build
-        run: npm run build
+        run: VITE_SUPABASE_PUBLISHABLE_KEY="$SANDBOX_API_KEY" npm run build
         env:
           NODE_ENV: production
-          VITE_SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ env.SANDBOX_SUPABASE_URL }}
           VITE_AUTH_COOKIE_DOMAIN: ''
           # This deployment is served from sandbox.brain-bbqs.org at the domain root.
           # Do not inherit a stale repository base-path variable: that makes index.html
@@ -379,6 +385,13 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
+      - name: Resolve + verify sandbox API key
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SANDBOX_PROJECT_REF: ${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}
+          SANDBOX_API_KEY_FALLBACK: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
+        run: bash .github/scripts/resolve-sandbox-api-key.sh
+
       # Edge functions live outside the database clone, so they must be pushed to
       # the sandbox project explicitly. Without a token we skip and the function
       # probes skip with us instead of reporting 404 for everything.
@@ -442,10 +455,8 @@ jobs:
         continue-on-error: ${{ inputs.smoke_soft_fail }}
         env:
           BASE_URL: ${{ env.BASE_URL }}
-          SUPABASE_URL: https://${{ vars.SANDBOX_PROJECT_REF || 'vzfsndsqveacpefoqwsu' }}.supabase.co
-          SUPABASE_ANON_KEY: ${{ secrets.SANDBOX_SUPABASE_ANON_KEY }}
           EDGE_FUNCTIONS_DEPLOYED: ${{ steps.edgefn.outputs.deployed }}
-        run: npx playwright test --reporter=list,html,github
+        run: SUPABASE_URL="$SANDBOX_SUPABASE_URL" SUPABASE_ANON_KEY="$SANDBOX_API_KEY" npx playwright test --reporter=list,html,github
 
       - name: Summary
         if: always()

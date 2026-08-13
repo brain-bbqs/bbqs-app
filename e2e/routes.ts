@@ -7,11 +7,7 @@ export const PUBLIC_ROUTES = [
   "/projects",
   "/sfn-2025",
   "/mit-workshop-2026",
-  "/mit-workshop-2026/travel",
   "/mit-workshop-2026/participants",
-  "/mit-workshop-2026/speakers",
-  "/mit-workshop-2026/menu",
-  "/mit-workshop-2026/seating",
   "/mit-workshop-2026/posters",
   "/working-groups",
   "/resources",
@@ -39,7 +35,16 @@ export const PUBLIC_ROUTES = [
 ];
 
 // Signed-out visits must redirect to /auth, not crash.
-export const AUTH_ROUTES = ["/dashboard", "/settings", "/profile", "/admin"];
+export const AUTH_ROUTES = [
+  "/dashboard",
+  "/settings",
+  "/profile",
+  "/admin",
+  "/mit-workshop-2026/travel",
+  "/mit-workshop-2026/speakers",
+  "/mit-workshop-2026/menu",
+  "/mit-workshop-2026/seating",
+];
 
 // Tables the site cannot work without. Cloned data means every one has rows.
 export const CORE_TABLES = [
