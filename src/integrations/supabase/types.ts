@@ -3230,6 +3230,7 @@ export type Database = {
           id: string | null
           qa_status: string | null
           status: string | null
+          submitter_name: string | null
           target_version: string | null
           title: string | null
           updated_at: string | null
@@ -3244,6 +3245,7 @@ export type Database = {
           id?: string | null
           qa_status?: string | null
           status?: string | null
+          submitter_name?: string | null
           target_version?: string | null
           title?: string | null
           updated_at?: string | null
@@ -3258,6 +3260,7 @@ export type Database = {
           id?: string | null
           qa_status?: string | null
           status?: string | null
+          submitter_name?: string | null
           target_version?: string | null
           title?: string | null
           updated_at?: string | null
