@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { CORE_TABLES } from "./routes";
+import { supabaseAnonymousHeaders } from "./supabase-headers";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
+const AUTH_HEADERS = supabaseAnonymousHeaders(ANON_KEY);
 
 test.describe("tables load with data", () => {
   test.skip(!SUPABASE_URL || !ANON_KEY, "SUPABASE_URL / SUPABASE_ANON_KEY not set");
@@ -10,11 +12,11 @@ test.describe("tables load with data", () => {
   // One clear failure instead of ten identical ones when the key is wrong.
   test("anon key is accepted by the sandbox REST API", async ({ request }) => {
     const res = await request.get(`${SUPABASE_URL}/rest/v1/`, {
-      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+      headers: AUTH_HEADERS,
     });
     expect(
       res.status(),
-      `REST root -> ${res.status()}. 401 means SANDBOX_SUPABASE_ANON_KEY does not belong to ${SUPABASE_URL} (or legacy JWT keys are disabled — use the publishable key).`
+      `REST root -> ${res.status()}. 401 means SANDBOX_SUPABASE_ANON_KEY does not belong to ${SUPABASE_URL}; use that sandbox project's publishable key.`
     ).toBeLessThan(400);
   });
 
@@ -24,8 +26,7 @@ test.describe("tables load with data", () => {
         `${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1`,
         {
           headers: {
-            apikey: ANON_KEY,
-            Authorization: `Bearer ${ANON_KEY}`,
+            ...AUTH_HEADERS,
             Prefer: "count=exact",
           },
         }
