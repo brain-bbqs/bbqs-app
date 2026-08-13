@@ -28,11 +28,11 @@ if [ -z "$key" ]; then
 fi
 
 echo "::add-mask::$key"
-status=$(curl -sS -o /tmp/sandbox-rest-root.json -w '%{http_code}' \
+status=$(curl -sS -o /tmp/sandbox-auth-settings.json -w '%{http_code}' \
   -H "apikey: ${key}" \
-  "${project_url}/rest/v1/")
+  "${project_url}/auth/v1/settings")
 if [ "$status" -ge 400 ]; then
-  echo "::error::The resolved API key was rejected by sandbox project ${project_ref} (REST status ${status})."
+  echo "::error::The resolved API key was rejected by sandbox project ${project_ref} (Auth settings status ${status})."
   exit 1
 fi
 
