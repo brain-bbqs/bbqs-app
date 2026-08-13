@@ -240,10 +240,9 @@ jobs:
         run: bash .github/scripts/resolve-sandbox-api-key.sh
 
       - name: Build
-        run: VITE_SUPABASE_PUBLISHABLE_KEY="$SANDBOX_API_KEY" npm run build
+        run: VITE_SUPABASE_URL="$SANDBOX_SUPABASE_URL" VITE_SUPABASE_PUBLISHABLE_KEY="$SANDBOX_API_KEY" npm run build
         env:
           NODE_ENV: production
-          VITE_SUPABASE_URL: ${{ env.SANDBOX_SUPABASE_URL }}
           VITE_AUTH_COOKIE_DOMAIN: ''
           # This deployment is served from sandbox.brain-bbqs.org at the domain root.
           # Do not inherit a stale repository base-path variable: that makes index.html
