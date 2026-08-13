@@ -16,10 +16,23 @@ for (const route of PUBLIC_ROUTES) {
     });
 
     const res = await page.goto(route, { waitUntil: "domcontentloaded" });
-    expect(res?.status(), `HTTP status for ${route}`).toBeLessThan(400);
+    const status = res?.status() ?? 0;
+    // GitHub Pages serves 404.html (HTTP 404) for SPA deep links; that page
+    // redirects to /?/<route> and React Router restores the URL. Only a status
+    // that is neither OK nor the Pages SPA fallback is a real failure.
+    if (status >= 400 && status !== 404) {
+      throw new Error(`HTTP status for ${route}: ${status}`);
+    }
+    if (status === 404) {
+      await page.waitForURL((u) => !u.pathname.endsWith("/404.html"), { timeout: 15_000 }).catch(() => {});
+    }
 
     // SPA shell mounted and produced visible content.
     await expect(page.locator("#root")).not.toBeEmpty();
+    // The SPA fallback must land back on the requested route, not the home page.
+    if (status === 404 && route !== "/") {
+      expect(new URL(page.url()).pathname, `SPA fallback restored URL for ${route}`).toBe(route);
+    }
     await page.waitForLoadState("networkidle").catch(() => {});
     const text = (await page.locator("body").innerText()).trim();
     expect(text.length, `visible text on ${route}`).toBeGreaterThan(40);

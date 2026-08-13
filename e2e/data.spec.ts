@@ -7,6 +7,17 @@ const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
 test.describe("tables load with data", () => {
   test.skip(!SUPABASE_URL || !ANON_KEY, "SUPABASE_URL / SUPABASE_ANON_KEY not set");
 
+  // One clear failure instead of ten identical ones when the key is wrong.
+  test("anon key is accepted by the sandbox REST API", async ({ request }) => {
+    const res = await request.get(`${SUPABASE_URL}/rest/v1/`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+    });
+    expect(
+      res.status(),
+      `REST root -> ${res.status()}. 401 means SANDBOX_SUPABASE_ANON_KEY does not belong to ${SUPABASE_URL} (or legacy JWT keys are disabled — use the publishable key).`
+    ).toBeLessThan(400);
+  });
+
   for (const table of CORE_TABLES) {
     test(`table has rows: ${table}`, async ({ request }) => {
       const res = await request.head(
@@ -19,7 +30,10 @@ test.describe("tables load with data", () => {
           },
         }
       );
-      expect(res.status(), `${table} REST status`).toBeLessThan(400);
+      expect(
+        res.status(),
+        `${table} REST status -> ${res.status()}${res.status() === 401 ? " (bad/expired sandbox anon key)" : ""}`
+      ).toBeLessThan(400);
       const range = res.headers()["content-range"] ?? "";
       const total = Number(range.split("/")[1] ?? "0");
       expect(total, `${table} row count (content-range: ${range})`).toBeGreaterThan(0);
