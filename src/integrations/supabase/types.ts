@@ -1049,6 +1049,13 @@ export type Database = {
             foreignKeyName: "edit_history_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "edit_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -1291,6 +1298,13 @@ export type Database = {
             referencedRelation: "grants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "grant_dandisets_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["grant_id"]
+          },
         ]
       }
       grant_investigators: {
@@ -1325,6 +1339,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "grants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grant_investigators_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["grant_id"]
           },
           {
             foreignKeyName: "grant_investigators_investigator_id_fkey"
@@ -2475,6 +2496,13 @@ export type Database = {
             foreignKeyName: "project_publications_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_publications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -2546,6 +2574,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "grants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_metadata_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["grant_id"]
           },
           {
             foreignKeyName: "projects_organization_id_fkey"
@@ -2771,6 +2806,108 @@ export type Database = {
           policy_snapshot?: Json
           scan_type?: string
           tables_scanned?: number
+        }
+        Relationships: []
+      }
+      slack_channel_members: {
+        Row: {
+          channel_id: string
+          email: string
+          observed_at: string
+        }
+        Insert: {
+          channel_id: string
+          email: string
+          observed_at?: string
+        }
+        Update: {
+          channel_id?: string
+          email?: string
+          observed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slack_channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channel_expected"
+            referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "slack_channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channels"
+            referencedColumns: ["channel_id"]
+          },
+        ]
+      }
+      slack_channel_pending: {
+        Row: {
+          channel_id: string
+          email: string
+          first_seen_at: string
+          last_seen_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          channel_id: string
+          email: string
+          first_seen_at?: string
+          last_seen_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          channel_id?: string
+          email?: string
+          first_seen_at?: string
+          last_seen_at?: string
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slack_channel_pending_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channel_expected"
+            referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "slack_channel_pending_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channels"
+            referencedColumns: ["channel_id"]
+          },
+        ]
+      }
+      slack_channels: {
+        Row: {
+          active: boolean
+          channel_id: string
+          channel_name: string
+          created_at: string
+          scope: string
+          updated_at: string
+          wg_token: string | null
+        }
+        Insert: {
+          active?: boolean
+          channel_id: string
+          channel_name: string
+          created_at?: string
+          scope: string
+          updated_at?: string
+          wg_token?: string | null
+        }
+        Update: {
+          active?: boolean
+          channel_id?: string
+          channel_name?: string
+          created_at?: string
+          scope?: string
+          updated_at?: string
+          wg_token?: string | null
         }
         Relationships: []
       }
@@ -3325,6 +3462,27 @@ export type Database = {
         }
         Relationships: []
       }
+      project_questionnaire_status: {
+        Row: {
+          fields_filled: number | null
+          fields_total: number | null
+          form_url: string | null
+          grant_id: string | null
+          grant_number: string | null
+          grant_title: string | null
+          missing_fields: string[] | null
+          owner_email: string | null
+          owner_name: string | null
+          pct: number | null
+          project_id: string | null
+          response_id: string | null
+          status: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+          submitter_standing: string | null
+        }
+        Relationships: []
+      }
       public_jobs: {
         Row: {
           application_url: string | null
@@ -3391,6 +3549,46 @@ export type Database = {
           },
         ]
       }
+      slack_channel_backlog: {
+        Row: {
+          channel_id: string | null
+          channel_name: string | null
+          emails: string[] | null
+          emails_to_paste: string | null
+          last_surveyed: string | null
+          oldest_pending: string | null
+          open_channel_url: string | null
+          waiting: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slack_channel_pending_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channel_expected"
+            referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "slack_channel_pending_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "slack_channels"
+            referencedColumns: ["channel_id"]
+          },
+        ]
+      }
+      slack_channel_expected: {
+        Row: {
+          channel_id: string | null
+          channel_name: string | null
+          email: string | null
+          name: string | null
+          role: string | null
+          scope: string | null
+          wg_token: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_get_last_logins: {
@@ -3452,6 +3650,7 @@ export type Database = {
       ir_is_authorized: { Args: never; Returns: boolean }
       ir_upsert_profiles: { Args: { _rows: Json }; Returns: number }
       is_curator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      jsonb_is_answered: { Args: { _v: Json }; Returns: boolean }
       kg_read_sql: { Args: { max_rows?: number; query: string }; Returns: Json }
       link_investigator_grant: {
         Args: { _grant_id: string; _investigator_id: string; _role?: string }
@@ -3487,6 +3686,8 @@ export type Database = {
         Returns: Json
       }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
+      questionnaire_fields: { Args: never; Returns: string[] }
+      questionnaire_form_url: { Args: never; Returns: string }
       record_investigator_alias: {
         Args: { _alias: string; _primary_email: string }
         Returns: Json

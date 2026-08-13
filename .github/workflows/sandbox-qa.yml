@@ -252,7 +252,15 @@ jobs:
       - name: Verify asset base path is the domain root
         run: |
           set -euo pipefail
-          bad=$(grep -Eo '(src|href)="/[^"]+"' dist/index.html | grep -v '="/assets/' || true)
+          # A leaked base path shows up as either a nested prefix (/bbqs-website-sandbox/...)
+          # or a relative reference (./assets/..., assets/...). Root-level files such as
+          # /favicon.png are correct and must NOT fail the guard.
+          bad=$(grep -Eo '(src|href)="[^"]+"' dist/index.html \
+            | sed -E 's/.*="([^"]+)"/\1/' \
+            | grep -Ev '^(https?:)?//' \
+            | grep -Ev '^(data:|mailto:|#)' \
+            | grep -Ev '^/[^/]+$' \
+            | grep -Ev '^/assets/' || true)
           if [ -n "$bad" ]; then
             echo "::error::dist/index.html references non-root paths — the build used a base path other than '/':"
             echo "$bad"
