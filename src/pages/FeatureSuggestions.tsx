@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUserTier } from "@/hooks/useUserTier";
 import { toast } from "sonner";
-import { Lightbulb, Star, Loader2, Send } from "lucide-react";
+import { Lightbulb, Star, Loader2, Send, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { AgGridReact } from "ag-grid-react";
@@ -26,7 +28,21 @@ interface Suggestion {
   status: string;
   votes: number;
   created_at: string;
+  github_username: string | null;
+  qa_status: string | null;
+  target_version: string | null;
 }
+
+const QA_STAGES = ["submitted", "triage", "in-qa", "approved", "merged", "declined"] as const;
+
+const QA_VARIANT: Record<string, "secondary" | "outline" | "default" | "destructive"> = {
+  submitted: "secondary",
+  triage: "secondary",
+  "in-qa": "outline",
+  approved: "default",
+  merged: "default",
+  declined: "destructive",
+};
 
 interface Vote {
   suggestion_id: string;
@@ -34,9 +50,13 @@ interface Vote {
 
 export default function FeatureSuggestions() {
   const { user } = useAuth();
+  const { isCurator } = useUserTier();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [githubUsername, setGithubUsername] = useState("");
+  const [search, setSearch] = useState("");
+  const [qaFilter, setQaFilter] = useState<string>("all");
 
   const { data: suggestions = [], isLoading } = useQuery<Suggestion[]>({
     queryKey: ["feature-suggestions"],
@@ -84,6 +104,7 @@ export default function FeatureSuggestions() {
         title: title.trim(),
         description: description.trim() || null,
         submitted_by: user?.id || null,
+        github_username: githubUsername.trim().replace(/^@/, "") || null,
         submitter_name:
           (user?.user_metadata?.full_name as string | undefined)?.trim() ||
           user?.email?.split("@")[0] ||
@@ -103,6 +124,29 @@ export default function FeatureSuggestions() {
       toast.error(err.message || "Failed to submit suggestion");
     },
   });
+
+  const trackingMutation = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, string | null> }) => {
+      const { error } = await supabase.from("feature_suggestions").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tracking updated");
+      queryClient.invalidateQueries({ queryKey: ["feature-suggestions"] });
+    },
+    onError: (err: any) => toast.error(err.message || "Could not update tracking"),
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return suggestions.filter((s) => {
+      if (qaFilter !== "all" && (s.qa_status || "submitted") !== qaFilter) return false;
+      if (!q) return true;
+      return [s.title, s.description, s.github_username, s.target_version, String(s.github_issue_number ?? "")]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(q));
+    });
+  }, [suggestions, search, qaFilter]);
 
   const voteMutation = useMutation({
     mutationFn: async (suggestionId: string) => {
@@ -175,6 +219,42 @@ export default function FeatureSuggestions() {
       ),
     },
     {
+      headerName: "QA stage",
+      field: "qa_status",
+      width: 130,
+      sortable: true,
+      unSortIcon: true,
+      editable: isCurator,
+      cellEditor: "agSelectCellEditor",
+      cellEditorParams: { values: QA_STAGES },
+      cellRenderer: (params: ICellRendererParams) => {
+        const v = (params.value as string) || "submitted";
+        return <Badge variant={QA_VARIANT[v] || "outline"} className="text-[10px]">{v}</Badge>;
+      },
+    },
+    {
+      headerName: "Version",
+      field: "target_version",
+      width: 110,
+      sortable: true,
+      unSortIcon: true,
+      editable: isCurator,
+      valueFormatter: (p) => p.value || "—",
+    },
+    {
+      headerName: "GitHub ID",
+      field: "github_username",
+      width: 130,
+      sortable: true,
+      unSortIcon: true,
+      cellRenderer: (params: ICellRendererParams) =>
+        params.value ? (
+          <a href={`https://github.com/${params.value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            @{params.value}
+          </a>
+        ) : null,
+    },
+    {
       headerName: "Submitted",
       field: "created_at",
       width: 130,
@@ -210,7 +290,7 @@ export default function FeatureSuggestions() {
         );
       },
     },
-  ], [VoteCellRenderer]);
+  ], [VoteCellRenderer, isCurator]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -254,6 +334,16 @@ export default function FeatureSuggestions() {
                   rows={4}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="suggestion-gh">Your GitHub ID (optional)</Label>
+                <Input
+                  id="suggestion-gh"
+                  placeholder="e.g. octocat"
+                  value={githubUsername}
+                  onChange={(e) => setGithubUsername(e.target.value)}
+                  maxLength={64}
+                />
+              </div>
               <Button type="submit" disabled={submitMutation.isPending}>
                 {submitMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -270,6 +360,27 @@ export default function FeatureSuggestions() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">All Suggestions</CardTitle>
+          <div className="flex flex-wrap items-center gap-2 pt-3">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Search suggestions, GitHub ID, issue #, version..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={qaFilter} onValueChange={setQaFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="QA stage" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All QA stages</SelectItem>
+                {QA_STAGES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -280,13 +391,22 @@ export default function FeatureSuggestions() {
             <div className="ag-grid-mobile-wrapper">
             <div className="ag-theme-custom">
               <AgGridReact
-                rowData={suggestions}
+                rowData={filtered}
                 columnDefs={colDefs}
                 domLayout="autoHeight"
                 suppressCellFocus={true}
                 pagination={true}
                 paginationPageSize={25}
                 defaultColDef={{ resizable: true, sortable: true, unSortIcon: true }}
+                onCellValueChanged={(e) => {
+                  const field = e.colDef.field;
+                  if (!field || !isCurator) return;
+                  if (field !== "qa_status" && field !== "target_version") return;
+                  trackingMutation.mutate({
+                    id: (e.data as Suggestion).id,
+                    patch: { [field]: (e.newValue as string)?.trim() || null },
+                  });
+                }}
               />
             </div>
             </div>

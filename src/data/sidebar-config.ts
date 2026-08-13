@@ -55,6 +55,7 @@ const mainItems: NavItem[] = [
   { title: "Settings", url: "/settings", icon: Settings, authRequired: true },
   { title: "BBQS Agent", url: "https://agent.brain-bbqs.org", icon: Bot, external: true },
   { title: "My Dashboard", url: "/dashboard", icon: LayoutDashboard, authRequired: true },
+  { title: "Suggest a Feature", url: "/suggest-feature", icon: Lightbulb },
 ];
 
 const toolsItems: NavItem[] = [
