@@ -104,6 +104,7 @@ export default function FeatureSuggestions() {
         title: title.trim(),
         description: description.trim() || null,
         submitted_by: user?.id || null,
+        github_username: githubUsername.trim().replace(/^@/, "") || null,
         submitter_name:
           (user?.user_metadata?.full_name as string | undefined)?.trim() ||
           user?.email?.split("@")[0] ||
@@ -123,6 +124,29 @@ export default function FeatureSuggestions() {
       toast.error(err.message || "Failed to submit suggestion");
     },
   });
+
+  const trackingMutation = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, string | null> }) => {
+      const { error } = await supabase.from("feature_suggestions").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tracking updated");
+      queryClient.invalidateQueries({ queryKey: ["feature-suggestions"] });
+    },
+    onError: (err: any) => toast.error(err.message || "Could not update tracking"),
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return suggestions.filter((s) => {
+      if (qaFilter !== "all" && (s.qa_status || "submitted") !== qaFilter) return false;
+      if (!q) return true;
+      return [s.title, s.description, s.github_username, s.target_version, String(s.github_issue_number ?? "")]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(q));
+    });
+  }, [suggestions, search, qaFilter]);
 
   const voteMutation = useMutation({
     mutationFn: async (suggestionId: string) => {
