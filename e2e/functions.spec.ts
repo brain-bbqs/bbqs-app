@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { SAFE_FUNCTIONS, PREFLIGHT_ONLY_FUNCTIONS } from "./routes";
+import { supabaseAnonymousHeaders } from "./supabase-headers";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
+const AUTH_HEADERS = supabaseAnonymousHeaders(ANON_KEY);
 const base = `${SUPABASE_URL}/functions/v1`;
 // Edge functions are deployed per-project. If the sandbox project has no
 // functions deployed, every probe is a 404 that says nothing about the app —
@@ -35,8 +37,7 @@ test.describe("edge functions respond", () => {
     test(`invoke: ${fn}`, async ({ request }) => {
       const res = await request.post(`${base}/${fn}`, {
         headers: {
-          apikey: ANON_KEY,
-          Authorization: `Bearer ${ANON_KEY}`,
+          ...AUTH_HEADERS,
           "Content-Type": "application/json",
         },
         data: {},
