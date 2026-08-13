@@ -172,14 +172,13 @@ export default function FeatureSuggestions() {
     {
       headerName: "QA stage",
       field: "qa_status",
-      width: 130,
+      width: 210,
       editable: isCurator,
       cellEditor: "agSelectCellEditor",
       cellEditorParams: { values: QA_STAGES },
-      cellRenderer: (p: ICellRendererParams) => {
-        const v = (p.value as string) || "submitted";
-        return <Badge variant={QA_VARIANT[v] || "outline"} className="text-[10px]">{v}</Badge>;
-      },
+      cellRenderer: (p: ICellRendererParams) => (
+        <PipelineBar stage={p.value as string} version={(p.data as Suggestion)?.target_version} />
+      ),
     },
     {
       headerName: "Version",
