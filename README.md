@@ -7,19 +7,16 @@
 
 The **BBQS** program is an NIH-funded basic research initiative to develop new tools and approaches for a more comprehensive, mechanistic understanding of the neural basis of behavior. This repository powers the [BBQS consortium website](https://brain-bbqs.org), serving as the central hub for the community.
 
-## Operations Status
+## Status
 
-These badges are live — they read the latest run of each GitHub Actions workflow, so a red badge means that pipeline is currently broken.
-
-| Pipeline | What it proves | Trigger |
+| | Pipeline | Status |
 |---|---|---|
-| **Sandbox QA** | Prod schema matches the repo, sandbox is an exact clone, the site builds and deploys to [sandbox.brain-bbqs.org](https://sandbox.brain-bbqs.org), and the Playwright smoke suite (pages · tables · edge functions) passes | Manual (`workflow_dispatch`) |
-| **Database Backup** | A full `pg_dump` of the production knowledge graph completed and was retained | Scheduled + manual |
-| **Guards** | Cross-layer invariants hold (CORS parity, role vocabulary, no control chars) | Every PR |
-| **Deploy** | Production site published to GitHub Pages | Push to `main` |
+| ✅ | Sandbox QA | [![Sandbox QA](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml) |
+| ✅ | Backup | [![Database Backup](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml) |
+| ✅ | Guards | [![Guards](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml) |
+| ✅ | Deploy | [![Deploy](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml) |
 
-Per-run detail — route/table/function pass·fail tables, the Playwright HTML report and failure screenshots — lives in the
-[Sandbox QA run summaries](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml) (report artifacts retained 7 days).
+Green badge = live, red = dead.
 
 ## About the Program
 
