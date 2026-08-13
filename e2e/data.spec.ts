@@ -35,7 +35,7 @@ test.describe("tables load with data", () => {
       );
       expect(
         res.status(),
-        `${table} REST status -> ${res.status()}${res.status() === 401 ? " (API key was rejected or does not belong to this sandbox project)" : ""}`
+        `${table} REST status -> ${res.status()}${res.status() === 401 ? " (the key is valid, so check the sandbox table grants/RLS for anon)" : ""}`
       ).toBeLessThan(400);
       const range = res.headers()["content-range"] ?? "";
       const total = Number(range.split("/")[1] ?? "0");
