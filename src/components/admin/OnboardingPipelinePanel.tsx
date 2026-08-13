@@ -58,7 +58,10 @@ const stageClass = (status: string | undefined): string => {
   return "bg-muted text-muted-foreground border-border";
 };
 
-type Filter = "all" | "in_progress" | "stuck";
+// "completed" reads a DIFFERENT source: onboarding_pipeline excludes finished members by design, so
+// the graduates come from onboarding_completed. Kept as a filter rather than a separate tab so it
+// reuses this table, its sorting and its stage badges — switching filters IS the tab affordance here.
+type Filter = "all" | "in_progress" | "stuck" | "completed";
 const remainingSteps = (r: PipelineRow) =>
   STAGE_ORDER.filter((k) => r.checklist && k in r.checklist && !isDone(r.checklist[k]));
 
@@ -87,11 +90,37 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
     },
   });
 
+  // The graduates. Shaped to PipelineRow so the same table renders both: days_since_created carries
+  // days_to_complete here (the column header switches to "Took"), and is_stuck is always false because
+  // a completed member by definition has no required step open.
+  const { data: completedRows = [] } = useQuery({
+    queryKey: ["onboarding-completed"],
+    enabled: tier.isCurator,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("onboarding_completed" as any)
+        .select("*")
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        ...r,
+        days_since_created: r.days_to_complete ?? 0,
+        is_stuck: false,
+        last_reminder_sent_at: r.last_reminder_sent_at ?? null,
+        reminder_count: r.reminder_count ?? 0,
+      })) as unknown as PipelineRow[];
+    },
+  });
+
   const filtered = useMemo(() => {
     if (filter === "stuck") return rows.filter((r) => r.is_stuck);
+    if (filter === "completed") return completedRows;
     if (filter === "in_progress") return rows.filter((r) => r.steps_done > 0);
     return rows;
-  }, [rows, filter]);
+    // completedRows belongs here: it is a separate query with its own 60s refetch, so omitting it
+    // would freeze the Completed list at whatever the first render saw.
+  }, [rows, completedRows, filter]);
 
   // Sorting sits OUTSIDE the filter so the two compose: filter to "stuck", then sort by Role to
   // group the PIs. Default order is unsorted (server order) until a header is clicked.
@@ -155,9 +184,10 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       </div>
 
       <div className="flex items-center gap-2 mb-3">
-        {(["all", "in_progress", "stuck"] as Filter[]).map((f) => (
+        {(["all", "in_progress", "stuck", "completed"] as Filter[]).map((f) => (
           <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)}>
-            {f === "all" ? "All" : f === "in_progress" ? "In progress" : "Stuck"}
+            {f === "all" ? "All" : f === "in_progress" ? "In progress" : f === "stuck" ? "Stuck"
+              : `Completed${completedRows.length ? ` (${completedRows.length})` : ""}`}
           </Button>
         ))}
         <div className="ml-auto flex items-center gap-2">
@@ -172,7 +202,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">No members {filter === "stuck" ? "are stuck" : filter === "in_progress" ? "in progress" : "in the onboarding pipeline"}.</CardContent></Card>
+        <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">No members {filter === "stuck" ? "are stuck" : filter === "in_progress" ? "in progress" : filter === "completed" ? "have completed onboarding yet" : "in the onboarding pipeline"}.</CardContent></Card>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
@@ -186,7 +216,7 @@ export function OnboardingPipelinePanel({ embedded }: { embedded?: boolean } = {
                   Remaining stages <span className="font-normal text-muted-foreground">(click to resolve)</span>
                 </SortableHead>
                 <SortableHead columnKey="in_flight" className="whitespace-nowrap"
-                  accessor={(r) => r.days_since_created}>In flight</SortableHead>
+                  accessor={(r) => r.days_since_created}>{filter === "completed" ? "Took" : "In flight"}</SortableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
