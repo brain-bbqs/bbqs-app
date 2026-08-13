@@ -1,10 +1,5 @@
 # BBQS — Brain Behavior Quantification and Synchronization
 
-[![Sandbox QA](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml)
-[![Database Backup](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml)
-[![Guards](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml)
-[![Deploy](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml)
-
 The **BBQS** program is an NIH-funded basic research initiative to develop new tools and approaches for a more comprehensive, mechanistic understanding of the neural basis of behavior. This repository powers the [BBQS consortium website](https://brain-bbqs.org), serving as the central hub for the community.
 
 ## Status
