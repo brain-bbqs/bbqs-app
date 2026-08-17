@@ -40,7 +40,12 @@ DECLARE
   _conflict jsonb := '[]'::jsonb;
   r         record;
 BEGIN
-  IF NOT (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'curator')) THEN
+  -- Gate SIGNED-IN callers only. A NULL auth.uid() means service role, a migration, or the SQL editor,
+  -- none of which a role check can meaningfully constrain -- and enforcing it unconditionally made the
+  -- verify queries at the bottom of this file fail with P0001 in the very editor used to apply it.
+  -- Same shape as record_investigator_alias (20260811130000). This function only READS and reports.
+  IF auth.uid() IS NOT NULL
+     AND NOT (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'curator')) THEN
     RAISE EXCEPTION 'Only admins or curators can check onboarding conflicts';
   END IF;
 
