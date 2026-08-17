@@ -150,9 +150,27 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
   const toggleWg = (token: string) =>
     setWgs((prev) => { const n = new Set(prev); n.has(token) ? n.delete(token) : n.add(token); return n; });
 
+  // Pre-flight the write instead of letting Postgres explain it. A typo'd address (.esu for .edu on
+  // 2026-08-17) means no email match and no stub match, so onboard_member falls through to INSERT and
+  // dies on investigators_name_key — technically correct, actionably useless.
+  const { data: conflicts } = useQuery({
+    queryKey: ["onboard-conflicts", email.trim().toLowerCase(), name.trim()],
+    enabled: open && name.trim().length > 1 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("check_onboard_conflicts", {
+        _email: email.trim(),
+        _name: name.trim(),
+      });
+      if (error) throw error;
+      return data as { blocking: boolean; conflicts: Array<{ kind: string; message: string }> };
+    },
+  });
+
   const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const piNeedsGrant = PI_ROLES.has(role) && !grant;
-  const canSubmit = emailValid && name.trim().length > 0 && !submitting;
+  // Blocking means the INSERT cannot succeed (a name collision). Advisory conflicts do not disable
+  // submission — an already-a-member address is fine, it just updates that record.
+  const canSubmit = emailValid && name.trim().length > 0 && !submitting && !conflicts?.blocking;
 
   const submit = async () => {
     setSubmitting(true);
@@ -369,6 +387,22 @@ export function OnboardMemberDialog({ trigger }: { trigger: ReactNode }) {
                 )}
               </div>
             </div>
+
+            {/* Pre-flight findings. A name collision BLOCKS submission because the insert cannot
+                succeed; the rest are advisory and worth reading — "already a member" usually means the
+                request was unnecessary, and "same mailbox, different domain" is what a typo looks like. */}
+            {conflicts?.conflicts?.length ? (
+              <div className={`rounded-md border p-3 text-xs space-y-1.5 ${
+                conflicts.blocking ? "border-destructive/50 bg-destructive/5" : "border-amber-500/40"}`}>
+                <div className={`font-medium ${conflicts.blocking
+                  ? "text-destructive" : "text-amber-600 dark:text-amber-400"}`}>
+                  {conflicts.blocking ? "This will not save as entered" : "Worth checking before you submit"}
+                </div>
+                {conflicts.conflicts.map((c, i) => (
+                  <p key={i} className="text-muted-foreground">{c.message}</p>
+                ))}
+              </div>
+            ) : null}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
