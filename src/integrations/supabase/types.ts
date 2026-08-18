@@ -3220,6 +3220,17 @@ export type Database = {
       }
     }
     Views: {
+      access_request_matches: {
+        Row: {
+          existing_email: string | null
+          existing_name: string | null
+          investigator_id: string | null
+          match_kind: string | null
+          note: string | null
+          request_id: string | null
+        }
+        Relationships: []
+      }
       feature_suggestions_public: {
         Row: {
           created_at: string | null
@@ -3703,6 +3714,10 @@ export type Database = {
         Returns: Json
       }
       canonical_working_group: { Args: { _wg: string }; Returns: string }
+      check_onboard_conflicts: {
+        Args: { _email: string; _name: string }
+        Returns: Json
+      }
       cron_invoke: {
         Args: {
           _body?: Json
