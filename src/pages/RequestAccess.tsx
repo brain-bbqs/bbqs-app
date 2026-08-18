@@ -40,11 +40,17 @@ const ROLE_OPTIONS = [
 
 const requestSchema = z
   .object({
-    full_name: z
-      .string()
-      .trim()
-      .min(2, "Please enter your full name")
-      .max(120, "Name must be under 120 characters"),
+    // Separate fields, because one "Full name" box accepts "Brayden" and we cannot tell whether a
+    // single token is a first name, a surname, or a Globus display handle. Two required fields make
+    // an incomplete identity impossible to submit rather than something a reviewer has to chase.
+    first_name: z
+      .string().trim()
+      .min(2, "Please enter your first name")
+      .max(60, "First name must be under 60 characters"),
+    last_name: z
+      .string().trim()
+      .min(2, "Please enter your last name")
+      .max(60, "Last name must be under 60 characters"),
     email: z
       .string()
       .trim()
@@ -88,6 +94,18 @@ const requestSchema = z
 
 /** What we persist when the requester declares no grant/PI tie — a definite value
  *  beats a blank field, so the reviewer knows they were asked and answered. */
+/** Free webmail domains. NOT a block: real consortium PIs use them — mengsenzhang@gmail.com and
+ *  greg.d.field@gmail.com are both on pi@ today — so rejecting them would refuse actual members.
+ *  It asks once, visibly, because an institutional address is what lets a reviewer verify who someone
+ *  is, and "brayden@gmail.com with no association" is indistinguishable from noise. */
+const WEBMAIL = new Set([
+  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
+  "yahoo.com", "yahoo.co.uk", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com",
+  "gmx.com", "mail.com", "yandex.com", "qq.com", "163.com",
+]);
+const isWebmail = (email: string) =>
+  WEBMAIL.has((email.split("@")[1] ?? "").trim().toLowerCase());
+
 const NO_ASSOCIATION = "Not affiliated with a specific BBQS grant or PI (self-declared)";
 
 export default function RequestAccess() {
@@ -105,7 +123,8 @@ export default function RequestAccess() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
-    full_name: globusName,
+    first_name: (globusName.split(" ")[0] ?? ""),
+    last_name: globusName.split(" ").slice(1).join(" "),
     email: globusEmail,
     institution: "",
     requested_role: "",
@@ -133,6 +152,10 @@ export default function RequestAccess() {
       parsed.data.requested_role === "Other"
         ? (parsed.data.other_role || "Other").trim()
         : parsed.data.requested_role;
+
+    // Stored as one full_name: the database keeps a single name field, and splitting the column
+    // would be a schema change for no gain. The split exists to make the FORM answerable.
+    const fullName = `${parsed.data.first_name} ${parsed.data.last_name}`.trim();
 
     const associationValue = parsed.data.no_association
       ? NO_ASSOCIATION
@@ -172,7 +195,7 @@ export default function RequestAccess() {
       // the RPC migration hasn't been applied yet (PGRST202).
       const { error } = await supabase.rpc("upsert_access_request", {
         _email: parsed.data.email.toLowerCase(),
-        _full_name: parsed.data.full_name,
+        _full_name: fullName,
         _institution: parsed.data.institution,
         _requested_role: roleValue,
         _message: parsed.data.message || null,
@@ -186,7 +209,7 @@ export default function RequestAccess() {
           // index on (lower(email)) WHERE status='pending' guards against a second
           // pending request; treat that conflict as "already submitted".
           const { error: insErr } = await supabase.from("access_requests").insert({
-            full_name: parsed.data.full_name,
+            full_name: fullName,
             email: parsed.data.email.toLowerCase(),
             institution: parsed.data.institution,
             requested_role: roleValue,
@@ -260,16 +283,17 @@ export default function RequestAccess() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full name</Label>
-              <Input
-                id="full_name"
-                value={form.full_name}
-                onChange={update("full_name")}
-                placeholder="Jane Doe"
-                maxLength={120}
-                required
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First name</Label>
+                <Input id="first_name" value={form.first_name} onChange={update("first_name")}
+                  placeholder="Jane" maxLength={60} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last name</Label>
+                <Input id="last_name" value={form.last_name} onChange={update("last_name")}
+                  placeholder="Doe" maxLength={60} required />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Institutional email</Label>
@@ -289,6 +313,13 @@ export default function RequestAccess() {
                   ? "From your Globus identity — this is the email you'll sign in with."
                   : "Use the email tied to your Globus identity."}
               </p>
+              {form.email && isWebmail(form.email) && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  That looks like a personal address. Please use your institutional email if you have
+                  one — it is how we verify who you are. If you genuinely have no institutional
+                  address, carry on and tell us why in the message box.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="institution">Institution</Label>

@@ -244,7 +244,6 @@ Deno.serve(async (req) => {
         // still redirect) folds its richer institution/role details into this SAME
         // pending row via the shared upsert_access_request RPC (an UPDATE, so it does
         // NOT re-notify), so there is no duplicate-request regression and no lost data.
-        const attemptedEmail = (userinfo.email || candidateEmails[0]).toLowerCase();
 
         await logAuthFailure(supabaseAdmin, {
           email: userinfo.email,
@@ -257,21 +256,24 @@ Deno.serve(async (req) => {
           },
         });
 
-        // Auto-file / dedup-enrich the pending request (INSERT here fires the notify
-        // trigger). Degrades gracefully if the RPC migration isn't applied yet.
-        try {
-          const { error: upErr } = await supabaseAdmin.rpc("upsert_access_request", {
-            _email: attemptedEmail,
-            _globus_name: name || null,
-            _globus_subject: userinfo.sub || null,
-          });
-          if (upErr) console.error("upsert_access_request failed:", upErr.message);
-        } catch (e) {
-          console.error(
-            "upsert_access_request threw:",
-            e instanceof Error ? e.message : String(e),
-          );
-        }
+        // DO NOT auto-file a bare request any more. The attempt is already recorded in the audit
+        // log above; a request row created here carries only an email and a Globus display name,
+        // because nobody has been asked anything yet.
+        //
+        // Measured 2026-08-18: 43 of 86 requests came from this path, and 39 of them had no
+        // institution and no association — one row and one admin notification email per random
+        // person who clicks Sign in. "Brayden / brritter@ualberta.ca / Association not stated" was
+        // the one that prompted this: unreviewable by construction, since there is nothing to review.
+        //
+        // Everyone is still redirected to the intake form, which REQUIRES name, institution, role and
+        // a BBQS association, and which upserts on the same email — so anyone who actually wants
+        // access produces a complete, decidable request. Someone who does not bother produces an
+        // audit-log line instead of admin work, which is the correct trade: a bounced sign-in is not
+        // an application.
+        //
+        // The one thing lost is visibility of attempts that never complete the form. That lives in
+        // auth_audit_log with reason 'not_a_member', queryable when it matters, rather than as 39
+        // permanently-pending rows nobody can action.
 
         const errorRedirect = new URL(frontendRedirect);
         errorRedirect.searchParams.set("globus_error", "not_a_member");
