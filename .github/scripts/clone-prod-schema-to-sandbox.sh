@@ -31,7 +31,6 @@ echo "==> Dumping production schema (public)"
 pg_dump "$PROD_URL" \
   --schema-only \
   --no-owner \
-  --no-privileges \
   --schema=public \
   --file "$DUMP_DIR/prod-schema.sql"
 
@@ -76,4 +75,15 @@ pt=$(psql "$PROD_URL"    -At -c "SELECT count(*) FROM pg_tables WHERE schemaname
 st=$(psql "$SANDBOX_URL" -At -c "SELECT count(*) FROM pg_tables WHERE schemaname='public';")
 echo "public tables: prod=$pt sandbox=$st"
 [ "$pt" = "$st" ] || echo "::warning::table count mismatch between prod and sandbox"
+
+# PostgREST assumes the anon/authenticated roles and relies on table ACLs in
+# addition to RLS. A schema clone without privileges looks complete to psql but
+# every anonymous REST table request fails with 401.
+anon_grants=$(psql "$SANDBOX_URL" -At -c \
+  "SELECT has_table_privilege('anon', 'public.grants', 'SELECT');")
+if [ "$anon_grants" != "t" ]; then
+  echo "::error::Sandbox schema is missing anon SELECT on public.grants. Production ACLs were not cloned."
+  exit 1
+fi
+echo "PostgREST grants: anon can SELECT public.grants"
 echo "==> Schema clone complete"

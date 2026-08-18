@@ -1112,11 +1112,14 @@ export type Database = {
           description: string | null
           github_issue_number: number | null
           github_issue_url: string | null
+          github_username: string | null
           id: string
           organization_id: string | null
+          qa_status: string
           status: string
           submitted_by: string | null
           submitter_name: string | null
+          target_version: string | null
           title: string
           updated_at: string
           votes: number
@@ -1126,11 +1129,14 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string
           organization_id?: string | null
+          qa_status?: string
           status?: string
           submitted_by?: string | null
           submitter_name?: string | null
+          target_version?: string | null
           title: string
           updated_at?: string
           votes?: number
@@ -1140,11 +1146,14 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string
           organization_id?: string | null
+          qa_status?: string
           status?: string
           submitted_by?: string | null
           submitter_name?: string | null
+          target_version?: string | null
           title?: string
           updated_at?: string
           votes?: number
@@ -3211,14 +3220,29 @@ export type Database = {
       }
     }
     Views: {
+      access_request_matches: {
+        Row: {
+          existing_email: string | null
+          existing_name: string | null
+          investigator_id: string | null
+          match_kind: string | null
+          note: string | null
+          request_id: string | null
+        }
+        Relationships: []
+      }
       feature_suggestions_public: {
         Row: {
           created_at: string | null
           description: string | null
           github_issue_number: number | null
           github_issue_url: string | null
+          github_username: string | null
           id: string | null
+          qa_status: string | null
           status: string | null
+          submitter_name: string | null
+          target_version: string | null
           title: string | null
           updated_at: string | null
           votes: number | null
@@ -3228,8 +3252,12 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string | null
+          qa_status?: string | null
           status?: string | null
+          submitter_name?: string | null
+          target_version?: string | null
           title?: string | null
           updated_at?: string | null
           votes?: number | null
@@ -3239,8 +3267,12 @@ export type Database = {
           description?: string | null
           github_issue_number?: number | null
           github_issue_url?: string | null
+          github_username?: string | null
           id?: string | null
+          qa_status?: string | null
           status?: string | null
+          submitter_name?: string | null
+          target_version?: string | null
           title?: string | null
           updated_at?: string | null
           votes?: number | null
@@ -3682,6 +3714,10 @@ export type Database = {
         Returns: Json
       }
       canonical_working_group: { Args: { _wg: string }; Returns: string }
+      check_onboard_conflicts: {
+        Args: { _email: string; _name: string }
+        Returns: Json
+      }
       cron_invoke: {
         Args: {
           _body?: Json

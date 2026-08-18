@@ -119,6 +119,25 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
   const personName = (r: AccessRequest) =>
     invNameByEmail[r.email.toLowerCase()] || r.full_name || r.globus_name || "—";
 
+  // Likely-existing-member matches for the whole pending queue, in ONE round trip rather than an RPC
+  // per row. Flavia Vitale filed three times from three addresses over two days while already fully
+  // onboarded; each one cost an investigation because the row showed only what she typed. Admin-side
+  // only: the intake form must never disclose another person's address, which would turn it into an
+  // address-enumeration oracle.
+  const { data: matches = [] } = useQuery({
+    queryKey: ["access-request-matches"],
+    enabled: tier.isCurator,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("access_request_matches").select("*");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        request_id: string; match_kind: string;
+        existing_name: string | null; existing_email: string | null; note: string;
+      }>;
+    },
+  });
+  const matchesFor = (id: string) => matches.filter((m) => m.request_id === id);
+
   const pending = requests.filter((r) => r.status === "pending");
   const decided = requests.filter((r) => r.status !== "pending");
 
@@ -474,6 +493,23 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
           <Badge variant="outline" className="mt-1 text-xs font-normal">
             {r.requested_role}
           </Badge>
+        )}
+        {/* Probably an existing member under a different address. Shown FIRST because it changes the
+            decision entirely: an already-onboarded person needs dismissing, not approving. Flavia
+            Vitale filed three times from three addresses while fully onboarded, and nothing on the row
+            connected any of them to her record. */}
+        {matchesFor(r.id).length > 0 && (
+          <div className="mt-1.5 rounded border border-amber-500/40 bg-amber-500/5 px-2 py-1">
+            <div className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {matchesFor(r.id).some((m) => m.match_kind === "already_member")
+                ? "Already a member"
+                : "Possibly an existing member"}
+            </div>
+            {Array.from(new Map(matchesFor(r.id).map((m) => [m.note, m])).values()).map((m, i) => (
+              <div key={i} className="text-[11px] text-muted-foreground">{m.note}</div>
+            ))}
+          </div>
         )}
         {/* The declared grant/PI tie — the reviewer's basis for approving and for
             routing them to the right roster. Flagged when absent (legacy or
