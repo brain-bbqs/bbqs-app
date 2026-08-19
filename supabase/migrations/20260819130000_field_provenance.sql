@@ -53,6 +53,8 @@ INSERT INTO public.source_classes (code, rank, label, agent_kind, is_verified, d
    'The subject editing their own profile or project.'),
   ('curator_fill',           4, 'Curated',              'human',            true,
    'Hand-filled by an admin or curator.'),
+  ('curated_with_ai',        4, 'Curated with AI',      'human',            true,
+   'Authored by a named person working with an AI assistant. Human-attributed and human-accountable, so it is verified -- but a model contributed wording and sometimes facts, and factual details (species, numbers, identifiers) deserve a re-check against tier 1. This is the dominant authoring mode for the consortium''s analytical layer, and the ladder had no slot for it.'),
   ('llm_extract',            5, 'Machine-extracted',    'machine',          false,
    'Extracted by a model from publications, abstracts or grant text. Record model_id.'),
   ('web_search',             6, 'Web search',           'machine',          false,
@@ -80,6 +82,8 @@ CREATE TABLE IF NOT EXISTS public.field_provenance (
   evidence      text,
   model_id      text,
   confidence    numeric CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+  authored_at   timestamptz,
+  authored_at_precision text CHECK (authored_at_precision IN ('exact', 'day', 'month', 'approximate')),
   recorded_at   timestamptz NOT NULL DEFAULT now(),
   recorded_by   text NOT NULL DEFAULT public.current_actor_via()
 );
@@ -92,6 +96,31 @@ COMMENT ON COLUMN public.field_provenance.evidence IS
   'Verbatim source text supporting the claim -- the abstract sentence naming the species, for instance. Lets a human verify a registry claim at a glance instead of trusting an extractor.';
 COMMENT ON COLUMN public.field_provenance.value_text IS
   'The value as written, so a later dispute can tell whether the cell still holds what this row describes.';
+COMMENT ON COLUMN public.field_provenance.authored_at IS
+  'When the VALUE was created, which is not when this provenance row was logged. Backfilled history is the whole reason: the Marr layer was written in March 2026 and recorded here in August, and dating it August would misrepresent which model era produced it. NULL means unknown.';
+COMMENT ON COLUMN public.field_provenance.authored_at_precision IS
+  'How firm authored_at is. "on or about March 6" is real information and so is its fuzziness; storing an exact timestamp for it would invent precision, and storing nothing would discard a usable date.';
+COMMENT ON COLUMN public.field_provenance.model_id IS
+  'The model that produced or co-produced the value (gemini-3-pro, claude-opus-4, ...). Required for llm_extract, and expected for curated_with_ai, because "an AI helped" is not re-checkable but "Gemini 3 Pro in March 2026" is.';
+
+/** The metadata keys that are the consortium's own analytical layer rather than answers to the
+ *  questionnaire. Defined ONCE: the questionnaire backfill must exclude them, the AI-authored
+ *  backfill must include them, and the unknown backfill must skip them. Three inline copies of
+ *  this list is exactly how such sets drift apart in this schema. */
+CREATE OR REPLACE FUNCTION public.ai_authored_metadata_keys()
+RETURNS text[] LANGUAGE sql IMMUTABLE AS $fn$
+  SELECT ARRAY[
+    'marr_l1_ethological_goal',
+    'marr_l2_algorithmic_function',
+    'marr_l3_implementational_hardware',
+    'cross_project_synergy',
+    'target_species_domain',
+    'agentic_action_required'
+  ]::text[]
+$fn$;
+
+COMMENT ON FUNCTION public.ai_authored_metadata_keys() IS
+  'Project metadata keys authored by the consortium (a named human working with an AI assistant), NOT collected by the questionnaire. The form never asks a Marr-level question, so attributing these to a form respondent would credit them with analysis they did not write -- which the first draft of this migration did for R34DA062119, the one project holding both a form response and a Marr layer.';
 
 CREATE INDEX IF NOT EXISTS idx_field_prov_cell
   ON public.field_provenance (entity_table, entity_id, entity_column, recorded_at DESC, id DESC);
@@ -164,7 +193,9 @@ CREATE OR REPLACE FUNCTION public.record_field_provenance(
   _value        text DEFAULT NULL,
   _evidence     text DEFAULT NULL,
   _model_id     text DEFAULT NULL,
-  _confidence   numeric DEFAULT NULL)
+  _confidence   numeric DEFAULT NULL,
+  _authored_at  timestamptz DEFAULT NULL,
+  _authored_at_precision text DEFAULT NULL)
 RETURNS bigint
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
 DECLARE
@@ -183,12 +214,17 @@ BEGIN
 
   INSERT INTO public.field_provenance (
     entity_table, entity_id, entity_column, source_class, activity,
-    agent_id, agent_label, source_ref, value_text, evidence, model_id, confidence)
+    agent_id, agent_label, source_ref, value_text, evidence, model_id, confidence,
+    authored_at, authored_at_precision)
   VALUES (
     _table, _id, _column, _source_class, _activity,
     auth.uid(),
     coalesce(nullif(btrim(_agent_label), ''), public.current_actor_via()),
-    _source_ref, _value, _evidence, _model_id, _confidence)
+    _source_ref, _value, _evidence, _model_id, _confidence,
+    _authored_at,
+    -- A date with no stated precision is treated as exact; a precision with no date is meaningless.
+    CASE WHEN _authored_at IS NULL THEN NULL
+         ELSE coalesce(nullif(btrim(_authored_at_precision), ''), 'exact') END)
   RETURNING id INTO _new_id;
 
   RETURN _new_id;
@@ -217,11 +253,14 @@ CREATE POLICY "anyone signed in reads the ladder" ON public.source_classes
 GRANT SELECT ON public.source_classes, public.field_provenance, public.field_provenance_current
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_field_provenance TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.ai_authored_metadata_keys() TO authenticated, service_role;
 
 -- ── 6. Backfill what is actually knowable ─────────────────────────────────────────────────────
--- Honesty over coverage. Only three sources can be evidenced today, and everything else is
--- recorded as 'unknown' rather than quietly assumed to be curated. That will look bad on screen.
--- It is the true state, and Principle XI requires showing it rather than implying verification.
+-- Honesty over coverage. Four sources can be evidenced today -- the grant abstract, two form
+-- responses, and the consortium's own AI-assisted authoring, whose model and date the author
+-- supplied. Everything else is recorded as 'unknown' rather than quietly assumed to be curated.
+-- 18.1% of rendered project cells end up verified. That is a low number and it is the true one;
+-- Principle XI requires showing it rather than implying verification.
 
 -- (a) Tier 1: the species corrected from the grant abstract in 20260819120000. Reads the stanza
 --     that migration wrote, so this is a no-op when P5 has not been applied yet -- migrations must
@@ -245,23 +284,60 @@ SELECT 'projects', p.id, 'study_species', 'authoritative_registry', 'reporter_ab
         AND fp.entity_column = 'study_species'
         AND fp.source_class = 'authoritative_registry');
 
--- (b) Tier 2: every questionnaire answer, attributed to the person who submitted the form. This is
---     the only genuinely well-sourced bulk data in the KG -- two projects, but per FIELD, which is
---     the granularity the feature is about. Bookkeeping keys are excluded: they describe the
---     submission, they are not answers.
+-- (b) Tier 2: every questionnaire ANSWER, attributed to the person who submitted the form.
+--     Bookkeeping keys are excluded (they describe the submission, they are not answers), and so is
+--     the analytical layer in (b2): the form never asks a Marr-level question, so crediting a form
+--     respondent with that analysis would be a false attribution. R34DA062119 is the project that
+--     makes this concrete -- it holds a form response AND a Marr layer, and the first draft of this
+--     migration attributed Wilbrecht's submission with prose she did not write.
 INSERT INTO public.field_provenance (
   entity_table, entity_id, entity_column, source_class, activity,
-  agent_label, source_ref, value_text, recorded_by)
+  agent_label, source_ref, value_text, authored_at, authored_at_precision, recorded_by)
 SELECT 'projects', p.id, 'metadata.' || kv.key, 'questionnaire', 'google_form_response',
        p.metadata ->> 'questionnaire_submitted_by',
        p.metadata ->> 'questionnaire_response_id',
        left(kv.value, 500),
+       nullif(p.metadata ->> 'questionnaire_submitted_at', '')::timestamptz,
+       CASE WHEN nullif(p.metadata ->> 'questionnaire_submitted_at', '') IS NOT NULL
+            THEN 'exact' END,
        'migration:20260819130000'
   FROM public.projects p
  CROSS JOIN LATERAL jsonb_each_text(p.metadata) AS kv
  WHERE p.metadata ->> 'questionnaire_submitted_by' IS NOT NULL
    AND kv.key NOT IN ('questionnaire_submitted_by', 'questionnaire_submitted_at',
                       'questionnaire_response_id', 'field_provenance')
+   AND NOT (kv.key = ANY (public.ai_authored_metadata_keys()))
+   AND btrim(coalesce(kv.value, '')) <> ''
+   AND NOT EXISTS (
+     SELECT 1 FROM public.field_provenance fp
+      WHERE fp.entity_table = 'projects' AND fp.entity_id = p.id
+        AND fp.entity_column = 'metadata.' || kv.key);
+
+-- (b2) Tier 4 curated_with_ai: the Marr layer and the cross-project synergy notes. Authored by
+--      Nader working with Gemini 3 Pro on or about 2026-03-06 -- stated directly by the author,
+--      which makes this the best-attributed content in the KG after the two questionnaires.
+--
+--      It is recorded as VERIFIED because a named person is accountable for it. It is recorded as
+--      AI-assisted because that is materially true and because this exact content is where the
+--      wrong species came from: target_species_domain is in this set, and it held "Sapajus apella"
+--      for a project the abstract says studies Cebus imitator. Verified does not mean infallible,
+--      and the model id is what makes a later re-check possible at all.
+INSERT INTO public.field_provenance (
+  entity_table, entity_id, entity_column, source_class, activity,
+  agent_label, source_ref, value_text, model_id,
+  authored_at, authored_at_precision, evidence, recorded_by)
+SELECT 'projects', p.id, 'metadata.' || kv.key, 'curated_with_ai', 'authoring_with_ai_assistant',
+       'nikbakht@mit.edu',
+       'public/bbqs_marr.yaml',
+       left(kv.value, 500),
+       'gemini-3-pro',
+       '2026-03-06'::timestamptz,
+       'approximate',
+       'Authorship stated by the author (2026-08-19): the Marr layer was written by Nader with Gemini 3 Pro on or about 2026-03-06.',
+       'migration:20260819130000'
+  FROM public.projects p
+ CROSS JOIN LATERAL jsonb_each_text(p.metadata) AS kv
+ WHERE kv.key = ANY (public.ai_authored_metadata_keys())
    AND btrim(coalesce(kv.value, '')) <> ''
    AND NOT EXISTS (
      SELECT 1 FROM public.field_provenance fp
@@ -290,20 +366,30 @@ SELECT 'projects', p.id, c.col, 'unknown', 'backfill',
      SELECT 1 FROM public.field_provenance fp
       WHERE fp.entity_table = 'projects' AND fp.entity_id = p.id AND fp.entity_column = c.col);
 
--- (d) The Marr-layer prose in metadata, for projects with no questionnaire attribution. This is the
---     text the diagram pages render, and it came out of bbqs_marr.yaml, whose header claims it was
---     "strictly audited" -- a claim the species audit disproved for the same file. Recording it as
---     unknown rather than llm_extract is the honest call: nobody can now prove which model or
---     person wrote it, and record_field_provenance would rightly refuse llm_extract with no model.
+-- (d) The genuine unknowns: ~976 cells on the 29 projects with no recorded form submission.
+--
+--     These are NOT the Marr layer (that is (b2), attributed). They are questionnaire-SHAPED keys
+--     -- behavioral_data_formats, analysis_platforms, primary_storage -- sitting on projects that
+--     have no questionnaire_submitted_by. Two explanations fit, and they have opposite
+--     consequences:
+--       (i)  forms WERE submitted and the importer never recorded who submitted them, in which
+--            case these are tier-2 data whose attribution is probably still recoverable from the
+--            response spreadsheet; or
+--       (ii) somebody hand-filled them, in which case they are tier 4.
+--     Either way they are better than 'unknown' -- but guessing which would be inventing
+--     provenance, which is the failure this feature exists to end. So they are recorded honestly as
+--     unknown, and the ambiguity is written down here rather than resolved by assumption. Recovering
+--     them from the Forms response sheet is the single largest available gain in verified coverage.
 INSERT INTO public.field_provenance (
   entity_table, entity_id, entity_column, source_class, activity,
   agent_label, value_text, recorded_by)
 SELECT 'projects', p.id, 'metadata.' || kv.key, 'unknown', 'backfill',
-       'predates-provenance', left(kv.value, 500), 'migration:20260819130000'
+       coalesce(p.last_edited_by, 'predates-provenance'), left(kv.value, 500),
+       'migration:20260819130000'
   FROM public.projects p
  CROSS JOIN LATERAL jsonb_each_text(p.metadata) AS kv
- WHERE p.metadata ->> 'questionnaire_submitted_by' IS NULL
-   AND kv.key <> 'field_provenance'
+ WHERE kv.key <> 'field_provenance'
+   AND NOT (kv.key = ANY (public.ai_authored_metadata_keys()))
    AND btrim(coalesce(kv.value, '')) <> ''
    AND NOT EXISTS (
      SELECT 1 FROM public.field_provenance fp
@@ -311,13 +397,34 @@ SELECT 'projects', p.id, 'metadata.' || kv.key, 'unknown', 'backfill',
         AND fp.entity_column = 'metadata.' || kv.key);
 
 -- ── Verify ────────────────────────────────────────────────────────────────────────────────────
--- 1) Standing claims by tier. Expect authoritative_registry = 3 (0 if P5 is not applied yet),
---    questionnaire in the high tens (two projects x ~40 answers), the rest unknown.
+-- 1) Standing claims by tier. Dry-run against live data says, with P5 applied first:
+--      authoritative_registry    3   (0 if P5 has not been applied)
+--      questionnaire           102   two projects, per answer
+--      curated_with_ai         130   5 keys x 26 projects, Nader + Gemini 3 Pro
+--      unknown                1064   88 plain columns + 976 metadata keys
+--      TOTAL                  1299   -> 18.1% verified
 SELECT sc.rank, fpc.source_class, sc.is_verified, count(*) AS cells
   FROM public.field_provenance_current fpc
   JOIN public.source_classes sc ON sc.code = fpc.source_class
  GROUP BY sc.rank, fpc.source_class, sc.is_verified
  ORDER BY sc.rank, fpc.source_class;
+
+-- 1b) The AI-assisted layer, with the model and date that make it re-checkable. Every row should
+--     name gemini-3-pro and 2026-03-06 (approximate), attributed to a person, is_verified true.
+SELECT fpc.entity_column, count(*) AS projects,
+       min(fpc.agent_label) AS author, min(fpc.model_id) AS model,
+       min(fpc.authored_at)::date AS authored, min(fpc.authored_at_precision) AS precision
+  FROM public.field_provenance_current fpc
+ WHERE fpc.source_class = 'curated_with_ai'
+ GROUP BY fpc.entity_column
+ ORDER BY fpc.entity_column;
+
+-- 1c) No form respondent is credited with the analytical layer. MUST be zero: the form does not ask
+--     Marr questions, and R34DA062119 holds both a response and a Marr layer.
+SELECT count(*) AS misattributed_must_be_0
+  FROM public.field_provenance_current fpc
+ WHERE fpc.source_class = 'questionnaire'
+   AND regexp_replace(fpc.entity_column, '^metadata\.', '') = ANY (public.ai_authored_metadata_keys());
 
 -- 2) The species cells, best claim first. The three corrected rows should show tier 1 WITH the
 --    abstract sentence; every other project should show 'unknown'.
@@ -344,8 +451,10 @@ SELECT p.grant_number, fpc.agent_label, count(*) AS fields_attributed
 --   UPDATE public.field_provenance SET value_text = 'tampered' WHERE id = (SELECT min(id) FROM public.field_provenance);
 --   DELETE FROM public.field_provenance WHERE id = (SELECT min(id) FROM public.field_provenance);
 
--- 5) How much of what the site renders is unverified. This is the number to drive down, and the
---    honest headline: today it should be almost everything.
+-- 5) How much of what the site renders is unverified -- the number to drive down. Expect roughly
+--    235 verified / 1064 unverified (18.1%). The largest single gain available is not more
+--    extraction: it is recovering who submitted the ~976 form-shaped answers in (d), which would
+--    move them from unknown to tier 2 with a named respondent.
 SELECT count(*) FILTER (WHERE is_verified)       AS verified_cells,
        count(*) FILTER (WHERE NOT is_verified)   AS unverified_cells,
        round(100.0 * count(*) FILTER (WHERE is_verified) / nullif(count(*), 0), 1) AS pct_verified
