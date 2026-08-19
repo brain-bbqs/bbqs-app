@@ -6,7 +6,7 @@
 // those six were a pure key-shape mismatch — the YAML key kept NIH's application-type prefix
 // (1U01DA063565) while the lookup normalized only the row — and two grants had no YAML entry at all.
 //
-// Worse than the blanks: both sources held confident Latin binomials that were wrong. For
+// Worse than the blanks: both sources held confident Latin species names that were wrong. For
 // R34DA059507 the KG said Taeniopygia guttata where the grant abstract names Molothrus ater; for
 // R34DA061925 the YAML said Sapajus apella and the KG Cebus capucinus where the abstract names
 // Cebus imitator. A static file cannot be corrected by the people who own the data, carries no

@@ -1,7 +1,7 @@
 -- Correct study_species from the grant's own abstract (feature 012 P5).
 --
 -- WHY. The /projects species audit (2026-08-19) found the KG holding species that the grant
--- abstract contradicts. Two were confident Latin binomials naming the wrong animal, and one was a
+-- abstract contradicts. Two were confident Latin species names naming the wrong animal, and one was a
 -- placeholder standing where a species belongs. Nothing on screen marked any of them as generated,
 -- so they read as curated fact:
 --
@@ -13,7 +13,7 @@
 -- TIER. Constitution v1.8.0 Principle XI ranks NIH RePORTER above every derived source, so these
 -- writes are a HIGHER tier landing on a lower one, which the principle permits. Each carries the
 -- exact sentence from the abstract, so a human verifies the claim in one glance instead of trusting
--- an extractor. Of all 31 grants only these three state a binomial verbatim; the other 28 give
+-- an extractor. Of all 31 grants only these three spell out the Latin species name; the other 28 give
 -- common names or categories only, and re-deriving those would be tier-5 INFERENCE, which
 -- Principle XI forbids writing silently. Those stay proposals -- see specs/012-field-provenance.
 --

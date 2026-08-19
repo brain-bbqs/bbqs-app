@@ -11,7 +11,7 @@ yields the same output and a reviewer can audit the rule rather than trust the e
 import json, re, sys
 from collections import OrderedDict
 
-# Animal genera that appear in behavioural neuroscience. Used to accept a bare binomial found
+# Animal genera that appear in behavioural neuroscience. Used to accept a Latin species name (Genus species) found
 # outside parentheses; without a whitelist, "Neural dynamics" and "Aim two" match the shape.
 GENERA = {
     "Homo", "Mus", "Rattus", "Macaca", "Callithrix", "Saimiri", "Cebus", "Sapajus", "Papio",
@@ -23,7 +23,7 @@ GENERA = {
     "Anolis", "Nomascus", "Pan", "Gorilla", "Pongo", "Eublepharis", "Poecilia", "Neolamprologus",
 }
 
-# Common name -> (accepted binomial, note). Only names that are unambiguous at species level.
+# Common name -> (accepted Latin species name, note). Only names that are unambiguous at species level.
 # Deliberately conservative: "rodents", "primates", "songbird" map to NOTHING, because a
 # category is not a species and pretending otherwise is how "Requires Verification" got written.
 COMMON = OrderedDict([
@@ -85,7 +85,7 @@ INFLECTED = re.compile(r"(ed|ing|ly|tion|ment|ness|ance|ence)$")
 
 
 def find_bare(text):
-    """A binomial stated without parentheses, accepted only for a whitelisted genus AND an
+    """A Latin species name stated without parentheses, accepted only for a whitelisted genus AND an
     epithet that could actually be one."""
     out = []
     for m in re.finditer(r"\b([A-Z][a-z]{2,})\s+([a-z]{4,})\b", text):
@@ -139,7 +139,7 @@ def main(path):
     t5 = sum(1 for r in results if not r["verbatim"] and r["inferred"])
     none = sum(1 for r in results if not r["verbatim"] and not r["inferred"])
     print(f"grants                                : {len(results)}")
-    print(f"TIER 1  binomial stated in abstract   : {t1}")
+    print(f"TIER 1  Latin species name in abstract : {t1}")
     print(f"TIER 5  common name only, needs review: {t5}")
     print(f"nothing extractable                   : {none}")
 
