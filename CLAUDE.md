@@ -22,7 +22,7 @@ Two copies of a shared rulebook drift; one of them is then wrong.
 **Authoritative: `../bbqs-agent/.specify/memory/constitution.md`.** `.specify/memory/constitution.md`
 here is a pointer stub, deliberately not a copy — see the note inside it. Read the real one.
 
-All ten principles bind changes made here. Two are load-bearing in this repo specifically:
+All eleven principles bind changes made here. Two are load-bearing in this repo specifically:
 
 - **III. Live State Is the Source of Truth** — decide from the system of record (Google Group
   membership, Forms responses, **grant roster**), never a cached flag. This is the principle #283

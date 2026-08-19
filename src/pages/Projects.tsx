@@ -26,7 +26,6 @@ import { FundingCharts } from "@/components/projects/FundingCharts";
 import { SpeciesHeatmap } from "@/components/diagrams/SpeciesHeatmap";
 import "@/styles/ag-grid-theme.css";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
 import { useUserTier } from "@/hooks/useUserTier";
 import { useGrantsWithDandisets } from "@/hooks/useGrantsWithDandisets";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
@@ -341,6 +340,15 @@ const GrantTypeBadge = ({ value }: { value: string }) => {
   );
 };
 
+/** NIH project numbers arrive decorated: an application-type digit in front (1=new,
+ *  5=noncompeting continuation) and a support-year suffix behind — 5R34DA059510-02. The
+ *  stable core is what identifies the project across years. Anything comparing grant
+ *  numbers from two sources MUST reduce both through this, or it silently misses when a
+ *  grant rolls over to its next year. Mirrors normalizeGrantNumber in add-project-by-grant
+ *  and the KG's normalize_grant_number (migration 20260810170000). */
+const coreGrantNumber = (raw: string | null | undefined): string =>
+  (raw ?? "").trim().toUpperCase().replace(/-\d+$/, "").replace(/^\d+/, "");
+
 const fetchGrants = async (): Promise<ProjectRow[]> => {
   const { data, error } = await supabase.functions.invoke("nih-grants");
   
@@ -368,7 +376,6 @@ const Projects = () => {
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { projects: marrProjects } = useMarrYaml();
   const { isCurator } = useUserTier();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -381,21 +388,39 @@ const Projects = () => {
     gcTime: 24 * 60 * 60 * 1000,
   });
 
-  // Enrich with species from YAML
+  // Species comes from the KNOWLEDGE GRAPH, never from a checked-in file (Constitution XI:
+  // no shadow copies of KG data). This column previously read public/bbqs_marr.yaml, which
+  // disagreed with projects.study_species on 25 of 30 projects and left 6 rows blank.
+  const { data: speciesRows = [] } = useQuery({
+    queryKey: ["project-species"],
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects").select("grant_number, study_species");
+      if (error) throw error;
+      return (data ?? []) as { grant_number: string | null; study_species: string[] | string | null }[];
+    },
+  });
+
   const speciesMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const p of marrProjects) {
-      map.set(p.id, p.species);
+    for (const r of speciesRows) {
+      const key = coreGrantNumber(r.grant_number);
+      if (!key) continue;
+      const v = Array.isArray(r.study_species)
+        ? r.study_species.filter(Boolean).join(", ")
+        : (r.study_species ?? "");
+      if (v.trim()) map.set(key, v.trim());
     }
     return map;
-  }, [marrProjects]);
+  }, [speciesRows]);
 
-  const rowData = useMemo(() => rawRowData.map(row => {
-    const noSuffix = row.grantNumber.replace(/-\d+$/, "");
-    const noPrefix = noSuffix.replace(/^\d+/, "");
-    const species = speciesMap.get(row.grantNumber) || speciesMap.get(noSuffix) || speciesMap.get(noPrefix) || "";
-    return { ...row, species };
-  }), [rawRowData, speciesMap]);
+  const rowData = useMemo(() => rawRowData.map(row => ({
+    ...row,
+    // Both sides go through coreGrantNumber. The old lookup normalized only the ROW, so a
+    // stored key that kept NIH's application-type prefix (1U01DA063565) never matched.
+    species: speciesMap.get(coreGrantNumber(row.grantNumber)) || "",
+  })), [rawRowData, speciesMap]);
 
   const filteredData = rowData;
 
