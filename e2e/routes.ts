@@ -47,17 +47,17 @@ export const AUTH_ROUTES = [
 ];
 
 // Tables the site cannot work without. Cloned data means every one has rows.
-export const CORE_TABLES = [
-  "grants",
-  "investigators",
-  "publications",
-  "resources",
-  "species",
-  "organizations",
-  "announcements",
-  "jobs",
-  "grant_investigators",
-  "funding_opportunities",
+export const CORE_TABLES: { name: string; mayBeEmpty?: boolean }[] = [
+  { name: "grants" },
+  { name: "investigators_public" },   // was: investigators (raw table is PII, RLS-blocked by design)
+  { name: "publications" },
+  { name: "resources" },
+  { name: "species" },
+  { name: "organizations" },
+  { name: "announcements" },
+  { name: "public_jobs", mayBeEmpty: true },  // was: jobs — view is valid but often has no postings
+  { name: "grant_investigators" },
+  { name: "funding_opportunities" },
 ];
 
 // Read-only / idempotent functions: safe to actually invoke.
