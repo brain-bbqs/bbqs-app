@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { Pencil, X, Check, Plus, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ProvenanceChip } from "@/components/provenance/ProvenanceChip";
+import type { FieldProvenance } from "@/hooks/useFieldProvenance";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { QuestionnaireField as FieldDef } from "@/data/questionnaire-fields";
@@ -10,6 +12,8 @@ interface Props {
   value: any;
   isChanged: boolean;
   hasPending: boolean;
+  /** Where this value came from. Undefined renders nothing (see ProvenanceChip). */
+  provenance?: FieldProvenance;
   onSave: (key: string, value: any) => void;
   readOnly?: boolean;
 }
@@ -18,7 +22,7 @@ interface Props {
  * Renders one questionnaire field with inline edit affordances.
  * Supports text, textarea, tags, boolean, link, number, select.
  */
-export function QuestionnaireField({ field, value, isChanged, hasPending, onSave, readOnly }: Props) {
+export function QuestionnaireField({ field, value, isChanged, hasPending, onSave, readOnly, provenance }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<any>(value);
   const [tagInput, setTagInput] = useState("");
@@ -104,6 +108,7 @@ export function QuestionnaireField({ field, value, isChanged, hasPending, onSave
             </TooltipContent>
           </Tooltip>
         )}
+        <ProvenanceChip provenance={provenance} />
         {isChanged && (
           <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase">
             Modified

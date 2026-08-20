@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionnaireField } from "./QuestionnaireField";
 import type { QuestionnaireSection as SectionDef } from "@/data/questionnaire-fields";
+import type { ProvenanceLookup } from "@/hooks/useFieldProvenance";
 
 interface Props {
   section: SectionDef;
@@ -12,10 +13,11 @@ interface Props {
   pendingKeys: Set<string>;
   defaultOpen?: boolean;
   readOnly?: boolean;
+  provenance?: ProvenanceLookup;
 }
 
 export function QuestionnaireSection({
-  section, getValue, onSave, changedKeys, pendingKeys, defaultOpen = true, readOnly,
+  section, getValue, onSave, changedKeys, pendingKeys, defaultOpen = true, readOnly, provenance,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -73,6 +75,7 @@ export function QuestionnaireSection({
               hasPending={pendingKeys.has(field.key)}
               onSave={onSave}
               readOnly={readOnly}
+              provenance={provenance?.get(field.key)}
             />
           ))}
         </div>

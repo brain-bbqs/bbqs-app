@@ -396,11 +396,45 @@ const Projects = () => {
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("projects").select("grant_number, study_species");
+        .from("projects").select("id, grant_number, study_species");
       if (error) throw error;
-      return (data ?? []) as { grant_number: string | null; study_species: string[] | string | null }[];
+      return (data ?? []) as { id: string; grant_number: string | null; study_species: string[] | string | null }[];
     },
   });
+
+  // Provenance for the species column only (Constitution XI: a generated value must not look like a
+  // verified one). RLS restricts this to admins/curators, so it comes back empty for the public and
+  // the cell falls back to plain text — a marker nobody can explain is worse than no marker.
+  const { data: speciesProv = [] } = useQuery({
+    queryKey: ["species-provenance"],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_provenance_current")
+        .select("entity_id, source_class, source_label, is_verified, agent_label, model_id")
+        .eq("entity_table", "projects")
+        .eq("entity_column", "study_species");
+      if (error) throw error;
+      return (data ?? []) as unknown as {
+        entity_id: string; source_class: string; source_label: string;
+        is_verified: boolean; agent_label: string | null; model_id: string | null;
+      }[];
+    },
+  });
+
+  const provByGrant = useMemo(() => {
+    const idToGrant = new Map<string, string>();
+    for (const r of speciesRows as any[]) {
+      if (r.id && r.grant_number) idToGrant.set(r.id, coreGrantNumber(r.grant_number));
+    }
+    const m = new Map<string, (typeof speciesProv)[number]>();
+    for (const p of speciesProv) {
+      const g = idToGrant.get(p.entity_id);
+      if (g) m.set(g, p);
+    }
+    return m;
+  }, [speciesProv, speciesRows]);
 
   const speciesMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -420,7 +454,8 @@ const Projects = () => {
     // Both sides go through coreGrantNumber. The old lookup normalized only the ROW, so a
     // stored key that kept NIH's application-type prefix (1U01DA063565) never matched.
     species: speciesMap.get(coreGrantNumber(row.grantNumber)) || "",
-  })), [rawRowData, speciesMap]);
+    speciesProvenance: provByGrant.get(coreGrantNumber(row.grantNumber)),
+  })), [rawRowData, speciesMap, provByGrant]);
 
   const filteredData = rowData;
 
@@ -479,9 +514,28 @@ const Projects = () => {
       headerName: "Species",
       width: 130,
       minWidth: 110,
-      cellRenderer: ({ value }: { value: string }) => {
+      cellRenderer: ({ value, data }: { value: string; data: ProjectRow }) => {
         if (!value) return <span className="text-muted-foreground">—</span>;
-        return <span className="text-sm">{value}</span>;
+        const p = (data as any)?.speciesProvenance;
+        // Verified values render plainly, per Principle XI. Only AI-assisted and unverified get a
+        // mark, so the mark means something when you see it.
+        const mark =
+          !p ? null
+          : p.source_class === "curated_with_ai"
+            ? { cls: "text-violet-500", ch: "✦", tip: `Curated with AI${p.model_id ? ` (${p.model_id})` : ""}${p.agent_label ? ` — ${p.agent_label}` : ""}. Worth checking against the grant record.` }
+          : !p.is_verified
+            ? { cls: "text-amber-500", ch: "?", tip: "No recorded source — not human-verified." }
+            : null;
+        return (
+          <span className="text-sm inline-flex items-center gap-1">
+            {value}
+            {mark && (
+              <abbr title={mark.tip} className={`${mark.cls} no-underline cursor-help text-xs`}>
+                {mark.ch}
+              </abbr>
+            )}
+          </span>
+        );
       },
     },
     {
