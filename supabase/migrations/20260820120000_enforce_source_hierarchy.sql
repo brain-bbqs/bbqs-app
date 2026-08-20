@@ -26,7 +26,8 @@
 --
 -- HOW A WRITER DECLARES ITS CLASS, in resolution order:
 --   1. set_source_class('authoritative_registry')  -- transaction-local; for migrations and SQL
---   2. request header x-bbqs-source-class          -- for edge functions, set on their OWN server-side
+--   2. request header x-bbqs-source-class          -- for edge functions (see suggest-related), set on
+--                                                     their OWN server-side
 --                                                     client. NOT a global browser header: adding one
 --                                                     of those broke every edge function's CORS
 --                                                     allow-list once already, and tests/guards/
@@ -44,11 +45,24 @@
 --   nih-grants                INSERTs a bare {grant_number, grant_id} row only when none exists, and
 --                             never UPDATEs a tracked column. Runs on every /projects visit, so this
 --                             was the one that had to be checked: it is untouched by an UPDATE guard.
---   add-project-by-grant      writes study_species/keywords/website/metadata from RePORTER = tier 1.
---                             Runs on an admin action, not page load. Must send the header; until it
---                             does it resolves to tier 6 and will be REFUSED against verified cells,
---                             loudly, in an admin flow rather than a public page.
---   suggest-related, embed-knowledge, import-grant-publications
+--   add-project-by-grant      NOT a writer of tracked columns. An earlier draft of this header said
+--                             it was and told the reader to add a header it does not need. That came
+--                             from grepping for column names and matching its SELECT list (line 193);
+--                             all eight of its writes go to grants / resources / organizations /
+--                             investigators / investigator_organizations, plus a bare
+--                             {grant_number, grant_id} INSERT into projects. It returns early when a
+--                             project already exists and never UPDATEs one.
+--   suggest-related           THE real machine writer: UPDATEs projects.metadata to extend
+--                             related_project_ids. That key is curated_with_ai (Nader + Gemini 3 Pro),
+--                             so an undeclared service-role write is refused -- which is the point. It
+--                             now declares x-bbqs-source-class and, crucially, READS the error: the
+--                             write was previously unchecked, so a refusal would have been swallowed
+--                             and still reported as updated:true. Silent success on a rejected write
+--                             is worse than the overwrite this guard exists to stop.
+--   useMetadataEditor.ts      client UPDATE of projects.metadata by a signed-in user -> curator_fill,
+--                             verified, allowed. Unaffected.
+--   ProjectProfile.commit()   same, via upsert.
+--   embed-knowledge, import-grant-publications
 --                             read these columns; their writes go to other tables. Unaffected.
 --   seed-staging-fakes        staging only.
 --

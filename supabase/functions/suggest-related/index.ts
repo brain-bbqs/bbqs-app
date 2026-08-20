@@ -24,7 +24,19 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Declare what kind of source this is (Constitution XI). Without it, a service-role write
+    // resolves to 'unknown' and the provenance guard refuses it against any human-authored cell --
+    // correctly, but silently, since supabase-js returns errors rather than throwing.
+    //
+    // Set on THIS server-side client only. A global header on the browser client once broke every
+    // edge function's CORS allow-list; server-to-PostgREST calls have no preflight, so this is safe.
+    //
+    // 'llm_extract' is the closest honest class: machine-produced and unverified. The name is too
+    // narrow for what this actually is -- field-overlap similarity scoring, no model involved -- and
+    // that mismatch is part of the source-class naming review.
+    const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: { headers: { "x-bbqs-source-class": "llm_extract" } },
+    });
 
     const body = await req.json().catch(() => ({}));
     const targetGrantNumber = body.grant_number as string | undefined;
@@ -93,10 +105,27 @@ serve(async (req) => {
       const newIds = [...new Set([...existingIds, ...suggestedIds])];
 
       let updated = false;
+      let skipped: string | null = null;
       if (newIds.length > existingIds.length) {
         const meta = { ...(project.metadata || {}), related_project_ids: newIds };
-        await sb.from("projects").update({ metadata: meta }).eq("grant_number", project.grant_number);
-        updated = true;
+        const { error: writeErr } = await sb
+          .from("projects").update({ metadata: meta }).eq("grant_number", project.grant_number);
+        if (writeErr) {
+          // The provenance guard raises check_violation when a machine write would overwrite a
+          // human-authored value. That is the intended outcome, not a fault: related_project_ids was
+          // written by a person working with a model, and a similarity script does not get to
+          // silently replace it. Report it and carry on to the next project instead of failing the
+          // whole batch -- and never claim updated:true, which is what this code did before, because
+          // the error was not read at all.
+          if (writeErr.code === "23514" || /Refusing to overwrite/.test(writeErr.message ?? "")) {
+            skipped = "held by a human-authored source; suggestions not applied";
+            console.log(`suggest-related: ${project.grant_number} ${skipped}`);
+          } else {
+            throw writeErr;
+          }
+        } else {
+          updated = true;
+        }
       }
 
       results.push({
@@ -107,6 +136,7 @@ serve(async (req) => {
           shared_fields: s.shared,
         })),
         updated,
+        skipped,
       });
     }
 
