@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as d3 from "d3";
 import { buildConnectionMatrix, type MarrProject } from "@/data/marr-projects";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import { cn } from "@/lib/utils";
 
 type MarrLevel = "computational" | "algorithmic" | "implementation" | "all";
@@ -15,7 +15,7 @@ interface TooltipData {
 }
 
 export function MarrChordDiagram() {
-  const { projects, loading } = useMarrYaml();
+  const { projects, loading } = useMarrProjects();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [level, setLevel] = useState<MarrLevel>("all");

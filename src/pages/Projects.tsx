@@ -21,6 +21,7 @@ import { ExternalLink, Download, Loader2, RefreshCw, FileText, DollarSign, Folde
 import { normalizePiName } from "@/lib/pi-utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { coreGrantNumber } from "@/lib/grantNumber";
 import { formatAuthors } from "@/components/projects/PublicationsGrid";
 import { FundingCharts } from "@/components/projects/FundingCharts";
 import { SpeciesHeatmap } from "@/components/diagrams/SpeciesHeatmap";
@@ -339,15 +340,6 @@ const GrantTypeBadge = ({ value }: { value: string }) => {
     </Badge>
   );
 };
-
-/** NIH project numbers arrive decorated: an application-type digit in front (1=new,
- *  5=noncompeting continuation) and a support-year suffix behind — 5R34DA059510-02. The
- *  stable core is what identifies the project across years. Anything comparing grant
- *  numbers from two sources MUST reduce both through this, or it silently misses when a
- *  grant rolls over to its next year. Mirrors normalizeGrantNumber in add-project-by-grant
- *  and the KG's normalize_grant_number (migration 20260810170000). */
-const coreGrantNumber = (raw: string | null | undefined): string =>
-  (raw ?? "").trim().toUpperCase().replace(/-\d+$/, "").replace(/^\d+/, "");
 
 const fetchGrants = async (): Promise<ProjectRow[]> => {
   const { data, error } = await supabase.functions.invoke("nih-grants");

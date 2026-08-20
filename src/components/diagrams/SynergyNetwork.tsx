@@ -5,7 +5,7 @@ import {
   type SynergyNode,
   type SynergyLink,
 } from "@/data/marr-synergies";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import { SynergyTooltip } from "./synergy/SynergyTooltip";
 import { SynergyLegend } from "./synergy/SynergyLegend";
 import { SynergyFilters, type FilterType } from "./synergy/SynergyFilters";
@@ -29,7 +29,7 @@ interface SimLink extends d3.SimulationLinkDatum<SimNode> {
 }
 
 export function SynergyNetwork() {
-  const { synergyNodes, synergyLinks, loading } = useMarrYaml();
+  const { synergyNodes, synergyLinks, loading } = useMarrProjects();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<FilterType>("all");
