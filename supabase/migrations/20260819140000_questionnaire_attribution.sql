@@ -1,5 +1,5 @@
 -- Attribute the questionnaire answers to the people who actually answered, and record the
--- AI-assisted authorship of the Marr layer. Feature 012 P1b. Constitution v1.8.1 Principle XI.
+-- AI-assisted authorship of the consortium own analytical layer. Feature 012 P1b. Constitution v1.8.1 Principle XI.
 --
 -- WHY THIS EXISTS AT ALL. 20260819130000 recorded 1189 cells as 'unknown' because nothing in the
 -- LIVE database said where they came from. That was the honest reading of the live state, and it was
@@ -19,12 +19,19 @@
 -- the row. That is the case for per-cell provenance in one sentence: a single actor column cannot
 -- survive a second edit, and the value it held was the only record of who answered a 40-question form.
 --
--- THE MARR LAYER is not questionnaire data. The form asks no Marr-level question. The author states
--- it was written by Nader with Gemini 3 Pro on or about 2026-03-06, so it is recorded as
--- curated_with_ai: human-attributed and human-accountable, with the model named so a factual error
--- can be scoped to what produced it. 20260819130000 got this wrong twice -- it recorded 125 of those
--- cells as 'unknown' and credited 5 to Wilbrecht's form submission, because R34DA062119 holds both a
--- response and a Marr layer. Both are corrected here.
+-- THE CONSORTIUM'S OWN LAYER is not questionnaire data. Sixteen metadata keys -- the Marr levels,
+-- cross-project synergy, target species domain, plus use_approaches, produce_data_modality/type,
+-- devices, data_analysis_approach, develope_hardware/software_type, collaborators, presentations and
+-- related_project_ids -- share one 26-project footprint and were written by Nader with Gemini 3 Pro
+-- on or about 2026-03-06 (stated by the author, 2026-08-19). They are recorded as curated_with_ai:
+-- human-attributed and human-accountable, with the model named so a factual error can be scoped to
+-- what produced it.
+--
+-- 20260819130000 got this wrong twice -- it recorded 125 of those cells as 'unknown' and credited 5
+-- to Wilbrecht's form submission, because R34DA062119 holds both a response and this layer. Both are
+-- corrected here. The reverse mistake was checked for too before extending the set: none of the ten
+-- added keys appears in any project's April questionnaire list, none was written by the August
+-- import, and no form question matches any of them.
 --
 -- APPEND-ONLY, so nothing is rewritten: these INSERTs add newer claims and field_provenance_current
 -- takes the newest per cell. The wrong 'unknown' and misattributed 'questionnaire' rows remain
@@ -73,13 +80,26 @@ COMMENT ON COLUMN public.field_provenance.authored_at_precision IS
 --    three separate backfills have to agree about this set.
 CREATE OR REPLACE FUNCTION public.ai_authored_metadata_keys()
 RETURNS text[] LANGUAGE sql IMMUTABLE AS $fn$
-  SELECT ARRAY['marr_l1_ethological_goal', 'marr_l2_algorithmic_function',
-               'marr_l3_implementational_hardware', 'cross_project_synergy',
-               'target_species_domain', 'agentic_action_required']::text[]
+  SELECT ARRAY[
+    -- The Marr layer proper.
+    'marr_l1_ethological_goal', 'marr_l2_algorithmic_function',
+    'marr_l3_implementational_hardware', 'cross_project_synergy',
+    'target_species_domain', 'agentic_action_required',
+    -- The rest of the same authoring batch, confirmed by the author on 2026-08-19. Same 26-project
+    -- footprint as the Marr keys, and checked three ways before being claimed: none appears in any
+    -- project's 2026-04-17 questionnaire key list, none was written by the August import of the two
+    -- form responses, and the form itself asks no question matching any of them (searched all 85
+    -- response-sheet headers for collaborat / presentation / related project / device / approach /
+    -- modality -- no match). Claiming a form answer as AI-authored would be the same misattribution
+    -- this function exists to prevent, just pointing the other way.
+    'use_approaches', 'produce_data_modality', 'produce_data_type', 'devices',
+    'data_analysis_approach', 'develope_hardware_type', 'develope_software_type',
+    'collaborators', 'presentations', 'related_project_ids'
+  ]::text[]
 $fn$;
 
 COMMENT ON FUNCTION public.ai_authored_metadata_keys() IS
-  'Project metadata keys authored by the consortium (a named human with an AI assistant), NOT collected by the questionnaire. The form asks no Marr-level question, so crediting these to a form respondent attributes analysis they did not write.';
+  'Project metadata keys authored by the consortium (a named human with an AI assistant), NOT collected by the questionnaire. The form asks no question matching any of them, so crediting these to a form respondent would attribute work they did not do.';
 
 GRANT EXECUTE ON FUNCTION public.ai_authored_metadata_keys() TO authenticated, service_role;
 
@@ -157,8 +177,9 @@ SELECT 'projects', p.id, 'metadata.' || k.key, 'questionnaire', 'google_form_res
  WHERE btrim(coalesce(p.metadata ->> k.key, '')) <> ''
    AND NOT (k.key = ANY (public.ai_authored_metadata_keys()));
 
--- 6. Tier 4 curated_with_ai: the Marr layer, on every project that has it. Supersedes both the 125
---    cells recorded as 'unknown' and the 5 credited to a form respondent.
+-- 6. Tier 4 curated_with_ai: the consortium's own authored layer, all 16 keys, on every project
+--    that has it (~396 cells). Supersedes both the cells recorded as 'unknown' and the 5 credited to
+--    a form respondent.
 INSERT INTO public.field_provenance (
   entity_table, entity_id, entity_column, source_class, activity,
   agent_label, source_ref, value_text, model_id, evidence,
@@ -174,8 +195,12 @@ SELECT 'projects', p.id, 'metadata.' || kv.key, 'curated_with_ai', 'authoring_wi
    AND btrim(coalesce(kv.value, '')) <> '';
 
 -- Verify -----------------------------------------------------------------------------------------
--- 1) Standing claims by class. Expect questionnaire ~683 + the 107 already there, curated_with_ai
---    130, authoritative_registry 3, and unknown down sharply from 1189.
+-- 1) Standing claims by class. Dry-run against live data predicts:
+--      questionnaire            785   (683 recovered here + 102 already attributed)
+--      curated_with_ai          396   (16 keys x 26 projects, Nader + Gemini 3 Pro)
+--      authoritative_registry     3
+--      unknown                  115   (88 of them plain columns: study_human, keywords, species)
+--      TOTAL                   1299   -> 91.1% verified, from 10.9%
 SELECT sc.rank, fpc.source_class, sc.is_verified, count(*) AS cells
   FROM public.field_provenance_current fpc
   JOIN public.source_classes sc ON sc.code = fpc.source_class
@@ -203,7 +228,9 @@ SELECT entity_column, count(*) AS claims_recorded
  WHERE entity_column = 'metadata.marr_l1_ethological_goal'
  GROUP BY entity_column;
 
--- 5) The headline: how much of what the site renders is now human- or registry-backed.
+-- 5) The headline: how much of what the site renders is now human- or registry-backed. Expect about
+--    1184 verified / 115 unverified (91.1%). What remains is mostly the plain columns -- study_human,
+--    keywords, study_species -- which no source has ever claimed.
 SELECT count(*) FILTER (WHERE is_verified)     AS verified_cells,
        count(*) FILTER (WHERE NOT is_verified) AS unverified_cells,
        round(100.0 * count(*) FILTER (WHERE is_verified) / nullif(count(*), 0), 1) AS pct_verified
