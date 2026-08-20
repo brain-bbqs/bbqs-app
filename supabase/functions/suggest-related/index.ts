@@ -31,11 +31,17 @@ serve(async (req) => {
     // Set on THIS server-side client only. A global header on the browser client once broke every
     // edge function's CORS allow-list; server-to-PostgREST calls have no preflight, so this is safe.
     //
-    // 'llm_extract' is the closest honest class: machine-produced and unverified. The name is too
-    // narrow for what this actually is -- field-overlap similarity scoring, no model involved -- and
-    // that mismatch is part of the source-class naming review.
+    // 'algorithmic' (G5), not 'llm_extract' (G6): this is field-overlap similarity scoring with no
+    // model in it, and a provenance record naming a model that never ran would send whoever reads it
+    // looking for something that does not exist. x-bbqs-client names the specific rule, so the
+    // recorded claim says WHICH script produced the value and not merely that a machine did.
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      global: { headers: { "x-bbqs-source-class": "llm_extract" } },
+      global: {
+        headers: {
+          "x-bbqs-source-class": "algorithmic",
+          "x-bbqs-client": "suggest-related",
+        },
+      },
     });
 
     const body = await req.json().catch(() => ({}));
@@ -113,8 +119,8 @@ serve(async (req) => {
         if (writeErr) {
           // The provenance guard raises check_violation when a machine write would overwrite a
           // human-authored value. That is the intended outcome, not a fault: related_project_ids was
-          // written by a person working with a model, and a similarity script does not get to
-          // silently replace it. Report it and carry on to the next project instead of failing the
+          // written by a person working with a model (G4), and a computed suggestion (G5) does not
+          // get to silently replace it. Report it and carry on to the next project instead of failing the
           // whole batch -- and never claim updated:true, which is what this code did before, because
           // the error was not read at all.
           if (writeErr.code === "23514" || /Refusing to overwrite/.test(writeErr.message ?? "")) {
