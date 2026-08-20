@@ -1201,6 +1201,68 @@ export type Database = {
           },
         ]
       }
+      field_provenance: {
+        Row: {
+          activity: string
+          agent_id: string | null
+          agent_label: string
+          confidence: number | null
+          entity_column: string
+          entity_id: string
+          entity_table: string
+          evidence: string | null
+          id: number
+          model_id: string | null
+          recorded_at: string
+          recorded_by: string
+          source_class: string
+          source_ref: string | null
+          value_text: string | null
+        }
+        Insert: {
+          activity: string
+          agent_id?: string | null
+          agent_label: string
+          confidence?: number | null
+          entity_column: string
+          entity_id: string
+          entity_table: string
+          evidence?: string | null
+          id?: number
+          model_id?: string | null
+          recorded_at?: string
+          recorded_by?: string
+          source_class: string
+          source_ref?: string | null
+          value_text?: string | null
+        }
+        Update: {
+          activity?: string
+          agent_id?: string | null
+          agent_label?: string
+          confidence?: number | null
+          entity_column?: string
+          entity_id?: string
+          entity_table?: string
+          evidence?: string | null
+          id?: number
+          model_id?: string | null
+          recorded_at?: string
+          recorded_by?: string
+          source_class?: string
+          source_ref?: string | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_provenance_source_class_fkey"
+            columns: ["source_class"]
+            isOneToOne: false
+            referencedRelation: "source_classes"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       funding_opportunities: {
         Row: {
           activity_code: string | null
@@ -2991,6 +3053,33 @@ export type Database = {
           },
         ]
       }
+      source_classes: {
+        Row: {
+          agent_kind: string
+          code: string
+          description: string | null
+          is_verified: boolean
+          label: string
+          rank: number
+        }
+        Insert: {
+          agent_kind: string
+          code: string
+          description?: string | null
+          is_verified: boolean
+          label: string
+          rank: number
+        }
+        Update: {
+          agent_kind?: string
+          code?: string
+          description?: string | null
+          is_verified?: boolean
+          label?: string
+          rank?: number
+        }
+        Relationships: []
+      }
       species: {
         Row: {
           common_name: string | null
@@ -3278,6 +3367,38 @@ export type Database = {
           votes?: number | null
         }
         Relationships: []
+      }
+      field_provenance_current: {
+        Row: {
+          activity: string | null
+          agent_id: string | null
+          agent_kind: string | null
+          agent_label: string | null
+          claim_count: number | null
+          confidence: number | null
+          entity_column: string | null
+          entity_id: string | null
+          entity_table: string | null
+          evidence: string | null
+          is_verified: boolean | null
+          model_id: string | null
+          recorded_at: string | null
+          recorded_by: string | null
+          source_class: string | null
+          source_label: string | null
+          source_rank: number | null
+          source_ref: string | null
+          value_text: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_provenance_source_class_fkey"
+            columns: ["source_class"]
+            isOneToOne: false
+            referencedRelation: "source_classes"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       group_audit_dismissals_live: {
         Row: {
@@ -3804,6 +3925,22 @@ export type Database = {
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
       questionnaire_fields: { Args: never; Returns: string[] }
       questionnaire_form_url: { Args: never; Returns: string }
+      record_field_provenance: {
+        Args: {
+          _activity: string
+          _agent_label?: string
+          _column: string
+          _confidence?: number
+          _evidence?: string
+          _id: string
+          _model_id?: string
+          _source_class: string
+          _source_ref?: string
+          _table: string
+          _value?: string
+        }
+        Returns: number
+      }
       record_investigator_alias: {
         Args: { _alias: string; _primary_email: string }
         Returns: Json
