@@ -76,6 +76,58 @@ COMMENT ON COLUMN public.field_provenance.authored_at IS
 COMMENT ON COLUMN public.field_provenance.authored_at_precision IS
   'How firm authored_at is. "on or about March 6" is real information and so is its fuzziness; an exact timestamp would invent precision and NULL would discard a usable date.';
 
+-- 2b. Re-declare the view so it EXPOSES the two new columns.
+--
+--     Adding a column to a table does not add it to a view built on a fixed select list, and the
+--     first run of this migration failed at the verify step with
+--       42703: column fpc.authored_at does not exist
+--     after every preceding statement had succeeded. The SQL editor runs the script in one
+--     transaction, so the whole thing rolled back cleanly -- no partial state -- but the lesson
+--     stands: a new column is not visible until every view over it is re-declared.
+--
+--     CREATE OR REPLACE VIEW may only APPEND columns. It cannot insert, reorder or drop them, so the
+--     18 existing columns are repeated below in their exact live order and the two new ones go last,
+--     after claim_count. Inserting them next to recorded_at, where they belong logically, would fail
+--     with "42P16: cannot drop columns from view" -- the same trap that bit the questionnaire-status
+--     view earlier in this work.
+CREATE OR REPLACE VIEW public.field_provenance_current
+WITH (security_invoker = true)
+AS
+SELECT DISTINCT ON (fp.entity_table, fp.entity_id, fp.entity_column)
+       fp.entity_table,
+       fp.entity_id,
+       fp.entity_column,
+       fp.source_class,
+       sc.rank        AS source_rank,
+       sc.label       AS source_label,
+       sc.agent_kind,
+       sc.is_verified,
+       fp.activity,
+       fp.agent_id,
+       fp.agent_label,
+       fp.source_ref,
+       fp.value_text,
+       fp.evidence,
+       fp.model_id,
+       fp.confidence,
+       fp.recorded_at,
+       fp.recorded_by,
+       (SELECT count(*) FROM public.field_provenance p2
+         WHERE p2.entity_table = fp.entity_table
+           AND p2.entity_id = fp.entity_id
+           AND p2.entity_column = fp.entity_column) AS claim_count,
+       -- Appended, not inserted. See the note above.
+       fp.authored_at,
+       fp.authored_at_precision
+  FROM public.field_provenance fp
+  JOIN public.source_classes sc ON sc.code = fp.source_class
+ ORDER BY fp.entity_table, fp.entity_id, fp.entity_column, fp.recorded_at DESC, fp.id DESC;
+
+COMMENT ON VIEW public.field_provenance_current IS
+  'The standing provenance claim for each cell: newest row per (table, id, column), joined to its rank and is_verified. This is what the UI reads -- is_verified false must render as machine-generated.';
+
+GRANT SELECT ON public.field_provenance_current TO authenticated;
+
 -- 3. The keys that are the consortium's analytical layer, not form answers. Defined once because
 --    three separate backfills have to agree about this set.
 CREATE OR REPLACE FUNCTION public.ai_authored_metadata_keys()
@@ -104,6 +156,15 @@ COMMENT ON FUNCTION public.ai_authored_metadata_keys() IS
 GRANT EXECUTE ON FUNCTION public.ai_authored_metadata_keys() TO authenticated, service_role;
 
 -- 4. Recording helper gains the authoring date.
+--
+--    DROP first, deliberately. Postgres identifies a function by name AND argument list, so adding
+--    two parameters makes CREATE OR REPLACE create a second OVERLOAD rather than replace anything.
+--    Both would then accept an 11-argument call -- the old one exactly, the new one via its defaults
+--    -- and every such call would fail with "function is not unique". Nothing calls it yet (P1 landed
+--    hours ago with no callers), so dropping the old signature is free now and would not be later.
+DROP FUNCTION IF EXISTS public.record_field_provenance(
+  text, uuid, text, text, text, text, text, text, text, text, numeric);
+
 CREATE OR REPLACE FUNCTION public.record_field_provenance(
   _table text, _id uuid, _column text, _source_class text, _activity text,
   _agent_label text DEFAULT NULL, _source_ref text DEFAULT NULL, _value text DEFAULT NULL,
