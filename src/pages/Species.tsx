@@ -8,7 +8,7 @@ import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
@@ -105,7 +105,7 @@ const BehaviorBadges = ({ data }: { value: any; data: SpeciesRow }) => {
 };
 
 export default function Species() {
-  const { projects, loading } = useMarrYaml();
+  const { projects, loading } = useMarrProjects();
   const [quickFilterText, setQuickFilterText] = useState("");
   const [view] = useHashState<"table" | "heatmap">("table", ["table", "heatmap"] as const);
 

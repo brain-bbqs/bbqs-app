@@ -5,7 +5,7 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "@/styles/ag-grid-theme.css";
 import { type MarrProject } from "@/data/marr-projects";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import { Badge } from "@/components/ui/badge";
 import { Code, List, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -121,7 +121,7 @@ function ProjectDetailModal({ project, open, onClose }: { project: MarrProject; 
 }
 
 export function ProjectIndexGrid() {
-  const { projects, loading } = useMarrYaml();
+  const { projects, loading } = useMarrProjects();
   const [selectedProject, setSelectedProject] = useState<MarrProject | null>(null);
 
   const defaultColDef = useMemo<ColDef>(() => ({

@@ -29,14 +29,10 @@ const SRC = join(ROOT, "src");
 /** Files still permitted to read bbqs_marr.yaml. The Marr-layer diagram surfaces have no KG
  *  columns yet (feature 012 P2 moves them); the hook itself is the loader. MAY ONLY SHRINK. */
 const YAML_ALLOWLIST = new Set([
-  "src/hooks/useMarrYaml.ts",
-  "src/pages/Species.tsx",
-  "src/components/diagrams/MarrChordDiagram.tsx",
-  "src/components/diagrams/MarrSankeyDiagram.tsx",
-  "src/components/diagrams/ProjectIndexGrid.tsx",
-  "src/components/diagrams/SpeciesHeatmap.tsx",
-  "src/components/diagrams/SynergyNetwork.tsx",
-  "src/components/entity-summary/summaries/SpeciesSummary.tsx",
+  // EMPTY, and it stays empty. Feature 012 P2 moved the last eight readers to the KG:
+  // useMarrYaml.ts was deleted and replaced by useMarrProjects.ts (same transformation logic, KG
+  // source), and the five Marr diagrams, Species.tsx and SpeciesSummary.tsx now import that.
+  // An addition here is a Principle XI violation that needs a constitution argument, not a test edit.
 ]);
 
 const walk = (dir, out = []) => {
@@ -102,6 +98,33 @@ test("grant numbers are compared on BOTH sides through one normalizer", () => {
       uses.length +
       " call site(s); expected at least 2 — one per side of the comparison).",
   );
+});
+
+test("nothing fetches the YAML file, and js-yaml is no longer imported in src", () => {
+  const offenders = walk(SRC)
+    .filter((f) => /bbqs_marr|js-yaml/.test(codeOnly(readFileSync(f, "utf8"))))
+    .map(rel);
+  assert.deepEqual(
+    offenders,
+    [],
+    ["These still reach for the YAML or its parser:", ...offenders].join(" | "),
+  );
+});
+
+test("the Marr hook reads the KG", () => {
+  const src = codeOnly(readFileSync(join(SRC, "hooks", "useMarrProjects.ts"), "utf8"));
+  assert.match(src, /from\("projects"\)/, "useMarrProjects must select from the KG projects table.");
+  assert.match(src, /marr_l1_ethological_goal/, "It should read the Marr levels out of metadata.");
+});
+
+test("grant numbers go through the ONE shared normalizer", () => {
+  // Two copies of this rule is how the species column broke. lib/grantNumber.ts is the only
+  // definition the browser bundle may have.
+  const defs = walk(SRC).filter((f) => {
+    const src = codeOnly(readFileSync(f, "utf8"));
+    return /const coreGrantNumber\s*=/.test(src);
+  }).map(rel);
+  assert.deepEqual(defs, ["src/lib/grantNumber.ts"], `coreGrantNumber defined in: ${defs.join(", ")}`);
 });
 
 test("the allowlist itself only shrinks: every entry still exists", () => {

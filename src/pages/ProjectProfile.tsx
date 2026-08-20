@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { PageMeta } from "@/components/PageMeta";
+import { useFieldProvenance } from "@/hooks/useFieldProvenance";
 import { AccessGate } from "@/components/project-profile/AccessGate";
 import { TeamRosterEditor } from "@/components/project-profile/TeamRosterEditor";
 import { QuestionnaireSection } from "@/components/project-profile/QuestionnaireSection";
@@ -57,6 +58,10 @@ export default function ProjectProfile() {
       return { grant, project };
     },
   });
+
+  // One query for the whole project rather than one per field. Comes back empty for non-staff
+  // viewers (provenance is RLS-restricted), and ProvenanceChip renders nothing in that case.
+  const provenance = useFieldProvenance("projects", (data?.project as any)?.id);
 
   const pendingKeys = useMemo(() => new Set<string>(), []);
 
@@ -233,6 +238,7 @@ export default function ProjectProfile() {
               onSave={setFieldValue}
               changedKeys={changedKeys}
               pendingKeys={pendingKeys}
+              provenance={provenance}
               defaultOpen={hashSection === section.id || idx < 2}
             />
           ))}

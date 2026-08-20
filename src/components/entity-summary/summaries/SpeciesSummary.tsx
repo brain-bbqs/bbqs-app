@@ -7,13 +7,13 @@ import { EntityComments } from "../EntityComments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { FileText, MessageSquare, Bug, FlaskConical } from "lucide-react";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 
 function RelatedProjects({ speciesName, commonName }: { speciesName: string; commonName?: string | null }) {
   const { open } = useEntitySummary();
   // Use YAML as the single source of truth so the count here always matches
   // the Species directory table (which is also derived from YAML).
-  const { projects: yamlProjects, loading: isLoading } = useMarrYaml();
+  const { projects: yamlProjects, loading: isLoading } = useMarrProjects();
 
   const norm = (s: string) => s.trim().toLowerCase();
   const terms = new Set<string>();

@@ -1,5 +1,33 @@
-import { useState, useEffect } from "react";
-import yaml from "js-yaml";
+/** Marr-layer project data, read from the KNOWLEDGE GRAPH.
+ *
+ *  Replaces useMarrYaml, which fetched /bbqs_marr.yaml — a checked-in copy of KG content that
+ *  Constitution v1.8.1 Principle XI prohibits as a source for rendered fields. That file disagreed
+ *  with the KG on 25 of 30 projects and could not be corrected by the people who own the data.
+ *
+ *  The transformation logic below is lifted UNCHANGED from the YAML hook, so every consumer
+ *  (5 diagrams, Species.tsx, SpeciesSummary) receives the same shape it always did. Only the source
+ *  changed: KG `projects.metadata` for the Marr levels and synergy prose, and the already-cached
+ *  `nih-grants` response for titles, institutions and PI names.
+ *
+ *  WHERE EACH FIELD COMES FROM now that it is the KG:
+ *    computational / algorithmic / implementation  metadata.marr_l1/l2/l3_*
+ *    dataModalities                               metadata.produce_data_modality
+ *    experimentalApproaches                       metadata.use_approaches
+ *    species                                      projects.study_species, then target_species_domain
+ *    keywords                                     projects.keywords
+ *    synergy links                                metadata.cross_project_synergy
+ *  Those metadata keys are the ones recorded as `curated_with_ai` — authored by a named person with
+ *  Gemini 3 Pro — so the diagram surfaces are rendering AI-assisted content. That is now visible in
+ *  the provenance store rather than implied by a static file claiming to be "strictly audited".
+ *
+ *  ORDER, therefore COLOUR, is by grant number. The YAML had a hand-arranged order, so a project's
+ *  palette colour may differ from before; a deterministic order is worth more than matching an
+ *  arbitrary one, since DB row order is not stable across queries.
+ */
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { coreGrantNumber } from "@/lib/grantNumber";
 import type { MarrProject } from "@/data/marr-projects";
 import type { SynergyNode, SynergyLink } from "@/data/marr-synergies";
 
@@ -134,17 +162,18 @@ function parseSynergyFromProjects(projects: MarrProject[], rawProjects: any[]): 
 
     while ((match = grantPattern.exec(synText)) !== null) {
       const candidate = match[1];
-      if (candidate !== raw.grant_number && projectIdSet.has(candidate)) {
-        targets.push(candidate);
+      const core = coreGrantNumber(candidate);
+      if (core !== raw.grant_number && projectIdSet.has(core)) {
+        targets.push(core);
       }
     }
 
     // Also check for prefixed patterns like 1U01DA063534
     const prefixedPattern = /\d+([A-Z]\d+[A-Z]+\d+)/g;
     while ((match = prefixedPattern.exec(synText)) !== null) {
-      const candidate = match[0];
-      if (candidate !== raw.grant_number && projectIdSet.has(candidate)) {
-        if (!targets.includes(candidate)) targets.push(candidate);
+      const core = coreGrantNumber(match[0]);
+      if (core !== raw.grant_number && projectIdSet.has(core)) {
+        if (!targets.includes(core)) targets.push(core);
       }
     }
 
@@ -173,7 +202,45 @@ function inferSynergyType(text: string): SynergyLink["synergyType"] {
   return "algorithmic";
 }
 
-interface MarrYamlData {
+/** The record shape the parsers above expect, built from KG rows. Deliberately mimics the YAML
+ *  field names so the parsers stay untouched and the diff stays reviewable. */
+function toRawProject(
+  kg: { grant_number: string | null; study_species: string[] | string | null;
+        keywords: string[] | null; metadata: Record<string, any> | null },
+  grant: { title?: string; institution?: string; piDetails?: { firstName: string; lastName: string; isContactPi: boolean }[]; allPis?: string; contactPi?: string } | undefined,
+) {
+  const md = kg.metadata ?? {};
+  // "Lastname, Firstname", contact PI first — the format parseProject and parseShortName parse.
+  const leads = (grant?.piDetails ?? [])
+    .slice()
+    .sort((a, b) => Number(b.isContactPi) - Number(a.isContactPi))
+    .map((d) => [d.lastName, d.firstName].filter(Boolean).join(", "))
+    .filter(Boolean);
+  return {
+    grant_number: coreGrantNumber(kg.grant_number),
+    project_title: grant?.title ?? "",
+    project_leads: leads.length ? leads : (grant?.contactPi ? [grant.contactPi] : []),
+    institution: grant?.institution ?? "",
+    species: kg.study_species ?? "",
+    target_species_domain: md.target_species_domain ?? "",
+    keywords: kg.keywords ?? [],
+    marr_l1_ethological_goal: md.marr_l1_ethological_goal ?? "",
+    marr_l2_algorithmic_function: md.marr_l2_algorithmic_function ?? "",
+    marr_l3_implementational_hardware: md.marr_l3_implementational_hardware ?? "",
+    data_modalities: asList(md.produce_data_modality),
+    experimental_approaches: asList(md.use_approaches),
+    cross_project_synergy: typeof md.cross_project_synergy === "string" ? md.cross_project_synergy : "",
+  };
+}
+
+/** Metadata values are sometimes an array, sometimes a comma/semicolon string. */
+function asList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
+export interface MarrProjectsData {
   projects: MarrProject[];
   synergyNodes: SynergyNode[];
   synergyLinks: SynergyLink[];
@@ -181,78 +248,49 @@ interface MarrYamlData {
   error: string | null;
 }
 
-// Cache for parsed data
-let cachedData: { projects: MarrProject[]; synergyNodes: SynergyNode[]; synergyLinks: SynergyLink[] } | null = null;
-let fetchPromise: Promise<typeof cachedData> | null = null;
-
-async function fetchAndParseYaml() {
-  if (cachedData) return cachedData;
-  
-  if (!fetchPromise) {
-    fetchPromise = (async () => {
-      const response = await fetch("/bbqs_marr.yaml");
-      const text = await response.text();
-      const parsed = yaml.load(text) as { projects: any[] };
-      
-      const rawProjects = parsed.projects || [];
-      const projects = rawProjects.map((p: any, i: number) => parseProject(p, i));
-      const { nodes: synergyNodes, links: synergyLinks } = parseSynergyFromProjects(projects, rawProjects);
-      
-      cachedData = { projects, synergyNodes, synergyLinks };
-      return cachedData;
-    })();
-  }
-  
-  return fetchPromise;
-}
-
-export function useMarrYaml(): MarrYamlData {
-  const [data, setData] = useState<MarrYamlData>({
-    projects: cachedData?.projects || [],
-    synergyNodes: cachedData?.synergyNodes || [],
-    synergyLinks: cachedData?.synergyLinks || [],
-    loading: !cachedData,
-    error: null,
+export function useMarrProjects(): MarrProjectsData {
+  const kgQuery = useQuery({
+    queryKey: ["marr-projects-kg"],
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("grant_number, study_species, keywords, metadata");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
-  useEffect(() => {
-    if (cachedData) {
-      setData({
-        projects: cachedData.projects,
-        synergyNodes: cachedData.synergyNodes,
-        synergyLinks: cachedData.synergyLinks,
-        loading: false,
-        error: null,
-      });
-      return;
-    }
+  // Same queryKey the /projects page uses, so React Query serves this from cache instead of
+  // calling the edge function twice.
+  const grantsQuery = useQuery({
+    queryKey: ["nih-grants"],
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("nih-grants");
+      if (error) throw error;
+      return (Array.isArray(data?.data) ? data.data : []) as any[];
+    },
+  });
 
-    fetchAndParseYaml()
-      .then((result) => {
-        if (result) {
-          setData({
-            projects: result.projects,
-            synergyNodes: result.synergyNodes,
-            synergyLinks: result.synergyLinks,
-            loading: false,
-            error: null,
-          });
-        }
-      })
-      .catch((err) => {
-        setData((prev) => ({
-          ...prev,
-          loading: false,
-          error: err instanceof Error ? err.message : "Failed to load YAML",
-        }));
-      });
-  }, []);
+  const value = useMemo(() => {
+    const kgRows = (kgQuery.data ?? []) as any[];
+    const byGrant = new Map<string, any>();
+    for (const g of grantsQuery.data ?? []) byGrant.set(coreGrantNumber(g.grantNumber), g);
 
-  return data;
-}
+    const raw = kgRows
+      .filter((r) => coreGrantNumber(r.grant_number))
+      .map((r) => toRawProject(r, byGrant.get(coreGrantNumber(r.grant_number))))
+      .sort((a, b) => a.grant_number.localeCompare(b.grant_number));
 
-// Force cache invalidation (useful after YAML updates)
-export function invalidateMarrCache() {
-  cachedData = null;
-  fetchPromise = null;
+    const projects = raw.map((p, i) => parseProject(p, i));
+    const { nodes, links } = parseSynergyFromProjects(projects, raw);
+    return { projects, synergyNodes: nodes, synergyLinks: links };
+  }, [kgQuery.data, grantsQuery.data]);
+
+  return {
+    ...value,
+    loading: kgQuery.isLoading || grantsQuery.isLoading,
+    error: (kgQuery.error as Error)?.message ?? (grantsQuery.error as Error)?.message ?? null,
+  };
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { type MarrProject } from "@/data/marr-projects";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import { cn } from "@/lib/utils";
 
 interface SharedDetail {
@@ -16,7 +16,7 @@ interface CellData {
 }
 
 export function SpeciesHeatmap() {
-  const { projects, loading } = useMarrYaml();
+  const { projects, loading } = useMarrProjects();
   const [hoveredCell, setHoveredCell] = useState<CellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 

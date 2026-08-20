@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
 import { sankey, sankeyLinkHorizontal, SankeyNode, SankeyLink } from "d3-sankey";
-import { useMarrYaml } from "@/hooks/useMarrYaml";
+import { useMarrProjects } from "@/hooks/useMarrProjects";
 import type { MarrProject } from "@/data/marr-projects";
 
 interface SNode {
@@ -70,7 +70,7 @@ function buildSankeyData(projects: MarrProject[]) {
 }
 
 export function MarrSankeyDiagram() {
-  const { projects, loading } = useMarrYaml();
+  const { projects, loading } = useMarrProjects();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
