@@ -226,6 +226,10 @@ DECLARE
   _col       text;
   _old       text;
   _new       text;
+  -- What gets STORED in value_text. to_jsonb renders a text[] as '["a","b"]', but the backfill
+  -- migrations stored 'a, b' via array_to_string for the same columns. One shape, or the
+  -- "does this cell still hold what the claim describes" comparison silently fails on arrays.
+  _new_txt   text;
   _cur_ok    boolean;   -- is the STANDING claim verified?
   _cur_label text;
   _cur_agent text;
@@ -247,6 +251,11 @@ BEGIN
   FOREACH _col IN ARRAY public.provenance_tracked_columns() LOOP
     _old := _oldj ->> _col;
     _new := _newj ->> _col;
+    _new_txt := CASE
+      WHEN jsonb_typeof(_newj -> _col) = 'array'
+        THEN (SELECT string_agg(e, ', ') FROM jsonb_array_elements_text(_newj -> _col) AS e)
+      ELSE _new
+    END;
 
     CONTINUE WHEN _old IS NOT DISTINCT FROM _new;
     CONTINUE WHEN btrim(coalesce(_new, '')) = '';   -- clearing a value is Principle VI's business
@@ -281,7 +290,7 @@ BEGIN
       entity_table, entity_id, entity_column, source_class, activity,
       agent_id, agent_label, value_text, recorded_by)
     VALUES ('projects', NEW.id, _col, _class, 'direct_write',
-            auth.uid(), _actor, left(_new, 500), _actor);
+            auth.uid(), _actor, left(_new_txt, 500), _actor);
   END LOOP;
 
   -- ── metadata, one key at a time ─────────────────────────────────────────────────────────────
