@@ -11,7 +11,7 @@
  *                    as verified, because someone is accountable, but is visually distinct because
  *                    the model contributed facts and the species audit proved those can be wrong.
  *                    "Verified" here means attributable, not infallible.
- *    unverified      tier 5/6 -- machine-extracted, web-retrieved, or no recorded source at all.
+ *    unverified      G5/G6 -- machine-extracted, web-retrieved, or no recorded source at all.
  *                    This is the state that must be impossible to miss.
  *
  *  The popover carries the full PROV record for staff: agent, activity, model, when the VALUE was
@@ -43,6 +43,14 @@ const TONE: Record<Tone, { cls: string; Icon: typeof BadgeCheck; label?: string 
     cls: "text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300",
     Icon: HelpCircle,
   },
+};
+
+/** "G2", not "Tier 2". Information sources are GRADED G1-G6; "tier" means user access
+ *  (admin/curator/member/public) and the two numberings ran in conflicting directions —
+ *  curator_fill is information G4 while curator is user tier 2. */
+const gradeLabel = (p: FieldProvenance): string => {
+  const g = p.source_grade ?? p.source_rank;
+  return g == null ? "Ungraded" : `Grade G${g}`;
 };
 
 /** "2026-03-06 (approximate)" rather than a false-precision timestamp. */
@@ -96,7 +104,7 @@ export function ProvenanceChip({
           <div>
             <p className="text-sm font-semibold leading-tight">{provenance.source_label}</p>
             <p className="text-xs text-muted-foreground">
-              Tier {provenance.source_rank} ·{" "}
+              {gradeLabel(provenance)} ·{" "}
               {tone === "unverified"
                 ? "not human-verified"
                 : tone === "ai"

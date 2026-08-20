@@ -16,7 +16,12 @@ import { supabase } from "@/integrations/supabase/client";
 export interface FieldProvenance {
   entity_column: string;
   source_class: string;
-  source_rank: number;
+  /** Reliability grade G1 (best) to G6 (worst). A GRADE, not a tier -- "tier" is the user access
+   *  model (admin/curator/member/public), and the two numberings meant opposite things. */
+  source_grade?: number;
+  /** Pre-rename name for the same column. Lovable deploys JS while KG migrations are applied by
+   *  hand, so this code can be live before the rename lands; read both rather than render a gap. */
+  source_rank?: number;
   source_label: string;
   agent_kind: "human" | "machine" | "external_registry";
   is_verified: boolean;
