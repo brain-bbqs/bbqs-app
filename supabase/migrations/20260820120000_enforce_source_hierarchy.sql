@@ -5,14 +5,14 @@
 -- abstract names Molothrus ater. Nothing prevented a generated value from landing on a curated field,
 -- and nothing recorded that it had. This makes the first case an error and the second automatic.
 --
--- THE RULE, AND ITS DELIBERATE NARROWING. Principle XI says a lower tier must not silently overwrite
--- a higher one. Read literally that would block an admin (tier 4, curator_fill) from correcting a
--- typo in a questionnaire answer (tier 2) -- and on some projects 72 of the fields are tier 2, so the
--- console would become unusable for exactly the people responsible for the data. The principle's own
--- wording names the case it cares about: "a tier-5 extraction landing on a field already held at
--- tier 1-3". So the hard gate is MACHINE-OVER-HUMAN:
+-- THE RULE, AND ITS DELIBERATE NARROWING. Principle XI says a lower grade must not silently
+-- overwrite a higher one. Read literally that would block an admin (G4, curator_fill) from fixing a
+-- typo in a questionnaire answer (G2) -- and on some projects 72 of the fields are G2, so the console
+-- would become unusable for exactly the people responsible for the data. The principle names the
+-- case it cares about: a G5 extraction landing on a field already held at G1-G3. So the hard gate
+-- is MACHINE-OVER-HUMAN:
 --
---     refuse when the incoming source is not verified (tier 5/6) and the standing claim IS verified.
+--     refuse when the incoming source is not verified (G5-G7) and the standing claim IS verified.
 --
 -- A human overriding another human is allowed and RECORDED, which is the honest outcome: you can see
 -- that a curator overrode a form answer, who did it and when, and argue about it with evidence. A
@@ -32,16 +32,16 @@
 --                                                     of those broke every edge function's CORS
 --                                                     allow-list once already, and tests/guards/
 --                                                     cors-header-parity.test.mjs now watches for it.
---   3. a signed-in user with no declaration        -> curator_fill (tier 4). A person editing through
+--   3. a signed-in user with no declaration        -> curator_fill (G4). A person editing through
 --                                                     the console genuinely IS a hand-curated fill,
 --                                                     and this is what keeps ProjectProfile working
 --                                                     without touching its save path.
---   4. anything else (service role, cron, SQL editor) -> unknown (tier 6), which cannot overwrite
+--   4. anything else (service role, cron, SQL editor) -> unknown (G7), which cannot overwrite
 --                                                     verified data. Machines must say who they are.
 --
 -- WRITERS ENUMERATED before shipping (the shared-layer checklist in CLAUDE.md):
 --   ProjectProfile.commit()   browser upsert of study_species/study_human/website/keywords + metadata.
---                             Signed-in -> tier 4. Unaffected except that it now records provenance.
+--                             Signed-in -> G4. Unaffected except that it now records provenance.
 --   nih-grants                INSERTs a bare {grant_number, grant_id} row only when none exists, and
 --                             never UPDATEs a tracked column. Runs on every /projects visit, so this
 --                             was the one that had to be checked: it is untouched by an UPDATE guard.
@@ -69,6 +69,111 @@
 -- KG migrations are NOT applied by db push -- run this in the KG SQL editor (vpexxhfpvghlejljwpvt).
 
 SELECT public.set_actor('migration:20260820120000');
+
+-- -- 0. Vocabulary: information sources have a GRADE, users have a TIER ------------------------
+-- "Tier" was already taken. useUserTier.ts defines a four-level ACCESS model -- admin, curator,
+-- member, public -- so calling the reliability ladder tiers collided on both the word and the
+-- numbers, and meant opposite things across the two: curator_fill is information 4 while curator is
+-- user 2, and "tier 2" meant questionnaire in one sentence and curator in the next.
+--
+-- Information sources are now GRADES, written G1..G7. A grade cannot be mistaken for a tier in
+-- speech, in a commit message, or in a refusal string:
+--
+--   G1  authoritative_registry           NIH RePORTER: the funder's own record
+--   G2  questionnaire                    the project's own people, named respondent
+--   G3  subject_edit                     someone editing their own record
+--   G4  curator_fill, curated_with_ai    a person typing a value, with or without a model
+--   G5  llm_extract                      machine-produced from text
+--   G6  web_search                       retrieved from somewhere, but unattributed
+--   G7  unknown                          no record at all
+--
+-- G1-G4 are is_verified: a person or a registry stands behind them.
+--
+-- SEVEN grades, not six. An earlier draft put web_search and unknown together on the reasoning that
+-- "neither is fact", which is true but flattens a real difference: a web-sourced value HAS a trail,
+-- however weak -- somebody retrieved something from somewhere -- while "no record at all" is the
+-- absence of one. No-record is strictly worse and gets its own grade, which also makes the ladder
+-- one-code-per-grade the whole way down apart from G4, where curator_fill and curated_with_ai are
+-- both a person taking responsibility and are told apart by the model id and the UI treatment
+-- rather than by reliability.
+--
+-- RENAMING rather than adding a column: Postgres rewrites dependent view definitions by attribute
+-- number, so field_provenance_current survives the rename. Its OUTPUT column needs renaming
+-- separately, which ALTER VIEW does directly -- CREATE OR REPLACE VIEW cannot rename a column and
+-- would fail with 42P16.
+--
+-- Migrations 20260819130000 and 20260819140000 are already applied and say "rank" and "tier" in
+-- their comments. They are a ledger of what happened, so they are left alone; this is the
+-- forwarding address.
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'public' AND table_name = 'source_classes'
+                AND column_name = 'rank') THEN
+    ALTER TABLE public.source_classes RENAME COLUMN rank TO grade;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'public' AND table_name = 'field_provenance_current'
+                AND column_name = 'source_rank') THEN
+    ALTER VIEW public.field_provenance_current RENAME COLUMN source_rank TO source_grade;
+  END IF;
+END
+$do$;
+
+ALTER INDEX IF EXISTS idx_source_classes_rank RENAME TO idx_source_classes_grade;
+
+-- 'unknown' shipped at grade 6 alongside web_search. Separate them: absence of a record is worse
+-- than a weak record, and a ladder with one code per grade is easier to reason about.
+UPDATE public.source_classes
+   SET grade = 7,
+       label = 'No recorded source',
+       description = 'No provenance was ever recorded: the value predates tracking, or was written by a path that logged nothing. Strictly worse than web_search, which at least had a source. Not fact.'
+ WHERE code = 'unknown';
+
+COMMENT ON COLUMN public.source_classes.grade IS
+  'Reliability grade G1 (best) to G7 (worst). A GRADE, never a tier: "tier" is the four-level user access model (admin/curator/member/public) and the numbers overlapped with opposite meanings. code is the primary key, not grade, because curator_fill and curated_with_ai legitimately share G4.';
+COMMENT ON TABLE public.source_classes IS
+  'Constitution XI reliability ladder: information sources graded G1 (authoritative registry) to G7 (no record at all). Data rather than an enum so the ordering is queryable and enforcement is a grade comparison.';
+COMMENT ON COLUMN public.source_classes.is_verified IS
+  'True for G1-G4: a human or an authoritative registry stands behind the value. Drives the machine-generated marker in the UI -- NOT is_verified must be visibly distinct on screen.';
+
+-- record_field_provenance listed the valid classes ordered by rank; it now names their grades.
+CREATE OR REPLACE FUNCTION public.record_field_provenance(
+  _table text, _id uuid, _column text, _source_class text, _activity text,
+  _agent_label text DEFAULT NULL, _source_ref text DEFAULT NULL, _value text DEFAULT NULL,
+  _evidence text DEFAULT NULL, _model_id text DEFAULT NULL, _confidence numeric DEFAULT NULL,
+  _authored_at timestamptz DEFAULT NULL, _authored_at_precision text DEFAULT NULL)
+RETURNS bigint
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
+DECLARE
+  _new_id bigint;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.source_classes WHERE code = _source_class) THEN
+    RAISE EXCEPTION 'Unknown source class %. Valid: %', _source_class,
+      (SELECT string_agg(format('G%s %s', grade, code), ', ' ORDER BY grade, code)
+         FROM public.source_classes);
+  END IF;
+
+  IF _source_class = 'llm_extract' AND coalesce(btrim(_model_id), '') = '' THEN
+    RAISE EXCEPTION 'llm_extract provenance requires _model_id so the claim can be re-checked.';
+  END IF;
+
+  INSERT INTO public.field_provenance (
+    entity_table, entity_id, entity_column, source_class, activity,
+    agent_id, agent_label, source_ref, value_text, evidence, model_id, confidence,
+    authored_at, authored_at_precision)
+  VALUES (
+    _table, _id, _column, _source_class, _activity, auth.uid(),
+    coalesce(nullif(btrim(_agent_label), ''), public.current_actor_via()),
+    _source_ref, _value, _evidence, _model_id, _confidence, _authored_at,
+    CASE WHEN _authored_at IS NULL THEN NULL
+         ELSE coalesce(nullif(btrim(_authored_at_precision), ''), 'exact') END)
+  RETURNING id INTO _new_id;
+
+  RETURN _new_id;
+END;
+$fn$;
 -- This migration corrects data provenance by hand, which is what a curator does.
 -- Declaring it keeps the migration itself honest under its own rule.
 
@@ -97,7 +202,7 @@ RETURNS text LANGUAGE sql STABLE AS $fn$
 $fn$;
 
 COMMENT ON FUNCTION public.current_source_class() IS
-  'Resolves the source class for the current write: set_source_class(), then the x-bbqs-source-class request header, then curator_fill for any signed-in user, else unknown. An undeclared machine write is therefore tier 6 and cannot overwrite verified data -- it fails safe by construction.';
+  'Resolves the source class for the current write: set_source_class(), then the x-bbqs-source-class request header, then curator_fill for any signed-in user, else unknown. An undeclared machine write is therefore G7 and cannot overwrite verified data -- it fails safe by construction.';
 
 GRANT EXECUTE ON FUNCTION public.current_source_class() TO authenticated, service_role;
 
@@ -210,7 +315,7 @@ END;
 $fn$;
 
 COMMENT ON FUNCTION public.enforce_field_provenance() IS
-  'Guards and records writes to provenance-tracked project fields. Refuses an unverified (tier 5/6) write onto a cell currently held by a verified source; records provenance for every changed cell either way, so no write is unattributable. Human-over-human edits are permitted and logged -- the gate is machine-over-human.';
+  'Guards and records writes to provenance-tracked project fields. Refuses an unverified (G5-G7) write onto a cell currently held by a verified source; records provenance for every changed cell either way, so no write is unattributable. Human-over-human edits are permitted and logged -- the gate is machine-over-human.';
 
 -- AFTER would be too late to refuse, and only UPDATE can overwrite anything, so INSERT is left to the
 -- backfills: a brand-new row has nothing to protect.
@@ -225,7 +330,7 @@ SELECT public.current_source_class() AS should_be_unknown;
 SELECT public.set_source_class('authoritative_registry');
 SELECT public.current_source_class() AS should_be_authoritative_registry;
 
--- 2) THE GATE, proven. Declare a machine class, then try to overwrite a tier-1 species. Expect
+-- 2) THE GATE, proven. Declare a machine class, then try to overwrite a G1 species. Expect
 --    check_violation naming NIH RePORTER. Uncomment to run -- it is designed to FAIL.
 --   SELECT public.set_source_class('llm_extract');
 --   UPDATE public.projects SET study_species = ARRAY['Wrong species']::text[]
@@ -251,5 +356,6 @@ SELECT count(*) AS tracked_cells_without_provenance_should_be_0
      SELECT 1 FROM public.field_provenance fp
       WHERE fp.entity_table = 'projects' AND fp.entity_id = p.id AND fp.entity_column = c.col);
 
--- 5) The ladder, for reference when reading a refusal message.
-SELECT rank, code, label, is_verified FROM public.source_classes ORDER BY rank, code;
+-- 5) The ladder, for reference when reading a refusal message. Grades, not tiers.
+SELECT 'G' || grade AS grade, code, label, is_verified
+  FROM public.source_classes ORDER BY grade, code;
