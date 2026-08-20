@@ -229,6 +229,10 @@ DECLARE
   _cur_ok    boolean;   -- is the STANDING claim verified?
   _cur_label text;
   _cur_agent text;
+  -- The label is the source CLASS ("Questionnaire"); the agent is who specifically
+  -- ("dhs1@nyu.edu"). For a registry claim they are the same string, and appending it produced
+  -- 'held at "NIH RePORTER" (NIH RePORTER)' in a live refusal. Only append when it adds something.
+  _cur_who   text;
   _kv        record;
   -- to_jsonb rather than dynamic SQL: `EXECUTE 'SELECT ($1).' || col USING OLD` cannot resolve a
   -- field of a record-typed parameter (the planner has no composite type for $1). Casting the rows
@@ -258,13 +262,17 @@ BEGIN
      ORDER BY fp.recorded_at DESC, fp.id DESC
      LIMIT 1;
 
+    _cur_who := CASE
+      WHEN _cur_agent IS NULL OR btrim(_cur_agent) = '' OR _cur_agent = _cur_label THEN ''
+      ELSE ' (' || _cur_agent || ')'
+    END;
+
     -- No standing claim leaves _cur_ok NULL, so this is false and the write proceeds: there is
     -- nothing to protect on a cell nobody has ever vouched for.
     IF _cur_ok AND NOT _verified THEN
       RAISE EXCEPTION
         'Refusing to overwrite %.% : it is held at "%"%, and this write is only "%". Declare a better source with set_source_class() or the x-bbqs-source-class header, or route the change through a human.',
-        'projects', _col, _cur_label,
-        coalesce(' (' || _cur_agent || ')', ''), _class
+        'projects', _col, _cur_label, _cur_who, _class
         USING ERRCODE = 'check_violation',
               HINT = 'Constitution XI: a machine may not silently overwrite a human- or registry-established value.';
     END IF;
@@ -294,10 +302,15 @@ BEGIN
        ORDER BY fp.recorded_at DESC, fp.id DESC
        LIMIT 1;
 
+      _cur_who := CASE
+        WHEN _cur_agent IS NULL OR btrim(_cur_agent) = '' OR _cur_agent = _cur_label THEN ''
+        ELSE ' (' || _cur_agent || ')'
+      END;
+
       IF _cur_ok AND NOT _verified THEN
         RAISE EXCEPTION
           'Refusing to overwrite projects.metadata.% : it is held at "%"%, and this write is only "%".',
-          _kv.key, _cur_label, coalesce(' (' || _cur_agent || ')', ''), _class
+          _kv.key, _cur_label, _cur_who, _class
           USING ERRCODE = 'check_violation',
                 HINT = 'Constitution XI: a machine may not silently overwrite a human- or registry-established value.';
       END IF;
