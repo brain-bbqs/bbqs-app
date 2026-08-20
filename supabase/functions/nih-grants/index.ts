@@ -396,7 +396,22 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // Everything this function writes comes from NIH RePORTER, so it declares G1 (Constitution XI).
+  // Without the declaration a service-role write resolves to G8 'unknown' and the provenance guard
+  // would refuse it the moment a human had edited the same cell — which would silently stop
+  // RePORTER refreshes on exactly the grants someone had curated. Declaring is both true and what
+  // keeps the refresh working.
+  //
+  // Set on this server-side client only: a global header on the BROWSER client once broke every
+  // edge function's CORS allow-list. Server-to-PostgREST has no preflight.
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    global: {
+      headers: {
+        "x-bbqs-source-class": "authoritative_registry",
+        "x-bbqs-client": "nih-grants",
+      },
+    },
+  });
 
   try {
     const url = new URL(req.url);
