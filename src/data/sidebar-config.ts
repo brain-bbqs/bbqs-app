@@ -68,7 +68,11 @@ const knowledgeBaseItems: NavItem[] = [
   { title: "Funding Calls", url: "/grants", icon: Globe },
   { title: "Species", url: "/species", icon: Bug },
   { title: "Publications", url: "/publications", icon: FileText },
-  { title: "Data Provenance", url: "/data-provenance", icon: History, disabled: true },
+  // Was disabled on 2026-05-15 ("disable broken Data Provenance"). Re-enabled now that the page
+  // carries the field-grade queue as well as the edit history. authRequired, not disabled: the page
+  // needs a session (its history query is gated on `user`), and the grades tab is restricted to
+  // admins and curators by RLS on top of that, so it gates itself correctly once you are in.
+  { title: "Data Provenance", url: "/data-provenance", icon: History, authRequired: true },
 ];
 
 const communityItems: NavItem[] = [
