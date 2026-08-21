@@ -121,7 +121,6 @@ SELECT fpc.entity_table,
        fpc.value_text,
        fpc.agent_label,
        fpc.recorded_at,
-       public.provenance_table_priority(fpc.entity_table) AS priority,
        -- A queue row labelled '03fa7c8c-ffbb-4e31...' is not work, it is a puzzle. The first version
        -- of this view resolved names for six tables, and the ones that actually dominated the queue
        -- were not among them. Link and score tables borrow the name of what they point at.
@@ -131,7 +130,13 @@ SELECT fpc.entity_table,
          fo.title, an.title, jb.title, res.name, pr.full_name, sa.message,
          psi.name, gii.name,
          left(fpc.entity_id::text, 8) || '...'
-       ) AS record_label
+       ) AS record_label,
+       -- APPENDED, deliberately last. CREATE OR REPLACE VIEW cannot insert a column mid-list: the
+       -- first version of this migration put priority before record_label and Postgres read that as
+       -- "rename record_label to priority" and refused with 42P16. Same trap that caught the
+       -- questionnaire-status view and field_provenance_current earlier in this work -- new columns
+       -- go on the end, or the statement is a rename.
+       public.provenance_table_priority(fpc.entity_table) AS priority
   FROM public.field_provenance_current fpc
   JOIN public.provenance_guardable_tables gt ON gt.table_name = fpc.entity_table
   LEFT JOIN public.projects       p   ON fpc.entity_table = 'projects'      AND p.id   = fpc.entity_id
