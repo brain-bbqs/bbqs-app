@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { PageMeta } from "@/components/PageMeta";
 import { useFieldProvenance } from "@/hooks/useFieldProvenance";
+import { useUserTier } from "@/hooks/useUserTier";
 import { AccessGate } from "@/components/project-profile/AccessGate";
 import { TeamRosterEditor } from "@/components/project-profile/TeamRosterEditor";
 import { QuestionnaireSection } from "@/components/project-profile/QuestionnaireSection";
@@ -22,6 +23,10 @@ export default function ProjectProfile() {
   const { grantNumber } = useParams<{ grantNumber: string }>();
   const { user, loading: authLoading } = useAuth();
   const { canEdit, isLoading: permLoading } = useCanEditProject(grantNumber || null);
+  // READING and EDITING are different permissions. They were the same one, so a consortium member
+  // who is not on a grant got an access wall instead of the richest page on the site — and the only
+  // route in was a "Manage" button that was itself hidden from them.
+  const { isMember, isLoading: tierLoading } = useUserTier();
   const queryClient = useQueryClient();
   const [changes, setChanges] = useState<Record<string, any>>({});
   const [isCommitting, setIsCommitting] = useState(false);
@@ -81,6 +86,7 @@ export default function ProjectProfile() {
   const getValue = (key: string) => (key in changes ? changes[key] : original[key]);
 
   const setFieldValue = (key: string, value: any) => {
+    if (!canEdit) return;   // belt as well as braces: the fields render read-only, and this refuses anyway
     const eq = JSON.stringify(value) === JSON.stringify(original[key]);
     setChanges((prev) => {
       const next = { ...prev };
@@ -156,16 +162,17 @@ export default function ProjectProfile() {
   if (!grantNumber) return <div className="p-8">Missing grant number.</div>;
   if (authLoading) return <div className="p-8"><Skeleton className="h-8 w-64" /></div>;
   if (!user) return <AccessGate reason="unauthenticated" grantNumber={grantNumber} />;
-  if (permLoading) return <div className="p-8"><Skeleton className="h-8 w-64" /></div>;
-  if (!canEdit) return <AccessGate reason="not-member" grantNumber={grantNumber} />;
+  if (permLoading || tierLoading) return <div className="p-8"><Skeleton className="h-8 w-64" /></div>;
+  // Any consortium member (tier 3 and up) may READ a project profile. Editing still needs canEdit.
+  if (!isMember) return <AccessGate reason="insufficient-tier" grantNumber={grantNumber} />;
   if (isLoading) return <div className="p-8 space-y-3"><Skeleton className="h-8 w-64" /><Skeleton className="h-32 w-full" /></div>;
   if (!data?.grant) return <div className="p-8 text-muted-foreground">Grant not found.</div>;
 
   return (
     <>
       <PageMeta
-        title={`Manage ${data.grant.grant_number} · BBQS`}
-        description={`Privileged project profile editor for ${data.grant.title}`}
+        title={`${data.grant.grant_number} · BBQS`}
+        description={`Project profile for ${data.grant.title}`}
       />
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
@@ -174,7 +181,14 @@ export default function ProjectProfile() {
             <Link to="/projects"><ArrowLeft className="h-4 w-4 mr-1.5" /> Projects</Link>
           </Button>
           <div className="text-xs text-muted-foreground">/</div>
-          <span className="text-xs text-muted-foreground">Manage Project Profile</span>
+          <span className="text-xs text-muted-foreground">
+            {canEdit ? "Manage Project Profile" : "Project Profile"}
+          </span>
+          {!canEdit && (
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1.5 py-0.5">
+              read only
+            </span>
+          )}
         </div>
 
         {/* Grant card */}
@@ -198,7 +212,7 @@ export default function ProjectProfile() {
         </div>
 
         {/* Sticky action bar */}
-        {hasChanges && (
+        {canEdit && hasChanges && (
           <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border border-amber-500/30 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
             <p className="text-sm text-foreground">
               <span className="font-medium text-amber-600 dark:text-amber-400">{changedKeys.size}</span>{" "}
@@ -239,6 +253,7 @@ export default function ProjectProfile() {
               changedKeys={changedKeys}
               pendingKeys={pendingKeys}
               provenance={provenance}
+              readOnly={!canEdit}
               defaultOpen={hashSection === section.id || idx < 2}
             />
           ))}

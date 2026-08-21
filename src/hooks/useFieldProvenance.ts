@@ -14,6 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface FieldProvenance {
+  /** Which cell this claim is about. Present so a curator can act on it from wherever it renders,
+   *  without every call site having to thread the address down by hand. */
+  entity_table: string;
+  entity_id: string;
   entity_column: string;
   source_class: string;
   /** Reliability grade G1 (best) to G6 (worst). A GRADE, not a tier -- "tier" is the user access

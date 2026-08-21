@@ -199,7 +199,7 @@ export default function RequestAccess() {
         _institution: parsed.data.institution,
         _requested_role: roleValue,
         _message: parsed.data.message || null,
-        _globus_name: globusName || parsed.data.full_name,
+        _globus_name: globusName || fullName,
         _globus_subject: globusSubject || null,
         _association: associationValue || null,
       });
@@ -215,7 +215,7 @@ export default function RequestAccess() {
             requested_role: roleValue,
             association: associationValue || null,
             message: parsed.data.message || null,
-            globus_name: globusName || parsed.data.full_name,
+            globus_name: globusName || fullName,
             globus_subject: globusSubject || null,
             status: "pending",
           });

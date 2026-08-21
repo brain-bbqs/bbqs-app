@@ -18,9 +18,15 @@
  *  authored (with its precision, so "on or about" stays "on or about"), the source reference, and
  *  any verbatim evidence. That is what makes a disputed value checkable instead of arguable.
  */
-import { BadgeCheck, Sparkles, HelpCircle, Bot } from "lucide-react";
+import { useState } from "react";
+import { BadgeCheck, Sparkles, HelpCircle, Bot, Check, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUserTier } from "@/hooks/useUserTier";
+import { useToast } from "@/hooks/use-toast";
 import type { FieldProvenance } from "@/hooks/useFieldProvenance";
 
 const AI_ASSISTED = "curated_with_ai";
@@ -77,6 +83,11 @@ export function ProvenanceChip({
   provenance?: FieldProvenance;
   className?: string;
 }) {
+  const { isCurator } = useUserTier();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+
   // No claim recorded. Deliberately renders nothing rather than a warning: an environment without
   // the migration applied, or a viewer without permission, must not paint every field as suspect.
   if (!provenance) return null;
@@ -84,6 +95,33 @@ export function ProvenanceChip({
   const tone = toneOf(provenance);
   const { cls, Icon } = TONE[tone];
   const authored = authoredLabel(provenance);
+
+  // Verifying is not editing. The value does not change; what changes is that a named person now
+  // stands behind it, recorded as a NEW claim at their own grade. The old claim stays in the
+  // append-only history, so "this was unsourced until someone checked it" remains readable.
+  const markChecked = async () => {
+    setSaving(true);
+    try {
+      // Cast: provenance_mark_verified is newer than src/integrations/supabase/types.ts, which is
+      // regenerated from the live database after a migration is applied by hand.
+      const { error } = await (supabase.rpc as any)("provenance_mark_verified", {
+        _table: provenance.entity_table,
+        _id: provenance.entity_id,
+        _column: provenance.entity_column,
+        _note: null,
+      });
+      if (error) throw error;
+      // Refetch rather than patch locally: the new claim comes back with the curator's name and
+      // grade from the database, and guessing them here would be a second source of truth.
+      await queryClient.invalidateQueries({ queryKey: ["field-provenance"] });
+      await queryClient.invalidateQueries({ queryKey: ["species-provenance"] });
+      toast({ description: "Recorded as checked by you." });
+    } catch (e: any) {
+      toast({ variant: "destructive", description: e?.message ?? "Could not record that." });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Popover>
@@ -151,6 +189,21 @@ export function ProvenanceChip({
             </Row>
           )}
         </div>
+
+        {isCurator && tone !== "verified" && (
+          <div className="pt-2 border-t border-border">
+            <Button size="sm" variant="outline" className="w-full h-7 text-xs"
+                    onClick={markChecked} disabled={saving}>
+              {saving
+                ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                : <Check className="h-3 w-3 mr-1.5" />}
+              I have checked this — record me as the source
+            </Button>
+            <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+              The value is not changed. This records that you stand behind it.
+            </p>
+          </div>
+        )}
 
         {provenance.evidence && (
           <div className="pt-1 border-t border-border">

@@ -10,6 +10,7 @@ import { ExternalLink, FileText, MessageSquare, FolderOpen, Microscope, Settings
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCanEditProject } from "@/hooks/useCanEditProject";
+import { useUserTier } from "@/hooks/useUserTier";
 import { GrantMarrSection } from "./GrantMarrSection";
 import { Database } from "lucide-react";
 
@@ -44,6 +45,9 @@ export function GrantSummary({ id }: { id: string }) {
     },
   });
   const { canEdit } = useCanEditProject(grantNumberQ.data ?? null);
+  // The full profile is the richest page on the site and was reachable only through a button hidden
+  // from anyone who could not edit — so most of the consortium could not find it at all.
+  const { isMember } = useUserTier();
 
   const { data, isLoading } = useQuery({
     queryKey: ["entity-grant", id],
@@ -295,10 +299,11 @@ export function GrantSummary({ id }: { id: string }) {
             <h2 className="text-xl font-bold text-foreground">{data.grant_number}</h2>
             <p className="text-sm text-muted-foreground">NIH Grant</p>
           </div>
-          {canEdit && (
-            <Button asChild size="sm" variant="outline">
+          {isMember && (
+            <Button asChild size="sm" variant={canEdit ? "outline" : "secondary"}>
               <Link to={`/projects/${data.grant_number}/profile`} onClick={() => close()}>
-                <Settings className="h-3.5 w-3.5 mr-1.5" /> Manage
+                <Settings className="h-3.5 w-3.5 mr-1.5" />
+                {canEdit ? "Manage" : "Full profile"}
               </Link>
             </Button>
           )}

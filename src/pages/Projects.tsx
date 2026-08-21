@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileCardList } from "@/components/MobileCardList";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { PageMeta } from "@/components/PageMeta";
 import { useHashState } from "@/hooks/useHashState";
 import { AgGridReact } from "ag-grid-react";
@@ -140,6 +140,23 @@ const normalizeProjectRow = (row: RawProjectRow): ProjectRow | null => {
         : publications.length,
     species: toSafeString(row.species).trim(),
   };
+};
+
+/** Opens the full project profile. Shown only to consortium members, because that page needs a
+ *  sign-in — a link that lands on an access wall is worse than no link. */
+const ProfileLinkCell = ({ data }: { data: ProjectRow }) => {
+  const { isMember } = useUserTier();
+  if (!isMember || !data?.grantNumber) return null;
+  return (
+    <Link
+      to={`/projects/${coreGrantNumber(data.grantNumber)}/profile`}
+      className="text-muted-foreground/60 hover:text-primary transition-colors inline-flex"
+      title="Open the full project profile"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+    </Link>
+  );
 };
 
 const TitleCell = ({ value, data }: { value: string; data: ProjectRow }) => {
@@ -473,6 +490,20 @@ const Projects = () => {
   }), []);
 
   const columnDefs = useMemo<ColDef<ProjectRow>[]>(() => [
+    {
+      // A direct way into the full profile from the list. The title cell opens the summary panel,
+      // which is a preview; this is the page itself, and without a row-level affordance the only
+      // route in was a button inside that panel.
+      headerName: "",
+      colId: "profileLink",
+      width: 44,
+      minWidth: 44,
+      maxWidth: 44,
+      sortable: false,
+      filter: false,
+      suppressSizeToFit: true,
+      cellRenderer: ProfileLinkCell,
+    },
     {
       field: "grantNumber",
       headerName: "Grant Type",
