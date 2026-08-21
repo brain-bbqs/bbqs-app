@@ -45,6 +45,7 @@ interface WorklistRow {
   value_text: string | null;
   agent_label: string | null;
   record_label: string;
+  priority: number | null;
 }
 
 const GRADE_TONE = (g: number | null) =>
@@ -84,7 +85,10 @@ export function ProvenanceGrades() {
       const { data, error } = await supabase
         .from("provenance_worklist" as any)
         .select("*")
-        // Worst grade first: an unrecorded source (G8) is more urgent than a machine extraction.
+        // Priority BEFORE grade. Grade-first was the original design and it collapsed the moment
+        // the backfill landed: with nearly every cell at G8 the grade sorts nothing, and the
+        // tiebreak (table name) put dandisets and jobs ahead of every project in the consortium.
+        .order("priority")
         .order("source_grade", { ascending: false })
         .order("entity_table")
         .limit(QUEUE_LIMIT);
@@ -230,7 +234,7 @@ export function ProvenanceGrades() {
                  placeholder="Filter by record, table or field..." className="pl-9 h-8 text-xs" />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {groups.length} record{groups.length === 1 ? "" : "s"} · worst grade first
+          {groups.length} record{groups.length === 1 ? "" : "s"} · the scientific record first
           {(worklist.data?.length ?? 0) >= QUEUE_LIMIT && ` · showing the first ${QUEUE_LIMIT} fields`}
         </p>
       </div>
