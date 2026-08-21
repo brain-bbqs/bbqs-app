@@ -73,12 +73,40 @@ RETURNS text[] LANGUAGE sql IMMUTABLE AS $fn$
     'user_dashboard_layouts', 'working_group_dashboard_defaults',
     -- billing
     'lovable_invoices', 'lovable_user_usage', 'lovable_credit_events',
-    -- mirrors of external systems: the truth lives in Slack
-    'slack_channel_members', 'slack_channel_pending', 'slack_channels'
+    -- mirrors of external systems: the truth lives in the system being mirrored, not here.
+    -- dandisets is the DANDI archive's own metadata, synced in. grant_dandisets STAYS, because the
+    -- link between a grant and a dandiset is a claim this consortium makes itself.
+    'slack_channel_members', 'slack_channel_pending', 'slack_channels', 'dandisets'
   ]::text[]
 $fn$;
 
--- ── 2. The worklist must respect the scope ───────────────────────────────────────────────────
+-- -- 2. Ordering that survives everything being G8 -------------------------------------------
+-- The queue was ordered worst-grade-first: right in principle, useless in practice. After the
+-- backfill nearly every cell is G8, so grade stopped discriminating and the secondary sort (table
+-- name, alphabetical) quietly took over -- the live queue opened on `dandisets` and `jobs` ahead of
+-- every project and investigator in the consortium.
+--
+-- So order by what the record IS first, then by grade. The scientific core before the catalogue,
+-- the catalogue before the site's own furniture.
+CREATE OR REPLACE FUNCTION public.provenance_table_priority(_table text)
+RETURNS int LANGUAGE sql IMMUTABLE AS $fn$
+  SELECT CASE
+    WHEN _table IN ('projects', 'investigators', 'grants', 'publications', 'species',
+                    'organizations', 'grant_investigators', 'investigator_organizations',
+                    'project_publications', 'grant_dandisets') THEN 1
+    WHEN _table IN ('software_tools', 'device_models', 'device_categories',
+                    'device_manufacturers', 'device_class_crosswalk', 'resources',
+                    'personality_scores', 'proposed_relations') THEN 2
+    ELSE 3
+  END
+$fn$;
+
+COMMENT ON FUNCTION public.provenance_table_priority(text) IS
+  'Queue ordering: 1 the scientific record, 2 the catalogue and derived scores, 3 site furniture. Needed because after a backfill almost every cell is G8 and grade alone no longer sorts anything useful.';
+
+GRANT EXECUTE ON FUNCTION public.provenance_table_priority(text) TO authenticated, service_role;
+
+-- -- 3. The worklist: respect the scope, and be readable ---------------------------------------
 -- It read field_provenance_current directly, so every excluded table would have kept appearing.
 -- Joining provenance_guardable_tables makes one definition of scope govern both views.
 CREATE OR REPLACE VIEW public.provenance_worklist
@@ -93,8 +121,17 @@ SELECT fpc.entity_table,
        fpc.value_text,
        fpc.agent_label,
        fpc.recorded_at,
-       coalesce(p.grant_number, i.name, g.grant_number, pub.title, o.name, s.common_name,
-                fpc.entity_id::text) AS record_label
+       public.provenance_table_priority(fpc.entity_table) AS priority,
+       -- A queue row labelled '03fa7c8c-ffbb-4e31...' is not work, it is a puzzle. The first version
+       -- of this view resolved names for six tables, and the ones that actually dominated the queue
+       -- were not among them. Link and score tables borrow the name of what they point at.
+       coalesce(
+         p.grant_number, i.name, g.grant_number, pub.title, o.name, sp.common_name,
+         st.name, dc.label, dm.name, dmo.model_name,
+         fo.title, an.title, jb.title, res.name, pr.full_name, sa.message,
+         psi.name, gii.name,
+         left(fpc.entity_id::text, 8) || '...'
+       ) AS record_label
   FROM public.field_provenance_current fpc
   JOIN public.provenance_guardable_tables gt ON gt.table_name = fpc.entity_table
   LEFT JOIN public.projects       p   ON fpc.entity_table = 'projects'      AND p.id   = fpc.entity_id
@@ -102,15 +139,29 @@ SELECT fpc.entity_table,
   LEFT JOIN public.grants         g   ON fpc.entity_table = 'grants'        AND g.id   = fpc.entity_id
   LEFT JOIN public.publications   pub ON fpc.entity_table = 'publications'  AND pub.id = fpc.entity_id
   LEFT JOIN public.organizations  o   ON fpc.entity_table = 'organizations' AND o.id   = fpc.entity_id
-  LEFT JOIN public.species        s   ON fpc.entity_table = 'species'       AND s.id   = fpc.entity_id
+  LEFT JOIN public.species        sp  ON fpc.entity_table = 'species'       AND sp.id  = fpc.entity_id
+  LEFT JOIN public.software_tools st  ON fpc.entity_table = 'software_tools'        AND st.id  = fpc.entity_id
+  LEFT JOIN public.device_categories    dc  ON fpc.entity_table = 'device_categories'    AND dc.id  = fpc.entity_id
+  LEFT JOIN public.device_manufacturers dm  ON fpc.entity_table = 'device_manufacturers' AND dm.id  = fpc.entity_id
+  LEFT JOIN public.device_models        dmo ON fpc.entity_table = 'device_models'        AND dmo.id = fpc.entity_id
+  LEFT JOIN public.funding_opportunities fo ON fpc.entity_table = 'funding_opportunities' AND fo.id = fpc.entity_id
+  LEFT JOIN public.announcements  an  ON fpc.entity_table = 'announcements'  AND an.id  = fpc.entity_id
+  LEFT JOIN public.jobs           jb  ON fpc.entity_table = 'jobs'           AND jb.id  = fpc.entity_id
+  LEFT JOIN public.resources      res ON fpc.entity_table = 'resources'      AND res.id = fpc.entity_id
+  LEFT JOIN public.profiles       pr  ON fpc.entity_table = 'profiles'       AND pr.id  = fpc.entity_id
+  LEFT JOIN public.system_alerts  sa  ON fpc.entity_table = 'system_alerts'  AND sa.id  = fpc.entity_id
+  LEFT JOIN public.personality_scores  ps ON fpc.entity_table = 'personality_scores'  AND ps.id = fpc.entity_id
+  LEFT JOIN public.investigators      psi ON psi.id = ps.investigator_id
+  LEFT JOIN public.grant_investigators gi ON fpc.entity_table = 'grant_investigators' AND gi.id = fpc.entity_id
+  LEFT JOIN public.investigators      gii ON gii.id = gi.investigator_id
  WHERE NOT fpc.is_verified;
 
 COMMENT ON VIEW public.provenance_worklist IS
-  'Every in-scope cell no human or registry stands behind, with the record it belongs to. Scope comes from provenance_guardable_tables, so excluding a table removes it from the queue as well as from the coverage figure. Order by source_grade DESC to work the worst first.';
+  'Every in-scope cell no human or registry stands behind, with a human-readable name for its record. Scope comes from provenance_guardable_tables, so excluding a table leaves the queue and the coverage figure together. Order by priority, then source_grade DESC: after a backfill almost everything is G8, so grade alone sorts nothing.';
 
 GRANT SELECT ON public.provenance_worklist TO authenticated;
 
--- ── 3. Detach the guard from tables that just left scope ────────────────────────────────────
+-- -- 4. Detach the guard from tables that just left scope ------------------------------------
 -- Nothing removes a trigger when a table is excluded, so without this they would keep recording
 -- claims that the views no longer show — a store growing with rows nobody reads.
 CREATE OR REPLACE FUNCTION public.provenance_detach_out_of_scope()
