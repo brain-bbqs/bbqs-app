@@ -19,6 +19,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "@/styles/ag-grid-theme.css";
+import { ProvenanceGrades } from "@/components/provenance/ProvenanceGrades";
+import { useHashState } from "@/hooks/useHashState";
+import { cn } from "@/lib/utils";
 
 interface EditRow {
   id: string;
@@ -235,6 +238,8 @@ export default function DataProvenance() {
   const queryClient = useQueryClient();
   const gridRef = useRef<AgGridReact>(null);
   const [quickFilter, setQuickFilter] = useState("");
+  // Deep-linkable, so "look at the grades for X" can be shared as a URL.
+  const [tab, setTab] = useHashState<"history" | "grades">("history", ["history", "grades"] as const);
 
   const { data: history, isLoading } = useQuery({
     queryKey: ["edit-history-all"],
@@ -454,20 +459,46 @@ export default function DataProvenance() {
             <Badge variant="secondary" className="text-xs ml-2">
               {rowData.length} edits
             </Badge>
+            {/* Two questions, one page: what changed, and how good is what is here now. Splitting
+                them across two consoles is the duplication this whole feature exists to remove. */}
+            <div className="flex items-center gap-1 ml-4 border border-border rounded-md p-0.5">
+              {([["history", "Change history"], ["grades", "Field grades"]] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    "text-[11px] px-2.5 py-1 rounded transition-colors",
+                    tab === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="relative max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={quickFilter}
-              onChange={onFilterChange}
-              placeholder="Filter edits..."
-              className="pl-9 h-8 text-xs"
-            />
-          </div>
+          {tab === "history" && (
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={quickFilter}
+                onChange={onFilterChange}
+                placeholder="Filter edits..."
+                className="pl-9 h-8 text-xs"
+              />
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Field grades */}
+      {tab === "grades" && (
+        <div className="flex-1 overflow-hidden">
+          <ProvenanceGrades />
+        </div>
+      )}
+
       {/* AG Grid */}
+      {tab === "history" && (
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -495,6 +526,7 @@ export default function DataProvenance() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
