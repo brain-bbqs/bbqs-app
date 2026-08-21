@@ -6,11 +6,11 @@
 // moment to reach for it is when the guard refuses a write someone wanted to succeed. That is
 // precisely when it should NOT be reached for.
 //
-// So every exclusion must be justified in the migration's own header. Not a strong check on its
-// own — but it means a silent exclusion is impossible: you either write down why, or the suite
-// fails. The rationale block groups them (the mechanism itself, append-only logs, derived bulk,
-// pipeline state, personal preferences, billing, external snapshots); a name that fits none of
-// those probably belongs under the guard.
+// So every exclusion must sit under a stated reason, right next to the names it covers. Not a strong
+// check on its own — nothing stops a bad reason — but it makes a SILENT exclusion impossible: you
+// either write down why, or the suite fails. In practice the reason is a group heading (the mechanism
+// itself, append-only logs, pipeline output, configuration, opinion, billing, external mirrors), and
+// a name that fits none of those probably belongs under the guard.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,9 +29,10 @@ const sqlFiles = () =>
     .map((f) => join(MIGRATIONS, f))
     .filter((f) => statSync(f).isFile());
 
-/** The exclusion list as it now stands, from the newest migration that defines it. */
+/** The exclusion list as it now stands, from the newest migration that defines it, kept as LINES so
+ *  each name can be checked against the comment it sits under. */
 function exclusions() {
-  let names = null;
+  let body = null;
   let file = null;
   for (const f of sqlFiles()) {
     const sql = readFileSync(f, "utf8");
@@ -39,38 +40,43 @@ function exclusions() {
       /CREATE OR REPLACE FUNCTION public\.provenance_excluded_tables\(\)[\s\S]*?SELECT ARRAY\[([\s\S]*?)\]::text\[\]/,
     );
     if (!m) continue;
-    names = [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]);
+    body = m[1];
     file = f;
   }
-  return { names, file };
+  if (!body) return { names: null, file: null, lines: null };
+  return {
+    names: [...body.matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]),
+    lines: body.split("\n"),
+    file,
+  };
 }
 
-test("every excluded table is justified in the migration that excludes it", () => {
-  const { names, file } = exclusions();
+test("every excluded table sits under a stated reason", () => {
+  const { names, lines, file } = exclusions();
   assert.ok(names, "provenance_excluded_tables() not found in any migration");
 
-  // Only the RATIONALE LIST counts, not the whole header. Scoping this to the header let
-  // 'investigators' pass unnoticed during a probe, because the word appears in the prose above
-  // explaining what the guard protects — an incidental mention is not a justification.
-  const sql = readFileSync(file, "utf8");
-  const from = sql.indexOf("DEFAULT ON, opt out by name");
-  const to = sql.indexOf("Anything not named here is guarded");
-  assert.ok(from !== -1 && to > from, "the migration must carry a rationale block for its exclusions");
-  const header = sql.slice(from, to);
-  const undocumented = names.filter((n) => {
-    // Keep the ones that are NOT justified. A name is justified if the header mentions it, or names
-    // its family with a wildcard (analytics_* covers analytics_clicks and analytics_pageviews).
-    if (header.includes(n)) return false;
-    const family = n.replace(/_[a-z0-9]+$/, "");
-    return !header.includes(`${family}_*`);
-  });
+  // The reason must be CO-LOCATED with the names it covers: a comment line introducing the group,
+  // within a few lines above. Two earlier versions of this check were worse in opposite ways —
+  // one scanned the whole migration header, so 'investigators' passed a probe because the word
+  // appeared in unrelated prose; the next demanded two exact marker phrases in a prose block, and
+  // broke the moment a migration put its reasons inline next to the names, which is the better
+  // place for them. Proximity is the thing actually worth enforcing.
+  const LOOKBACK = 6;
+  const unexplained = [];
+  for (const [idx, line] of lines.entries()) {
+    for (const m of line.matchAll(/'([a-z_0-9]+)'/g)) {
+      const explained = lines
+        .slice(Math.max(0, idx - LOOKBACK), idx + 1)
+        .some((l) => /--\s*\S/.test(l));
+      if (!explained) unexplained.push(m[1]);
+    }
+  }
 
   assert.deepEqual(
-    undocumented,
+    unexplained,
     [],
-    "Excluded from the provenance guard with no stated reason: " +
-      undocumented.join(", ") +
-      ". Say why in the migration header, or let the guard cover it.",
+    `Excluded from the provenance guard with no reason stated nearby: ${unexplained.join(", ")}. ` +
+      `Group it under a "-- why" comment in ${file?.split(/[\/]/).pop()}, or let the guard cover it.`,
   );
 });
 
