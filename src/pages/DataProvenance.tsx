@@ -239,7 +239,10 @@ export default function DataProvenance() {
   const gridRef = useRef<AgGridReact>(null);
   const [quickFilter, setQuickFilter] = useState("");
   // Deep-linkable, so "look at the grades for X" can be shared as a URL.
-  const [tab, setTab] = useHashState<"history" | "grades">("history", ["history", "grades"] as const);
+  // Opens on GRADES. History is 47 edit rows; grades is 11,000+ graded fields and the reason the
+  // page was re-enabled. Defaulting to history meant landing on an empty grid and concluding the
+  // page was broken, which is exactly what happened.
+  const [tab, setTab] = useHashState<"history" | "grades">("grades", ["history", "grades"] as const);
 
   const { data: history, isLoading } = useQuery({
     queryKey: ["edit-history-all"],
@@ -494,6 +497,16 @@ export default function DataProvenance() {
       {tab === "grades" && (
         <div className="flex-1 overflow-hidden">
           <ProvenanceGrades />
+        </div>
+      )}
+
+      {/* An empty history grid is ambiguous — no edits recorded, or no permission to read them.
+          Saying which costs one line and saves the conclusion that the page is broken. */}
+      {tab === "history" && !isLoading && rowData.length === 0 && (
+        <div className="px-6 py-4 text-xs text-muted-foreground border-b border-border">
+          No edit history visible. `edit_history` is row-level-secured, so this is empty either
+          because nothing has been edited through a tracked surface or because your role cannot read
+          it. Field grades is the fuller view.
         </div>
       )}
 
