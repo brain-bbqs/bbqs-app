@@ -154,6 +154,35 @@ export default function Species() {
     },
   });
 
+  // Candidates from the grant abstracts. The panel below used to just say "this is not a species",
+  // which is a complaint; with the candidate and its quote attached it becomes a decision someone
+  // can make in one click.
+  const { data: candidates = [] } = useQuery({
+    queryKey: ["species-candidates"],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("species_candidates" as any)
+        .select("grant_number, candidate, common_name, evidence, confidence, note");
+      if (error) throw error;
+      return (data ?? []) as unknown as {
+        grant_number: string; candidate: string; common_name: string | null;
+        evidence: string; confidence: string; note: string | null;
+      }[];
+    },
+  });
+
+  const candidatesByGrant = useMemo(() => {
+    const m = new Map<string, typeof candidates>();
+    for (const c of candidates) {
+      const k = coreGrantNumber(c.grant_number);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(c);
+    }
+    return m;
+  }, [candidates]);
+
   const provByProject = useMemo(
     () => new Map(speciesProv.map((r) => [r.entity_id, r])),
     [speciesProv],
@@ -361,6 +390,19 @@ export default function Species() {
                   <span className="font-medium">{n.value ?? "— no species recorded —"}</span>
                   <Badge variant="outline" className="text-[10px] font-normal">{n.kind}</Badge>
                   {n.note && <span className="text-muted-foreground">{n.note}</span>}
+                  {(candidatesByGrant.get(coreGrantNumber(n.grant)) ?? []).map((c) => (
+                    <span key={c.candidate} className="inline-flex items-baseline gap-1.5">
+                      <Badge className="text-[10px] font-normal">
+                        abstract suggests {c.candidate}
+                        {c.common_name ? ` (${c.common_name})` : ""}
+                      </Badge>
+                      {c.confidence === "needs_choice" && (
+                        <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                          names a group, not a species — the project must pick
+                        </span>
+                      )}
+                    </span>
+                  ))}
                 </div>
               ))}
             </div>
