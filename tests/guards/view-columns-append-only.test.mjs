@@ -64,17 +64,36 @@ function topLevelSplit(list) {
 }
 
 /** Output column names of a view definition, in order. */
+const RE_AS_WITH = /\bAS\s+WITH\b/i;
+
 function viewColumns(sql, startIdx) {
   const after = stripComments(sql.slice(startIdx));
-  const selIdx = after.search(/\bSELECT\b/);
+  let selIdx = after.search(/\bSELECT\b/);
   if (selIdx === -1) return null;
 
-  // A CTE view — `AS WITH base AS (SELECT ...)` — puts a SELECT before its OUTPUT select, so the
+  // A CTE view -- `AS WITH base AS (SELECT ...)` -- puts a SELECT before its OUTPUT select, so the
   // first one belongs to the CTE. onboarding_pipeline is shaped that way, and reading the CTE's
-  // columns made this guard report three long-applied migrations as broken. Short of a real SQL
-  // parser, abstaining is the only honest option: a guard that is wrong is worse than one that
-  // admits it cannot see. The next test names what was skipped.
-  if (/\bAS\s+WITH\b/i.test(after.slice(0, selIdx).replace(/\s+/g, " "))) return null;
+  // columns made this guard report three long-applied migrations as broken.
+  //
+  // This used to abstain here, which was honest but left the two views that have ACTUALLY hit 42P16
+  // -- provenance_coverage and provenance_worklist, both since rewritten as CTEs for speed --
+  // unchecked, along with three others. Abstaining on the highest-risk cases is not much of a guard.
+  //
+  // Every CTE body is parenthesised, so between CTEs the depth is zero and the only thing appearing
+  // there is `, name AS (`. The OUTPUT select is the first SELECT at depth zero after WITH.
+  if (RE_AS_WITH.test(after.slice(0, selIdx).replace(/\s+/g, " "))) {
+    const withIdx = after.search(/(^|[^A-Za-z_])WITH[\s(]/i);
+    let d = 0;
+    let found = -1;
+    for (let i = withIdx + 4; i < after.length; i += 1) {
+      const ch = after[i];
+      if (ch === "(") d += 1;
+      else if (ch === ")") d -= 1;
+      else if (d === 0 && /^SELECT\b/i.test(after.slice(i, i + 7))) { found = i; break; }
+    }
+    if (found === -1) return null;
+    selIdx = found;
+  }
 
   // The select list ends at the view's own FROM — meaning the FROM at PAREN DEPTH ZERO. The first
   // version of this took the first line-initial FROM, which for onboarding_pipeline sits inside

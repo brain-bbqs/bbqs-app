@@ -164,36 +164,31 @@ const TitleCell = ({ value, data }: { value: string; data: ProjectRow }) => {
     }
   };
 
+  // NO Tooltip here. Hovering the title already opens the row's detail card, whose heading is this
+  // same title in full — so a tooltip repeating the title rendered a second popup underneath the
+  // first, and the two overlapped into the doubled name the user photographed. The truncated text
+  // is still recoverable: that is what the detail card's heading is for.
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="flex items-center gap-1.5 min-w-0">
-            <button
-              onClick={handleClick}
-              className="font-medium text-foreground hover:text-primary hover:underline truncate block max-w-full text-left"
-            >
-              {value}
-            </button>
-            {hasEmber && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClick();
-                }}
-                title="View linked EMBER dataset(s) for this grant"
-                className="shrink-0 inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[10px] px-1.5 h-4 font-semibold hover:bg-emerald-500/25 hover:underline"
-              >
-                EMBER data →
-              </button>
-            )}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-md">
-          <p className="font-medium">{value}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <span className="flex items-center gap-1.5 min-w-0">
+      <button
+        onClick={handleClick}
+        className="font-medium text-foreground hover:text-primary hover:underline truncate block max-w-full text-left"
+      >
+        {value}
+      </button>
+      {hasEmber && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClick();
+          }}
+          title="View linked EMBER dataset(s) for this grant"
+          className="shrink-0 inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[10px] px-1.5 h-4 font-semibold hover:bg-emerald-500/25 hover:underline"
+        >
+          EMBER data →
+        </button>
+      )}
+    </span>
   );
 };
 
