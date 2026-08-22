@@ -214,15 +214,48 @@ export function ProvenanceGrades() {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {(coverage.data ?? []).filter((r) => (r.cells ?? 0) > 0).slice(0, 14).map((r) => (
-            <Badge key={r.table_name} variant="outline" className="text-[10px] font-normal gap-1">
-              {r.table_name}
-              <span className={cn("tabular-nums", (r.pct_verified ?? 0) > 50 ? "text-muted-foreground" : "text-amber-600 dark:text-amber-400")}>
-                {r.pct_verified ?? 0}%
-              </span>
-            </Badge>
-          ))}
+        {/* Every table, not a truncated sample. "An overview of provenance across all data" is the
+            point of the page, and a badge strip cut off at fourteen is not that. */}
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted-foreground text-left">
+                <th className="font-medium pb-1 pr-4">Table</th>
+                <th className="font-medium pb-1 pr-4 text-right">Fields</th>
+                <th className="font-medium pb-1 pr-4 text-right">Vouched for</th>
+                <th className="font-medium pb-1 pr-4 text-right">Unverified</th>
+                <th className="font-medium pb-1 w-32">Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(coverage.data ?? [])
+                .filter((r) => (r.cells ?? 0) > 0)
+                .sort((a, b) => (b.unverified ?? 0) - (a.unverified ?? 0))
+                .map((r) => {
+                  const pct = r.pct_verified ?? 0;
+                  return (
+                    <tr key={r.table_name} className="border-t border-border/50">
+                      <td className="py-1 pr-4 font-mono">{r.table_name}</td>
+                      <td className="py-1 pr-4 text-right tabular-nums">{(r.cells ?? 0).toLocaleString()}</td>
+                      <td className="py-1 pr-4 text-right tabular-nums">{(r.verified ?? 0).toLocaleString()}</td>
+                      <td className={cn("py-1 pr-4 text-right tabular-nums",
+                                        (r.unverified ?? 0) > 0 && "text-amber-600 dark:text-amber-400")}>
+                        {(r.unverified ?? 0).toLocaleString()}
+                      </td>
+                      <td className="py-1">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 flex-1 rounded bg-muted overflow-hidden">
+                            <div className={cn("h-full rounded", pct > 50 ? "bg-primary" : "bg-amber-500")}
+                                 style={{ width: `${Math.max(pct, pct > 0 ? 2 : 0)}%` }} />
+                          </div>
+                          <span className="tabular-nums w-10 text-right text-muted-foreground">{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
         </div>
       </div>
 

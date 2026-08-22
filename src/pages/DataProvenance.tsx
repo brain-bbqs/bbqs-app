@@ -456,16 +456,18 @@ export default function DataProvenance() {
             <div>
               <h1 className="text-sm font-semibold text-foreground leading-tight">Data Provenance</h1>
               <p className="text-[11px] text-muted-foreground">
-                Track all metadata changes across the consortium
+                Where every field came from, and how much of the record is vouched for
               </p>
             </div>
-            <Badge variant="secondary" className="text-xs ml-2">
-              {rowData.length} edits
-            </Badge>
+            {tab === "history" && (
+              <Badge variant="secondary" className="text-xs ml-2">
+                {rowData.length} edits
+              </Badge>
+            )}
             {/* Two questions, one page: what changed, and how good is what is here now. Splitting
                 them across two consoles is the duplication this whole feature exists to remove. */}
             <div className="flex items-center gap-1 ml-4 border border-border rounded-md p-0.5">
-              {([["history", "Change history"], ["grades", "Field grades"]] as const).map(([id, label]) => (
+              {([["grades", "Overview"], ["history", "Edit log"]] as const).map(([id, label]) => (
                 <button
                   key={id}
                   onClick={() => setTab(id)}
@@ -495,7 +497,7 @@ export default function DataProvenance() {
 
       {/* Field grades */}
       {tab === "grades" && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <ProvenanceGrades />
         </div>
       )}
@@ -512,13 +514,13 @@ export default function DataProvenance() {
 
       {/* AG Grid */}
       {tab === "history" && (
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="ag-grid-mobile-wrapper">
+          <div className="ag-grid-mobile-wrapper h-full">
           <div className="ag-theme-alpine h-full w-full">
             <AgGridReact
               ref={gridRef}
@@ -527,9 +529,6 @@ export default function DataProvenance() {
               defaultColDef={defaultColDef}
               quickFilterText={quickFilter}
               animateRows
-              pagination
-              paginationPageSize={100}
-              paginationPageSizeSelector={[25, 50, 100, 200]}
               suppressCellFocus
               enableCellTextSelection
               rowHeight={40}
