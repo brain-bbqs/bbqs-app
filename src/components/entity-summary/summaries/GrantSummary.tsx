@@ -299,18 +299,44 @@ export function GrantSummary({ id }: { id: string }) {
             <h2 className="text-xl font-bold text-foreground">{data.grant_number}</h2>
             <p className="text-sm text-muted-foreground">NIH Grant</p>
           </div>
-          {isMember && (
-            <Button asChild size="sm" variant={canEdit ? "outline" : "secondary"}>
-              <Link to={`/projects/${data.grant_number}/profile`} onClick={() => close()}>
-                <Settings className="h-3.5 w-3.5 mr-1.5" />
-                {canEdit ? "Manage" : "Full profile"}
-              </Link>
-            </Button>
-          )}
+          {/* Was a button here. It is a TAB now, next to Summary, so the way into the profile sits
+              with the rest of the card's navigation instead of floating in the header. */}
         </div>
       </div>
       <SummaryTabs tabs={[
         { id: "summary", label: "Summary", icon: <FileText className="h-3.5 w-3.5" />, content: summaryContent },
+        ...(isMember ? [{
+          id: "profile",
+          label: canEdit ? "Manage" : "Full profile",
+          icon: <Settings className="h-3.5 w-3.5" />,
+          content: (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {canEdit
+                  ? "The full profile holds every questionnaire answer for this project, with the source recorded against each field. You can edit it."
+                  : "The full profile holds every questionnaire answer for this project, with the source recorded against each field. You have read access."}
+              </p>
+              <Button asChild size="sm">
+                <Link to={`/projects/${data.grant_number}/profile`} onClick={() => close()}>
+                  <Settings className="h-3.5 w-3.5 mr-1.5" />
+                  {canEdit ? "Open and manage" : "Open full profile"}
+                </Link>
+              </Button>
+              {data.project ? (
+                <p className="text-xs text-muted-foreground">
+                  Metadata completeness:{" "}
+                  <span className="font-medium text-foreground">
+                    {(data.project as any).metadata_completeness ?? 0}%
+                  </span>
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No questionnaire has been recorded for this project yet.
+                </p>
+              )}
+            </div>
+          ),
+        }] : []),
         { id: "details", label: "Details", icon: <Microscope className="h-3.5 w-3.5" />, content: (
           data.project ? (
             <GrantMarrSection metadata={(data.project as any).metadata || {}} project={data.project} />

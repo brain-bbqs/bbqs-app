@@ -84,6 +84,22 @@
   overflow: visible;
 }
 
+/* OPT IN when a grid needs to scroll inside a fixed-height container.
+ *
+ * The rule above sets overflow: visible on the body viewport for every grid on the site, so cell
+ * content (badges, hover cards) can spill outside its row. The cost is that ag-grid's own vertical
+ * scrolling stops working — the viewport cannot scroll what it does not clip. On /data-provenance
+ * that showed as 14 of 47 rows visible and no way to reach the rest.
+ *
+ * Ten pages use .ag-theme-alpine and most do not need viewport scrolling: they paginate, or use
+ * domLayout="autoHeight" and let the page scroll. So this is a modifier rather than a change to the
+ * shared rule — add ag-grid-scroll to the theme element when the grid owns a fixed height and must
+ * scroll within it. */
+.ag-theme-alpine.ag-grid-scroll .ag-body-viewport,
+.ag-theme-alpine.ag-grid-scroll .ag-center-cols-viewport {
+  overflow-y: auto;
+}
+
 .ag-theme-alpine .ag-paging-panel {
   background-color: hsl(220 20% 97%);
   border-top: 1px solid hsl(220 15% 88%);
