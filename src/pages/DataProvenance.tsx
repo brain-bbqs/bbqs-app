@@ -108,7 +108,7 @@ const ValueCell = ({ value, data, colDef }: ICellRendererParams) => {
   }
   const items = Array.isArray(value) ? value : [value];
   return (
-    <div className="flex flex-wrap gap-1 py-1 max-w-[180px]">
+    <div className="flex flex-wrap gap-1 py-1.5 w-full">
       {items.slice(0, 4).map((v: any, i: number) => (
         <Badge
           key={i}
@@ -435,6 +435,11 @@ export default function DataProvenance() {
     resizable: true,
     suppressMovable: true,
     unSortIcon: true,
+    // ValueCell renders up to four badges in a wrapping row, and rowHeight={40} pinned every row at
+    // 40px regardless — so old and new values spilled over the rows beneath them. autoHeight lets
+    // each row take the space its content needs; the grid still scrolls inside its container.
+    wrapText: true,
+    autoHeight: true,
   }), []);
 
   const onFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -548,7 +553,6 @@ export default function DataProvenance() {
               animateRows
               suppressCellFocus
               enableCellTextSelection
-              rowHeight={40}
               headerHeight={36}
             />
           </div>

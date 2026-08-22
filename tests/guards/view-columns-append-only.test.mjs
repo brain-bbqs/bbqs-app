@@ -32,12 +32,18 @@ const sqlFiles = () =>
     .map((f) => join(MIGRATIONS, f))
     .filter((f) => statSync(f).isFile());
 
-/** Strip SQL comments. Needed in two places, for two different reasons — see below. */
+/** Strip SQL comments. Needed in two places, for two different reasons — see below.
+ *
+ *  CRLF matters here, and cost an hour. These files are checked out with \r\n on Windows — git says
+ *  so on every commit. Splitting on "\n" alone leaves a trailing \r, and in a JS regex `.` does not
+ *  match \r while `$` cannot match after it, so `--.*$` silently removed NOTHING, in every file.
+ *  The guard then read comment prose as column names and reported "column 19 changed from Appended
+ *  to authored_at". Split on /\r?\n/ and drop the anchor. */
 const stripComments = (s) =>
   s
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .map((l) => l.replace(/--.*$/, ""))
+    .split(/\r?\n/)
+    .map((l) => l.replace(/--.*/, ""))
     .join("\n");
 
 /** Split a select list on commas that are not inside parentheses. */
@@ -104,9 +110,16 @@ function viewColumns(sql, startIdx) {
     .filter(Boolean);
 }
 
-/** Every view definition across the migrations, in file order. */
+/** Every view definition across the migrations, in file order — with renames applied.
+ *
+ *  ALTER VIEW ... RENAME COLUMN is the sanctioned way to rename a view column, and the first
+ *  version of this guard did not know it existed: it flagged a later CREATE OR REPLACE as
+ *  "changes source_rank to source_grade" when a migration in between had legitimately renamed
+ *  exactly that column. A guard that does not model a legal operation reports correct code as
+ *  broken, which is how guards get switched off. */
 function viewDefinitions() {
   const defs = new Map();
+  const renames = new Map(); // view -> [{from, to}] seen so far
   for (const f of sqlFiles()) {
     // Comments stripped before the scan too: this very file's error message contains the phrase
     // "CREATE OR REPLACE VIEW cannot insert, reorder or drop", and the scanner duly reported a
@@ -120,6 +133,22 @@ function viewDefinitions() {
       if (!defs.has(m[1])) defs.set(m[1], []);
       defs.get(m[1]).push({ file: basename(f), cols });
     }
+
+    // Apply any renames THIS file performs, so a later definition is compared against the column
+    // names the view actually has by then.
+    const rn = /ALTER\s+VIEW\s+(?:public\.)?([a-z_0-9]+)\s+RENAME\s+COLUMN\s+([a-z_0-9]+)\s+TO\s+([a-z_0-9]+)/gi;
+    let r;
+    while ((r = rn.exec(sql)) !== null) {
+      const [, view, from, to] = r;
+      if (!renames.has(view)) renames.set(view, []);
+      renames.get(view).push({ from, to });
+      const history = defs.get(view);
+      if (history) {
+        for (const d of history) {
+          d.cols = d.cols.map((c) => (c === from ? to : c));
+        }
+      }
+    }
   }
   return defs;
 }
@@ -132,6 +161,19 @@ SELECT DISTINCT ON (a.x) a.alpha,
        coalesce(a.p, b.q, 'x') AS third
   FROM public.a a;`;
   assert.deepEqual(viewColumns(sample, 0), ["alpha", "renamed", "third"]);
+});
+
+test("comments are stripped even with CRLF line endings", () => {
+  // Pins the bug above: with \r\n, `--.*$` matched nothing, the comment survived, and its prose was
+  // parsed as a column name. These migrations are checked out CRLF on Windows, so this is the
+  // ordinary case rather than an edge one.
+  const crlf =
+    "CREATE OR REPLACE VIEW public.demo AS\r\n" +
+    "SELECT a.one,\r\n" +
+    "       -- Appended, not inserted.\r\n" +
+    "       a.two\r\n" +
+    "  FROM public.a a;";
+  assert.deepEqual(viewColumns(crlf, 0), ["one", "two"]);
 });
 
 test("the extractor is not fooled by a FROM inside a subquery", () => {
