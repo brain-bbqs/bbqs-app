@@ -30,9 +30,11 @@ interface SpeciesRow {
   behaviors: string[];
   color: string;
   projectCount: number;
-  /** "2/3" — projects under this species whose species value someone stands behind. Empty when the
-   *  viewer cannot read the provenance store, in which case the column is hidden entirely. */
-  sourced: string;
+  /** How many projects under this species have a species value anyone stands behind, and who. A bare
+   *  fraction like "0/11" was the first attempt and it read as noise, so the cell says it in words. */
+  sourcedOk: number;
+  sourcedTotal: number;
+  sourcedBy: string[];
 }
 
 const getProjectTitle = (shortName: string) => {
@@ -189,14 +191,17 @@ export default function Species() {
     }
 
     return Array.from(grouped.entries()).map(([latinName, data]) => ({
-      sourced: (() => {
+      ...(() => {
         const ids = canonical
           .filter((c) => (c.canonical_name || c.recorded_value) === latinName)
           .map((c) => c.project_id);
         const known = ids.filter((id) => provByProject.has(id));
-        if (known.length === 0) return "";
-        const ok = known.filter((id) => provByProject.get(id)!.is_verified).length;
-        return `${ok}/${known.length}`;
+        const ok = known.filter((id) => provByProject.get(id)!.is_verified);
+        return {
+          sourcedOk: ok.length,
+          sourcedTotal: known.length,
+          sourcedBy: [...new Set(ok.map((id) => provByProject.get(id)!.source_label))],
+        };
       })(),
       species: data.commonName
         ? `${data.commonName.charAt(0).toUpperCase()}${data.commonName.slice(1)}`
@@ -238,16 +243,29 @@ export default function Species() {
       // anything, and a column that reads 0/3 tells a curator exactly where to look.
       ...(speciesProv.length > 0
         ? [{
-            field: "sourced",
-            headerName: "Vouched for",
-            width: 110,
-            headerTooltip: "Projects under this species whose species value a person or registry stands behind",
-            cellRenderer: ({ value }: { value: string }) => {
-              if (!value) return <span className="text-muted-foreground">—</span>;
-              const [ok, total] = value.split("/").map(Number);
+            colId: "sourced",
+            headerName: "Species confirmed by",
+            width: 190,
+            headerTooltip:
+              "Who stands behind the species value for the projects under this row. Nobody yet means the value is in the record but no person or registry has vouched for it.",
+            valueGetter: (p: { data?: SpeciesRow }) => p.data?.sourcedOk ?? 0,
+            cellRenderer: ({ data }: { data: SpeciesRow }) => {
+              if (!data || data.sourcedTotal === 0) return <span className="text-muted-foreground">—</span>;
+              // Say it in words. "0/11" made a reader ask what the column was, which is the answer
+              // to whether a bare fraction communicates.
+              if (data.sourcedOk === 0) {
+                return (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Nobody yet{data.sourcedTotal > 1 ? ` (${data.sourcedTotal} projects)` : ""}
+                  </span>
+                );
+              }
+              if (data.sourcedOk === data.sourcedTotal) {
+                return <span>{data.sourcedBy.join(", ")}</span>;
+              }
               return (
-                <span className={ok === 0 ? "text-amber-600 dark:text-amber-400" : ok === total ? "" : "text-muted-foreground"}>
-                  {value}
+                <span className="text-muted-foreground">
+                  {data.sourcedOk} of {data.sourcedTotal} · {data.sourcedBy.join(", ")}
                 </span>
               );
             },
