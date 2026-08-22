@@ -244,7 +244,10 @@ export interface MarrProjectsData {
   projects: MarrProject[];
   synergyNodes: SynergyNode[];
   synergyLinks: SynergyLink[];
+  /** True only while the KG read is in flight. Titles arrive separately — see grantsLoading. */
   loading: boolean;
+  /** Project titles and PI names are still on their way from the nih-grants function. */
+  grantsLoading: boolean;
   error: string | null;
 }
 
@@ -290,7 +293,12 @@ export function useMarrProjects(): MarrProjectsData {
 
   return {
     ...value,
-    loading: kgQuery.isLoading || grantsQuery.isLoading,
+    // Only the KG query blocks. nih-grants is an edge function that calls NIH RePORTER, so it can
+    // be slow or cold-start — and all it contributes here is project TITLES and PI names. Waiting
+    // on it left /species showing "Loading" while the species themselves were already in hand.
+    // Titles fill in when they arrive; a grant number is a usable label until then.
+    loading: kgQuery.isLoading,
+    grantsLoading: grantsQuery.isLoading,
     error: (kgQuery.error as Error)?.message ?? (grantsQuery.error as Error)?.message ?? null,
   };
 }
