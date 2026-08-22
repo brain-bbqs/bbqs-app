@@ -268,7 +268,7 @@ export default function Species() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading species data from YAML...</p>
+        <p className="text-muted-foreground">Loading species…</p>
       </div>
     );
   }
