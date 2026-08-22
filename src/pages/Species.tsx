@@ -259,7 +259,9 @@ export default function Species() {
       { field: "behaviors", headerName: "Behaviors", flex: 1, minWidth: 300, cellRenderer: BehaviorBadges,
         getQuickFilterText: (params) => params.data?.behaviors.join(" ") || "" },
     ],
-    []
+    // Depends on whether provenance is readable. With an empty deps array the conditional
+    // "Vouched for" column is computed once, while the query is still in flight, and never appears.
+    [speciesProv.length]
   );
   const isMobile = useIsMobile();
 
