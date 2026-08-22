@@ -9,6 +9,8 @@ import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { useMarrProjects } from "@/hooks/useMarrProjects";
+import { useQuery } from "@tanstack/react-query";
+import { coreGrantNumber } from "@/lib/grantNumber";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
@@ -106,54 +108,88 @@ const BehaviorBadges = ({ data }: { value: any; data: SpeciesRow }) => {
 
 export default function Species() {
   const { projects, loading } = useMarrProjects();
+
+  // Species come from the CANONICAL view, not from the raw study_species strings. Reading the raw
+  // values put five spellings of Homo sapiens on this page as five species, listed "Interacting
+  // Animals" and "Freely moving animals" among them, and invented a species called Unknown out of
+  // one project's empty field. The vocabulary lives in species_aliases so the agent agrees with the
+  // site about what a species is.
+  const { data: canonical = [] } = useQuery({
+    queryKey: ["project-species-canonical"],
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_species" as any)
+        .select("project_id, grant_number, recorded_value, canonical_name, kind, common_name, note");
+      if (error) throw error;
+      return (data ?? []) as unknown as {
+        project_id: string; grant_number: string | null; recorded_value: string | null;
+        canonical_name: string | null; kind: string; common_name: string | null; note: string | null;
+      }[];
+    },
+  });
   const [quickFilterText, setQuickFilterText] = useState("");
   const [view] = useHashState<"table" | "heatmap">("table", ["table", "heatmap"] as const);
 
+  /** Real species only, deduplicated by canonical name. */
   const rows: SpeciesRow[] = useMemo(() => {
-    const grouped = new Map<string, { commonName: string; projects: ProjectInfo[]; behaviors: Set<string>; color: string }>();
+    const byGrant = new Map(projects.map((p) => [coreGrantNumber(p.id), p]));
+    const grouped = new Map<string, { commonName: string; projects: ProjectInfo[]; behaviors: Set<string>; color: string; assumed: boolean; note: string | null }>();
 
-    for (const p of projects) {
-      // Each project may study multiple species — create a row per species
-      const speciesKeys = (p.speciesList && p.speciesList.length > 0) ? p.speciesList : [p.species || "Unknown"];
-      const project: ProjectInfo = { name: p.title || p.shortName, grantId: p.id };
-      const commonNameMap = p.speciesCommonNames || {};
+    for (const c of canonical) {
+      // Anything that is not a species does not belong in a list of species. It is reported
+      // separately below rather than dropped, because "this project records no species" is a fact.
+      if (c.kind !== "taxon" && c.kind !== "taxon_assumed") continue;
+      const key = c.canonical_name || c.recorded_value || "";
+      if (!key) continue;
+      const p = byGrant.get(coreGrantNumber(c.grant_number));
+      const project: ProjectInfo = { name: p?.title || p?.shortName || c.grant_number || "", grantId: p?.id || c.grant_number || "" };
 
-      for (const speciesKey of speciesKeys) {
-        const existing = grouped.get(speciesKey);
-        const commonForThis = commonNameMap[speciesKey] || "";
-        if (existing) {
-          if (!existing.projects.some((ep) => ep.grantId === p.id)) {
-            existing.projects.push(project);
-          }
-          p.computational.forEach((b) => existing.behaviors.add(b));
-          if (!existing.commonName && commonForThis) {
-            existing.commonName = commonForThis;
-          }
-        } else {
-          grouped.set(speciesKey, {
-            commonName: commonForThis,
-            projects: [project],
-            behaviors: new Set(p.computational),
-            color: p.color,
-          });
-        }
+      const existing = grouped.get(key);
+      if (existing) {
+        if (!existing.projects.some((ep) => ep.grantId === project.grantId)) existing.projects.push(project);
+        (p?.computational ?? []).forEach((b) => existing.behaviors.add(b));
+        existing.assumed = existing.assumed || c.kind === "taxon_assumed";
+      } else {
+        grouped.set(key, {
+          commonName: c.common_name || "",
+          projects: [project],
+          behaviors: new Set(p?.computational ?? []),
+          color: p?.color || "#90a4ae",
+          assumed: c.kind === "taxon_assumed",
+          note: c.note,
+        });
       }
     }
 
-    return Array.from(grouped.entries()).map(([latinName, data]) => {
-      const displayName = data.commonName
-        ? data.commonName.charAt(0).toUpperCase() + data.commonName.slice(1)
-        : latinName;
-      return {
-        species: displayName,
-        latinName,
-        projects: data.projects,
-        behaviors: Array.from(data.behaviors),
-        color: data.color,
-        projectCount: data.projects.length,
-      };
-    });
-  }, [projects]);
+    return Array.from(grouped.entries()).map(([latinName, data]) => ({
+      species: data.commonName
+        ? `${data.commonName.charAt(0).toUpperCase()}${data.commonName.slice(1)}`
+        : latinName,
+      latinName: data.assumed ? `${latinName} (assumed)` : latinName,
+      projects: data.projects,
+      behaviors: Array.from(data.behaviors),
+      color: data.color,
+      projectCount: data.projects.length,
+    }));
+  }, [projects, canonical]);
+
+  /** Values recorded in the species field that are not species. Shown, not hidden: a project whose
+   *  species field says "Interacting Animals" has a data problem someone should fix, and burying it
+   *  is how it survived this long. */
+  const notSpecies = useMemo(
+    () =>
+      canonical
+        .filter((c) => c.kind !== "taxon" && c.kind !== "taxon_assumed")
+        .map((c) => ({
+          grant: c.grant_number ?? "",
+          value: c.recorded_value,
+          kind: c.kind,
+          note: c.note,
+        }))
+        .sort((a, b) => a.kind.localeCompare(b.kind) || (a.value ?? "").localeCompare(b.value ?? "")),
+    [canonical],
+  );
 
   const defaultColDef = useMemo<ColDef>(
     () => ({ sortable: true, resizable: true, unSortIcon: true, wrapText: true, autoHeight: true }),
@@ -230,6 +266,30 @@ export default function Species() {
               quickFilterText={quickFilterText} animateRows={true} domLayout="autoHeight"
               suppressCellFocus={true} enableCellTextSelection={true} headerHeight={40}
             />
+          </div>
+        )}
+
+        {notSpecies.length > 0 && (
+          <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+            <p className="text-sm font-semibold">
+              {notSpecies.length} record{notSpecies.length === 1 ? "" : "s"} something other than a species
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-2xl">
+              These values sit in the species field but are not species — a grouping, a recording
+              condition, or a placeholder. Listed here rather than among the species, which is what
+              made this page appear to have an animal called “Interacting Animals”. The project
+              questionnaire is the right place to fix them.
+            </p>
+            <div className="space-y-1">
+              {notSpecies.map((n, i) => (
+                <div key={`${n.grant}-${i}`} className="flex flex-wrap items-baseline gap-2 text-xs">
+                  <span className="font-mono text-muted-foreground w-28 shrink-0">{n.grant}</span>
+                  <span className="font-medium">{n.value ?? "— no species recorded —"}</span>
+                  <Badge variant="outline" className="text-[10px] font-normal">{n.kind}</Badge>
+                  {n.note && <span className="text-muted-foreground">{n.note}</span>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

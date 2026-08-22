@@ -69,6 +69,9 @@ export function ProvenanceGrades() {
   // exists to prevent.
   const coverage = useQuery({
     queryKey: ["provenance-coverage"],
+    // No retries: a denial or a missing view is a permanent answer, and three silent retries with
+    // backoff is what turned "the query failed" into "the page shows skeletons forever".
+    retry: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("provenance_coverage" as any)
@@ -81,6 +84,7 @@ export function ProvenanceGrades() {
 
   const worklist = useQuery({
     queryKey: ["provenance-worklist"],
+    retry: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("provenance_worklist" as any)
@@ -162,9 +166,20 @@ export function ProvenanceGrades() {
   const err = (coverage.error ?? worklist.error) as Error | null;
   if (err) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
-        Field grades are not available: {err.message}
-        <p className="text-xs mt-1">
+      <div className="p-6 space-y-2">
+        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+          Field grades could not load
+        </p>
+        {/* The literal error, not a paraphrase. Whoever sees this needs the code and message to act
+            on, and a friendly summary would throw away the only useful part. */}
+        <pre className="text-xs bg-muted rounded p-3 overflow-x-auto whitespace-pre-wrap">
+          {(err as any)?.code ? `${(err as any).code}: ` : ""}{err.message}
+          {(err as any)?.details ? `
+${(err as any).details}` : ""}
+          {(err as any)?.hint ? `
+hint: ${(err as any).hint}` : ""}
+        </pre>
+        <p className="text-xs text-muted-foreground">
           This view needs the provenance migrations applied and admin or curator access.
         </p>
       </div>

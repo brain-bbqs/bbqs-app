@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { History, Search, Loader2, User, Bot, MessageSquare, Shield, CheckCircle2, AlertTriangle, XCircle, LogIn, Undo2 } from "lucide-react";
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
@@ -238,6 +238,23 @@ export default function DataProvenance() {
   const queryClient = useQueryClient();
   const gridRef = useRef<AgGridReact>(null);
   const [quickFilter, setQuickFilter] = useState("");
+
+  // MEASURE the space available rather than hardcoding calc(100vh-4rem). There is no 4rem header:
+  // the shell is a flex column whose only chrome is a CONDITIONAL AdminPendingBanner, so the offset
+  // is 0 for most people and the banner's height for an admin with pending requests. Subtracting a
+  // fixed 4rem wasted 64px for everyone and clipped the last rows for admins, which is what "there
+  // are items that can't be viewed at the bottom" was.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [availableH, setAvailableH] = useState<number>();
+  useEffect(() => {
+    const measure = () => {
+      const top = rootRef.current?.getBoundingClientRect().top ?? 0;
+      setAvailableH(Math.max(320, window.innerHeight - top));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
   // Deep-linkable, so "look at the grades for X" can be shared as a URL.
   // Opens on GRADES. History is 47 edit rows; grades is 11,000+ graded fields and the reason the
   // page was re-enabled. Defaulting to history meant landing on an empty grid and concluding the
@@ -445,7 +462,7 @@ export default function DataProvenance() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-background">
+    <div ref={rootRef} style={{ height: availableH }} className="flex flex-col bg-background">
       {/* Header */}
       <div className="border-b border-border px-6 py-4 shrink-0 bg-card">
         <div className="flex items-center justify-between">
