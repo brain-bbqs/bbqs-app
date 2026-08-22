@@ -142,23 +142,6 @@ const normalizeProjectRow = (row: RawProjectRow): ProjectRow | null => {
   };
 };
 
-/** Opens the full project profile. Shown only to consortium members, because that page needs a
- *  sign-in — a link that lands on an access wall is worse than no link. */
-const ProfileLinkCell = ({ data }: { data: ProjectRow }) => {
-  const { isMember } = useUserTier();
-  if (!isMember || !data?.grantNumber) return null;
-  return (
-    <Link
-      to={`/projects/${coreGrantNumber(data.grantNumber)}/profile`}
-      className="text-muted-foreground/60 hover:text-primary transition-colors inline-flex"
-      title="Open the full project profile"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <ExternalLink className="h-3.5 w-3.5" />
-    </Link>
-  );
-};
-
 const TitleCell = ({ value, data }: { value: string; data: ProjectRow }) => {
   const { open } = useEntitySummary();
   const { data: emberSet } = useGrantsWithDandisets();
@@ -490,20 +473,6 @@ const Projects = () => {
   }), []);
 
   const columnDefs = useMemo<ColDef<ProjectRow>[]>(() => [
-    {
-      // A direct way into the full profile from the list. The title cell opens the summary panel,
-      // which is a preview; this is the page itself, and without a row-level affordance the only
-      // route in was a button inside that panel.
-      headerName: "",
-      colId: "profileLink",
-      width: 44,
-      minWidth: 44,
-      maxWidth: 44,
-      sortable: false,
-      filter: false,
-      suppressSizeToFit: true,
-      cellRenderer: ProfileLinkCell,
-    },
     {
       field: "grantNumber",
       headerName: "Grant Type",
@@ -1015,16 +984,12 @@ const Projects = () => {
               top: Math.min(hoverPosition.y + 10, window.innerHeight - 320),
             }}
           >
+            {/* Text, not a link. The card is pointer-events-none and unmounts on mouse-out, so any
+                clickable thing inside it can never be reached — moving toward it leaves the row.
+                It had pointer-events-auto and hover:underline, which advertised a click that was
+                impossible to complete. The row itself opens the summary panel; that is the way in. */}
             <div className="flex items-start gap-2 mb-3">
-              <a
-                href={hoveredRow.nihLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary hover:underline line-clamp-2 pointer-events-auto"
-              >
-                {hoveredRow.title}
-                <ExternalLink className="inline h-3 w-3 ml-1 opacity-60" />
-              </a>
+              <p className="font-semibold text-foreground line-clamp-2">{hoveredRow.title}</p>
             </div>
             <div className="space-y-2 text-sm">
               <div>

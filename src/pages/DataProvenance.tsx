@@ -543,7 +543,7 @@ export default function DataProvenance() {
           </div>
         ) : (
           <div className="ag-grid-mobile-wrapper h-full">
-          <div className="ag-theme-alpine h-full w-full">
+          <div className="ag-theme-alpine ag-grid-scroll h-full w-full">
             <AgGridReact
               ref={gridRef}
               rowData={rowData}
