@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { useCanEditProject } from "@/hooks/useCanEditProject";
 import { useUserTier } from "@/hooks/useUserTier";
 import { GrantMarrSection } from "./GrantMarrSection";
+import { ProjectQuestionnaireBody } from "@/components/project-profile/ProjectQuestionnaireBody";
+import { useProjectProfileEditor } from "@/components/project-profile/useProjectProfileEditor";
 import { Database } from "lucide-react";
 
 function formatBytes(bytes: number | null | undefined): string {
@@ -48,6 +50,14 @@ export function GrantSummary({ id }: { id: string }) {
   // The full profile is the richest page on the site and was reachable only through a button hidden
   // from anyone who could not edit — so most of the consortium could not find it at all.
   const { isMember } = useUserTier();
+
+  // The profile's own editor, so the tab below shows the questionnaire rather than a button that
+  // leaves. Gated by passing null: the hook must run unconditionally, but its query must not fire
+  // for someone who cannot read the profile.
+  const profileEditor = useProjectProfileEditor(
+    isMember ? (grantNumberQ.data ?? null) : null,
+    canEdit,
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["entity-grant", id],
@@ -309,31 +319,38 @@ export function GrantSummary({ id }: { id: string }) {
           id: "profile",
           label: canEdit ? "Manage" : "Full profile",
           icon: <Settings className="h-3.5 w-3.5" />,
+          // The questionnaire itself, edited in place. This tab previously held one button whose
+          // only job was to navigate away, which made the tab a doorway rather than a place.
           content: (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {canEdit
-                  ? "The full profile holds every questionnaire answer for this project, with the source recorded against each field. You can edit it."
-                  : "The full profile holds every questionnaire answer for this project, with the source recorded against each field. You have read access."}
-              </p>
-              <Button asChild size="sm">
-                <Link to={`/projects/${data.grant_number}/profile`} onClick={() => close()}>
-                  <Settings className="h-3.5 w-3.5 mr-1.5" />
-                  {canEdit ? "Open and manage" : "Open full profile"}
-                </Link>
-              </Button>
-              {data.project ? (
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs text-muted-foreground">
-                  Metadata completeness:{" "}
-                  <span className="font-medium text-foreground">
-                    {(data.project as any).metadata_completeness ?? 0}%
-                  </span>
+                  Every questionnaire answer, with the source recorded against each field.
+                  {canEdit ? " Click a value to edit it." : " Read only."}
                 </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No questionnaire has been recorded for this project yet.
-                </p>
-              )}
+                <div className="flex items-center gap-3 shrink-0">
+                  {data.project && (
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground tabular-nums">
+                        {(data.project as any).metadata_completeness ?? 0}%
+                      </span>{" "}
+                      complete
+                    </span>
+                  )}
+                  {/* Still worth linking: the page is wider and adds the roster and EMBER panels. */}
+                  <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                    <Link to={`/projects/${data.grant_number}/profile`} onClick={() => close()}>
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Full page
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+              <ProjectQuestionnaireBody
+                editor={profileEditor}
+                canEdit={canEdit}
+                variant="panel"
+              />
             </div>
           ),
         }] : []),
