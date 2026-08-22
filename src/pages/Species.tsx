@@ -30,6 +30,9 @@ interface SpeciesRow {
   behaviors: string[];
   color: string;
   projectCount: number;
+  /** "2/3" — projects under this species whose species value someone stands behind. Empty when the
+   *  viewer cannot read the provenance store, in which case the column is hidden entirely. */
+  sourced: string;
 }
 
 const getProjectTitle = (shortName: string) => {
@@ -131,6 +134,29 @@ export default function Species() {
   const [quickFilterText, setQuickFilterText] = useState("");
   const [view] = useHashState<"table" | "heatmap">("table", ["table", "heatmap"] as const);
 
+  // Provenance for the species field of every project, so each species row can say how much of it
+  // is vouched for. A single chip makes no sense here: a species row spans several projects, each
+  // with its own claim. Empty for non-staff (RLS), and the column then simply does not render.
+  const { data: speciesProv = [] } = useQuery({
+    queryKey: ["species-field-provenance"],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_provenance_current" as any)
+        .select("entity_id, is_verified, source_label")
+        .eq("entity_table", "projects")
+        .eq("entity_column", "study_species");
+      if (error) throw error;
+      return (data ?? []) as unknown as { entity_id: string; is_verified: boolean; source_label: string }[];
+    },
+  });
+
+  const provByProject = useMemo(
+    () => new Map(speciesProv.map((r) => [r.entity_id, r])),
+    [speciesProv],
+  );
+
   /** Real species only, deduplicated by canonical name. */
   const rows: SpeciesRow[] = useMemo(() => {
     const byGrant = new Map(projects.map((p) => [coreGrantNumber(p.id), p]));
@@ -163,6 +189,15 @@ export default function Species() {
     }
 
     return Array.from(grouped.entries()).map(([latinName, data]) => ({
+      sourced: (() => {
+        const ids = canonical
+          .filter((c) => (c.canonical_name || c.recorded_value) === latinName)
+          .map((c) => c.project_id);
+        const known = ids.filter((id) => provByProject.has(id));
+        if (known.length === 0) return "";
+        const ok = known.filter((id) => provByProject.get(id)!.is_verified).length;
+        return `${ok}/${known.length}`;
+      })(),
       species: data.commonName
         ? `${data.commonName.charAt(0).toUpperCase()}${data.commonName.slice(1)}`
         : latinName,
@@ -199,6 +234,25 @@ export default function Species() {
   const columnDefs = useMemo<ColDef<SpeciesRow>[]>(
     () => [
       { field: "species", headerName: "Species", width: 180, cellRenderer: SpeciesBadge },
+      // Only rendered when the provenance store is readable; a column of blanks tells nobody
+      // anything, and a column that reads 0/3 tells a curator exactly where to look.
+      ...(speciesProv.length > 0
+        ? [{
+            field: "sourced",
+            headerName: "Vouched for",
+            width: 110,
+            headerTooltip: "Projects under this species whose species value a person or registry stands behind",
+            cellRenderer: ({ value }: { value: string }) => {
+              if (!value) return <span className="text-muted-foreground">—</span>;
+              const [ok, total] = value.split("/").map(Number);
+              return (
+                <span className={ok === 0 ? "text-amber-600 dark:text-amber-400" : ok === total ? "" : "text-muted-foreground"}>
+                  {value}
+                </span>
+              );
+            },
+          } as ColDef<SpeciesRow>]
+        : []),
       { field: "latinName", headerName: "Taxonomy", width: 200, cellStyle: { fontStyle: "italic" } },
       { field: "projects", headerName: "Projects", width: 300, cellRenderer: ProjectLinks,
         getQuickFilterText: (params) => params.data?.projects.map((p) => p.name).join(" ") || "" },
