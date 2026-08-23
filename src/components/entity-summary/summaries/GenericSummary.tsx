@@ -6,6 +6,7 @@ import { EntityComments } from "../EntityComments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, MessageSquare, Box } from "lucide-react";
 import type { EntityType } from "@/contexts/EntitySummaryContext";
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 export function GenericSummary({ id, type }: { id: string; type: EntityType }) {
   const { data, isLoading } = useQuery({
@@ -22,10 +23,10 @@ export function GenericSummary({ id, type }: { id: string; type: EntityType }) {
 
   const summaryContent = (
     <div className="space-y-1">
-      <SummaryField label="Name"><span className="font-medium">{data.name}</span></SummaryField>
-      {data.description && <SummaryField label="Description">{data.description}</SummaryField>}
+      <SummaryField label="Name" field="name"><span className="font-medium">{data.name}</span></SummaryField>
+      {data.description && <SummaryField label="Description" field="description">{data.description}</SummaryField>}
       {data.external_url && (
-        <SummaryField label="Link">
+        <SummaryField label="Link" field="external_url">
           <a href={data.external_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
             {data.external_url}
           </a>
@@ -35,6 +36,7 @@ export function GenericSummary({ id, type }: { id: string; type: EntityType }) {
   );
 
   return (
+    <ProvenanceScope table="resources" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -52,5 +54,6 @@ export function GenericSummary({ id, type }: { id: string; type: EntityType }) {
         { id: "comments", label: "Comments", icon: <MessageSquare className="h-3.5 w-3.5" />, content: <EntityComments resourceId={data.id} /> },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }
