@@ -15,6 +15,7 @@ import { GrantMarrSection } from "./GrantMarrSection";
 import { ProjectQuestionnaireBody } from "@/components/project-profile/ProjectQuestionnaireBody";
 import { useProjectProfileEditor } from "@/components/project-profile/useProjectProfileEditor";
 import { Database } from "lucide-react";
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 function formatBytes(bytes: number | null | undefined): string {
   if (!bytes) return "—";
@@ -131,12 +132,12 @@ export function GrantSummary({ id }: { id: string }) {
 
   const summaryContent = (
     <div className="space-y-1">
-      <SummaryField label="Title"><span className="font-medium">{data.title}</span></SummaryField>
-      <SummaryField label="Grant Number"><span className="font-mono">{data.grant_number}</span></SummaryField>
-      {data.fiscal_year && <SummaryField label="Fiscal Year">{data.fiscal_year}</SummaryField>}
-      {data.award_amount && <SummaryField label="Award Amount">${Number(data.award_amount).toLocaleString()}</SummaryField>}
+      <SummaryField label="Title" field="title"><span className="font-medium">{data.title}</span></SummaryField>
+      <SummaryField label="Grant Number" field="grant_number"><span className="font-mono">{data.grant_number}</span></SummaryField>
+      {data.fiscal_year && <SummaryField label="Fiscal Year" field="fiscal_year">{data.fiscal_year}</SummaryField>}
+      {data.award_amount && <SummaryField label="Award Amount" field="award_amount">${Number(data.award_amount).toLocaleString()}</SummaryField>}
       {data.nih_link && (
-        <SummaryField label="NIH Reporter">
+        <SummaryField label="NIH Reporter" field="nih_link">
           <a href={data.nih_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
             View on NIH Reporter <ExternalLink className="h-3 w-3" />
           </a>
@@ -299,6 +300,7 @@ export function GrantSummary({ id }: { id: string }) {
   );
 
   return (
+    <ProvenanceScope table="grants" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -366,5 +368,6 @@ export function GrantSummary({ id }: { id: string }) {
         { id: "comments", label: "Comments", icon: <MessageSquare className="h-3.5 w-3.5" />, content: data.resource_id ? <EntityComments resourceId={data.resource_id} /> : <p className="text-sm text-muted-foreground italic">Comments not available.</p> },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }

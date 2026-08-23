@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, FileText, User, Pencil, Check, X, UserCheck, UserPlus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 // Editable inline field
 function EditableText({ value, onSave, placeholder, type = "text", href }: {
@@ -545,7 +546,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </div>
 
       {/* Name */}
-      <SummaryField label="Name">
+      <SummaryField label="Name" field="name">
         {canEdit ? (
           <EditableText value={data.name} onSave={(v) => handleSave("name", v)} placeholder="Enter full name" />
         ) : (
@@ -555,7 +556,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
 
       {/* Email — sourced from the base table (investigators_public omits it) so the
           owner/curator sees the real value and edits persist visibly. */}
-      <SummaryField label="Email">
+      <SummaryField label="Email" field="email">
         {canEdit ? (
           <EditableText value={emailValue} onSave={(v) => handleSave("email", v)} placeholder="Enter email address" type="email" />
         ) : emailValue ? (
@@ -566,7 +567,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* ORCID */}
-      <SummaryField label="ORCID">
+      <SummaryField label="ORCID" field="orcid">
         {canEdit ? (
           <EditableText value={data.orcid || ""} onSave={(v) => handleSave("orcid", v)} placeholder="e.g. 0000-0002-1234-5678" type="url" href={data.orcid ? `https://orcid.org/${data.orcid}` : undefined} />
         ) : data.orcid ? (
@@ -579,7 +580,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Google Scholar */}
-      <SummaryField label="Google Scholar">
+      <SummaryField label="Google Scholar" field="scholar_id">
         {canEdit ? (
           <EditableText value={data.scholar_id || ""} onSave={(v) => handleSave("scholar_id", v)} placeholder="Enter Google Scholar user ID" type="url" href={data.scholar_id ? `https://scholar.google.com/citations?user=${data.scholar_id}` : undefined} />
         ) : data.scholar_id ? (
@@ -592,7 +593,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Profile URL */}
-      <SummaryField label="Profile URL">
+      <SummaryField label="Profile URL" field="profile_url">
         {canEdit ? (
           <EditableText
             value={data.profile_url || ""}
@@ -610,7 +611,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Consortium Role */}
-      <SummaryField label="Consortium Role">
+      <SummaryField label="Consortium Role" field="role">
         {canEdit ? (
           <EditableText
             value={data.role || ""}
@@ -625,7 +626,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Working Groups */}
-      <SummaryField label="Working Groups">
+      <SummaryField label="Working Groups" field="working_groups">
         {canEdit ? (
           <EditableWorkingGroups
             items={data.working_groups || []}
@@ -643,7 +644,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       {/* Secondary Emails — only the owner or a curator/admin can see/manage these
           (access-granting; not exposed on the public summary). */}
       {canSeeSecondary && (
-        <SummaryField label="Secondary Emails">
+        <SummaryField label="Secondary Emails" field="secondary_emails">
           {canEdit ? (
             <EditableTagList
               items={priv?.secondary_emails || []}
@@ -704,7 +705,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Skills */}
-      <SummaryField label="Skills">
+      <SummaryField label="Skills" field="skills">
         {canEdit ? (
           <EditableTagList
             items={data.skills || []}
@@ -721,7 +722,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Research Areas */}
-      <SummaryField label="Research Areas">
+      <SummaryField label="Research Areas" field="research_areas">
         {canEdit ? (
           <EditableTagList
             items={data.research_areas || []}
@@ -785,6 +786,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
   );
 
   return (
+    <ProvenanceScope table="investigators" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -821,6 +823,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
         { id: "summary", label: "Summary", icon: <FileText className="h-3.5 w-3.5" />, content: summaryContent },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }
 

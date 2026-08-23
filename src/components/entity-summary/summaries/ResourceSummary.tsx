@@ -1,3 +1,4 @@
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SummaryField } from "../SummaryField";
@@ -83,15 +84,15 @@ export function ResourceSummary({ id }: { id: string }) {
           </Badge>
         </SummaryField>
       )}
-      {data.description && <SummaryField label="Description">{data.description}</SummaryField>}
+      {data.description && <SummaryField label="Description" field="description">{data.description}</SummaryField>}
       {version && <SummaryField label="Version">{version}</SummaryField>}
       {language && <SummaryField label="Language / Format">{language}</SummaryField>}
       {license && <SummaryField label="License"><Badge variant="outline" className="text-xs">{license}</Badge></SummaryField>}
-      {species && <SummaryField label="Species">{species}</SummaryField>}
-      {architecture && <SummaryField label="Architecture">{architecture}</SummaryField>}
-      {pipeline && <SummaryField label="Pipeline">{pipeline}</SummaryField>}
+      {species && <SummaryField label="Species" field="species">{species}</SummaryField>}
+      {architecture && <SummaryField label="Architecture" field="neuralNetworkArchitecture">{architecture}</SummaryField>}
+      {pipeline && <SummaryField label="Pipeline" field="mlPipeline">{pipeline}</SummaryField>}
       {data.external_url && (
-        <SummaryField label="Website">
+        <SummaryField label="Website" field="external_url">
           <a href={data.external_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
             {data.external_url} <ExternalLink className="h-3 w-3" />
           </a>
@@ -154,6 +155,7 @@ export function ResourceSummary({ id }: { id: string }) {
   );
 
   return (
+    <ProvenanceScope table="resources" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -175,5 +177,6 @@ export function ResourceSummary({ id }: { id: string }) {
         { id: "comments", label: "Comments", icon: <MessageSquare className="h-3.5 w-3.5" />, content: <EntityComments resourceId={id} /> },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }

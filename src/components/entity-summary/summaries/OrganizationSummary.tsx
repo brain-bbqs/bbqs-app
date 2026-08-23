@@ -6,6 +6,7 @@ import { useEntitySummary } from "@/contexts/EntitySummaryContext";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, FileText, Building, Shield, Scale } from "lucide-react";
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 export function OrganizationSummary({ id }: { id: string }) {
   const { open } = useEntitySummary();
@@ -41,9 +42,9 @@ export function OrganizationSummary({ id }: { id: string }) {
 
   const summaryContent = (
     <div className="space-y-1">
-      <SummaryField label="Name"><span className="font-medium">{data.name}</span></SummaryField>
+      <SummaryField label="Name" field="name"><span className="font-medium">{data.name}</span></SummaryField>
       {data.url && (
-        <SummaryField label="Website">
+        <SummaryField label="Website" field="url">
           <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
             {data.url} <ExternalLink className="h-3 w-3" />
           </a>
@@ -117,6 +118,7 @@ export function OrganizationSummary({ id }: { id: string }) {
   const logoUrl = logoDomain ? `https://logo.clearbit.com/${logoDomain}` : null;
 
   return (
+    <ProvenanceScope table="organizations" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -145,5 +147,6 @@ export function OrganizationSummary({ id }: { id: string }) {
         { id: "compliance", label: "Compliance & Policy", icon: <Shield className="h-3.5 w-3.5" />, content: complianceContent },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }

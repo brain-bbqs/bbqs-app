@@ -19,7 +19,7 @@
  *  any verbatim evidence. That is what makes a disputed value checkable instead of arguable.
  */
 import { useState } from "react";
-import { BadgeCheck, Sparkles, HelpCircle, Bot, Check, Loader2 } from "lucide-react";
+import { BadgeCheck, Sparkles, AlertCircle, Bot, Check, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,8 +46,12 @@ const TONE: Record<Tone, { cls: string; Icon: typeof BadgeCheck; label?: string 
     Icon: Sparkles,
   },
   unverified: {
+    // AlertCircle, not HelpCircle: the questionnaire field already renders a HelpCircle for its own
+    // help tooltip, so an unverified chip drew a SECOND identical "?" right beside it and the two
+    // read as one confused control. A warning glyph also says the right thing -- this value has no
+    // one standing behind it -- where a question mark just looked like more help.
     cls: "text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300",
-    Icon: HelpCircle,
+    Icon: AlertCircle,
   },
 };
 
@@ -79,9 +83,17 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 export function ProvenanceChip({
   provenance,
   className,
+  compact = false,
 }: {
   provenance?: FieldProvenance;
   className?: string;
+  /** Icon only, with the source name moved into the popover and the accessible label.
+   *
+   *  For dense field lists. The entity summaries lay fields out in a fixed 140px label column, and
+   *  measuring it showed "Curated with AI" pushing the label to 156px -- overflowing every row it
+   *  appeared on. The icon still carries the state, which is the part that must be impossible to
+   *  miss; the name is one click away. */
+  compact?: boolean;
 }) {
   const { isCurator } = useUserTier();
   const queryClient = useQueryClient();
@@ -131,8 +143,10 @@ export function ProvenanceChip({
           className={cn("flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide transition-colors", cls, className)}
           aria-label={`Source: ${provenance.source_label}. Click for full provenance.`}
         >
-          <Icon className="h-3 w-3" />
-          <span>{tone === "unverified" ? "Unverified" : provenance.source_label}</span>
+          <Icon className="h-3 w-3 shrink-0" />
+          {!compact && (
+            <span>{tone === "unverified" ? "Unverified" : provenance.source_label}</span>
+          )}
         </button>
       </PopoverTrigger>
 

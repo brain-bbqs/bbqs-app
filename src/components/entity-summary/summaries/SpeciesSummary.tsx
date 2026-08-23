@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { FileText, MessageSquare, Bug, FlaskConical } from "lucide-react";
 import { useMarrProjects } from "@/hooks/useMarrProjects";
+import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 function RelatedProjects({ speciesName, commonName }: { speciesName: string; commonName?: string | null }) {
   const { open } = useEntitySummary();
@@ -93,16 +94,17 @@ export function SpeciesSummary({ id }: { id: string }) {
 
   const summaryContent = (
     <div className="space-y-1">
-      <SummaryField label="Scientific Name"><span className="italic font-medium">{data.name}</span></SummaryField>
-      {data.common_name && <SummaryField label="Common Name">{data.common_name}</SummaryField>}
-      {data.taxonomy_class && <SummaryField label="Class">{data.taxonomy_class}</SummaryField>}
-      {data.taxonomy_order && <SummaryField label="Order">{data.taxonomy_order}</SummaryField>}
-      {data.taxonomy_family && <SummaryField label="Family">{data.taxonomy_family}</SummaryField>}
-      {data.taxonomy_genus && <SummaryField label="Genus">{data.taxonomy_genus}</SummaryField>}
+      <SummaryField label="Scientific Name" field="name"><span className="italic font-medium">{data.name}</span></SummaryField>
+      {data.common_name && <SummaryField label="Common Name" field="common_name">{data.common_name}</SummaryField>}
+      {data.taxonomy_class && <SummaryField label="Class" field="taxonomy_class">{data.taxonomy_class}</SummaryField>}
+      {data.taxonomy_order && <SummaryField label="Order" field="taxonomy_order">{data.taxonomy_order}</SummaryField>}
+      {data.taxonomy_family && <SummaryField label="Family" field="taxonomy_family">{data.taxonomy_family}</SummaryField>}
+      {data.taxonomy_genus && <SummaryField label="Genus" field="taxonomy_genus">{data.taxonomy_genus}</SummaryField>}
     </div>
   );
 
   return (
+    <ProvenanceScope table="species" id={id}>
     <div>
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-3">
@@ -121,5 +123,6 @@ export function SpeciesSummary({ id }: { id: string }) {
         { id: "comments", label: "Comments", icon: <MessageSquare className="h-3.5 w-3.5" />, content: data.resource_id ? <EntityComments resourceId={data.resource_id} /> : <p className="text-sm text-muted-foreground italic">Comments not available.</p> },
       ]} />
     </div>
+    </ProvenanceScope>
   );
 }
