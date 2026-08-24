@@ -23,9 +23,21 @@ import { ProvenanceGrades } from "@/components/provenance/ProvenanceGrades";
 import { useHashState } from "@/hooks/useHashState";
 import { cn } from "@/lib/utils";
 
+/** One row of the change log.
+ *
+ *  Sourced from provenance_activity(), which reads field_provenance -- append-only and spanning
+ *  every curated table. It used to be sourced from `edit_history`, which is keyed on grant_number
+ *  and only ever written by the project-questionnaire save path, so an edit to an investigator,
+ *  species or publication could not appear in this grid at all. That was reported as "I changed
+ *  something on my profile and it doesn't show in data provenance" -- the edit had in fact been
+ *  recorded and graded; this grid was structurally unable to display it.
+ *
+ *  The legacy field names are kept (created_at / field_name / edited_by / old_value / new_value) so
+ *  the existing cell renderers and the Revert path keep working unchanged. */
 interface EditRow {
   id: string;
   created_at: string;
+  /** Grant number for a project row; blank for every other table. Revert only works where set. */
   grant_number: string;
   field_name: string;
   edited_by: string;
@@ -37,6 +49,15 @@ interface EditRow {
   validation_checks?: any | null;
   audit_id?: string | null;
   audit_reverted?: boolean;
+  /** Which table the cell lives in -- the column that makes this a graph-wide log. */
+  entity_table?: string;
+  /** The record's own name, resolved server-side; never a bare uuid if a name exists. */
+  record_label?: string;
+  source_grade?: number | null;
+  source_label?: string | null;
+  is_verified?: boolean;
+  activity?: string;
+  prev_source_label?: string | null;
 }
 
 interface ChatMessage {
@@ -63,6 +84,41 @@ const ProjectCell = ({ value, data }: ICellRendererParams) => {
         <span className="text-muted-foreground text-[10px]">{data.grant_number}</span>
       )}
     </div>
+  );
+};
+
+/** Which table the cell lives in. This column is the whole point of the rewrite: the log used to
+ *  be able to show one table and silently omitted the rest of the graph. */
+const TableCell = ({ value }: ICellRendererParams) => {
+  if (!value) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="text-[11px] font-mono text-muted-foreground">{value}</span>
+  );
+};
+
+/** The record's own name, resolved server-side. Falls back to a truncated uuid only when the table
+ *  genuinely has no name column -- a reviewer cannot act on "5b0171cb...". */
+const RecordCell = ({ data }: ICellRendererParams) => (
+  <span className="text-xs font-medium text-foreground truncate block max-w-[220px]">
+    {data.record_label || "—"}
+  </span>
+);
+
+/** The grade of the source behind this claim, in the same three tones as ProvenanceChip: verified
+ *  reads quietly, AI-assisted is distinct, unverified is unmissable. */
+const GradeCell = ({ data }: ICellRendererParams) => {
+  if (data.source_grade == null) return <span className="text-muted-foreground text-xs">—</span>;
+  const ai = data.source_label === "Curated with AI";
+  const cls = ai
+    ? "text-violet-600 dark:text-violet-400 border-violet-500/30 bg-violet-500/10"
+    : data.is_verified
+      ? "text-muted-foreground border-border bg-muted/40"
+      : "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10";
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium", cls)}>
+      G{data.source_grade}
+      <span className="opacity-80">{data.source_label}</span>
+    </span>
   );
 };
 
@@ -261,16 +317,51 @@ export default function DataProvenance() {
   // page was broken, which is exactly what happened.
   const [tab, setTab] = useHashState<"history" | "grades">("grades", ["history", "grades"] as const);
 
-  const { data: history, isLoading } = useQuery({
-    queryKey: ["edit-history-all"],
+  // Show the initial backfill stamp? Off by default: 91,178 of the 92,475 claims are that one
+  // sweep, and none of it is a change anyone made. Including it buries the ~170 real events.
+  const [showBackfill, setShowBackfill] = useState(false);
+
+  const { data: history, isLoading, error: historyError } = useQuery({
+    queryKey: ["provenance-activity", showBackfill],
     queryFn: async () => {
-      const { data } = await supabase
+      // provenance_activity() is newer than the deployed schema in some environments -- Lovable
+      // ships JS while KG migrations are applied by hand -- so fall back to the old grant-scoped
+      // log rather than showing an error. The fallback is clearly worse; the banner below says so.
+      const { data, error } = await (supabase.rpc as any)("provenance_activity", {
+        _limit: 500,
+        _include_backfill: showBackfill,
+      });
+      if (!error) {
+        return (data as any[]).map((r) => ({
+          id: String(r.id),   // bigserial: comes back as a number, and EditRow.id is a string
+          created_at: r.recorded_at,
+          entity_table: r.entity_table,
+          record_label: r.record_label,
+          // Revert is grant-scoped, so only a projects row can carry a grant number.
+          grant_number: r.entity_table === "projects" ? r.record_label : "",
+          // Strip the metadata. prefix: field_provenance addresses a JSON key as
+          // "metadata.use_sensors", while curation_audit_log keys on the bare "use_sensors". Without
+          // this the Revert button silently stops matching every questionnaire field.
+          field_name: String(r.entity_column).replace(/^metadata\./, ""),
+          edited_by: r.agent_label || r.recorded_by || "unknown",
+          old_value: r.prev_value ?? null,
+          new_value: r.value_text ?? null,
+          chat_context: null,
+          source_grade: r.source_grade,
+          source_label: r.source_label,
+          is_verified: r.is_verified,
+          activity: r.activity,
+          prev_source_label: r.prev_source_label,
+        })) as any[];
+      }
+      const legacy = await supabase
         .from("edit_history")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
-      return data || [];
+      return (legacy.data || []).map((h: any) => ({ ...h, entity_table: "projects" }));
     },
+    retry: false,
     enabled: !!user,
   });
 
@@ -320,6 +411,11 @@ export default function DataProvenance() {
   const rowData = useMemo<EditRow[]>(() => {
     if (!history) return [];
     return history.map((h: any) => {
+      // Revert reaches into curation_audit_log, which is grant-keyed, so only a projects row can
+      // ever match. Every other table shows no Revert button rather than a broken one.
+      if (h.entity_table && h.entity_table !== "projects") {
+        return { ...h, project_title: "", audit_id: null, audit_reverted: false };
+      }
       const candidates = auditIndex.get(`${h.grant_number}::${h.field_name}`) || [];
       const histTs = new Date(h.created_at).getTime();
       // pick the audit row whose timestamp is closest to (and within 30s of) this edit_history row
@@ -379,11 +475,17 @@ export default function DataProvenance() {
       sort: "desc" as const,
     },
     {
-      field: "grant_number",
-      headerName: "Project",
+      field: "entity_table",
+      headerName: "Table",
+      width: 150,
+      cellRenderer: TableCell,
+    },
+    {
+      field: "record_label",
+      headerName: "Record",
       flex: 1,
-      minWidth: 200,
-      cellRenderer: ProjectCell,
+      minWidth: 180,
+      cellRenderer: RecordCell,
     },
     {
       field: "field_name",
@@ -398,10 +500,10 @@ export default function DataProvenance() {
       cellRenderer: EditorCell,
     },
     {
-      field: "validation_status",
-      headerName: "Validation",
-      width: 140,
-      cellRenderer: ValidationCell,
+      field: "source_grade",
+      headerName: "Grade",
+      width: 150,
+      cellRenderer: GradeCell,
     },
     {
       field: "old_value",
@@ -414,12 +516,6 @@ export default function DataProvenance() {
       headerName: "New Value",
       width: 180,
       cellRenderer: ValueCell,
-    },
-    {
-      field: "chat_context",
-      headerName: "Chat",
-      width: 200,
-      cellRenderer: ChatContextCell,
     },
     {
       headerName: "Action",
@@ -483,7 +579,7 @@ export default function DataProvenance() {
             </div>
             {tab === "history" && (
               <Badge variant="secondary" className="text-xs ml-2">
-                {rowData.length} edits
+                {rowData.length} change{rowData.length === 1 ? "" : "s"}
               </Badge>
             )}
             {/* Two questions, one page: what changed, and how good is what is here now. Splitting
@@ -504,14 +600,27 @@ export default function DataProvenance() {
             </div>
           </div>
           {tab === "history" && (
-            <div className="relative max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={quickFilter}
-                onChange={onFilterChange}
-                placeholder="Filter edits..."
-                className="pl-9 h-8 text-xs"
-              />
+            <div className="flex items-center gap-3">
+              {/* The backfill sweep is 98.6% of the store. Hidden by default, but reachable --
+                  "where did this value come from originally" is a real question. */}
+              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showBackfill}
+                  onChange={(e) => setShowBackfill(e.target.checked)}
+                  className="h-3 w-3 accent-primary"
+                />
+                Include initial backfill
+              </label>
+              <div className="relative max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={quickFilter}
+                  onChange={onFilterChange}
+                  placeholder="Filter changes..."
+                  className="pl-9 h-8 text-xs"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -528,9 +637,18 @@ export default function DataProvenance() {
           Saying which costs one line and saves the conclusion that the page is broken. */}
       {tab === "history" && !isLoading && rowData.length === 0 && (
         <div className="px-6 py-4 text-xs text-muted-foreground border-b border-border">
-          No edit history visible. `edit_history` is row-level-secured, so this is empty either
-          because nothing has been edited through a tracked surface or because your role cannot read
-          it. Field grades is the fuller view.
+          No changes recorded yet. This reads <code>field_provenance</code>, which is
+          row-level-secured to admins and curators — so an empty grid means either nothing has been
+          changed since the store was populated, or your role cannot read it. The initial backfill is
+          hidden by default; tick <em>Include initial backfill</em> to see where existing values came
+          from.
+        </div>
+      )}
+      {tab === "history" && historyError && (
+        <div className="px-6 py-3 text-xs text-amber-600 dark:text-amber-400 border-b border-border">
+          Showing the legacy grant-only log: <code>provenance_activity()</code> is not present in
+          this database yet, so edits to people, species and publications cannot be listed. Apply
+          migration 20260823120000.
         </div>
       )}
 
