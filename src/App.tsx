@@ -54,7 +54,6 @@ import DevicesGraph from "./pages/DevicesGraph";
 import DataModel from "./pages/DataModel";
 import BbqsSchema from "./pages/BbqsSchema";
 
-import InternalCoordination from "./pages/InternalCoordination";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -118,7 +117,6 @@ const App = () => (
               <Route path="/cross-species-synchronization" element={<CrossSpeciesSynchronization />} />
               <Route path="/grants/:grantNumber/methods-evidence" element={<GrantMethodsEvidence />} />
               <Route path="/admin" element={<ProtectedRoute><AdminConsole /></ProtectedRoute>} />
-              <Route path="/internal/coordination" element={<ProtectedRoute><InternalCoordination /></ProtectedRoute>} />
               <Route path="/admin/harvester" element={<Navigate to="/resources/devices" replace />} />
               <Route path="/admin/kg-heatmap" element={<Navigate to="/resources/devices" replace />} />
               <Route path="/admin/kg-live" element={<Navigate to="/resources/devices" replace />} />

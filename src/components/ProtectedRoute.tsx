@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 /** Route-level sign-in guard (issue #189, contributed by @samriddhighosh in PR #191).
  *
  *  WHY route-level, when pages already gate themselves: they mostly do, but not uniformly.
- *  AdminAccessRequests, Profile and InternalCoordination each check useUserTier/useAuth and render a
+ *  AdminAccessRequests and Profile each check useUserTier/useAuth and render a
  *  lock, whereas AdminConsole has NO page-level check at all — its shell renders for anyone and only
  *  the individual panels gate on isCurator. So the page told an anonymous visitor which admin tabs
  *  exist before refusing them. A guard at the route removes that inconsistency in one place instead
