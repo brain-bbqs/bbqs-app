@@ -100,10 +100,13 @@ const conferencesItems: NavItem[] = [
   { title: "SFN 2025", url: "/sfn-2025", icon: Calendar },
 ];
 
+// Engineering is internal except for the one thing members are invited to do. `adminOnly` reads
+// like tier 1, but AppSidebar resolves it as `isAdmin || isCurator` — tier 1 AND 2 — which is the
+// intended audience here. Suggest a Feature stays open deliberately: it is the consortium's way in.
 const engineeringItems: NavItem[] = [
-  { title: "Roadmap", url: "/roadmap", icon: Map },
-  { title: "Data Model", url: "/data-model", icon: Database },
-  { title: "BBQS Schema", url: "/schema", icon: Database },
+  { title: "Roadmap", url: "/roadmap", icon: Map, adminOnly: true },
+  { title: "Data Model", url: "/data-model", icon: Database, adminOnly: true },
+  { title: "BBQS Schema", url: "/schema", icon: Database, adminOnly: true },
   { title: "Suggest a Feature", url: "/suggest-feature", icon: Lightbulb },
   { title: "Admin Console", url: "/admin", icon: ShieldCheck, adminOnly: true },
 ];
