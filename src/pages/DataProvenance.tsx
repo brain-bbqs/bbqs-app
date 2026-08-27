@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { History, Search, Loader2, User, Bot, MessageSquare, Shield, CheckCircle2, AlertTriangle, XCircle, LogIn, Undo2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { History, Search, Loader2, User, Bot, MessageSquare, Shield, CheckCircle2, AlertTriangle, XCircle, LogIn, Undo2, CalendarRange } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { format } from "date-fns";
+import { format, subDays, subMonths, subYears, startOfDay, endOfDay } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { revertCurationChange } from "@/lib/curation-audit";
@@ -289,6 +290,63 @@ const ChatContextCell = ({ data }: ICellRendererParams) => {
   );
 };
 
+/** How far back the Edit log looks. One month is the default because the log now spans the whole
+ *  graph -- every table, every curator, every agent run -- so "everything, newest 500" is a wall of
+ *  rows nobody reads. The window is a query argument, not a client-side filter: see
+ *  migration 20260824120000 for why the difference matters. */
+type RangeKey = "7d" | "1m" | "3m" | "1y" | "all" | "custom";
+
+const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
+  { key: "7d", label: "Last 7 days" },
+  { key: "1m", label: "Last month" },
+  { key: "3m", label: "Last 3 months" },
+  { key: "1y", label: "Last year" },
+  { key: "all", label: "All time" },
+  { key: "custom", label: "Custom range…" },
+];
+
+/** Resolve a preset (or a pair of yyyy-MM-dd strings) to ISO bounds. Custom bounds cover whole
+ *  local days -- a reviewer picking "24 Aug" to "24 Aug" means that day, not that instant. */
+function resolveRange(key: RangeKey, from: string, to: string): { since: string | null; until: string | null } {
+  if (key === "all") return { since: null, until: null };
+  if (key === "custom") {
+    return {
+      since: from ? startOfDay(new Date(`${from}T00:00:00`)).toISOString() : null,
+      until: to ? endOfDay(new Date(`${to}T00:00:00`)).toISOString() : null,
+    };
+  }
+  const now = new Date();
+  const since =
+    key === "7d" ? subDays(now, 7) : key === "1m" ? subMonths(now, 1) : key === "3m" ? subMonths(now, 3) : subYears(now, 1);
+  return { since: since.toISOString(), until: null };
+}
+
+/** provenance_activity() rows in the shape the grid and the Revert path already speak. Legacy field
+ *  names (created_at / field_name / edited_by / old_value / new_value) are deliberate -- see EditRow. */
+function mapActivityRows(rows: any[]): any[] {
+  return (rows || []).map((r) => ({
+    id: String(r.id),   // bigserial: comes back as a number, and EditRow.id is a string
+    created_at: r.recorded_at,
+    entity_table: r.entity_table,
+    record_label: r.record_label,
+    // Revert is grant-scoped, so only a projects row can carry a grant number.
+    grant_number: r.entity_table === "projects" ? r.record_label : "",
+    // Strip the metadata. prefix: field_provenance addresses a JSON key as
+    // "metadata.use_sensors", while curation_audit_log keys on the bare "use_sensors". Without
+    // this the Revert button silently stops matching every questionnaire field.
+    field_name: String(r.entity_column).replace(/^metadata\./, ""),
+    edited_by: r.agent_label || r.recorded_by || "unknown",
+    old_value: r.prev_value ?? null,
+    new_value: r.value_text ?? null,
+    chat_context: null,
+    source_grade: r.source_grade,
+    source_label: r.source_label,
+    is_verified: r.is_verified,
+    activity: r.activity,
+    prev_source_label: r.prev_source_label,
+  }));
+}
+
 export default function DataProvenance() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -321,8 +379,21 @@ export default function DataProvenance() {
   // sweep, and none of it is a change anyone made. Including it buries the ~170 real events.
   const [showBackfill, setShowBackfill] = useState(false);
 
+  // How far back to look. One month by default: the log spans every curated table now, so an
+  // unbounded grid is long enough that people scroll past what they came for.
+  const [rangeKey, setRangeKey] = useState<RangeKey>("1m");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const { since, until } = useMemo(
+    () => resolveRange(rangeKey, customFrom, customTo),
+    [rangeKey, customFrom, customTo],
+  );
+  // False when the bounds had to be applied in the browser because the database still has the
+  // 2-argument provenance_activity(). The distinction is not cosmetic -- see the banner below.
+  const [serverWindowed, setServerWindowed] = useState(true);
+
   const { data: history, isLoading, error: historyError } = useQuery({
-    queryKey: ["provenance-activity", showBackfill],
+    queryKey: ["provenance-activity", showBackfill, since, until],
     queryFn: async () => {
       // provenance_activity() is newer than the deployed schema in some environments -- Lovable
       // ships JS while KG migrations are applied by hand -- so fall back to the old grant-scoped
@@ -330,36 +401,40 @@ export default function DataProvenance() {
       const { data, error } = await (supabase.rpc as any)("provenance_activity", {
         _limit: 500,
         _include_backfill: showBackfill,
+        _since: since,
+        _until: until,
       });
       if (!error) {
-        return (data as any[]).map((r) => ({
-          id: String(r.id),   // bigserial: comes back as a number, and EditRow.id is a string
-          created_at: r.recorded_at,
-          entity_table: r.entity_table,
-          record_label: r.record_label,
-          // Revert is grant-scoped, so only a projects row can carry a grant number.
-          grant_number: r.entity_table === "projects" ? r.record_label : "",
-          // Strip the metadata. prefix: field_provenance addresses a JSON key as
-          // "metadata.use_sensors", while curation_audit_log keys on the bare "use_sensors". Without
-          // this the Revert button silently stops matching every questionnaire field.
-          field_name: String(r.entity_column).replace(/^metadata\./, ""),
-          edited_by: r.agent_label || r.recorded_by || "unknown",
-          old_value: r.prev_value ?? null,
-          new_value: r.value_text ?? null,
-          chat_context: null,
-          source_grade: r.source_grade,
-          source_label: r.source_label,
-          is_verified: r.is_verified,
-          activity: r.activity,
-          prev_source_label: r.prev_source_label,
-        })) as any[];
+        setServerWindowed(true);
+        return mapActivityRows(data as any[]);
+      }
+      // The date-bounded signature is one migration newer than the function itself, so a database
+      // with 20260823120000 but not 20260824120000 rejects _since/_until by name. Retry without
+      // them and window in the browser: narrower than asked for (the limit is applied first), but
+      // the selector still works rather than emptying the grid.
+      const noRange = await (supabase.rpc as any)("provenance_activity", {
+        _limit: 500,
+        _include_backfill: showBackfill,
+      });
+      const inWindow = (iso: string) => {
+        const t = new Date(iso).getTime();
+        if (since && t < new Date(since).getTime()) return false;
+        if (until && t > new Date(until).getTime()) return false;
+        return true;
+      };
+      if (!noRange.error) {
+        setServerWindowed(false);
+        return mapActivityRows(noRange.data as any[]).filter((r) => inWindow(r.created_at));
       }
       const legacy = await supabase
         .from("edit_history")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
-      return (legacy.data || []).map((h: any) => ({ ...h, entity_table: "projects" }));
+      setServerWindowed(false);
+      return (legacy.data || [])
+        .filter((h: any) => inWindow(h.created_at))
+        .map((h: any) => ({ ...h, entity_table: "projects" }));
     },
     retry: false,
     enabled: !!user,
@@ -542,6 +617,16 @@ export default function DataProvenance() {
     setQuickFilter(e.target.value);
   }, []);
 
+  // Say which window the count belongs to. "47 changes" next to a range selector invites the
+  // reading "47 changes, ever" -- which is the misreading the selector itself creates.
+  const rangeLabel = useMemo(() => {
+    if (rangeKey === "custom") {
+      if (!customFrom && !customTo) return "custom range";
+      return `${customFrom ? format(new Date(`${customFrom}T00:00:00`), "MMM d, yyyy") : "the beginning"} – ${customTo ? format(new Date(`${customTo}T00:00:00`), "MMM d, yyyy") : "now"}`;
+    }
+    return (RANGE_OPTIONS.find((o) => o.key === rangeKey)?.label ?? "").toLowerCase();
+  }, [rangeKey, customFrom, customTo]);
+
   // Auth gate - after all hooks
   if (!user) {
     return (
@@ -579,7 +664,7 @@ export default function DataProvenance() {
             </div>
             {tab === "history" && (
               <Badge variant="secondary" className="text-xs ml-2">
-                {rowData.length} change{rowData.length === 1 ? "" : "s"}
+                {rowData.length} change{rowData.length === 1 ? "" : "s"} · {rangeLabel}
               </Badge>
             )}
             {/* Two questions, one page: what changed, and how good is what is here now. Splitting
@@ -601,6 +686,42 @@ export default function DataProvenance() {
           </div>
           {tab === "history" && (
             <div className="flex items-center gap-3">
+              {/* The window, not a filter: it is pushed into provenance_activity() so narrowing the
+                  range reaches further back rather than trimming the newest 500 rows. */}
+              <div className="flex items-center gap-1.5">
+                <CalendarRange className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <Select value={rangeKey} onValueChange={(v) => setRangeKey(v as RangeKey)}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RANGE_OPTIONS.map((o) => (
+                      <SelectItem key={o.key} value={o.key} className="text-xs">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {rangeKey === "custom" && (
+                  <>
+                    <Input
+                      type="date"
+                      value={customFrom}
+                      max={customTo || undefined}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      className="h-8 w-[140px] text-xs"
+                      aria-label="Changes from"
+                    />
+                    <span className="text-[11px] text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      value={customTo}
+                      min={customFrom || undefined}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      className="h-8 w-[140px] text-xs"
+                      aria-label="Changes to"
+                    />
+                  </>
+                )}
+              </div>
               {/* The backfill sweep is 98.6% of the store. Hidden by default, but reachable --
                   "where did this value come from originally" is a real question. */}
               <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none">
@@ -637,11 +758,39 @@ export default function DataProvenance() {
           Saying which costs one line and saves the conclusion that the page is broken. */}
       {tab === "history" && !isLoading && rowData.length === 0 && (
         <div className="px-6 py-4 text-xs text-muted-foreground border-b border-border">
-          No changes recorded yet. This reads <code>field_provenance</code>, which is
-          row-level-secured to admins and curators — so an empty grid means either nothing has been
-          changed since the store was populated, or your role cannot read it. The initial backfill is
-          hidden by default; tick <em>Include initial backfill</em> to see where existing values came
-          from.
+          {rangeKey !== "all" ? (
+            <>
+              No changes recorded in {rangeLabel}. Widen the date range — the log opens on the last
+              month, so anything older is outside the window rather than missing.{" "}
+              <button className="underline hover:text-foreground" onClick={() => setRangeKey("all")}>
+                Show all time
+              </button>
+              .
+            </>
+          ) : (
+            <>
+              No changes recorded yet. This reads <code>field_provenance</code>, which is
+              row-level-secured to admins and curators — so an empty grid means either nothing has
+              been changed since the store was populated, or your role cannot read it. The initial
+              backfill is hidden by default; tick <em>Include initial backfill</em> to see where
+              existing values came from.
+            </>
+          )}
+        </div>
+      )}
+      {/* The 500-row ceiling is applied inside the window, so a full grid means the window is
+          truncated — silently showing the newest 500 of 3,000 would misreport the period. */}
+      {tab === "history" && !isLoading && rowData.length >= 500 && (
+        <div className="px-6 py-2 text-[11px] text-muted-foreground border-b border-border">
+          Showing the newest 500 changes in {rangeLabel}; there are more. Narrow the range to see
+          the rest.
+        </div>
+      )}
+      {tab === "history" && !serverWindowed && rangeKey !== "all" && (
+        <div className="px-6 py-2 text-[11px] text-amber-600 dark:text-amber-400 border-b border-border">
+          The date range is being applied in the browser to the newest 500 events, so older changes
+          inside {rangeLabel} are not reachable. Apply migration 20260824120000 to push the window
+          into the query.
         </div>
       )}
       {tab === "history" && historyError && (

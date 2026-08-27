@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import HeroSection from "@/components/HeroSection";
 import { PageMeta } from "@/components/PageMeta";
+import { useUserTier } from "@/hooks/useUserTier";
 import {
   Users,
   Bot,
@@ -18,7 +19,8 @@ interface NavCard {
   description: string;
   icon: React.ElementType;
   color: string;
-  links: { label: string; to: string }[];
+  /** adminOnly links are shown to tier 1 and 2 only, matching the sidebar's `adminOnly` flag. */
+  links: { label: string; to: string; adminOnly?: boolean }[];
 }
 
 const navCards: NavCard[] = [
@@ -84,12 +86,17 @@ const navCards: NavCard[] = [
     icon: Wrench,
     color: "hsl(200 60% 50%)",
     links: [
-      { label: "Roadmap", to: "/roadmap" },
+      // The roadmap is internal. Suggest a Feature is not, and the card's own description already
+      // promises it — without it this card is empty for everyone outside tier 1/2.
+      { label: "Roadmap", to: "/roadmap", adminOnly: true },
+      { label: "Suggest a Feature", to: "/suggest-feature" },
     ],
   },
 ];
 
 const Index = () => {
+  // Same gate as the sidebar: tier 1 and 2. isCurator is already true for admins.
+  const { isCurator } = useUserTier();
   return (
     <div className="min-h-screen bg-background">
       <PageMeta
@@ -128,7 +135,12 @@ const Index = () => {
       {/* Navigation Cards */}
       <main className="px-4 sm:px-6 pb-16 mt-8">
         <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {navCards.map((card) => (
+          {navCards
+            .map((card) => ({ ...card, links: card.links.filter((l) => !l.adminOnly || isCurator) }))
+            // A card whose every link was gated has nothing left to offer; hiding it beats showing
+            // a heading with no way in.
+            .filter((card) => card.links.length > 0)
+            .map((card) => (
             <div
               key={card.title}
               className="group relative bg-card border border-border rounded-2xl p-6 hover:shadow-xl transition-all duration-200 hover:border-primary/30"

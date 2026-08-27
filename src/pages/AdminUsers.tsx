@@ -53,6 +53,7 @@ interface SignedInUserRow {
   investigator_id: string | null;
   investigator_primary_email: string | null;
   investigator_secondary_emails: string[];
+  investigator_working_groups: string[];
 }
 
 interface InvitedInvestigatorRow {
@@ -62,7 +63,12 @@ interface InvitedInvestigatorRow {
   full_name: string;
   research_areas: string[] | null;
   secondary_emails: string[];
+  working_groups: string[];
 }
+
+/** The four canonical tokens. Must match canonical_working_group() and the WG_GROUPS map in
+ *  group-audit / sync-member-groups — a fifth spelling here would write a token nothing subscribes. */
+const WORKING_GROUPS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards"] as const;
 
 const TIER_META: Record<AssignableRole, { label: string; tier: number; color: string; icon: any }> = {
   admin:   { label: "Admin",   tier: 1, color: "bg-destructive/10 text-destructive border-destructive/30", icon: ShieldCheck },
@@ -93,11 +99,13 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
     name: string;
     primary: string | null;
     secondaries: string[];
+    workingGroups: string[];
   } | null>(null);
   const [emailDraftPrimary, setEmailDraftPrimary] = useState("");
   const [emailDraftSecondaries, setEmailDraftSecondaries] = useState<string[]>([]);
   const [emailDraftNew, setEmailDraftNew] = useState("");
   const [nameDraft, setNameDraft] = useState("");
+  const [wgDraft, setWgDraft] = useState<string[]>([]);
   const [emailSaving, setEmailSaving] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -119,7 +127,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
         supabase.from("user_roles").select("user_id, role"),
         supabase
           .from("investigators")
-          .select("id, name, email, user_id, research_areas, secondary_emails"),
+          .select("id, name, email, user_id, research_areas, secondary_emails, working_groups"),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (investigatorsRes.error) throw investigatorsRes.error;
@@ -157,6 +165,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           investigator_id: inv?.id ?? null,
           investigator_primary_email: inv?.email ?? null,
           investigator_secondary_emails: inv?.secondary_emails ?? [],
+          investigator_working_groups: inv?.working_groups ?? [],
         };
       });
 
@@ -169,6 +178,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           full_name: i.name,
           research_areas: i.research_areas,
           secondary_emails: i.secondary_emails ?? [],
+          working_groups: i.working_groups ?? [],
         }));
 
       return { signedIn, invited };
@@ -319,12 +329,14 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
     name: string;
     primary: string | null;
     secondaries: string[];
+    workingGroups: string[];
   }) => {
     setEmailEditTarget(target);
     setEmailDraftPrimary(target.primary ?? "");
     setEmailDraftSecondaries([...(target.secondaries ?? [])]);
     setEmailDraftNew("");
     setNameDraft(target.name ?? "");
+    setWgDraft([...(target.workingGroups ?? [])]);
   };
 
   const addSecondaryDraft = () => {
@@ -395,7 +407,29 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           .eq("id", linkedInv.user_id);
       }
 
-      toast.success("User updated.");
+      // Working groups LAST, and only when they changed. Two reasons for the order:
+      //
+      //  1. Updating working_groups fires trg_sync_member_groups, which posts to sync-member-groups
+      //     — and that function re-reads the member and subscribes whatever the DATABASE says the
+      //     primary email is. Saving the address first means the person is added to the group under
+      //     the corrected address instead of the stale one.
+      //  2. approve_working_groups REPLACES the array (and clears requested_working_groups, which is
+      //     what approving a request means), so it must be given the complete intended set.
+      const before = [...(emailEditTarget.workingGroups ?? [])].sort().join(",");
+      const after = [...wgDraft].sort().join(",");
+      if (before !== after) {
+        const { error: wgError } = await supabase.rpc("approve_working_groups", {
+          _investigator_id: emailEditTarget.investigator_id,
+          _groups: wgDraft,
+        });
+        if (wgError) throw wgError;
+      }
+
+      toast.success(
+        before !== after
+          ? "User updated. Group membership syncs in the background — check /admin → Group Audit."
+          : "User updated.",
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-users-list-v2"] });
       setEmailEditTarget(null);
     } catch (err: any) {
@@ -752,6 +786,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
                                         name: u.full_name || u.email,
                                         primary: u.investigator_primary_email,
                                         secondaries: u.investigator_secondary_emails,
+                                        workingGroups: u.investigator_working_groups,
                                       })
                                     }
                                   >
@@ -901,6 +936,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
                                     name: u.full_name,
                                     primary: u.email,
                                     secondaries: u.secondary_emails,
+                                    workingGroups: u.working_groups,
                                   })
                                 }
                               >
@@ -1093,6 +1129,43 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
                   Add
                 </Button>
               </div>
+            </div>
+
+            {/* Working groups, settable by a curator. Previously the ONLY way in was the member
+                doing it themselves: member_self_update writes requested_working_groups and an admin
+                approves. Someone awaiting first sign-in therefore could not be put in a group at all
+                without a hand-written UPDATE — which is how "add me to Analytics, my PI asked" became
+                a database task. The directory at /investigators also hides anyone with no grant and
+                no working group, so there was no profile page to do it from either. */}
+            <div className="space-y-2">
+              <Label>Working groups</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {WORKING_GROUPS.map((wg) => {
+                  const on = wgDraft.includes(wg);
+                  return (
+                    <label
+                      key={wg}
+                      className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40 select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-primary"
+                        checked={on}
+                        onChange={(e) =>
+                          setWgDraft((prev) =>
+                            e.target.checked ? [...prev, wg] : prev.filter((w) => w !== wg),
+                          )
+                        }
+                      />
+                      <span className={on ? "text-foreground" : "text-muted-foreground"}>{wg}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Saving a change here subscribes or unsubscribes them from the matching Google Group.
+                The address used is the primary email above, so fix that first if it is wrong.
+              </p>
             </div>
           </div>
 

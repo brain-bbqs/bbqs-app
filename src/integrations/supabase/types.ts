@@ -1056,6 +1056,13 @@ export type Database = {
             foreignKeyName: "edit_history_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_species"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "edit_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -1206,6 +1213,8 @@ export type Database = {
           activity: string
           agent_id: string | null
           agent_label: string
+          authored_at: string | null
+          authored_at_precision: string | null
           confidence: number | null
           entity_column: string
           entity_id: string
@@ -1223,6 +1232,8 @@ export type Database = {
           activity: string
           agent_id?: string | null
           agent_label: string
+          authored_at?: string | null
+          authored_at_precision?: string | null
           confidence?: number | null
           entity_column: string
           entity_id: string
@@ -1240,6 +1251,8 @@ export type Database = {
           activity?: string
           agent_id?: string | null
           agent_label?: string
+          authored_at?: string | null
+          authored_at_precision?: string | null
           confidence?: number | null
           entity_column?: string
           entity_id?: string
@@ -1337,6 +1350,7 @@ export type Database = {
           created_at: string
           dandiset_id: string
           grant_id: string
+          id: string
           match_source: string
           matched_award: string | null
         }
@@ -1344,6 +1358,7 @@ export type Database = {
           created_at?: string
           dandiset_id: string
           grant_id: string
+          id?: string
           match_source?: string
           matched_award?: string | null
         }
@@ -1351,6 +1366,7 @@ export type Database = {
           created_at?: string
           dandiset_id?: string
           grant_id?: string
+          id?: string
           match_source?: string
           matched_award?: string | null
         }
@@ -1382,6 +1398,7 @@ export type Database = {
         Row: {
           created_at: string
           grant_id: string | null
+          id: string
           investigator_id: string
           role: string
           role_source: string
@@ -1390,6 +1407,7 @@ export type Database = {
         Insert: {
           created_at?: string
           grant_id?: string | null
+          id?: string
           investigator_id: string
           role?: string
           role_source?: string
@@ -1398,6 +1416,7 @@ export type Database = {
         Update: {
           created_at?: string
           grant_id?: string | null
+          id?: string
           investigator_id?: string
           role?: string
           role_source?: string
@@ -1973,18 +1992,21 @@ export type Database = {
       investigator_organizations: {
         Row: {
           created_at: string
+          id: string
           investigator_id: string
           organization_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          id?: string
           investigator_id: string
           organization_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          id?: string
           investigator_id?: string
           organization_id?: string
           updated_at?: string
@@ -2455,6 +2477,7 @@ export type Database = {
           big_five: Json
           created_at: string
           hexaco: Json
+          id: string
           investigator_id: string
           last_computed_at: string
           matched_count: number
@@ -2466,6 +2489,7 @@ export type Database = {
           big_five?: Json
           created_at?: string
           hexaco?: Json
+          id?: string
           investigator_id: string
           last_computed_at?: string
           matched_count?: number
@@ -2477,6 +2501,7 @@ export type Database = {
           big_five?: Json
           created_at?: string
           hexaco?: Json
+          id?: string
           investigator_id?: string
           last_computed_at?: string
           matched_count?: number
@@ -2563,16 +2588,19 @@ export type Database = {
       project_publications: {
         Row: {
           created_at: string
+          id: string
           project_id: string
           publication_id: string
         }
         Insert: {
           created_at?: string
+          id?: string
           project_id: string
           publication_id: string
         }
         Update: {
           created_at?: string
+          id?: string
           project_id?: string
           publication_id?: string
         }
@@ -2589,6 +2617,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "project_questionnaire_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_publications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_species"
             referencedColumns: ["project_id"]
           },
           {
@@ -3058,25 +3093,25 @@ export type Database = {
           agent_kind: string
           code: string
           description: string | null
+          grade: number
           is_verified: boolean
           label: string
-          rank: number
         }
         Insert: {
           agent_kind: string
           code: string
           description?: string | null
+          grade: number
           is_verified: boolean
           label: string
-          rank: number
         }
         Update: {
           agent_kind?: string
           code?: string
           description?: string | null
+          grade?: number
           is_verified?: boolean
           label?: string
-          rank?: number
         }
         Relationships: []
       }
@@ -3129,6 +3164,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      species_aliases: {
+        Row: {
+          alias: string
+          canonical: string | null
+          common_name: string | null
+          kind: string
+          note: string | null
+        }
+        Insert: {
+          alias: string
+          canonical?: string | null
+          common_name?: string | null
+          kind: string
+          note?: string | null
+        }
+        Update: {
+          alias?: string
+          canonical?: string | null
+          common_name?: string | null
+          kind?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      species_candidates: {
+        Row: {
+          candidate: string
+          common_name: string | null
+          confidence: string
+          evidence: string
+          grant_number: string
+          note: string | null
+          source: string
+        }
+        Insert: {
+          candidate: string
+          common_name?: string | null
+          confidence: string
+          evidence: string
+          grant_number: string
+          note?: string | null
+          source?: string
+        }
+        Update: {
+          candidate?: string
+          common_name?: string | null
+          confidence?: string
+          evidence?: string
+          grant_number?: string
+          note?: string | null
+          source?: string
+        }
+        Relationships: []
       }
       state_privacy_rules: {
         Row: {
@@ -3374,6 +3463,8 @@ export type Database = {
           agent_id: string | null
           agent_kind: string | null
           agent_label: string | null
+          authored_at: string | null
+          authored_at_precision: string | null
           claim_count: number | null
           confidence: number | null
           entity_column: string | null
@@ -3385,8 +3476,8 @@ export type Database = {
           recorded_at: string | null
           recorded_by: string | null
           source_class: string | null
+          source_grade: number | null
           source_label: string | null
-          source_rank: number | null
           source_ref: string | null
           value_text: string | null
         }
@@ -3715,6 +3806,60 @@ export type Database = {
         }
         Relationships: []
       }
+      project_species: {
+        Row: {
+          canonical_name: string | null
+          common_name: string | null
+          grant_number: string | null
+          kind: string | null
+          note: string | null
+          project_id: string | null
+          recorded_value: string | null
+        }
+        Relationships: []
+      }
+      provenance_coverage: {
+        Row: {
+          cells: number | null
+          pct_verified: number | null
+          rows_with_claims: number | null
+          table_name: unknown
+          unverified: number | null
+          verified: number | null
+        }
+        Relationships: []
+      }
+      provenance_guardable_tables: {
+        Row: {
+          is_guarded: boolean | null
+          table_name: unknown
+        }
+        Relationships: []
+      }
+      provenance_worklist: {
+        Row: {
+          agent_label: string | null
+          entity_column: string | null
+          entity_id: string | null
+          entity_table: string | null
+          priority: number | null
+          record_label: string | null
+          recorded_at: string | null
+          source_class: string | null
+          source_grade: number | null
+          source_label: string | null
+          value_text: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_provenance_source_class_fkey"
+            columns: ["source_class"]
+            isOneToOne: false
+            referencedRelation: "source_classes"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       public_jobs: {
         Row: {
           application_url: string | null
@@ -3830,6 +3975,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      ai_authored_metadata_keys: { Args: never; Returns: string[] }
       approve_working_groups: {
         Args: { _groups?: string[]; _investigator_id: string }
         Returns: Json
@@ -3837,6 +3983,10 @@ export type Database = {
       canonical_working_group: { Args: { _wg: string }; Returns: string }
       check_onboard_conflicts: {
         Args: { _email: string; _name: string }
+        Returns: Json
+      }
+      confirm_species_candidate: {
+        Args: { _candidate: string; _grant_number: string; _replace?: boolean }
         Returns: Json
       }
       cron_invoke: {
@@ -3849,6 +3999,7 @@ export type Database = {
         Returns: number
       }
       current_actor_via: { Args: never; Returns: string }
+      current_source_class: { Args: never; Returns: string }
       decrement_vote_count: {
         Args: { _suggestion_id: string }
         Returns: undefined
@@ -3923,12 +4074,61 @@ export type Database = {
       }
       onboarding_required_open: { Args: { _checklist: Json }; Returns: number }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
+      provenance_activity: {
+        Args: { _include_backfill?: boolean; _limit?: number }
+        Returns: {
+          activity: string
+          agent_kind: string
+          agent_label: string
+          entity_column: string
+          entity_id: string
+          entity_table: string
+          id: number
+          is_verified: boolean
+          prev_source_label: string
+          prev_value: string
+          record_label: string
+          recorded_at: string
+          recorded_by: string
+          source_class: string
+          source_grade: number
+          source_label: string
+          source_ref: string
+          value_text: string
+        }[]
+      }
+      provenance_attach_all: { Args: never; Returns: number }
+      provenance_attach_guard: { Args: { _table: string }; Returns: boolean }
+      provenance_backfill_all: {
+        Args: never
+        Returns: {
+          claims_added: number
+          table_name: string
+        }[]
+      }
+      provenance_backfill_unknown: { Args: { _table: string }; Returns: number }
+      provenance_detach_out_of_scope: { Args: never; Returns: number }
+      provenance_excluded_columns: { Args: never; Returns: string[] }
+      provenance_excluded_tables: { Args: never; Returns: string[] }
+      provenance_external_identifier_columns: { Args: never; Returns: string[] }
+      provenance_is_gradable_column: {
+        Args: { _col: string }
+        Returns: boolean
+      }
+      provenance_mark_verified: {
+        Args: { _column: string; _id: string; _note?: string; _table: string }
+        Returns: number
+      }
+      provenance_table_priority: { Args: { _table: string }; Returns: number }
+      provenance_tracked_columns: { Args: never; Returns: string[] }
       questionnaire_fields: { Args: never; Returns: string[] }
       questionnaire_form_url: { Args: never; Returns: string }
       record_field_provenance: {
         Args: {
           _activity: string
           _agent_label?: string
+          _authored_at?: string
+          _authored_at_precision?: string
           _column: string
           _confidence?: number
           _evidence?: string
@@ -3973,6 +4173,7 @@ export type Database = {
         Args: { _investigator_id: string; _status: string; _step: string }
         Returns: Json
       }
+      set_source_class: { Args: { _code: string }; Returns: string }
       suggest_grants_for_investigator: {
         Args: { _investigator_id: string }
         Returns: {
