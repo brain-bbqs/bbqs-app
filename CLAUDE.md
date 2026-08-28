@@ -55,6 +55,27 @@ There is deliberately no second `specs/` tree: one spec home, two implementation
   that encode cross-layer invariants. Every breakage this session landed where no machine was
   checking. Add a guard when you fix a class; prove it RED first.
 
+## Lovable is being decommissioned (week of 2026-09-01)
+
+Nothing new may be pointed at `*.lovable.app`. That host is going away, so a reference added today
+is a broken link next week — and the ones that matter are not links, they are identifiers and
+allow-lists.
+
+- **Identifiers stay on `brain-bbqs.org`.** The LinkML `id`, the `bbqs:` prefix in
+  `public/bbqs-schema.linkml.yaml`, and the JSON-LD `@id` in `src/data/bbqs-schema.ts` name 29
+  classes and 42 slots. `brain-bbqs.org` is the repo's own `CNAME` — it is what Pages serves and
+  what answers 200. `bbqs-app.lovable.app` is a deploy target, not the published site. These were
+  repointed at the vendor host once already, with the warning comment rewritten to argue for it;
+  the comment now says so explicitly. Do not "fix" them again.
+- **The three remaining `bbqs-app.lovable.app` references are deliberate and temporary**:
+  `globus-auth`, `_shared/auth` and `send-access-approved-email` use the deployed origin as a CORS
+  allow-list entry and to build the sign-in link. They must track wherever the app is actually
+  served, and they move when the deploy moves — not before, or Globus sign-in breaks.
+- The `bbqs-agent` half is already independent of Lovable: its Supabase project is in the Sensein
+  org and its LLM calls go to OpenRouter. This repo is the entangled one — Lovable deploys it, and
+  it carries `lovable_invoices` / `lovable_user_usage` / `lovable_credit_events` plus `budget-sync`.
+  Those go when the billing relationship does.
+
 ## Repo-specific conventions
 
 - **Branch `dev`.** Lovable deploys from it and pushes to it between sessions, so `git pull` before
