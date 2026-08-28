@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useDashboardConfig } from "@/hooks/useDashboardConfig";
-import { useUserTier } from "@/hooks/useUserTier";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Database, RotateCcw, Loader2, LayoutDashboard, Network } from "lucide-react";
+import { Download, Database, RotateCcw, Loader2, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 
 function downloadFile(name: string, contents: string, mime: string) {
@@ -36,19 +36,8 @@ export function DataAndConfigCard() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { widgets, workingGroups, investigatorId, reset } = useDashboardConfig();
-  const { isAdmin } = useUserTier();
   const [busy, setBusy] = useState<string | null>(null);
 
-  const exportKg = (entity: "people" | "publications") =>
-    run(`kg-${entity}`, async () => {
-      const { data, error } = await supabase.functions.invoke(`kg-csv-export?entity=${entity}`, {
-        method: "GET",
-      });
-      if (error) throw error;
-      const csv = typeof data === "string" ? data : await (data as Blob).text();
-      downloadFile(`bbqs-${entity}-kg-${stamp()}.csv`, csv, "text/csv");
-      toast.success(`Exported ${entity} (KG-ready CSV)`);
-    });
 
   const fetchProvenance = async () => {
     const { data, error } = await supabase
@@ -183,26 +172,6 @@ export function DataAndConfigCard() {
           </div>
         </div>
 
-        {isAdmin && (
-          <div>
-            <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <Network className="h-3.5 w-3.5" /> Knowledge graph exports
-            </p>
-            <p className="text-xs text-muted-foreground mb-3">
-              Consortium-wide CSVs whose columns map 1:1 to the TriG schema (see{" "}
-              <code className="font-mono">docs/kg-csv-schema.md</code>). L1–L3 layers ship as
-              blank/default columns for the curation loop to fill in.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => exportKg("people")} disabled={!!busy}>
-                <Spin k="kg-people" /> People (KG CSV)
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => exportKg("publications")} disabled={!!busy}>
-                <Spin k="kg-publications" /> Publications (KG CSV)
-              </Button>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
