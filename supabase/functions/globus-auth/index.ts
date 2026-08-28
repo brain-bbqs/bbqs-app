@@ -549,7 +549,7 @@ Deno.serve(async (req) => {
         "https://brain-bbqs.org",
         "https://www.brain-bbqs.org",
         "https://brain-bbqs.github.io",
-        "https://brain-bbq-clone.lovable.app",
+        "https://bbqs-app.lovable.app",
         "https://agent.brain-bbqs.org",
         "http://localhost:",
       ];

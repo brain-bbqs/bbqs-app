@@ -17,7 +17,7 @@ later amendments.
 
 That is the predictable failure of two copies of one rulebook: they drift, and then one of them is
 silently wrong while still looking authoritative. Since both repos are always checked out side by
-side (`bbqs-agent` and `brain-bbq-clone`), a relative pointer costs nothing and cannot go stale.
+side (`bbqs-agent` and `bbqs-app`), a relative pointer costs nothing and cannot go stale.
 
 The ten principles bind changes in this repo exactly as they do in the agent repo. Two matter most
 here, and both were broken in ways this stub is meant to prevent:
@@ -29,6 +29,6 @@ here, and both were broken in ways this stub is meant to prevent:
   must call `public.set_actor(...)` or the audit trail records what changed and not who. 78% of
   existing rows have a NULL actor.
 
-See `../brain-bbq-clone/CLAUDE.md` for this repo's working agreement, and
+See `../bbqs-app/CLAUDE.md` for this repo's working agreement, and
 `../bbqs-agent/.specify/feature.json` for the active feature whose spec artifacts a change here
 should update.
