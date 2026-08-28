@@ -33,10 +33,22 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 
 /** Settings: self-serve data export (provenance, account bundle) and dashboard configuration. */
 export function DataAndConfigCard() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { profile } = useProfile();
   const { widgets, workingGroups, investigatorId, reset } = useDashboardConfig();
+  const { isAdmin } = useUserTier();
   const [busy, setBusy] = useState<string | null>(null);
+
+  const exportKg = (entity: "people" | "publications") =>
+    run(`kg-${entity}`, async () => {
+      const { data, error } = await supabase.functions.invoke(`kg-csv-export?entity=${entity}`, {
+        method: "GET",
+      });
+      if (error) throw error;
+      const csv = typeof data === "string" ? data : await (data as Blob).text();
+      downloadFile(`bbqs-${entity}-kg-${stamp()}.csv`, csv, "text/csv");
+      toast.success(`Exported ${entity} (KG-ready CSV)`);
+    });
 
   const fetchProvenance = async () => {
     const { data, error } = await supabase
