@@ -1,16 +1,24 @@
-# The identifier base is the PUBLISHED APP DOMAIN, deliberately. These IRIs name every
-# BBQS class and slot, so they outlive the code: they were minted as brain-bbq-clone.lovable.app
-# — a hosting vendor plus a repo name that had dropped the S standing for Synchronization — and
-# both of those have since changed, leaving the identifiers pointing at a host that no longer
-# resolves. bbqs-app.lovable.app is the site's published URL and /schema is a real route, so this
-# base both resolves today and survives the next rename or hosting move. Do not repoint it at a vendor.
-id: https://bbqs-app.lovable.app/schema/bbqs
+# ── THE IDENTIFIER BASE IS brain-bbqs.org, AND MUST STAY THERE ────────────────────────────────
+# These IRIs name every BBQS class and slot. They outlive the code, the hosting and the repo name,
+# which is exactly what the history here demonstrates: they were minted under
+# brain-bbq-clone.lovable.app — a hosting vendor plus a repo name that had dropped the S standing
+# for Synchronization — and every part of that has since changed.
+#
+# brain-bbqs.org is the site's own CNAME. It is what GitHub Pages serves, it is what returns 200,
+# and /schema is a real route, so this base resolves today and keeps resolving after the next
+# rename. LOVABLE IS BEING DECOMMISSIONED IN THE WEEK OF 2026-09-01: any *.lovable.app base stops
+# resolving, and 29 classes and 42 slots are then identified by a dead host.
+#
+# This has already been "corrected" once to bbqs-app.lovable.app, with this comment rewritten to
+# argue for it. It was wrong on the facts — the site is not served from lovable.app — so if you are
+# about to repoint these at whatever host looks current, don't.
+id: https://brain-bbqs.org/schema/bbqs
 name: bbqs
 title: BBQS Schema
 description: >-
   LinkML representation of the BBQS (Brain Behavior Quantification and Synchronization)
   type hierarchy, aligned to schema.org. Mirrors the browsable schema published at
-  https://bbqs-app.lovable.app/schema. Frontend-only source of truth — no
+  https://brain-bbqs.org/schema. Frontend-only source of truth — no
   database coupling.
 license: MIT
 version: 1.0.0
@@ -18,7 +26,7 @@ version: 1.0.0
 prefixes:
   linkml: https://w3id.org/linkml/
   schema: https://schema.org/
-  bbqs: https://bbqs-app.lovable.app/schema#
+  bbqs: https://brain-bbqs.org/schema#
   xsd: http://www.w3.org/2001/XMLSchema#
 
 default_prefix: bbqs
