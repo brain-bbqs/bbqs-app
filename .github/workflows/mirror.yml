@@ -1,4 +1,4 @@
-name: Mirror to nadernik/brain-bbq-clone-mirror
+name: Mirror to nadernik/bbqs-app-mirror
 
 on:
   push:
@@ -13,5 +13,5 @@ jobs:
         run: |
           git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/brain-bbqs/bbqs-app.git repo
           cd repo
-          git push --force --all https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/nadernik/brain-bbq-clone-mirror.git
-          git push --force --tags https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/nadernik/brain-bbq-clone-mirror.git
+          git push --force --all https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/nadernik/bbqs-app-mirror.git
+          git push --force --tags https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/nadernik/bbqs-app-mirror.git
