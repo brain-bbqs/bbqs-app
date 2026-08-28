@@ -33,7 +33,7 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 
 /** Settings: self-serve data export (provenance, account bundle) and dashboard configuration. */
 export function DataAndConfigCard() {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const { profile } = useProfile();
   const { widgets, workingGroups, investigatorId, reset } = useDashboardConfig();
   const { isAdmin } = useUserTier();
