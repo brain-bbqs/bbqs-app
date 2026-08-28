@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useDashboardConfig } from "@/hooks/useDashboardConfig";
-import { useUserTier } from "@/hooks/useUserTier";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Database, RotateCcw, Loader2, LayoutDashboard } from "lucide-react";
@@ -36,7 +36,6 @@ export function DataAndConfigCard() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { widgets, workingGroups, investigatorId, reset } = useDashboardConfig();
-  useUserTier();
   const [busy, setBusy] = useState<string | null>(null);
 
 
