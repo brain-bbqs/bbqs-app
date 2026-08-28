@@ -47,7 +47,7 @@ If you use the default GitHub Pages URL (`https://brain-bbqs.github.io/bbqs-webs
 
 ## 3. Add GitHub Actions secrets/variables
 
-In the **prod** repo (`brain-bbqs/brain-bbq-clone`), go to **Settings → Secrets and variables → Actions**.
+In the **prod** repo (`brain-bbqs/bbqs-app`), go to **Settings → Secrets and variables → Actions**.
 
 **Repository secrets:**
 

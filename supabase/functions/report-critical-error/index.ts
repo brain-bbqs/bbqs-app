@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const ALERT_RECIPIENT = "nader.nikbakht@gmail.com";
-const GITHUB_REPO = "lovable-bbqs/brain-bbq-clone"; // best-effort; non-fatal if wrong
+const GITHUB_REPO = "brain-bbqs/bbqs-app"; // owner/repo; non-fatal if wrong
 
 interface AlertPayload {
   source: string;
