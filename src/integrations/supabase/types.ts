@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -2070,6 +2070,7 @@ export type Database = {
           pending_role: Database["public"]["Enums"]["app_role"] | null
           profile_url: string | null
           reminder_count: number
+          reporter_profile_id: number | null
           requested_working_groups: string[] | null
           research_areas: string[] | null
           resource_id: string | null
@@ -2094,6 +2095,7 @@ export type Database = {
           pending_role?: Database["public"]["Enums"]["app_role"] | null
           profile_url?: string | null
           reminder_count?: number
+          reporter_profile_id?: number | null
           requested_working_groups?: string[] | null
           research_areas?: string[] | null
           resource_id?: string | null
@@ -2118,6 +2120,7 @@ export type Database = {
           pending_role?: Database["public"]["Enums"]["app_role"] | null
           profile_url?: string | null
           reminder_count?: number
+          reporter_profile_id?: number | null
           requested_working_groups?: string[] | null
           research_areas?: string[] | null
           resource_id?: string | null
@@ -2472,81 +2475,6 @@ export type Database = {
           },
         ]
       }
-      personality_scores: {
-        Row: {
-          big_five: Json
-          created_at: string
-          hexaco: Json
-          id: string
-          investigator_id: string
-          last_computed_at: string
-          matched_count: number
-          token_count: number
-          top_adjectives: Json
-          updated_at: string
-        }
-        Insert: {
-          big_five?: Json
-          created_at?: string
-          hexaco?: Json
-          id?: string
-          investigator_id: string
-          last_computed_at?: string
-          matched_count?: number
-          token_count?: number
-          top_adjectives?: Json
-          updated_at?: string
-        }
-        Update: {
-          big_five?: Json
-          created_at?: string
-          hexaco?: Json
-          id?: string
-          investigator_id?: string
-          last_computed_at?: string
-          matched_count?: number
-          token_count?: number
-          top_adjectives?: Json
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "personality_scores_investigator_id_fkey"
-            columns: ["investigator_id"]
-            isOneToOne: true
-            referencedRelation: "investigator_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "personality_scores_investigator_id_fkey"
-            columns: ["investigator_id"]
-            isOneToOne: true
-            referencedRelation: "investigators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "personality_scores_investigator_id_fkey"
-            columns: ["investigator_id"]
-            isOneToOne: true
-            referencedRelation: "investigators_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "personality_scores_investigator_id_fkey"
-            columns: ["investigator_id"]
-            isOneToOne: true
-            referencedRelation: "onboarding_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "personality_scores_investigator_id_fkey"
-            columns: ["investigator_id"]
-            isOneToOne: true
-            referencedRelation: "onboarding_pipeline"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string
@@ -2828,6 +2756,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reporter_pi_observations: {
+        Row: {
+          award_notice_date: string | null
+          core_project_num: string
+          first_name: string | null
+          fiscal_year: number
+          full_name: string
+          is_contact_pi: boolean
+          last_name: string | null
+          observed_at: string
+          profile_id: number
+          project_num: string | null
+          title: string | null
+        }
+        Insert: {
+          award_notice_date?: string | null
+          core_project_num: string
+          first_name?: string | null
+          fiscal_year: number
+          full_name: string
+          is_contact_pi?: boolean
+          last_name?: string | null
+          observed_at?: string
+          profile_id: number
+          project_num?: string | null
+          title?: string | null
+        }
+        Update: {
+          award_notice_date?: string | null
+          core_project_num?: string
+          first_name?: string | null
+          fiscal_year?: number
+          full_name?: string
+          is_contact_pi?: boolean
+          last_name?: string | null
+          observed_at?: string
+          profile_id?: number
+          project_num?: string | null
+          title?: string | null
+        }
+        Relationships: []
       }
       resources: {
         Row: {
@@ -3926,6 +3896,32 @@ export type Database = {
           },
         ]
       }
+      reporter_pi_current: {
+        Row: {
+          award_notice_date: string | null
+          core_project_num: string | null
+          fiscal_year: number | null
+          full_name: string | null
+          is_contact_pi: boolean | null
+          profile_id: number | null
+          project_num: string | null
+          roster_role: string | null
+        }
+        Relationships: []
+      }
+      reporter_pi_drift: {
+        Row: {
+          drift: string | null
+          grant_number: string | null
+          kg_role: string | null
+          kg_role_source: string | null
+          person: string | null
+          profile_id: number | null
+          reporter_fiscal_year: number | null
+          reporter_role: string | null
+        }
+        Relationships: []
+      }
       slack_channel_backlog: {
         Row: {
           channel_id: string | null
@@ -4075,7 +4071,12 @@ export type Database = {
       onboarding_required_open: { Args: { _checklist: Json }; Returns: number }
       onboarding_status_rank: { Args: { _s: string }; Returns: number }
       provenance_activity: {
-        Args: { _include_backfill?: boolean; _limit?: number }
+        Args: {
+          _include_backfill?: boolean
+          _limit?: number
+          _since?: string
+          _until?: string
+        }
         Returns: {
           activity: string
           agent_kind: string
