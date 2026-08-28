@@ -6,7 +6,7 @@ type: feature
 # Sandbox environment
 
 - **Sandbox Supabase ref:** `vzfsndsqveacpefoqwsu` (prod is `vpexxhfpvghlejljwpvt`).
-- **Frontend:** same codebase as prod, built with `.env.sandbox` and deployed to `brain-bbqs/bbqs-website-sandbox` GitHub Pages repo. No Lovable remix.
+- **Frontend:** same codebase as prod, built with `.env.sandbox` and deployed to `brain-bbqs/bbqs-app-sandbox` GitHub Pages repo. No Lovable remix.
 - **Env-driven config:** `src/integrations/supabase/client.ts`, `vite.config.ts`, and `src/App.tsx` read `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_AUTH_COOKIE_DOMAIN`, and `VITE_BASE_PATH` so one codebase targets prod or sandbox.
 - **PR flow:** `.github/workflows/sync-sandbox-schema.yml` runs on every PR. It posts a `supabase migration list` drift comment, pushes migrations when `SANDBOX_MIGRATIONS_ENABLED == 'true'` (or on `main`), optionally reseeds fake data, builds/deploys the frontend, runs Playwright QA against `SANDBOX_PREVIEW_URL`, and optionally auto-merges.
 - **Secrets:** `SANDBOX_SUPABASE_DB_URL` **or** `SANDBOX_DB_PASSWORD` (the normalizer assembles the pooler URI from the password when the URI is missing/malformed), `SANDBOX_SUPABASE_ANON_KEY`, `STAGING_SEED_TOKEN`, `CI_AUTH_SECRET`, `SANDBOX_GITHUB_PAT`.

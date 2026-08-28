@@ -12,7 +12,7 @@ name: Sandbox QA (clone prod -> build -> sandbox repo)
 #                     it so the sandbox is an exact replica.
 #   4. build        – npm build of the frontend pointed at the SANDBOX database.
 #                     The build is then force-pushed to a SEPARATE sandbox repository
-#                     (brain-bbqs/bbqs-website-sandbox), which serves it from its own GitHub
+#                     (brain-bbqs/bbqs-app-sandbox), which serves it from its own GitHub
 #                     Pages site and URL. Production Pages is never touched.
 #
 # Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
@@ -246,7 +246,7 @@ jobs:
           VITE_AUTH_COOKIE_DOMAIN: ''
           # This deployment is served from sandbox.brain-bbqs.org at the domain root.
           # Do not inherit a stale repository base-path variable: that makes index.html
-          # request /bbqs-website-sandbox/assets/* and produces a blank page.
+          # request /bbqs-app-sandbox/assets/* and produces a blank page.
           VITE_BASE_PATH: /
 
       - name: SPA fallback for GitHub Pages
@@ -265,7 +265,7 @@ jobs:
       - name: Verify asset base path is the domain root
         run: |
           set -euo pipefail
-          # A leaked base path shows up as either a nested prefix (/bbqs-website-sandbox/...)
+          # A leaked base path shows up as either a nested prefix (/bbqs-app-sandbox/...)
           # or a relative reference (./assets/..., assets/...). Root-level files such as
           # /favicon.png are correct and must NOT fail the guard.
           bad=$(grep -Eo '(src|href)="[^"]+"' dist/index.html \
@@ -302,7 +302,7 @@ jobs:
           path: dist
           retention-days: 7
 
-      # Publishes to the SEPARATE sandbox repository — brain-bbqs/bbqs-website-sandbox
+      # Publishes to the SEPARATE sandbox repository — brain-bbqs/bbqs-app-sandbox
       # (override with vars.SANDBOX_PAGES_REPO) — on its `gh-pages` branch. That repo
       # owns its own Pages site and URL, so a sandbox deploy can never overwrite
       # production.
@@ -310,7 +310,7 @@ jobs:
       - name: Publish to the sandbox repository
         if: ${{ inputs.deploy_pages }}
         env:
-          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-website-sandbox' }}
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-app-sandbox' }}
           TARGET_BRANCH: ${{ vars.SANDBOX_PAGES_BRANCH || 'gh-pages' }}
           PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
         run: |
@@ -340,7 +340,7 @@ jobs:
       - name: Mirror application source to the sandbox repository
         if: ${{ inputs.deploy_pages }}
         env:
-          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-website-sandbox' }}
+          TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-app-sandbox' }}
           SOURCE_BRANCH: ${{ vars.SANDBOX_SOURCE_BRANCH || 'main' }}
           PAT: ${{ secrets.SANDBOX_GITHUB_PAT }}
         run: |

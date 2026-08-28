@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const GITHUB_OWNER = 'brain-bbqs';
-const GITHUB_REPO = 'brain-bbq-clone';
+const GITHUB_REPO = 'bbqs-app';
 
 interface GitHubMilestone {
   id: number;

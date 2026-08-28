@@ -9,7 +9,7 @@ const FROM_ADDRESS =
   "BBQS <noreply@brain-bbqs.org>";
 const SIGN_IN_URL =
   Deno.env.get("ACCESS_APPROVED_SIGNIN_URL") ||
-  "https://brain-bbq-clone.lovable.app/auth";
+  "https://bbqs-app.lovable.app/auth";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

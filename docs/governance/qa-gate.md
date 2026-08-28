@@ -26,7 +26,7 @@ from scratch as a single **manually triggered** workflow:
 4. **Build.** `npm ci && npm run build` with `VITE_SUPABASE_URL` /
    `VITE_SUPABASE_PUBLISHABLE_KEY` pointed at the sandbox project.
 5. **Publish.** The `dist/` build is force-pushed to a **separate sandbox
-   repository** — `brain-bbqs/bbqs-website-sandbox` (override with
+   repository** — `brain-bbqs/bbqs-app-sandbox` (override with
    `vars.SANDBOX_PAGES_REPO`), branch `gh-pages` — which owns its own
    GitHub Pages site and URL. Production's Pages deploy (`publish.yml`) is never
    touched, and the two can run independently.
@@ -42,9 +42,9 @@ Secrets: `SUPABASE_KG_DB_URL`, `SANDBOX_DB_PASSWORD` (or
 `SANDBOX_SUPABASE_ANON_KEY`, `SANDBOX_GITHUB_PAT` (write access to the sandbox
 site repo).
 Variables (all optional, defaults in the workflow): `SANDBOX_PAGES_REPO`
-(default `brain-bbqs/bbqs-website-sandbox`), `SANDBOX_PAGES_BRANCH` (default
+(default `brain-bbqs/bbqs-app-sandbox`), `SANDBOX_PAGES_BRANCH` (default
 `gh-pages`), `SANDBOX_PROJECT_REF` (default `vzfsndsqveacpefoqwsu`),
-`SANDBOX_DB_REGION`, `SANDBOX_BASE_PATH` (default `/bbqs-website-sandbox/`).
+`SANDBOX_DB_REGION`, `SANDBOX_BASE_PATH` (default `/bbqs-app-sandbox/`).
 
 The only automatic gate on pull requests into `main` is:
 

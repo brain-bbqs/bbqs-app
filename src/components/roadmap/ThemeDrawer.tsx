@@ -22,10 +22,10 @@ export function ThemeDrawer({ theme, onOpenChange, openIssuesCount = 0 }: Props)
   const open = theme !== null;
   const { done, total } = theme ? countOpenTasks(theme.tasks) : { done: 0, total: 0 };
   const githubEditUrl = theme
-    ? `https://github.com/brain-bbqs/brain-bbq-clone/tree/main/${theme.githubPath}`
+    ? `https://github.com/brain-bbqs/bbqs-app/tree/main/${theme.githubPath}`
     : "#";
   const githubIssuesUrl = theme
-    ? `https://github.com/brain-bbqs/brain-bbq-clone/issues?q=is%3Aissue+label%3A${encodeURIComponent(theme.githubLabel)}`
+    ? `https://github.com/brain-bbqs/bbqs-app/issues?q=is%3Aissue+label%3A${encodeURIComponent(theme.githubLabel)}`
     : "#";
 
   return (

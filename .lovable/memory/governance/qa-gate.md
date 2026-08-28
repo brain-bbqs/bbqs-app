@@ -9,7 +9,7 @@ type: feature
   2. approval via `sandbox-approval` GitHub Environment,
   3. `supabase db push` to sandbox + `clone-prod-to-sandbox.sh` exact data clone + `sandbox-localize.sql`,
   4. `npm ci && npm run build` with VITE_* pointed at sandbox,
-  5. force-push `dist/` to the SEPARATE sandbox repo `brain-bbqs/bbqs-website-sandbox` (private, branch gh-pages, override via vars.SANDBOX_PAGES_REPO) with its own Pages URL.
+  5. force-push `dist/` to the SEPARATE sandbox repo `brain-bbqs/bbqs-app-sandbox` (private, branch gh-pages, override via vars.SANDBOX_PAGES_REPO) with its own Pages URL.
 - Dispatch-only by design; add `push: dev` trigger later. Sandbox holds real prod PII.
 - Secrets: SUPABASE_KG_DB_URL, SANDBOX_DB_PASSWORD (or SANDBOX_SUPABASE_DB_URL pooler URI), SANDBOX_SUPABASE_ANON_KEY, SANDBOX_GITHUB_PAT. Vars (optional, defaulted): SANDBOX_PAGES_REPO, SANDBOX_PAGES_BRANCH, SANDBOX_PROJECT_REF, SANDBOX_DB_REGION, SANDBOX_BASE_PATH.
 - Sandbox site lives in its own private repo (holds prod PII); production Pages via publish.yml is untouched.

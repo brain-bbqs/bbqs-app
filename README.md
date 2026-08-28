@@ -14,10 +14,10 @@ BBQS brings together a cross-disciplinary consortium of researchers to:
 
 | | Pipeline | What it does | Status |
 |:---:|---|---|:---|
-| ✅ | Sandbox QA | Clones prod into the sandbox project, deploys the sandbox site, runs smoke tests | [![Sandbox QA](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/sandbox-qa.yml) |
-| ✅ | Backup | Nightly `pg_dump` of the production database to a retained artifact | [![Database Backup](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/db-backup.yml) |
-| ✅ | Guards | Cross-layer invariant tests on every PR (CORS parity, roles, schema) | [![Guards](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/guards.yml) |
-| ✅ | Deploy | Builds and publishes the production site to GitHub Pages | [![Deploy](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-website/actions/workflows/publish.yml) |
+| ✅ | Sandbox QA | Clones prod into the sandbox project, deploys the sandbox site, runs smoke tests | [![Sandbox QA](https://github.com/brain-bbqs/bbqs-app/actions/workflows/sandbox-qa.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-app/actions/workflows/sandbox-qa.yml) |
+| ✅ | Backup | Nightly `pg_dump` of the production database to a retained artifact | [![Database Backup](https://github.com/brain-bbqs/bbqs-app/actions/workflows/db-backup.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-app/actions/workflows/db-backup.yml) |
+| ✅ | Guards | Cross-layer invariant tests on every PR (CORS parity, roles, schema) | [![Guards](https://github.com/brain-bbqs/bbqs-app/actions/workflows/guards.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-app/actions/workflows/guards.yml) |
+| ✅ | Deploy | Builds and publishes the production site to GitHub Pages | [![Deploy](https://github.com/brain-bbqs/bbqs-app/actions/workflows/publish.yml/badge.svg)](https://github.com/brain-bbqs/bbqs-app/actions/workflows/publish.yml) |
 
 Green badge = live, red = dead.
 
@@ -51,7 +51,7 @@ npm run dev
 
 ## Contributing
 
-Report issues via the sidebar button or directly on [GitHub Issues](https://github.com/brain-bbqs/brain-bbq-clone/issues). Feature suggestions can be submitted through the [Suggest a Feature](https://brain-bbqs.org/feature-suggestions) page.
+Report issues via the sidebar button or directly on [GitHub Issues](https://github.com/brain-bbqs/bbqs-app/issues). Feature suggestions can be submitted through the [Suggest a Feature](https://brain-bbqs.org/feature-suggestions) page.
 
 ## License
 

@@ -8,6 +8,7 @@ import AdminAccessRequests from "./AdminAccessRequests";
 import { OnboardingPipelinePanel } from "@/components/admin/OnboardingPipelinePanel";
 import { SlackBacklogPanel } from "@/components/admin/SlackBacklogPanel";
 import { WorkingGroupRequestsPanel } from "@/components/admin/WorkingGroupRequestsPanel";
+import { ReporterPiSyncPanel } from "@/components/admin/ReporterPiSyncPanel";
 import { AddProjectByGrantDialog } from "@/components/admin/AddProjectByGrantDialog";
 import { BudgetsPanel } from "@/components/admin/BudgetsPanel";
 import { NewsRadarPanel } from "@/components/admin/NewsRadarPanel";
@@ -117,6 +118,12 @@ export default function AdminConsole() {
                 </Button>
               }
             />
+          </div>
+
+          {/* Same tab because both are grant-roster work against the same registry: one seeds a new
+              award, the other keeps the PIs on existing awards true to it. */}
+          <div className="mt-6">
+            <ReporterPiSyncPanel />
           </div>
         </TabsContent>
 

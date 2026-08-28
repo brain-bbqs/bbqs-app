@@ -1,10 +1,16 @@
-id: https://brain-bbq-clone.lovable.app/schema/bbqs
+# The identifier base is the PUBLISHED APP DOMAIN, deliberately. These IRIs name every
+# BBQS class and slot, so they outlive the code: they were minted as brain-bbq-clone.lovable.app
+# — a hosting vendor plus a repo name that had dropped the S standing for Synchronization — and
+# both of those have since changed, leaving the identifiers pointing at a host that no longer
+# resolves. bbqs-app.lovable.app is the site's published URL and /schema is a real route, so this
+# base both resolves today and survives the next rename or hosting move. Do not repoint it at a vendor.
+id: https://bbqs-app.lovable.app/schema/bbqs
 name: bbqs
 title: BBQS Schema
 description: >-
   LinkML representation of the BBQS (Brain Behavior Quantification and Synchronization)
   type hierarchy, aligned to schema.org. Mirrors the browsable schema published at
-  https://brain-bbq-clone.lovable.app/schema. Frontend-only source of truth — no
+  https://bbqs-app.lovable.app/schema. Frontend-only source of truth — no
   database coupling.
 license: MIT
 version: 1.0.0
@@ -12,7 +18,7 @@ version: 1.0.0
 prefixes:
   linkml: https://w3id.org/linkml/
   schema: https://schema.org/
-  bbqs: https://brain-bbq-clone.lovable.app/schema#
+  bbqs: https://bbqs-app.lovable.app/schema#
   xsd: http://www.w3.org/2001/XMLSchema#
 
 default_prefix: bbqs

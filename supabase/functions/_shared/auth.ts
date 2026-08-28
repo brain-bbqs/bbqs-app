@@ -6,7 +6,7 @@ const ALLOWED_ORIGINS = [
   "https://brain-bbqs.org",
   "https://www.brain-bbqs.org",
   "https://brain-bbqs.github.io",
-  "https://brain-bbq-clone.lovable.app",
+  "https://bbqs-app.lovable.app",
   "http://localhost:5173",
   "http://localhost:8080",
   "http://localhost:3000",
