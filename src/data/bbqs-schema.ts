@@ -325,7 +325,9 @@ export function buildJsonLdExample(type: BbqsType): Record<string, unknown> {
   const obj: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": schemaType,
-    "@id": `https://brain-bbq-clone.lovable.app/schema#${type.key}`,
+    // Must stay identical to the `bbqs:` prefix in public/bbqs-schema.linkml.yaml — the two
+    // are the same namespace, and a mismatch silently mints two identifiers per type.
+    "@id": `https://brain-bbqs.org/schema#${type.key}`,
   };
   for (const p of type.properties.slice(0, 5)) {
     obj[p.name] = `<${p.expectedType}>`;
