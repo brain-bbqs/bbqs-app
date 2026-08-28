@@ -531,7 +531,7 @@ export default function Roadmap() {
                 Refresh
               </Button>
               <a
-                href="https://github.com/brain-bbqs/brain-bbq-clone/issues"
+                href="https://github.com/brain-bbqs/website/issues"
                 target="_blank"
                 rel="noopener noreferrer"
               >
