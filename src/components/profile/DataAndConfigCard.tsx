@@ -173,26 +173,6 @@ export function DataAndConfigCard() {
           </div>
         </div>
 
-        {isAdmin && (
-          <div>
-            <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <Network className="h-3.5 w-3.5" /> Knowledge graph exports
-            </p>
-            <p className="text-xs text-muted-foreground mb-3">
-              Consortium-wide CSVs whose columns map 1:1 to the TriG schema (see{" "}
-              <code className="font-mono">docs/kg-csv-schema.md</code>). L1–L3 layers ship as
-              blank/default columns for the curation loop to fill in.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => exportKg("people")} disabled={!!busy}>
-                <Spin k="kg-people" /> People (KG CSV)
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => exportKg("publications")} disabled={!!busy}>
-                <Spin k="kg-publications" /> Publications (KG CSV)
-              </Button>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
