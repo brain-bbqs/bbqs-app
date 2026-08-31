@@ -1,6 +1,6 @@
 # BBQS Knowledge Graph site — Working Agreement
 
-This repo is the **KG site** (React/Vite + Supabase, deployed by Lovable). It is one half of a
+This repo is the **KG site** (React/Vite + Supabase). It is one half of a
 two-repo system; the other is **`../bbqs-agent`** (the chat agent). They share one Supabase project
 (`vpexxhfpvghlejljwpvt`), one constitution, and one set of specs.
 
@@ -78,8 +78,10 @@ allow-lists.
 
 ## Repo-specific conventions
 
-- **Branch `dev`.** Lovable deploys from it and pushes to it between sessions, so `git pull` before
-  editing and expect to rebase before pushing. `main` receives `dev` via PR.
+- **Branch `dev`.** Lovable pushes to it between sessions, so `git pull` before editing and expect
+  to rebase before pushing. `main` receives `dev` via PR, and **`publish.yml` deploys `main` to
+  GitHub Pages** — Lovable is an editor here, not the deployer. The site is served from the
+  `brain-bbqs.org` CNAME by Pages.
 - **Migrations are applied MANUALLY** in the Supabase SQL editor for `vpexxhfpvghlejljwpvt`; they are
   never `db push`ed. Deliver them to the user as a PowerShell clipboard command, not a repo path:
   `Get-Content "<abs path>.sql" -Raw | Set-Clipboard`. Long SQL inline is a last resort.
