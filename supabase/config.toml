@@ -102,3 +102,6 @@ verify_jwt = false
 
 [functions.device-knowledge-seed]
 verify_jwt = false
+
+[functions.bbqs-admin-mcp]
+verify_jwt = false

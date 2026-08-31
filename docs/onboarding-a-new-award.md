@@ -103,10 +103,28 @@ One email per **award**, addressed to all PIs together, contact PI first — not
 invite. `invite` adds the configured channels once they exist in the workspace. Ask first — the
 welcome email offers Slack rather than assuming it.
 
-## Verify
+## Verify — the panel for in-flight, the audit for drift
 
-The Admin Console onboarding panel reads `onboarding_pipeline` and shows n/7 per person. A step
-marked `done` is a claim that the outward action happened — so mark it from the resolver that
+Two surfaces, and reaching for the wrong one wastes a Google round-trip and answers a question you
+did not ask.
+
+- **`onboarding_pipeline` panel** — people who have not finished. Membership requires
+  `onboarding_completed_at IS NULL`, so a new team appears the moment the roster lands and shows
+  n/7. This is the surface for a fresh onboarding.
+- **`group-audit`** — people who finished and have since drifted, and addresses in a group that no
+  roster explains. It reads live Google, so it is slower and answers about everyone.
+
+A brand-new team is not drift, it is unfinished. Running the audit against one before its rows exist
+returns nothing and looks like a bug: on 2026-08-31 the audit reported `pi@` expected 75, missing 0,
+which is 71 PIs with primary addresses plus the four new MPIs — correct, and only after the rows
+were there to be expected.
+
+Reading the audit table: `In Google` minus `Expected` is NOT drift. `expected` is built from primary
+addresses only while a secondary satisfies membership, so anyone in a group under an alias inflates
+`in_google` without appearing in `expected`. `consortium@` read 302 vs 242 with just 10 unentitled.
+`missing` and the unentitled list are the columns that mean something.
+
+A step marked `done` is a claim that the outward action happened — so mark it from the resolver that
 performs the action, never by hand, or the checklist becomes the same silent-failure record that
 `group-audit` was written to catch.
 
