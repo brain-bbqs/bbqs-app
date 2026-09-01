@@ -27,8 +27,31 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, mcp-session-id, mcp-protocol-version",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS, DELETE",
-  "Access-Control-Expose-Headers": "mcp-session-id",
+  // WWW-Authenticate must be readable or a browser client cannot find the metadata and the OAuth
+  // handshake never starts.
+  "Access-Control-Expose-Headers": "mcp-session-id, WWW-Authenticate",
 };
+
+// ── OAuth 2.1, per the MCP authorization spec ───────────────
+//
+// Supabase Auth IS the authorization server (Authentication > OAuth Server). It issues the tokens,
+// runs dynamic client registration, and serves RFC 8414 metadata; the only piece left to us is the
+// consent screen, which is /oauth/consent on the site. This function is purely the RESOURCE SERVER:
+// advertise where to authorize, challenge properly, and validate.
+//
+// RFC 9728 puts protected-resource metadata at the host root, which we cannot serve on
+// supabase.co — so it is served under this function and named explicitly in the WWW-Authenticate
+// challenge. Clients MUST use the resource_metadata URL from that header, so this is well-defined.
+const BASE = `${SUPABASE_URL}/functions/v1/bbqs-admin-mcp`;
+const RESOURCE = `${BASE}/mcp`;
+const RESOURCE_METADATA = `${BASE}/.well-known/oauth-protected-resource`;
+
+/** RFC 6750 / RFC 9728 challenge. Without this a client has no way to discover the auth server. */
+function challenge(extra?: Record<string, string>) {
+  const parts = [`Bearer resource_metadata="${RESOURCE_METADATA}"`];
+  for (const [k, v] of Object.entries(extra ?? {})) parts.push(`${k}="${v}"`);
+  return { ...CORS, "WWW-Authenticate": parts.join(", ") };
+}
 
 const text = (v: unknown) => ({
   content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }],
@@ -257,20 +280,48 @@ app.get("/bbqs-admin-mcp", (c) =>
     name: "bbqs-admin-mcp",
     version: "1.0.0",
     description: "BBQS onboarding and offboarding, acting as the signed-in curator.",
-    auth: "Send a Supabase session JWT for an admin or curator as the Authorization bearer token.",
+    auth: "OAuth 2.1 via Supabase Auth. Point an MCP client at /mcp; it will be challenged, discover the authorization server, register itself, and send you to brain-bbqs.org/oauth/consent to approve.",
+    mcp_endpoint: RESOURCE,
+    resource_metadata: RESOURCE_METADATA,
     tools: ["whoami", "onboarding_status", "find_person", "kg_query", "onboard_member",
             "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
             "set_onboarding_step", "offboard_member"],
   }, 200, CORS));
 
+// RFC 9728. `authorization_servers` is the issuer; the client derives the RFC 8414 metadata URL
+// from it — for Supabase that resolves to /.well-known/oauth-authorization-server/auth/v1.
+app.get("/bbqs-admin-mcp/.well-known/oauth-protected-resource", (c) =>
+  c.json({
+    resource: RESOURCE,
+    authorization_servers: [`${SUPABASE_URL}/auth/v1`],
+    bearer_methods_supported: ["header"],
+    scopes_supported: ["openid", "email"],
+    resource_name: "BBQS onboarding and offboarding",
+    resource_documentation: "https://brain-bbqs.org/",
+  }, 200, CORS));
+
 app.all("/bbqs-admin-mcp/*", async (c) => {
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!jwt) return c.json({ error: "Authorization required: a curator's Supabase JWT." }, 401, CORS);
+  if (!jwt) {
+    return c.json({ error: "unauthorized", error_description: "Authorize with BBQS to use this server." },
+      401, challenge());
+  }
 
+  // The token is validated by asking Supabase Auth who it belongs to, which also proves it was
+  // issued by THIS project — a token minted elsewhere resolves to nobody. Supabase's OAuth tokens
+  // carry aud "authenticated" rather than a per-resource audience, so RFC 8707 audience binding is
+  // as strong as the single trust domain allows: resource server and API are one project. Do not
+  // read that as full audience validation.
   const caller = await resolveCaller(jwt);
-  if (!caller) return c.json({ error: "That token does not resolve to a signed-in user." }, 401, CORS);
+  if (!caller) {
+    return c.json({ error: "invalid_token", error_description: "Token is invalid or expired." },
+      401, challenge({ error: "invalid_token" }));
+  }
   if (!caller.isCurator) {
-    return c.json({ error: `${caller.email} is not an admin or curator.` }, 403, CORS);
+    return c.json({
+      error: "insufficient_permissions",
+      error_description: `${caller.email} is signed in but is not a BBQS admin or curator.`,
+    }, 403, CORS);
   }
 
   try {
