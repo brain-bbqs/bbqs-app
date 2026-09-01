@@ -7,11 +7,13 @@ import { CodeBlock } from "@/components/api-docs/CodeBlock";
 import { StepCard } from "@/components/api-docs/StepCard";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const MCP_URL = `${SUPABASE_URL}/functions/v1/bbqs-mcp`;
+const MCP_URL = `${SUPABASE_URL}/functions/v1/bbqs-mcp/mcp`;
 
+// Public tools — usable with no account. Signing in unlocks member self-service (edit your
+// profile, request working groups) and, for curators, onboarding/offboarding. The client is
+// prompted to sign in the first time it calls one of those; see the auth note below.
 const mcpTools = [
-  { name: "search_projects", description: "Search projects by species, PI, or free-text query. Returns Marr-level features.", params: ["species", "pi", "query"], icon: Search },
-  { name: "get_ontology", description: "Get the complete Marr-level feature ontology across all BBQS projects.", params: [], icon: Layers },
+  { name: "search_projects", description: "Search projects by species, PI, or free-text query.", params: ["species", "pi", "query"], icon: Search },
   { name: "list_species", description: "List all species with project counts and associated project names.", params: [], icon: Database },
   { name: "ask_bbqs", description: "Ask a natural-language question using RAG over the BBQS knowledge base.", params: ["question"], icon: MessageSquare },
 ];
@@ -19,7 +21,7 @@ const mcpTools = [
 const claudeConfig = `{
   "mcpServers": {
     "bbqs": {
-      "url": "${SUPABASE_URL}/functions/v1/bbqs-mcp"
+      "url": "${SUPABASE_URL}/functions/v1/bbqs-mcp/mcp"
     }
   }
 }`;
@@ -27,7 +29,7 @@ const claudeConfig = `{
 const cursorConfig = `{
   "name": "bbqs",
   "transport": "streamable-http",
-  "url": "${SUPABASE_URL}/functions/v1/bbqs-mcp"
+  "url": "${SUPABASE_URL}/functions/v1/bbqs-mcp/mcp"
 }`;
 
 export default function McpDocs() {
@@ -51,7 +53,7 @@ export default function McpDocs() {
           <Globe className="h-3.5 w-3.5" /> MCP Server URL
         </h3>
         <CodeBlock code={MCP_URL} />
-        <p className="text-xs text-muted-foreground mt-2">Use this URL when configuring any MCP client. No API key required.</p>
+        <p className="text-xs text-muted-foreground mt-2">Use this URL when configuring any MCP client. The public tools work with no account; the client will prompt you to sign in with BBQS (OAuth) the first time it calls a member or curator tool.</p>
       </div>
 
       {/* Available Tools */}
@@ -111,7 +113,7 @@ export default function McpDocs() {
           <StepCard number={3} color="bg-primary" step={{
             title: "Restart Claude Desktop",
             description: "Fully quit and reopen Claude Desktop. You should see a hammer 🔨 icon in the chat input — click it to verify the BBQS tools are listed.",
-            detail: "You'll see search_projects, get_ontology, list_species, and ask_bbqs in the tools list."
+            detail: "You'll see search_projects, list_species, and ask_bbqs in the tools list."
           }} />
           <StepCard number={4} color="bg-primary" step={{
             title: "Start asking questions!",
@@ -163,7 +165,7 @@ export default function McpDocs() {
           </div>
           <StepCard number={3} color="bg-primary" step={{
             title: "That's it!",
-            description: "The MCP server auto-advertises its tools. Your client will discover search_projects, get_ontology, list_species, and ask_bbqs automatically.",
+            description: "The MCP server auto-advertises its tools. Your client will discover search_projects, list_species, and ask_bbqs automatically.",
           }} />
         </div>
       </div>
