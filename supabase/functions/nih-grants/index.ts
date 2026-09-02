@@ -7,6 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// BOOTSTRAP ONLY — the list to seed an empty database from. Every other path reads grant numbers
+// from the grants table via loadGrantNumbers(), because this array goes stale the moment an award
+// is added: it held 29 while grants held 31, so refresh and the weekly reconcile cron silently
+// skipped 2 awards, and would have skipped R61MH142354 forever.
 const GRANT_NUMBERS = [
   "R34DA059510", "R34DA059509", "R34DA059513", "R34DA059507",
   "R34DA059718", "R34DA059506", "R34DA059512", "R34DA059716",
@@ -17,6 +21,20 @@ const GRANT_NUMBERS = [
   "U24MH136628", "R24MH136632",
   "1U01DA063565", "1U01DA063581", "1R61MH138612"
 ];
+
+/** Grant numbers to sync: the live roster, falling back to the bootstrap list when empty. */
+async function loadGrantNumbers(supabase: any): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("grants")
+    .select("grant_number")
+    .order("grant_number");
+  if (error) {
+    console.error("[nih-grants] grants read failed, using bootstrap list:", error.message);
+    return GRANT_NUMBERS;
+  }
+  const live = (data || []).map((g: any) => g.grant_number).filter(Boolean);
+  return live.length > 0 ? live : GRANT_NUMBERS;
+}
 
 // ─── PubMed / iCite helpers ─────────────────────────────────
 
@@ -421,11 +439,12 @@ Deno.serve(async (req) => {
     // fetches so it's safe to run on a cron without overrunning function
     // time limits. Used by the weekly pg_cron job.
     if (action === "reconcile") {
-      console.log(`Reconciling PIs for ${GRANT_NUMBERS.length} grants...`);
+      const grantNumbers = await loadGrantNumbers(supabase);
+      console.log(`Reconciling PIs for ${grantNumbers.length} grants...`);
       let synced = 0;
       const errors: string[] = [];
 
-      for (const grantNumber of GRANT_NUMBERS) {
+      for (const grantNumber of grantNumbers) {
         try {
           // Light fetch: project + PI list only
           const res = await fetch("https://api.reporter.nih.gov/v2/projects/search", {
@@ -481,12 +500,13 @@ Deno.serve(async (req) => {
 
     // ACTION: refresh — full pipeline: fetch from NIH APIs, seed all entities
     if (action === "refresh") {
-      console.log(`Refreshing ${GRANT_NUMBERS.length} grants (full pipeline)...`);
+      const grantNumbers = await loadGrantNumbers(supabase);
+      console.log(`Refreshing ${grantNumbers.length} grants (full pipeline)...`);
 
       let updatedCount = 0;
       const errors: string[] = [];
 
-      for (const grant of GRANT_NUMBERS) {
+      for (const grant of grantNumbers) {
         try {
           const projectData = await fetchGrantData(grant);
           if (projectData) {
@@ -571,14 +591,38 @@ Deno.serve(async (req) => {
       invOrgMap.set(io.investigator_id, orgs);
     });
 
-    // Fetch publications from NIH Reporter for each grant in parallel
-    const pubPromises = grants.map(async (g) => {
-      const coreProjectNum = g.grant_number.replace(/^\d+/, "").replace(/-\d+$/, "");
-      const pubs = await fetchPublications(coreProjectNum);
-      return { grantNumber: g.grant_number, publications: pubs };
-    });
-    const pubResults = await Promise.all(pubPromises);
-    const grantPubMap = new Map(pubResults.map(r => [r.grantNumber, r.publications]));
+    // Publications come from the KG, in one query. This used to be one live RePORTER POST per
+    // grant on EVERY page load — 32 calls to re-fetch what `publications` already stores, and
+    // React Query's staleTime is per-browser, so it was a fresh fan-out for each visitor.
+    // import-grant-publications is what keeps these rows current; run it on the cron, not here.
+    const { data: pubLinks } = await supabase
+      .from("project_publications")
+      .select("publications(pmid, title, year, journal, authors, citations, rcr, keywords, pubmed_link), projects(grant_number)");
+
+    const grantPubMap = new Map<string, any[]>();
+    for (const link of (pubLinks || []) as any[]) {
+      const grantNumber = link.projects?.grant_number;
+      const p = link.publications;
+      if (!grantNumber || !p) continue;
+      const list = grantPubMap.get(grantNumber) || [];
+      list.push({
+        pmid: p.pmid ?? "",
+        title: p.title || "Unknown",
+        year: p.year || 0,
+        journal: p.journal || "Unknown",
+        authors: p.authors || "",
+        citations: p.citations || 0,
+        rcr: p.rcr || 0,
+        keywords: p.keywords || [],
+        pubmedLink: p.pubmed_link || (p.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/` : ""),
+      });
+      grantPubMap.set(grantNumber, list);
+    }
+
+    const unlinked = grants.filter(g => !grantPubMap.has(g.grant_number)).map(g => g.grant_number);
+    if (unlinked.length > 0) {
+      console.warn(`[nih-grants] ${unlinked.length} grants have no KG publications; run import-grant-publications: ${unlinked.join(", ")}`);
+    }
 
     // Only roles considered PIs for the Projects page PI column.
     const PI_ROLES = new Set(["pi", "contact_pi", "co_pi", "mpi"]);
@@ -587,12 +631,13 @@ Deno.serve(async (req) => {
 
     const results = grants.map(g => {
       const gisAll = (grantInvestigators || []).filter(gi => gi.grant_id === g.id);
-      // Project page PIs must come exclusively from NIH RePORTER — exclude
-      // curator-added roster entries so they don't appear as extra PIs.
-      const gis = gisAll.filter(gi =>
-        PI_ROLES.has((gi.role || "").toLowerCase()) &&
-        (gi.role_source || "reporter") === "reporter"
-      );
+      // The roster is the authority on who is a PI (#283), whoever recorded it. This used to also
+      // require role_source === 'reporter', to keep "curator-added entries" off the page — but
+      // role_source was never in the select above, so the test read undefined, defaulted to
+      // 'reporter' and passed everything. Making it work would have deleted 7 PI rows, among them
+      // the CONTACT PI of U01MH144347 (SMART-DBS) and of R61MH138612 (SeeMe), plus both MPIs of
+      // R34DA062119 (ARC) — all real. Removing it is a no-op today and stops a later "fix".
+      const gis = gisAll.filter(gi => PI_ROLES.has((gi.role || "").toLowerCase()));
       const rawPiDetails = gis.map(gi => {
         const inv = invMap.get(gi.investigator_id);
         return {

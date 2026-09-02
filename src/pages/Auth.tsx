@@ -6,6 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Globe } from "lucide-react";
+import { OAUTH_RETURN_KEY } from "./OAuthConsent";
+
+/** Where to send someone after sign-in. An OAuth consent request parks its URL here first, because
+ *  losing it strands the client on an authorization that never completes. */
+function afterSignIn(): string {
+  const back = sessionStorage.getItem(OAUTH_RETURN_KEY);
+  if (back) {
+    sessionStorage.removeItem(OAUTH_RETURN_KEY);
+    return back;
+  }
+  return "/dashboard";
+}
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -15,7 +27,7 @@ export default function Auth() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate("/dashboard");
+    if (user) navigate(afterSignIn());
   }, [user, navigate]);
 
   // Handle Globus callback — token_hash comes as a query param from the edge function redirect
@@ -81,7 +93,7 @@ export default function Auth() {
 
       toast.success(`Welcome, ${name || email || ""}!`);
       window.history.replaceState({}, "", "/auth");
-      navigate("/dashboard");
+      navigate(afterSignIn());
     } catch (err: any) {
       console.error("Globus callback error:", err);
       toast.error(err.message || "Globus sign-in failed");

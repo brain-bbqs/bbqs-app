@@ -22,6 +22,7 @@ import Resources from "./pages/Resources";
 import Announcements from "./pages/Announcements";
 import Roadmap from "./pages/Roadmap";
 import Auth from "./pages/Auth";
+import OAuthConsent from "./pages/OAuthConsent";
 import Publications from "./pages/Publications";
 import About from "./pages/About";
 import DataProvenance from "./pages/DataProvenance";
@@ -91,6 +92,9 @@ const App = () => (
               <Route path="/schema" element={<BbqsSchema />} />
               
               <Route path="/auth" element={<Auth />} />
+              {/* Supabase OAuth 2.1 consent screen. Not ProtectedRoute: it stashes the request and
+                  sends the user through sign-in itself, so the authorization_id survives. */}
+              <Route path="/oauth/consent" element={<OAuthConsent />} />
               <Route path="/request-access" element={<RequestAccess />} />
               <Route path="/publications" element={<Publications />} />
               <Route path="/investigators" element={<PrincipalInvestigators />} />
