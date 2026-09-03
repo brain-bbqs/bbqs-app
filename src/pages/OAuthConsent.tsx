@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, ShieldCheck, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 // The consent screen for Supabase's OAuth 2.1 server (Authentication > OAuth Server, Authorization
@@ -39,6 +39,7 @@ export default function OAuthConsent() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [done, setDone] = useState<{ approved: boolean; url: string } | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -80,12 +81,52 @@ export default function OAuthConsent() {
         ? await api.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
         : await api.denyAuthorization(authorizationId, { skipBrowserRedirect: true });
       if (e) throw e;
-      window.location.href = (data as { redirect_url: string }).redirect_url;
+      const url = (data as { redirect_url?: string })?.redirect_url ?? "";
+      // Show the outcome BEFORE navigating. The redirect leaves for the client's own origin
+      // (claude.ai), so the consent tab would otherwise sit on a spinner and read as "nothing
+      // happened" even though approval succeeded and the client is already receiving its token.
+      setDone({ approved: approve, url });
+      if (url) window.location.assign(url);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
   };
+
+  if (done) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16">
+        <Card>
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className={done.approved ? "h-6 w-6 text-emerald-600 dark:text-emerald-400" : "h-6 w-6 text-muted-foreground"} />
+              <CardTitle>{done.approved ? "Approved" : "Request denied"}</CardTitle>
+            </div>
+            <CardDescription>
+              {done.approved
+                ? "Claude Code can now act as you in BBQS. Return to your terminal — it should already show the connection as authorized."
+                : "Nothing was granted. You can close this tab."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {done.approved && done.url && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  If your terminal is still waiting, finish the hand-off here:
+                </p>
+                <Button asChild className="w-full">
+                  <a href={done.url}>Return to Claude Code</a>
+                </Button>
+              </>
+            )}
+            {!done.url && (
+              <p className="text-xs text-muted-foreground">You can close this tab and return to Claude Code.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (authLoading || loading) {
     return (
