@@ -10,11 +10,21 @@
 // changed — a removed WG is removed, an added WG is added, and a role change moves the
 // person between role groups. consortium@ is always ensured and never removed.
 //
-// verify_jwt = false: called by pg_net (a machine caller). It only manages a fixed set
-// of BBQS groups and reads its Google creds from function secrets — not an open relay.
+// verify_jwt = false, but the handler authenticates EVERY caller itself (see the gate at the
+// top of Deno.serve) — this function makes privileged Google Directory writes, so it must not be
+// an open relay. Two callers are honoured, everything else is 401/403:
+//   1. The service-role key in Authorization. This is what the trg_sync_member_groups trigger
+//      sends: it posts via public.cron_invoke, which pulls the service-role key from the vault
+//      and puts it in Authorization (migration 20260903120000). Manual cron_invoke matches too.
+//      Same branch as reporter-pi-sync.
+//   2. A signed-in admin/curator, by their forwarded JWT — the Admin Console (ResolveStageDialog)
+//      and the bbqs-mcp sync_member_groups tool. Same has_role check as slack-channels.
+// The PUBLIC anon key alone is rejected: it is embedded in the browser client, so accepting it
+// would leave these Directory writes open to anyone who can reach the URL.
 //
 // Requires (KG project function secrets, same values the agent uses):
 //   GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET · GOOGLE_REFRESH_TOKEN
+import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,6 +159,28 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  // ── Caller authentication ────────────────────────────────────────────────────────────────
+  // Gate before any privileged work. A service-role bearer is a trusted machine caller (the
+  // trigger, via cron_invoke, and manual cron_invoke) — same branch as reporter-pi-sync. Otherwise
+  // the caller must be a signed-in admin/curator, checked under their own forwarded JWT — the
+  // pattern slack-channels uses. Anything else (including the public anon key) is rejected.
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const isServiceRole = bearer.length > 0 && bearer === serviceKey;
+  if (!isServiceRole) {
+    const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData } = await asUser.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) return json({ ok: false, error: "Not authenticated — sign in as an admin/curator, or call with the service role key" }, 401);
+    const { data: roles } = await asUser.from("user_roles").select("role").eq("user_id", uid);
+    if (!(roles ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
+      return json({ ok: false, error: "Admin or curator only" }, 403);
+    }
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
