@@ -54,8 +54,9 @@ function challenge(extra?: Record<string, string>) {
 const PUBLIC_TOOLS = new Set(["search_projects", "list_species", "ask_bbqs"]);
 const MEMBER_TOOLS = new Set(["whoami", "my_onboarding_status", "update_my_profile", "request_working_groups"]);
 const CURATOR_TOOLS = new Set([
-  "onboarding_status", "find_person", "kg_query", "onboard_member", "sync_member_groups",
-  "group_audit", "send_welcome_email", "slack_channels", "set_onboarding_step", "offboard_member",
+  "onboarding_status", "recent_onboardings", "find_person", "whois", "kg_query", "onboard_member",
+  "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels", "set_onboarding_step",
+  "offboard_member",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -217,6 +218,23 @@ function buildServer(jwt: string, caller: Caller | null) {
       const keep = new Set(ids.map((r) => r.investigator_id));
       return text(rows.filter((r) => keep.has(String(r.id))));
     },
+  });
+
+  mcp.tool("recent_onboardings", {
+    description: "[curator] The most recently ADDED people, newest first — the reliable answer to \"who joined recently / who was last onboarded\". Ordered by investigators.created_at, with each person's grant roster and onboarding progress. Use this, NOT onboarding_completed_at: that column is stamped only on formal completion and is null for most members, including brand-new roster additions still in flight, so ordering by it answers a different and misleading question.",
+    parameters: obj({ limit: { type: "number", description: "How many to return (default 10, max 50)" } }),
+    handler: async (a: { limit?: number }) => {
+      const n = Math.min(Math.max(Math.trunc(a.limit ?? 10), 1), 50);
+      return text(await rest(jwt,
+        `investigators?select=name,email,created_at,onboarding_completed_at,onboarding_checklist,grant_investigators(role,role_source,grants(grant_number))&order=created_at.desc&limit=${n}`));
+    },
+  });
+
+  mcp.tool("whois", {
+    description: "[admin] Resolve a user_id OR email to identity — email, created_at, last sign-in, roles, and the linked investigator profile if one exists. Reads auth.users through an admin-gated SECURITY DEFINER function; this is the ONLY way to identify an account that has NO investigator profile (e.g. an admin the roster cannot name). Admin only — a curator who is not an admin gets a permission error, by design.",
+    parameters: obj({ user_id: { type: "string" }, email: { type: "string" } }),
+    handler: async (a: { user_id?: string; email?: string }) =>
+      text(await rpc(jwt, "admin_lookup_user", { _user_id: a.user_id ?? null, _email: a.email ?? null })),
   });
 
   mcp.tool("find_person", {
