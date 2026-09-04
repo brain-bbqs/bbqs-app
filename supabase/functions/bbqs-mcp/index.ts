@@ -51,12 +51,12 @@ function challenge(extra?: Record<string, string>) {
 // ── Tiers ───────────────────────────────────────────────────
 // A tool's tier is the authority the STEP-UP GATE below demands before the transport ever runs it.
 // PUBLIC runs anonymously; MEMBER needs any signed-in consortium member; CURATOR needs admin/curator.
-const PUBLIC_TOOLS = new Set(["search_projects", "list_species", "ask_bbqs"]);
+const PUBLIC_TOOLS = new Set(["search_projects", "list_species", "ask_bbqs", "list_funding_opportunities"]);
 const MEMBER_TOOLS = new Set(["whoami", "my_onboarding_status", "update_my_profile", "request_working_groups"]);
 const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "kg_query", "onboard_member",
   "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels", "set_onboarding_step",
-  "offboard_member",
+  "offboard_member", "add_funding_opportunity",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -158,6 +158,20 @@ function buildServer(jwt: string, caller: Caller | null) {
       const { answer, sources } = await askKG(a.question, ANON);
       const src = sources.length ? sources.map((s) => `[${s.type}] ${s.title}`).join(", ") : "none";
       return text(`${answer}\n\nSources: ${src}`);
+    },
+  });
+
+  mcp.tool("list_funding_opportunities", {
+    description: "Funding opportunities BBQS tracks (NIH, NSF, etc.) — FON, title, status, dates, URL. Public; no sign-in. Check here before add_funding_opportunity to avoid a duplicate FON.",
+    parameters: obj({
+      status: { type: "string", description: "Filter by status, e.g. open" },
+      limit: { type: "number", description: "default 25, max 100" },
+    }),
+    handler: async (a: { status?: string; limit?: number }) => {
+      const n = Math.min(Math.max(Math.trunc(a.limit ?? 25), 1), 100);
+      let q = "funding_opportunities?select=fon,title,status,activity_code,url,posted_date,open_date,expiration_date,due_dates,participating_orgs,relevance_tags&order=posted_date.desc";
+      if (a.status) q += `&status=eq.${encodeURIComponent(a.status)}`;
+      return text(await rest(ANON_KEY, `${q}&limit=${n}`));
     },
   });
 
@@ -335,6 +349,41 @@ function buildServer(jwt: string, caller: Caller | null) {
     parameters: obj({ investigator_id: { type: "string" }, grant_id: { type: "string" } }, ["investigator_id"]),
     handler: async (a: { investigator_id: string; grant_id?: string }) =>
       text(await rpc(jwt, "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
+  });
+
+  mcp.tool("add_funding_opportunity", {
+    description: "[curator] Add a funding opportunity (NIH/NSF/etc.) to the BBQS tracker. fon and title required. Inserts as you — RLS requires curator/admin, and it appears on the public Funding page. Run list_funding_opportunities first to avoid a duplicate FON. This is the tool for \"add this solicitation to funding announcements\" — do not fall back to raw SQL.",
+    parameters: obj({
+      fon: { type: "string", description: "Funding Opportunity Number, e.g. 'NSF 26-526' or 'RFA-MH-25-xxx'" },
+      title: { type: "string" },
+      activity_code: { type: "string", description: "e.g. R01, R61, GRFP" },
+      status: { type: "string", description: "open | forecasted | expired (default open)" },
+      url: { type: "string" },
+      purpose: { type: "string" },
+      posted_date: { type: "string", description: "YYYY-MM-DD" },
+      open_date: { type: "string", description: "YYYY-MM-DD" },
+      expiration_date: { type: "string", description: "YYYY-MM-DD" },
+      budget_ceiling: { type: "number" },
+      participating_orgs: { type: "array", items: { type: "string" } },
+      relevance_tags: { type: "array", items: { type: "string" } },
+      notes: { type: "string" },
+    }, ["fon", "title"]),
+    handler: async (a: Record<string, unknown>) => text(await rest(jwt, "funding_opportunities", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        fon: a.fon, title: a.title,
+        activity_code: a.activity_code ?? null,
+        status: a.status ?? "open",
+        url: a.url ?? null, purpose: a.purpose ?? null,
+        posted_date: a.posted_date ?? null, open_date: a.open_date ?? null,
+        expiration_date: a.expiration_date ?? null,
+        budget_ceiling: a.budget_ceiling ?? null,
+        participating_orgs: a.participating_orgs ?? [],
+        relevance_tags: a.relevance_tags ?? [],
+        notes: a.notes ?? null,
+      }),
+    })),
   });
 
   return mcp;
