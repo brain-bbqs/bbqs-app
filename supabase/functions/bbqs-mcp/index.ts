@@ -234,7 +234,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     parameters: obj({ working_groups: { type: "array", items: { type: "string" } } }, ["working_groups"]),
     handler: async (a: { working_groups: string[] }) => text(await rpc(jwt, "member_self_update", {
       _institution: null, _orcid: null, _research_areas: null, _skills: null,
-      _secondary_emails: null, _requested_working_groups: a.working_groups ?? [],
+      _secondary_emails: null, _requested_working_groups: coerceArray(a.working_groups),
     })),
   });
 
@@ -312,8 +312,8 @@ function buildServer(jwt: string, caller: Caller | null) {
     }, ["email", "name", "role"]),
     handler: async (a: Record<string, unknown>) => text(await rpc(jwt, "onboard_member", {
       _email: a.email, _name: a.name, _role: a.role, _grant_id: a.grant_id ?? null,
-      _working_groups: a.working_groups ?? [], _institution: a.institution ?? null,
-      _secondary_emails: a.secondary_emails ?? [],
+      _working_groups: coerceArray(a.working_groups), _institution: a.institution ?? null,
+      _secondary_emails: coerceArray(a.secondary_emails),
     })),
   });
 
@@ -326,7 +326,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     handler: async (a: { email: string; role?: string; working_groups?: string[] }) =>
       text(await callFunction(jwt, "sync-member-groups", {
         email: a.email, old: { working_groups: [], role: null },
-        new: { working_groups: a.working_groups ?? [], role: a.role ?? null },
+        new: { working_groups: coerceArray(a.working_groups), role: a.role ?? null },
       })),
   });
 
@@ -352,7 +352,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     }, ["email"]),
     handler: async (a: { email: string; action?: string; role?: string; working_groups?: string[] }) =>
       text(await callFunction(jwt, "slack-channels", {
-        email: a.email, role: a.role ?? null, working_groups: a.working_groups ?? [],
+        email: a.email, role: a.role ?? null, working_groups: coerceArray(a.working_groups),
         action: a.action === "invite" ? "invite" : "check",
       })),
   });
