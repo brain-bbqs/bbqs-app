@@ -56,7 +56,7 @@ const MEMBER_TOOLS = new Set(["whoami", "my_onboarding_status", "update_my_profi
 const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
-  "set_onboarding_step", "offboard_member", "add_funding_opportunity",
+  "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -429,6 +429,15 @@ function buildServer(jwt: string, caller: Caller | null) {
     parameters: obj({ investigator_id: { type: "string" }, grant_id: { type: "string" } }, ["investigator_id"]),
     handler: async (a: { investigator_id: string; grant_id?: string }) =>
       text(await rpcC( "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
+  });
+
+  T("refresh_grant_from_reporter", {
+    description: "[curator] Pull the latest NIH RePORTER data for a grant and fill the KG — abstract, award amount, nih_link, reporter_project_num, publications. Use this when a grant is newly on RePORTER or its registry data changed (e.g. a funder-notice grant that was pre-registry). Omit grant_number to refresh every grant. Does not demote roster roles. This is the tool for \"fix the RePORTER data for grant X\" — do not write SQL.",
+    parameters: obj({ grant_number: { type: "string", description: "e.g. R61MH142354; omit to refresh all" } }),
+    handler: async (a: { grant_number?: string }) => {
+      const q = a.grant_number ? `?action=refresh&grant=${encodeURIComponent(a.grant_number)}` : "?action=refresh";
+      return text(await callFunction(jwt, `nih-grants${q}`, {}));
+    },
   });
 
   T("add_funding_opportunity", {

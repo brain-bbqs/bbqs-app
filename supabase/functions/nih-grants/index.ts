@@ -200,6 +200,7 @@ async function fetchGrantData(grantNumber: string): Promise<any | null> {
 
     return {
       grantNumber: project.project_num || grantNumber,
+      reporterProjectNum: project.core_project_num || coreProjectNum || null,
       title: project.project_title || "Unknown",
       abstract: project.abstract_text || "",
       contactPi: project.contact_pi_name || "Unknown",
@@ -234,6 +235,7 @@ async function seedGrantEntities(supabase: any, grantNumber: string, projectData
       award_amount: projectData.awardAmount || null,
       fiscal_year: projectData.fiscalYear || null,
       nih_link: projectData.nihLink || null,
+      reporter_project_num: projectData.reporterProjectNum ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "grant_number" })
     .select("id, resource_id")
@@ -498,9 +500,11 @@ Deno.serve(async (req) => {
     }
 
 
-    // ACTION: refresh — full pipeline: fetch from NIH APIs, seed all entities
+    // ACTION: refresh — full pipeline: fetch from NIH APIs, seed all entities. ?grant=<number>
+    // scopes it to one award (targeted, fast) instead of the whole roster.
     if (action === "refresh") {
-      const grantNumbers = await loadGrantNumbers(supabase);
+      const one = url.searchParams.get("grant");
+      const grantNumbers = one ? [one] : await loadGrantNumbers(supabase);
       console.log(`Refreshing ${grantNumbers.length} grants (full pipeline)...`);
 
       let updatedCount = 0;

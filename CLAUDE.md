@@ -4,6 +4,11 @@ This repo is the **KG site** (React/Vite + Supabase). It is one half of a
 two-repo system; the other is **`../bbqs-agent`** (the chat agent). They share one Supabase project
 (`vpexxhfpvghlejljwpvt`), one constitution, and one set of specs.
 
+## Response style
+
+Keep responses concise and direct. Lead with the result, skip introductory narration and
+step-by-step "let me…" commentary, and only explain further when asked.
+
 ## Why this file exists
 
 It did not, until 2026-08-11, and its absence had a measurable cost. The Spec-Driven Development
