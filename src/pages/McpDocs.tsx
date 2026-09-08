@@ -60,6 +60,12 @@ export default function McpDocs() {
           One command. Works from any institution — no organization admin or plan approval needed. Paste it in your terminal, then open Claude Code, run <code className="font-mono text-foreground">/mcp</code>, and choose <span className="font-medium text-foreground">Authenticate</span> to sign in with your institutional login.
         </p>
         <CodeBlock code={cliAdd} language="bash" />
+        <p className="text-xs text-muted-foreground mt-2">
+          Tip: run this in a new, empty folder — not inside a code project. Claude Code has file and shell access, so an empty folder keeps the session scoped to the BBQS tools.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Don't use Claude Code? Paste the URL below into <span className="font-medium text-foreground">Claude Desktop</span> or a <span className="font-medium text-foreground">claude.ai</span> connector instead — same sign-in.
+        </p>
       </div>
 
       {/* MCP URL */}
