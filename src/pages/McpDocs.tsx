@@ -32,6 +32,10 @@ const cursorConfig = `{
   "url": "${SUPABASE_URL}/functions/v1/bbqs-mcp/mcp"
 }`;
 
+// The one path that works for everyone: the CLI doesn't depend on a managed org allowing custom
+// connectors, so a consortium of hundreds across different institutions can each self-connect.
+const cliAdd = `claude mcp add --scope user --transport http bbqs ${SUPABASE_URL}/functions/v1/bbqs-mcp/mcp`;
+
 export default function McpDocs() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -47,13 +51,24 @@ export default function McpDocs() {
         </p>
       </div>
 
+      {/* Quick connect — one command, works from any institution */}
+      <div className="mb-8 border border-primary/40 rounded-lg p-4 bg-primary/5">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+          <Terminal className="h-3.5 w-3.5" /> Quick connect — Claude Code
+        </h3>
+        <p className="text-xs text-muted-foreground mb-2">
+          One command. Works from any institution — no organization admin or plan approval needed. Paste it in your terminal, then open Claude Code, run <code className="font-mono text-foreground">/mcp</code>, and choose <span className="font-medium text-foreground">Authenticate</span> to sign in with your institutional login.
+        </p>
+        <CodeBlock code={cliAdd} language="bash" />
+      </div>
+
       {/* MCP URL */}
       <div className="mb-8 border border-border rounded-lg p-4 bg-muted/30">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
           <Globe className="h-3.5 w-3.5" /> MCP Server URL
         </h3>
         <CodeBlock code={MCP_URL} />
-        <p className="text-xs text-muted-foreground mt-2">Use this URL when configuring any MCP client. The public tools work with no account; the client will prompt you to sign in with BBQS (OAuth) the first time it calls a member or curator tool.</p>
+        <p className="text-xs text-muted-foreground mt-2">Or paste this URL into any MCP client (Claude Desktop, claude.ai connectors, Cursor). Public tools work with no account; the client prompts you to sign in with BBQS the first time it calls a member or curator tool.</p>
       </div>
 
       {/* Available Tools */}
