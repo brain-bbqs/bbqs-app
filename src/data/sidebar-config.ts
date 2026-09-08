@@ -30,6 +30,7 @@ import {
   Presentation,
   LayoutDashboard,
   Settings,
+  Plug,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -61,6 +62,7 @@ const mainItems: NavItem[] = [
 const toolsItems: NavItem[] = [
   { title: "Resources", url: "/resources", icon: Database },
   { title: "Devices", url: "/resources/devices", icon: FlaskConical },
+  { title: "MCP Server", url: "/mcp-docs", icon: Plug },
 ];
 
 const knowledgeBaseItems: NavItem[] = [
