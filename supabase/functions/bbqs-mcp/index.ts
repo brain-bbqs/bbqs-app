@@ -65,6 +65,29 @@ const text = (v: unknown) => ({
   content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }],
 });
 
+/** Normalise a tool argument that should be an array. An MCP client may hand an array parameter over
+ *  as a real array, a JSON string ('["a","b"]'), or a comma string ("a, b") — the last two, sent
+ *  straight to a Postgres array/jsonb column, error. This makes the column write independent of how
+ *  the client serialised it. `json:true` keeps parsed objects (for jsonb columns like due_dates);
+ *  otherwise every element is coerced to a string (for text[] columns). */
+function coerceArray(v: unknown, json = false): unknown[] {
+  let arr: unknown[];
+  if (Array.isArray(v)) arr = v;
+  else if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return [];
+    if (s.startsWith("[")) {
+      try { const p = JSON.parse(s); arr = Array.isArray(p) ? p : [p]; }
+      catch { arr = s.split(",").map((x) => x.trim()).filter(Boolean); }
+    } else {
+      arr = s.split(",").map((x) => x.trim()).filter(Boolean);
+    }
+  } else {
+    return v == null ? [] : [v];
+  }
+  return json ? arr : arr.map((x) => (typeof x === "string" ? x : String(x)));
+}
+
 /** PostgREST under the caller's identity. RLS decides what comes back. */
 async function rest(jwt: string, pathAndQuery: string, init?: RequestInit) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${pathAndQuery}`, {
@@ -352,7 +375,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   });
 
   mcp.tool("add_funding_opportunity", {
-    description: "[curator] Add a funding opportunity (NIH/NSF/etc.) to the BBQS tracker. fon and title required. Inserts as you — RLS requires curator/admin, and it appears on the public Funding page. Run list_funding_opportunities first to avoid a duplicate FON. This is the tool for \"add this solicitation to funding announcements\" — do not fall back to raw SQL.",
+    description: "[curator] Add or refresh a funding opportunity (NIH/NSF/etc.) in the BBQS tracker. fon and title required. UPSERTS on fon: a new FON is inserted, an existing one has the fields you pass merged in (so re-running fills gaps without duplicating). Writes as you — RLS requires curator/admin — and it appears on the public Funding page. This is the tool for \"add this solicitation to funding announcements\"; do not fall back to raw SQL.",
     parameters: obj({
       fon: { type: "string", description: "Funding Opportunity Number, e.g. 'NSF 26-526' or 'RFA-MH-25-xxx'" },
       title: { type: "string" },
@@ -364,26 +387,26 @@ function buildServer(jwt: string, caller: Caller | null) {
       open_date: { type: "string", description: "YYYY-MM-DD" },
       expiration_date: { type: "string", description: "YYYY-MM-DD" },
       budget_ceiling: { type: "number" },
-      participating_orgs: { type: "array", items: { type: "string" } },
+      participating_orgs: { type: "array", items: { type: "string" }, description: "e.g. ['NSF']" },
       relevance_tags: { type: "array", items: { type: "string" } },
+      due_dates: { type: "array", description: "Array of {date:'YYYY-MM-DD', type:'...'} objects", items: { type: "object" } },
       notes: { type: "string" },
     }, ["fon", "title"]),
-    handler: async (a: Record<string, unknown>) => text(await rest(jwt, "funding_opportunities", {
-      method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify({
-        fon: a.fon, title: a.title,
-        activity_code: a.activity_code ?? null,
-        status: a.status ?? "open",
-        url: a.url ?? null, purpose: a.purpose ?? null,
-        posted_date: a.posted_date ?? null, open_date: a.open_date ?? null,
-        expiration_date: a.expiration_date ?? null,
-        budget_ceiling: a.budget_ceiling ?? null,
-        participating_orgs: a.participating_orgs ?? [],
-        relevance_tags: a.relevance_tags ?? [],
-        notes: a.notes ?? null,
-      }),
-    })),
+    handler: async (a: Record<string, unknown>) => {
+      // Send only what the caller provided (plus a status default). With the upsert this means an
+      // existing row keeps fields you did not mention, instead of being overwritten with nulls.
+      const body: Record<string, unknown> = { fon: a.fon, title: a.title, status: a.status ?? "open" };
+      const scalars = ["activity_code", "url", "purpose", "posted_date", "open_date", "expiration_date", "budget_ceiling", "notes"];
+      for (const k of scalars) if (a[k] != null) body[k] = a[k];
+      if (a.participating_orgs != null) body.participating_orgs = coerceArray(a.participating_orgs);
+      if (a.relevance_tags != null) body.relevance_tags = coerceArray(a.relevance_tags);
+      if (a.due_dates != null) body.due_dates = coerceArray(a.due_dates, true);
+      return text(await rest(jwt, "funding_opportunities?on_conflict=fon", {
+        method: "POST",
+        headers: { Prefer: "return=representation,resolution=merge-duplicates" },
+        body: JSON.stringify(body),
+      }));
+    },
   });
 
   return mcp;
