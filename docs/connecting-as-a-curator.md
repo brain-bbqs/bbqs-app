@@ -34,16 +34,29 @@ separate, MCP-only client.**
 https://vpexxhfpvghlejljwpvt.supabase.co/functions/v1/bbqs-mcp/mcp
 ```
 
-**claude.ai (recommended — nothing local at all):**
-1. Settings → Connectors → **Add custom connector**.
-2. Paste the URL above. Save.
-3. The connector prompts you to authenticate: a browser window opens, you sign in with your
-   institutional login (**Globus**), and land on the BBQS consent screen. Approve.
+**claude.ai (nothing local at all — the cleanest MCP-only client):**
+1. **Customize → Connectors**, then the **"+"** next to Connectors ("Add custom connector").
+2. Enter a name (BBQS) and paste the URL above. Save.
+3. It prompts you to authenticate: a browser window opens, you sign in with your institutional
+   login (**Globus**), and land on the BBQS consent screen. Approve.
 4. bbqs tools are now available in your chats.
 
-**Claude Desktop:** Settings → Connectors → add the same URL, authenticate the same way. Only add the
-bbqs connector — don't pair it with a filesystem or shell MCP server, or you reintroduce the reach-
-around.
+If you don't see the option, that's the **org gate**, not a mistake: on Team/Enterprise plans custom
+connectors must be allowed by the organization, and only an **Owner** can add them. On a personal
+Pro/Max plan it just appears. (Free allows one custom connector.)
+
+**Claude Desktop:** Customize/Settings → Connectors → add the same URL, authenticate the same way.
+Only add the bbqs connector — don't pair it with a filesystem or shell MCP server, or you reintroduce
+the reach-around.
+
+**Claude Code CLI (works from any institution, no org admin needed):** the one path immune to the org
+gate — it doesn't depend on a managed org allowing connectors. Run it in a **new, empty folder** (not
+a code project — Claude Code has shell/file access), then open Claude Code, run `/mcp`, and
+Authenticate:
+
+```
+claude mcp add --scope user --transport http bbqs https://vpexxhfpvghlejljwpvt.supabase.co/functions/v1/bbqs-mcp/mcp
+```
 
 Either way the authorization is **per-you**: the token carries your identity, everything you do is
 attributed to your account in the audit log, and you get exactly your own level of access — a
