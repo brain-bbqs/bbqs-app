@@ -54,15 +54,16 @@ function challenge(extra?: Record<string, string>) {
 const PUBLIC_TOOLS = new Set(["search_projects", "list_species", "ask_bbqs", "list_funding_opportunities"]);
 const MEMBER_TOOLS = new Set(["whoami", "my_onboarding_status", "update_my_profile", "request_working_groups"]);
 const CURATOR_TOOLS = new Set([
-  "onboarding_status", "recent_onboardings", "find_person", "whois", "kg_query", "onboard_member",
-  "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels", "set_onboarding_step",
-  "offboard_member", "add_funding_opportunity",
+  "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
+  "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
+  "set_onboarding_step", "offboard_member", "add_funding_opportunity",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
 
+// Compact, not pretty-printed: indentation is pure token cost on every result.
 const text = (v: unknown) => ({
-  content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }],
+  content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v) }],
 });
 
 /** Normalise a tool argument that should be an array. An MCP client may hand an array parameter over
@@ -152,12 +153,28 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
 }
 
 function buildServer(jwt: string, caller: Caller | null) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.0.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.1.0" });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
+  // Register every tool through T: a thrown error becomes a returned isError result carrying the
+  // REAL message. Without it mcp-lite flattens a PostgREST error ("duplicate key", "malformed
+  // array") into a bare "Internal error", which sends the model into a blind, multi-call diagnostic
+  // spiral — the most expensive kind of round-trip.
+  const T = (name: string, def: { description: string; parameters: unknown; handler: (a: any) => Promise<unknown> }) =>
+    mcp.tool(name, {
+      description: def.description,
+      parameters: def.parameters as any,
+      handler: async (a: any) => {
+        try { return await def.handler(a); }
+        catch (e) {
+          return { content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }], isError: true };
+        }
+      },
+    });
+
   // ── PUBLIC — no account ──────────────────────────────────
-  mcp.tool("search_projects", {
+  T("search_projects", {
     description: "Search BBQS consortium projects by species, PI name, or free-text query. Public consortium data; no sign-in.",
     parameters: obj({
       species: { type: "string", description: "e.g. Mouse, Zebrafish" },
@@ -168,13 +185,13 @@ function buildServer(jwt: string, caller: Caller | null) {
       text(await searchProjects({ species: a.species, pi: a.pi, query: a.query }, ANON)),
   });
 
-  mcp.tool("list_species", {
+  T("list_species", {
     description: "Every species studied across BBQS, with project counts. Public; no sign-in.",
     parameters: obj({}),
     handler: async () => text(await listSpecies(ANON)),
   });
 
-  mcp.tool("ask_bbqs", {
+  T("ask_bbqs", {
     description: "Ask a natural-language question about the consortium; answered from the knowledge base. Public; no sign-in.",
     parameters: obj({ question: { type: "string" } }, ["question"]),
     handler: async (a: { question: string }) => {
@@ -184,7 +201,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     },
   });
 
-  mcp.tool("list_funding_opportunities", {
+  T("list_funding_opportunities", {
     description: "Funding opportunities BBQS tracks (NIH, NSF, etc.) — FON, title, status, dates, URL. Public; no sign-in. Check here before add_funding_opportunity to avoid a duplicate FON.",
     parameters: obj({
       status: { type: "string", description: "Filter by status, e.g. open" },
@@ -199,7 +216,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   });
 
   // ── MEMBER — any signed-in consortium member ─────────────
-  mcp.tool("whoami", {
+  T("whoami", {
     description: "[sign-in] Who this session is acting as, and whether they may curate.",
     parameters: obj({}),
     handler: async () => text(caller
@@ -207,13 +224,13 @@ function buildServer(jwt: string, caller: Caller | null) {
       : { signed_in: false }),
   });
 
-  mcp.tool("my_onboarding_status", {
+  T("my_onboarding_status", {
     description: "[sign-in] Your own onboarding checklist and remaining steps.",
     parameters: obj({}),
     handler: async () => text(await rest(jwt, "onboarding_pipeline?select=*")),
   });
 
-  mcp.tool("update_my_profile", {
+  T("update_my_profile", {
     description: "[sign-in] Edit your OWN profile: institution, ORCID, research areas, skills, secondary emails. Cannot set your role or mailing-list groups — use request_working_groups for those.",
     parameters: obj({
       institution: { type: "string" },
@@ -229,7 +246,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     })),
   });
 
-  mcp.tool("request_working_groups", {
+  T("request_working_groups", {
     description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
     parameters: obj({ working_groups: { type: "array", items: { type: "string" } } }, ["working_groups"]),
     handler: async (a: { working_groups: string[] }) => text(await rpc(jwt, "member_self_update", {
@@ -239,14 +256,14 @@ function buildServer(jwt: string, caller: Caller | null) {
   });
 
   // ── CURATOR — admin/curator only ─────────────────────────
-  mcp.tool("onboarding_status", {
-    description: "[curator] Everyone still being onboarded (onboarding_pipeline): steps done/total, days in flight, stuck flag, checklist. The surface for a NEW team. Use group_audit for people who finished and drifted.",
+  T("onboarding_status", {
+    description: "[curator] People still onboarding: steps done/total, days in flight, stuck flag. NEW teams live here; use group_audit for people who finished and drifted.",
     parameters: obj({
       grant_number: { type: "string" },
       stuck_only: { type: "boolean" },
     }),
     handler: async (a: { grant_number?: string; stuck_only?: boolean }) => {
-      let q = "onboarding_pipeline?select=*&order=name";
+      let q = "onboarding_pipeline?select=id,name,email,role,steps_done,steps_total,is_stuck,days_since_created,live_grant_count&order=name";
       if (a.stuck_only) q += "&is_stuck=is.true";
       const rows = await rest(jwt, q) as Array<Record<string, unknown>>;
       if (!a.grant_number) return text(rows);
@@ -257,32 +274,59 @@ function buildServer(jwt: string, caller: Caller | null) {
     },
   });
 
-  mcp.tool("recent_onboardings", {
-    description: "[curator] The most recently ADDED people, newest first — the reliable answer to \"who joined recently / who was last onboarded\". Ordered by investigators.created_at, with each person's grant roster and onboarding progress. Use this, NOT onboarding_completed_at: that column is stamped only on formal completion and is null for most members, including brand-new roster additions still in flight, so ordering by it answers a different and misleading question.",
-    parameters: obj({ limit: { type: "number", description: "How many to return (default 10, max 50)" } }),
+  T("recent_onboardings", {
+    description: "[curator] Most recently ADDED people, newest first — the right answer to \"who joined / was last onboarded recently\". Ordered by created_at, NOT onboarding_completed_at (which is null for most and excludes in-flight additions, so it answers a different question).",
+    parameters: obj({ limit: { type: "number", description: "default 10, max 50" } }),
     handler: async (a: { limit?: number }) => {
       const n = Math.min(Math.max(Math.trunc(a.limit ?? 10), 1), 50);
       return text(await rest(jwt,
-        `investigators?select=name,email,created_at,onboarding_completed_at,onboarding_checklist,grant_investigators(role,role_source,grants(grant_number))&order=created_at.desc&limit=${n}`));
+        `investigators?select=name,email,created_at,onboarding_completed_at,grant_investigators(role,grants(grant_number))&order=created_at.desc&limit=${n}`));
     },
   });
 
-  mcp.tool("whois", {
-    description: "[admin] Resolve a user_id OR email to identity — email, created_at, last sign-in, roles, and the linked investigator profile if one exists. Reads auth.users through an admin-gated SECURITY DEFINER function; this is the ONLY way to identify an account that has NO investigator profile (e.g. an admin the roster cannot name). Admin only — a curator who is not an admin gets a permission error, by design.",
-    parameters: obj({ user_id: { type: "string" }, email: { type: "string" } }),
-    handler: async (a: { user_id?: string; email?: string }) =>
-      text(await rpc(jwt, "admin_lookup_user", { _user_id: a.user_id ?? null, _email: a.email ?? null })),
+  T("whois", {
+    description: "[admin] Resolve user_id(s)/email(s) to identity (email, roles, linked investigator, last sign-in). Reads auth.users via an admin-gated function — the only way to name an account with no investigator profile. Pass user_ids/emails arrays to resolve many in ONE call. Admin only.",
+    parameters: obj({
+      user_id: { type: "string" }, email: { type: "string" },
+      user_ids: { type: "array", items: { type: "string" }, description: "resolve many at once" },
+      emails: { type: "array", items: { type: "string" } },
+    }),
+    handler: async (a: { user_id?: string; email?: string; user_ids?: unknown; emails?: unknown }) => {
+      const ids = coerceArray(a.user_ids) as string[];
+      const emails = coerceArray(a.emails) as string[];
+      if (a.user_id) ids.push(a.user_id);
+      if (a.email) emails.push(a.email);
+      const lookups = [
+        ...ids.map((id) => rpc(jwt, "admin_lookup_user", { _user_id: id, _email: null })),
+        ...emails.map((em) => rpc(jwt, "admin_lookup_user", { _user_id: null, _email: em })),
+      ];
+      if (lookups.length === 0) throw new Error("Provide user_id/email or user_ids/emails");
+      const out = await Promise.all(lookups);
+      return text(out.length === 1 ? out[0] : out);
+    },
   });
 
-  mcp.tool("find_person", {
-    description: "[curator] Find people by email, name fragment, or grant number. Searches secondary_emails, where alias duplicates hide. Returns roster roles alongside the profile (grant role and consortium role are different columns, #283).",
+  T("list_admins", {
+    description: "[admin] All admins (or curators) with identities in ONE call — resolves every user_id to name/email/investigator. Use this for \"who are the admins\" instead of a query plus a whois per id.",
+    parameters: obj({ role: { type: "string", description: "admin (default) or curator" } }),
+    handler: async (a: { role?: string }) => {
+      const role = a.role === "curator" ? "curator" : "admin";
+      const rows = await rest(jwt, `user_roles?select=user_id&role=eq.${role}`) as Array<{ user_id: string }>;
+      const ids = [...new Set(rows.map((r) => r.user_id))];
+      const out = await Promise.all(ids.map((id) => rpc(jwt, "admin_lookup_user", { _user_id: id, _email: null })));
+      return text(out);
+    },
+  });
+
+  T("find_person", {
+    description: "[curator] Find people by email, name fragment, or grant number. Also searches secondary_emails, where alias duplicates hide. Returns roster roles too (grant role ≠ consortium role, #283).",
     parameters: obj({ query: { type: "string" } }, ["query"]),
     handler: async (a: { query: string }) => {
       const q = a.query.trim();
       const enc = encodeURIComponent(q);
       if (/^[A-Z0-9]+$/i.test(q) && /\d/.test(q)) {
         return text(await rest(jwt,
-          `grant_investigators?select=role,role_source,investigators(id,name,email,secondary_emails,role,institution,onboarding_checklist),grants!inner(grant_number)&grants.grant_number=eq.${enc}`));
+          `grant_investigators?select=role,role_source,investigators(id,name,email,secondary_emails,role,institution),grants!inner(grant_number)&grants.grant_number=eq.${enc}`));
       }
       const like = encodeURIComponent(`*${q}*`);
       return text(await rest(jwt,
@@ -290,7 +334,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     },
   });
 
-  mcp.tool("kg_query", {
+  T("kg_query", {
     description: "[curator] Read-only PostgREST escape hatch, run as the caller so RLS applies. e.g. \"grants?select=grant_number,title&limit=5\". For exceptions no fixed tool anticipates. Refuses anything but a read.",
     parameters: obj({ path: { type: "string" } }, ["path"]),
     handler: async (a: { path: string }) => {
@@ -300,8 +344,8 @@ function buildServer(jwt: string, caller: Caller | null) {
     },
   });
 
-  mcp.tool("onboard_member", {
-    description: "[curator] Create/update a person and optionally link them to a grant roster, seeding their checklist. The roster link is load-bearing: pi@ derives from grant_investigators, not the role label. NOTE: raises 42P01 if the person has BOTH an emailed record and an email-less name twin — run find_person first when unsure.",
+  T("onboard_member", {
+    description: "[curator] Create/update a person and optionally link a grant roster, seeding their checklist. The roster link is load-bearing: pi@ derives from grant_investigators, not the role label. Raises 42P01 if the person has both an emailed record and an email-less name twin — find_person first when unsure.",
     parameters: obj({
       email: { type: "string" }, name: { type: "string" },
       role: { type: "string", description: "contact_pi, co_pi, mpi, co-investigator, postdoc, graduate_student, research_staff" },
@@ -317,7 +361,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     })),
   });
 
-  mcp.tool("sync_member_groups", {
+  T("sync_member_groups", {
     description: "[curator] Add a person to the Google Groups their role and working groups entitle them to. Additive; never removes. ONE call covers every group. pi@ is decided from the roster, so link the roster BEFORE this or it adds consortium@ only and still reports success.",
     parameters: obj({
       email: { type: "string" }, role: { type: "string" },
@@ -330,21 +374,21 @@ function buildServer(jwt: string, caller: Caller | null) {
       })),
   });
 
-  mcp.tool("group_audit", {
+  T("group_audit", {
     description: "[curator] Diff LIVE Google Group membership against the roster. action=audit writes nothing; action=repair adds the missing, never removes. 'In Google' minus 'Expected' is NOT drift (expected counts primary addresses only). Trust 'missing' and the unentitled list.",
     parameters: obj({ action: { type: "string", enum: ["audit", "repair"] } }),
     handler: async (a: { action?: string }) =>
       text(await callFunction(jwt, "group-audit", { action: a.action === "repair" ? "repair" : "audit" })),
   });
 
-  mcp.tool("send_welcome_email", {
+  T("send_welcome_email", {
     description: "[curator] Send the BBQS welcome email to one person. OUTWARD-FACING — confirm with the human first. Groups and Drive should already be done, because the email states they have been. One email per award, contact PI first — see docs/templates/welcome-new-team.md and its standing NIH cc list.",
     parameters: obj({ email: { type: "string" }, name: { type: "string" }, role: { type: "string" } }, ["email", "name"]),
     handler: async (a: { email: string; name: string; role?: string }) =>
       text(await callFunction(jwt, "send-welcome-email", { to: a.email, name: a.name, role: a.role ?? null })),
   });
 
-  mcp.tool("slack_channels", {
+  T("slack_channels", {
     description: "[curator] action=check reports workspace/channel membership; action=invite adds the configured channels. Workspace ENTRY for an external guest is a manual Slack invite — check first and expect not_in_workspace for new external people.",
     parameters: obj({
       email: { type: "string" }, action: { type: "string", enum: ["check", "invite"] },
@@ -357,7 +401,7 @@ function buildServer(jwt: string, caller: Caller | null) {
       })),
   });
 
-  mcp.tool("set_onboarding_step", {
+  T("set_onboarding_step", {
     description: "[curator] Mark one checklist step done/pending/not_started/skipped. Call ONLY after the tool that performs the action succeeded — a step marked done is a claim the outward action happened. Steps: kg_created, grant_link, consortium_group, pi_group, young_investigators_group, wg_groups, welcome_email, data_questionnaire, slack.",
     parameters: obj({
       investigator_id: { type: "string" }, step: { type: "string" },
@@ -367,15 +411,15 @@ function buildServer(jwt: string, caller: Caller | null) {
       text(await rpc(jwt, "set_onboarding_step", { _investigator_id: a.investigator_id, _step: a.step, _status: a.status })),
   });
 
-  mcp.tool("offboard_member", {
+  T("offboard_member", {
     description: "[curator] Remove someone from ONE grant, or the consortium when grant_id is omitted. Multi-grant safe: access justified by a remaining award is kept. Returns the groups no longer justified — removing them is a SEPARATE outward-facing step. Never deletes the person.",
     parameters: obj({ investigator_id: { type: "string" }, grant_id: { type: "string" } }, ["investigator_id"]),
     handler: async (a: { investigator_id: string; grant_id?: string }) =>
       text(await rpc(jwt, "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
   });
 
-  mcp.tool("add_funding_opportunity", {
-    description: "[curator] Add or refresh a funding opportunity (NIH/NSF/etc.) in the BBQS tracker. fon and title required. UPSERTS on fon: a new FON is inserted, an existing one has the fields you pass merged in (so re-running fills gaps without duplicating). Writes as you — RLS requires curator/admin — and it appears on the public Funding page. This is the tool for \"add this solicitation to funding announcements\"; do not fall back to raw SQL.",
+  T("add_funding_opportunity", {
+    description: "[curator] Add/refresh a funding opportunity (NIH/NSF/etc.). fon + title required. UPSERTS on fon (re-running fills gaps, no duplicate) and appears on the public Funding page. THE tool for \"add this solicitation to funding announcements\" — never fall back to SQL.",
     parameters: obj({
       fon: { type: "string", description: "Funding Opportunity Number, e.g. 'NSF 26-526' or 'RFA-MH-25-xxx'" },
       title: { type: "string" },
