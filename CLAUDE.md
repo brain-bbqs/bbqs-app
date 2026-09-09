@@ -7,7 +7,7 @@ two-repo system; the other is **`../bbqs-agent`** (the chat agent). They share o
 ## Response style
 
 Keep responses concise and direct. Lead with the result, skip introductory narration and
-step-by-step "let me…" commentary, and only explain further when asked.
+step-by-step "let me..." commentary, and only explain further when asked.
 
 ## Why this file exists
 
