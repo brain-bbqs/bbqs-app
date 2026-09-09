@@ -200,7 +200,9 @@ async function fetchGrantData(grantNumber: string): Promise<any | null> {
 
     return {
       grantNumber: project.project_num || grantNumber,
-      reporterProjectNum: project.core_project_num || coreProjectNum || null,
+      // Full per-year RePORTER string (e.g. "1R61MH142354-01"), matching the convention
+      // add-project-by-grant uses — NOT core_project_num, which collapses fiscal years.
+      reporterProjectNum: project.project_num || grantNumber,
       title: project.project_title || "Unknown",
       abstract: project.abstract_text || "",
       contactPi: project.contact_pi_name || "Unknown",
