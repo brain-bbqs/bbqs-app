@@ -56,7 +56,7 @@ const MEMBER_TOOLS = new Set(["whoami", "my_onboarding_status", "update_my_profi
 const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
-  "set_onboarding_step", "offboard_member", "add_funding_opportunity",
+  "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -89,19 +89,26 @@ function coerceArray(v: unknown, json = false): unknown[] {
   return json ? arr : arr.map((x) => (typeof x === "string" ? x : String(x)));
 }
 
-/** PostgREST under the caller's identity. RLS decides what comes back. */
-async function rest(jwt: string, pathAndQuery: string, init?: RequestInit) {
+/** PostgREST under the caller's identity. RLS decides what comes back. clientTag, when given, sets
+ *  x-bbqs-client — which current_actor_via() reads, so a write is stamped "bbqs-mcp:<email>" in the
+ *  audit log instead of the generic "authenticated-user". PostgREST exposes it via request.headers,
+ *  and it reaches the log_data_change trigger inside the SECURITY DEFINER RPCs it calls. */
+async function rest(jwt: string, pathAndQuery: string, init?: RequestInit, clientTag?: string) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${pathAndQuery}`, {
     ...init,
-    headers: { apikey: ANON_KEY, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      apikey: ANON_KEY, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json",
+      ...(clientTag ? { "x-bbqs-client": clientTag } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   const body = await res.text();
   if (!res.ok) throw new Error(`${res.status} ${body.slice(0, 400)}`);
   return body ? JSON.parse(body) : null;
 }
 
-const rpc = (jwt: string, fn: string, args: unknown) =>
-  rest(jwt, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) });
+const rpc = (jwt: string, fn: string, args: unknown, clientTag?: string) =>
+  rest(jwt, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) }, clientTag);
 
 /** Another edge function, still as the caller — which is what makes auth.uid() resolve there. */
 async function callFunction(jwt: string, name: string, body: unknown) {
@@ -173,6 +180,12 @@ function buildServer(jwt: string, caller: Caller | null) {
       },
     });
 
+  // Stamp authenticated writes as bbqs-mcp:<email> so the audit log shows the surface AND the user,
+  // not the generic "authenticated-user". Reads carry it too (harmless — only writes are logged).
+  const _clientTag = caller ? `bbqs-mcp:${caller.email}` : "bbqs-mcp";
+  const restC = (path: string, init?: RequestInit) => rest(jwt, path, init, _clientTag);
+  const rpcC = (fn: string, args: unknown) => rpc(jwt, fn, args, _clientTag);
+
   // ── PUBLIC — no account ──────────────────────────────────
   T("search_projects", {
     description: "Search BBQS consortium projects by species, PI name, or free-text query. Public consortium data; no sign-in.",
@@ -227,7 +240,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   T("my_onboarding_status", {
     description: "[sign-in] Your own onboarding checklist and remaining steps.",
     parameters: obj({}),
-    handler: async () => text(await rest(jwt, "onboarding_pipeline?select=*")),
+    handler: async () => text(await restC( "onboarding_pipeline?select=*")),
   });
 
   T("update_my_profile", {
@@ -239,7 +252,7 @@ function buildServer(jwt: string, caller: Caller | null) {
       skills: { type: "array", items: { type: "string" } },
       secondary_emails: { type: "array", items: { type: "string" } },
     }),
-    handler: async (a: Record<string, unknown>) => text(await rpc(jwt, "member_self_update", {
+    handler: async (a: Record<string, unknown>) => text(await rpcC( "member_self_update", {
       _institution: a.institution ?? null, _orcid: a.orcid ?? null,
       _research_areas: a.research_areas ?? null, _skills: a.skills ?? null,
       _secondary_emails: a.secondary_emails ?? null, _requested_working_groups: null,
@@ -249,7 +262,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   T("request_working_groups", {
     description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
     parameters: obj({ working_groups: { type: "array", items: { type: "string" } } }, ["working_groups"]),
-    handler: async (a: { working_groups: string[] }) => text(await rpc(jwt, "member_self_update", {
+    handler: async (a: { working_groups: string[] }) => text(await rpcC( "member_self_update", {
       _institution: null, _orcid: null, _research_areas: null, _skills: null,
       _secondary_emails: null, _requested_working_groups: coerceArray(a.working_groups),
     })),
@@ -265,9 +278,9 @@ function buildServer(jwt: string, caller: Caller | null) {
     handler: async (a: { grant_number?: string; stuck_only?: boolean }) => {
       let q = "onboarding_pipeline?select=id,name,email,role,steps_done,steps_total,is_stuck,days_since_created,live_grant_count&order=name";
       if (a.stuck_only) q += "&is_stuck=is.true";
-      const rows = await rest(jwt, q) as Array<Record<string, unknown>>;
+      const rows = await restC( q) as Array<Record<string, unknown>>;
       if (!a.grant_number) return text(rows);
-      const ids = await rest(jwt,
+      const ids = await restC(
         `grant_investigators?select=investigator_id,grants!inner(grant_number)&grants.grant_number=eq.${encodeURIComponent(a.grant_number)}`) as Array<{ investigator_id: string }>;
       const keep = new Set(ids.map((r) => r.investigator_id));
       return text(rows.filter((r) => keep.has(String(r.id))));
@@ -279,7 +292,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     parameters: obj({ limit: { type: "number", description: "default 10, max 50" } }),
     handler: async (a: { limit?: number }) => {
       const n = Math.min(Math.max(Math.trunc(a.limit ?? 10), 1), 50);
-      return text(await rest(jwt,
+      return text(await restC(
         `investigators?select=name,email,created_at,onboarding_completed_at,grant_investigators(role,grants(grant_number))&order=created_at.desc&limit=${n}`));
     },
   });
@@ -297,8 +310,8 @@ function buildServer(jwt: string, caller: Caller | null) {
       if (a.user_id) ids.push(a.user_id);
       if (a.email) emails.push(a.email);
       const lookups = [
-        ...ids.map((id) => rpc(jwt, "admin_lookup_user", { _user_id: id, _email: null })),
-        ...emails.map((em) => rpc(jwt, "admin_lookup_user", { _user_id: null, _email: em })),
+        ...ids.map((id) => rpcC( "admin_lookup_user", { _user_id: id, _email: null })),
+        ...emails.map((em) => rpcC( "admin_lookup_user", { _user_id: null, _email: em })),
       ];
       if (lookups.length === 0) throw new Error("Provide user_id/email or user_ids/emails");
       const out = await Promise.all(lookups);
@@ -311,9 +324,9 @@ function buildServer(jwt: string, caller: Caller | null) {
     parameters: obj({ role: { type: "string", description: "admin (default) or curator" } }),
     handler: async (a: { role?: string }) => {
       const role = a.role === "curator" ? "curator" : "admin";
-      const rows = await rest(jwt, `user_roles?select=user_id&role=eq.${role}`) as Array<{ user_id: string }>;
+      const rows = await restC( `user_roles?select=user_id&role=eq.${role}`) as Array<{ user_id: string }>;
       const ids = [...new Set(rows.map((r) => r.user_id))];
-      const out = await Promise.all(ids.map((id) => rpc(jwt, "admin_lookup_user", { _user_id: id, _email: null })));
+      const out = await Promise.all(ids.map((id) => rpcC( "admin_lookup_user", { _user_id: id, _email: null })));
       return text(out);
     },
   });
@@ -325,11 +338,11 @@ function buildServer(jwt: string, caller: Caller | null) {
       const q = a.query.trim();
       const enc = encodeURIComponent(q);
       if (/^[A-Z0-9]+$/i.test(q) && /\d/.test(q)) {
-        return text(await rest(jwt,
+        return text(await restC(
           `grant_investigators?select=role,role_source,investigators(id,name,email,secondary_emails,role,institution),grants!inner(grant_number)&grants.grant_number=eq.${enc}`));
       }
       const like = encodeURIComponent(`*${q}*`);
-      return text(await rest(jwt,
+      return text(await restC(
         `investigators?select=id,name,email,secondary_emails,role,institution,working_groups,onboarding_completed_at,grant_investigators(role,role_source,grants(grant_number))&or=(email.ilike.${like},name.ilike.${like},secondary_emails.cs.{${enc}})`));
     },
   });
@@ -340,7 +353,7 @@ function buildServer(jwt: string, caller: Caller | null) {
     handler: async (a: { path: string }) => {
       const p = a.path.replace(/^\/+/, "");
       if (/^rpc\//i.test(p)) throw new Error("kg_query is read-only; use the dedicated tools for RPCs.");
-      return text(await rest(jwt, p));
+      return text(await restC( p));
     },
   });
 
@@ -354,7 +367,7 @@ function buildServer(jwt: string, caller: Caller | null) {
       institution: { type: "string" },
       secondary_emails: { type: "array", items: { type: "string" } },
     }, ["email", "name", "role"]),
-    handler: async (a: Record<string, unknown>) => text(await rpc(jwt, "onboard_member", {
+    handler: async (a: Record<string, unknown>) => text(await rpcC( "onboard_member", {
       _email: a.email, _name: a.name, _role: a.role, _grant_id: a.grant_id ?? null,
       _working_groups: coerceArray(a.working_groups), _institution: a.institution ?? null,
       _secondary_emails: coerceArray(a.secondary_emails),
@@ -408,14 +421,23 @@ function buildServer(jwt: string, caller: Caller | null) {
       status: { type: "string", enum: ["done", "pending", "not_started", "skipped"] },
     }, ["investigator_id", "step", "status"]),
     handler: async (a: { investigator_id: string; step: string; status: string }) =>
-      text(await rpc(jwt, "set_onboarding_step", { _investigator_id: a.investigator_id, _step: a.step, _status: a.status })),
+      text(await rpcC( "set_onboarding_step", { _investigator_id: a.investigator_id, _step: a.step, _status: a.status })),
   });
 
   T("offboard_member", {
     description: "[curator] Remove someone from ONE grant, or the consortium when grant_id is omitted. Multi-grant safe: access justified by a remaining award is kept. Returns the groups no longer justified — removing them is a SEPARATE outward-facing step. Never deletes the person.",
     parameters: obj({ investigator_id: { type: "string" }, grant_id: { type: "string" } }, ["investigator_id"]),
     handler: async (a: { investigator_id: string; grant_id?: string }) =>
-      text(await rpc(jwt, "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
+      text(await rpcC( "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
+  });
+
+  T("refresh_grant_from_reporter", {
+    description: "[curator] Pull the latest NIH RePORTER data for a grant and fill the KG — abstract, award amount, nih_link, reporter_project_num, publications. Use this when a grant is newly on RePORTER or its registry data changed (e.g. a funder-notice grant that was pre-registry). Omit grant_number to refresh every grant. Does not demote roster roles. This is the tool for \"fix the RePORTER data for grant X\" — do not write SQL.",
+    parameters: obj({ grant_number: { type: "string", description: "e.g. R61MH142354; omit to refresh all" } }),
+    handler: async (a: { grant_number?: string }) => {
+      const q = a.grant_number ? `?action=refresh&grant=${encodeURIComponent(a.grant_number)}` : "?action=refresh";
+      return text(await callFunction(jwt, `nih-grants${q}`, {}));
+    },
   });
 
   T("add_funding_opportunity", {
@@ -445,7 +467,7 @@ function buildServer(jwt: string, caller: Caller | null) {
       if (a.participating_orgs != null) body.participating_orgs = coerceArray(a.participating_orgs);
       if (a.relevance_tags != null) body.relevance_tags = coerceArray(a.relevance_tags);
       if (a.due_dates != null) body.due_dates = coerceArray(a.due_dates, true);
-      return text(await rest(jwt, "funding_opportunities?on_conflict=fon", {
+      return text(await restC( "funding_opportunities?on_conflict=fon", {
         method: "POST",
         headers: { Prefer: "return=representation,resolution=merge-duplicates" },
         body: JSON.stringify(body),
