@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserTier } from "@/hooks/useUserTier";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,7 +104,7 @@ export default function FeatureSuggestions() {
   });
 
   const trackingMutation = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Record<string, string | null> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"feature_suggestions"> }) => {
       const { error } = await supabase.from("feature_suggestions").update(patch).eq("id", id);
       if (error) throw error;
     },
