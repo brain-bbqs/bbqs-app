@@ -7,7 +7,7 @@ R61MH142354 on 2026-08-31, and intended as the spec for an MCP tool that runs it
 edge function only a signed-in admin can call, two that a cron can call, and two steps nothing
 automates. Every step is easy; the order and the gaps are what nobody can hold in their head.
 
-## The ordering constraints that actually bite
+## The ordering constraints that actually bite:
 
 - **Roster before groups.** `sync-member-groups` decides `pi@` with `isRosterPi()`, which reads
   `grant_investigators` — not `investigators.role` (issue #283). Sync before the roster row exists
