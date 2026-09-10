@@ -146,7 +146,7 @@ jobs:
         if: steps.check-existing.outputs.skip != 'true' && steps.trust.outputs.trusted == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           base_branch: "dev"
           show_full_output: true
           prompt: |
