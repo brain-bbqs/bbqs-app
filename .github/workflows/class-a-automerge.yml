@@ -1,0 +1,81 @@
+name: Class-A one-click merge
+
+# The "one-click approve → merge to dev" gate for Class A (trivial + low blast). A single approving
+# review from the dev/admin team is the click; GitHub's native auto-merge then merges once required
+# checks (verify + guards + triage) are green. Nothing here can touch `main`: production still goes
+# dev→main through a human PR + the sandbox QA workflow.
+#
+# Defense in depth: the label is NOT trusted on its own. This job RE-RUNS the classifier on the
+# current head, so a diff that is no longer Class A can never be auto-merged even if an `auto:A`
+# label is stale (Constitution Principle II — decide from the diff, not from a cached flag / II+III).
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  maybe-merge:
+    # Approved review, from someone on the team, on a same-repo PR targeting dev.
+    if: |
+      github.event.review.state == 'approved' &&
+      github.event.pull_request.base.ref == 'dev' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Re-classify the current head
+        id: reclass
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/triage/classify.mjs --out classification.json > /dev/null
+
+      - name: Enable auto-merge for Class A, otherwise explain
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('classification.json', 'utf8'));
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+
+            if (result.klass !== 'A') {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number,
+                body: `✋ Approved, but the classifier scores the current diff as **Class ${result.klass}**, not A, so it will not auto-merge. It needs the Class-${result.klass} path (${result.klass === 'C' ? 'Spec Kit + `spec-signoff`' : 'a normal merge by a maintainer'}).`,
+              });
+              return;
+            }
+
+            // Enable GitHub native auto-merge (squash). It waits for the required status checks
+            // configured in branch protection, then merges — so this is safe even before CI is green.
+            const enableAutoMerge = `mutation($id:ID!) {
+              enablePullRequestAutoMerge(input:{pullRequestId:$id, mergeMethod:SQUASH}) {
+                pullRequest { autoMergeRequest { enabledAt } }
+              }
+            }`;
+            try {
+              await github.graphql(enableAutoMerge, { id: pr.node_id });
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number,
+                body: `✅ Class A approved by @${context.payload.review.user.login}. Auto-merge to \`dev\` is enabled — it will merge once required checks (verify, guards, triage) are green.`,
+              });
+            } catch (e) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number,
+                body: `Class A approved, but I could not enable auto-merge: \`${e.message}\`. Enable **Settings → General → Allow auto-merge** and set branch protection on \`dev\` with the required checks, or merge manually.`,
+              });
+            }

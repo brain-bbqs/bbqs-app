@@ -98,6 +98,18 @@ serve(async (req) => {
 
     console.log(`Creating issue: "${title.trim()}" in ${owner}/${repo}`);
 
+    // `from-site` is the trust signal the CI trust gate keys on: it means an AUTHENTICATED site user
+    // filed this (this function requires a JWT), and a non-collaborator cannot apply a label by
+    // opening an issue directly on GitHub, so it cannot be forged from outside. Stamp the caller's
+    // auth id — NOT their email — so an admin can attribute the issue (whois) without leaking member
+    // PII into a possibly-public repo (Constitution Principle X, privacy-preserving).
+    const baseLabels = Array.isArray(customLabels) ? customLabels : ["bug"];
+    const labels = [...new Set([...baseLabels, "from-site"])];
+    const filerId = auth.user?.id ?? "unknown";
+    const issueBody =
+      (description?.trim() || "No description provided.") +
+      `\n\n<!-- bbqs-filer-id: ${filerId} -->`;
+
     const issueResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/issues`,
       {
@@ -105,8 +117,8 @@ serve(async (req) => {
         headers: ghHeaders,
         body: JSON.stringify({
           title: title.trim(),
-          body: description?.trim() || "No description provided.",
-          labels: Array.isArray(customLabels) ? customLabels : ["bug"],
+          body: issueBody,
+          labels,
           ...(milestone ? { milestone } : {}),
         }),
       }

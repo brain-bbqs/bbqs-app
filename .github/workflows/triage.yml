@@ -1,0 +1,149 @@
+name: Triage (blast-radius gate)
+
+# The deterministic governance layer over the issue→implementation pipeline. Runs the classifier
+# (scripts/triage/classify.mjs) on the PR's REAL diff — never on the issue text — and routes:
+#   auto:A   trivial + low blast   → eligible for one-click approve → merge to dev (class-a-automerge.yml)
+#   review:B normal change         → mandatory human review
+#   spec:C   touches a danger layer→ Spec Kit + Constitution Check + human sign-off; a blocking status
+#
+# Same-repo `pull_request` (Claude pushes its branch here), so no fork-secret exposure; least
+# privilege below. Constitution Principle II: the class is decided by code reading the diff.
+
+on:
+  pull_request:
+    # `labeled`/`unlabeled` so adding `spec-signoff` re-evaluates the Class-C gate. Label mutations
+    # this workflow makes with GITHUB_TOKEN do NOT re-trigger it (GitHub suppresses that recursion),
+    # so only a human's label change wakes it here.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [dev]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+
+concurrency:
+  group: triage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Classify the diff
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/triage/classify.mjs --out classification.json | tee summary.md
+
+      - name: Keep the classification as an artifact (audit trail)
+        uses: actions/upload-artifact@v4
+        with:
+          name: classification
+          path: classification.json
+          if-no-files-found: warn
+
+      - name: Apply label, comment, and status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('classification.json', 'utf8'));
+            const summary = fs.readFileSync('summary.md', 'utf8');
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const label = { A: 'auto:A', B: 'review:B', C: 'spec:C' }[result.klass];
+
+            // Ensure the class labels exist (idempotent), then set exactly this one.
+            const defs = {
+              'auto:A':  { color: '0e8a16', description: 'Trivial + low blast — one-click approve to dev' },
+              'review:B':{ color: 'fbca04', description: 'Normal change — human review required' },
+              'spec:C':  { color: 'b60205', description: 'Danger layer — Spec Kit + sign-off required' },
+              'machine-authored': { color: '5319e7', description: 'PR authored by the automated pipeline' },
+            };
+            for (const [name, d] of Object.entries(defs)) {
+              try { await github.rest.issues.getLabel({ owner, repo, name }); }
+              catch { await github.rest.issues.createLabel({ owner, repo, name, ...d }); }
+            }
+            const current = pr.labels.map(l => l.name);
+            for (const stale of ['auto:A','review:B','spec:C']) {
+              if (stale !== label && current.includes(stale)) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: stale }).catch(()=>{});
+              }
+            }
+            await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [label] });
+
+            // One attribution comment, updated in place (find by marker) rather than spamming.
+            const MARK = '<!-- bbqs-triage -->';
+            const body = `${MARK}\n${summary}`;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr.number, per_page: 100 });
+            const existing = comments.find(c => c.body?.includes(MARK));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+
+            // Commit status: the machine-readable class, visible in the checks list.
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha: pr.head.sha,
+              context: 'triage/class',
+              state: 'success',
+              description: `Class ${result.klass} (blast ${result.blast.level})`,
+            });
+
+      # Class C is held by a SEPARATE required status that stays 'pending' until a human signs off
+      # (they add the `spec-signoff` label). This is what physically blocks the merge for danger layers.
+      - name: Class-C spec gate
+        if: ${{ github.event.pull_request.state == 'open' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('classification.json', 'utf8'));
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const hasSignoff = pr.labels.map(l => l.name).includes('spec-signoff');
+
+            if (result.klass !== 'C') {
+              await github.rest.repos.createCommitStatus({
+                owner, repo, sha: pr.head.sha, context: 'triage/spec-gate',
+                state: 'success', description: 'Not a danger-layer change',
+              });
+              return;
+            }
+
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha: pr.head.sha, context: 'triage/spec-gate',
+              state: hasSignoff ? 'success' : 'pending',
+              description: hasSignoff ? 'Spec sign-off present' : 'Danger layer — needs Spec Kit + `spec-signoff` label',
+            });
+
+            if (!hasSignoff) {
+              const MARK = '<!-- bbqs-specgate -->';
+              const skeleton = [
+                MARK,
+                '### 🛑 Class C — this touches a danger layer',
+                '',
+                'Per the constitution (Development Workflow) danger-layer changes are spec-driven. Before this can merge, a maintainer must:',
+                '',
+                '1. Create the Spec Kit artifacts in `bbqs-agent/specs/<NNN-feature>/` — `spec.md`, `plan.md` (with a **Constitution Check**), `tasks.md`, `qa-itinerary.md`.',
+                '2. Point `bbqs-agent/.specify/feature.json` at that directory.',
+                '3. Run the Find → Fix → Test → Verify-Live loop, incl. the sandbox QA workflow.',
+                '4. Add the **`spec-signoff`** label to this PR to release the `triage/spec-gate` check.',
+                '',
+                'This gate is here because a small-looking diff to `' + (result.danger[0]?.path || 'a shared layer') + '` reaches far beyond the file it edits.',
+              ].join('\n');
+              const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr.number, per_page: 100 });
+              const existing = comments.find(c => c.body?.includes(MARK));
+              if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: skeleton });
+              else await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: skeleton });
+            }

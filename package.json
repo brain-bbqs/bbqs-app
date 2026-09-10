@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test:guards": "node --test \"tests/guards/**/*.test.mjs\"",
+    "test:triage": "node --test \"tests/triage/**/*.test.mjs\"",
     "test:e2e": "playwright test"
   },
   "dependencies": {
