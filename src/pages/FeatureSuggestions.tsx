@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 import { useUserTier } from "@/hooks/useUserTier";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,8 @@ export default function FeatureSuggestions() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // create-github-issue requires a JWT, so an anonymous submit 502s on a 401 (issue #342).
+    if (!user) { toast.error("Please sign in to submit a suggestion."); return; }
     if (!title.trim()) { toast.error("Please enter a title"); return; }
     if (title.length > 200) { toast.error("Title must be under 200 characters"); return; }
     if (description.length > 2000) { toast.error("Description must be under 2000 characters"); return; }
@@ -274,6 +277,17 @@ export default function FeatureSuggestions() {
           <CardTitle className="text-base">Suggest an improvement</CardTitle>
         </CardHeader>
         <CardContent>
+          {!user ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Each suggestion becomes a tracked GitHub issue, so you need to sign in to submit one.
+                You can still browse existing suggestions below.
+              </p>
+              <Button asChild>
+                <Link to="/auth">Sign in to suggest a feature</Link>
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="suggestion-title">Title</Label>
@@ -312,6 +326,7 @@ export default function FeatureSuggestions() {
               Submit suggestion
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>
