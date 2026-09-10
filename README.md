@@ -53,6 +53,16 @@ npm run dev
 
 Report issues via the sidebar button or directly on [GitHub Issues](https://github.com/brain-bbqs/bbqs-app/issues). Feature suggestions can be submitted through the [Suggest a Feature](https://brain-bbqs.org/feature-suggestions) page.
 
+## Automated issue handling
+
+Issues opened by trusted filers can be classified and implemented automatically, gated by blast radius:
+
+- **Class A** — trivial + low blast: one approving review, then auto-merge to `dev`
+- **Class B** — normal app logic: standard human review before merge to `dev`
+- **Class C** — touches a danger layer (migrations, RLS, auth, CI, etc.): requires Spec Kit artifacts and human sign-off, never auto-merges
+
+See [`docs/issue-to-implementation.md`](docs/issue-to-implementation.md) for details.
+
 ## License
 
 MIT
