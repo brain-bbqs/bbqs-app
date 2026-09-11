@@ -70,6 +70,24 @@ export default function FeatureSuggestions() {
     },
   });
 
+  // Live GitHub issue state (open/closed) for the "Status" column — the stored `status`
+  // column is only ever set at submit time (issue #364), so it goes stale the moment the
+  // issue is closed. Falls back to the stored value if the fetch hasn't resolved or errors.
+  const { data: liveIssueStatus } = useQuery({
+    queryKey: ["github-roadmap-issue-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("github-roadmap");
+      if (error) throw error;
+      const byNumber = new Map<number, string>();
+      for (const issue of (data?.issues || []) as Array<{ number: number; state: string }>) {
+        byNumber.set(issue.number, issue.state);
+      }
+      return byNumber;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       const { data: ghData, error: ghError } = await supabase.functions.invoke("create-github-issue", {
@@ -170,9 +188,12 @@ export default function FeatureSuggestions() {
       headerName: "Status",
       field: "status",
       width: 110,
-      cellRenderer: (p: ICellRendererParams) => (
-        <Badge variant={p.value === "open" ? "secondary" : "outline"} className="text-[10px]">{p.value}</Badge>
-      ),
+      cellRenderer: (p: ICellRendererParams) => {
+        const s = p.data as Suggestion;
+        const live = s.github_issue_number != null ? liveIssueStatus?.get(s.github_issue_number) : undefined;
+        const status = live || p.value;
+        return <Badge variant={status === "open" ? "secondary" : "outline"} className="text-[10px]">{status}</Badge>;
+      },
     },
     {
       headerName: "QA stage",
@@ -199,7 +220,7 @@ export default function FeatureSuggestions() {
       sort: "desc",
       valueFormatter: (p) => (p.value ? format(new Date(p.value), "MMM d, yyyy") : "—"),
     },
-  ], [isCurator]);
+  ], [isCurator, liveIssueStatus]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: true,
