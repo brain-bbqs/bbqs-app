@@ -321,13 +321,12 @@ export default function FundingOpportunities() {
         <FundingResourcesStrip />
 
         <div
-          className="ag-theme-alpine rounded-lg border border-border overflow-x-auto"
-          style={{ width: "100%" }}
+          className="ag-theme-alpine ag-grid-scroll rounded-lg border border-border overflow-x-auto"
+          style={{ width: "100%", height: 640 }}
         >
           <AgGridReact
             rowData={opportunities}
             columnDefs={columnDefs}
-            domLayout="autoHeight"
             animateRows
             suppressCellFocus
             loading={dataLoading}
