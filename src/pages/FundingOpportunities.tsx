@@ -321,7 +321,7 @@ export default function FundingOpportunities() {
         <FundingResourcesStrip />
 
         <div
-          className="ag-theme-alpine w-full"
+          className="ag-theme-alpine rounded-lg border border-border overflow-x-auto"
           style={{ width: "100%" }}
         >
           <AgGridReact
