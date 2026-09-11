@@ -161,6 +161,13 @@ jobs:
           prompt: |
             You are an AI assistant that handles GitHub issues for this repository.
 
+            CRITICAL — this is a SINGLE-SHOT, non-interactive run. There is NO follow-up turn: when
+            you end your turn, the session ends and anything unfinished is lost. So do ALL of the work
+            yourself, inline, within this one run — the analysis, the plan comment, the code changes,
+            and the PR. Do NOT spawn a background/async research agent or a detached task and then end
+            your turn waiting on it; if you do, the run exits having produced nothing (this is exactly
+            why issue #364 stalled twice). Investigate directly with Read/Grep/Glob and finish end to end.
+
             Follow these steps:
 
             1. **Analyze the issue**: Read the issue carefully and understand what needs to be done.
