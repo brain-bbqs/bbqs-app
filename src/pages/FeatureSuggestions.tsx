@@ -134,11 +134,24 @@ export default function FeatureSuggestions() {
     onError: (err: any) => toast.error(err.message || "Could not update tracking"),
   });
 
+  // Effective QA stage: a curator's manual qa_status wins; otherwise it's derived from the live
+  // issue lifecycle (closed -> merged, open -> submitted), so the stage tracks reality instead of
+  // sitting at "submitted" forever.
+  const isClosed = (s: Suggestion) => {
+    const live = s.github_issue_number != null ? liveIssueStatus?.get(s.github_issue_number) : undefined;
+    return (live ?? s.status) === "closed";
+  };
+  const stageOf = (s: Suggestion) => s.qa_status || (isClosed(s) ? "merged" : "submitted");
+
   const filtered = useMemo(() => {
-    return suggestions.filter((s) =>
-      qaFilter === "all" ? true : (s.qa_status || "submitted") === qaFilter,
-    );
-  }, [suggestions, qaFilter]);
+    const rows = suggestions.filter((s) => (qaFilter === "all" ? true : stageOf(s) === qaFilter));
+    // Closed issues sink to the bottom; newest first within each group.
+    return [...rows].sort((a, b) => {
+      const ca = isClosed(a) ? 1 : 0;
+      const cb = isClosed(b) ? 1 : 0;
+      return ca - cb || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [suggestions, qaFilter, liveIssueStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,21 +216,13 @@ export default function FeatureSuggestions() {
       cellEditor: "agSelectCellEditor",
       cellEditorParams: { values: QA_STAGES },
       cellRenderer: (p: ICellRendererParams) => (
-        <PipelineBar stage={p.value as string} version={(p.data as Suggestion)?.target_version} />
+        <PipelineBar stage={stageOf(p.data as Suggestion)} />
       ),
-    },
-    {
-      headerName: "Version",
-      field: "target_version",
-      width: 110,
-      editable: isCurator,
-      valueFormatter: (p) => p.value || "—",
     },
     {
       headerName: "Submitted",
       field: "created_at",
       width: 130,
-      sort: "desc",
       valueFormatter: (p) => (p.value ? format(new Date(p.value), "MMM d, yyyy") : "—"),
     },
   ], [isCurator, liveIssueStatus]);
@@ -238,7 +243,7 @@ export default function FeatureSuggestions() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Suggest a Feature</h1>
           <p className="text-sm text-muted-foreground">
-            Suggest an improvement — each suggestion becomes a tracked GitHub issue with a QA stage and target version
+            Suggest an improvement — each suggestion becomes a tracked GitHub issue with a live status and QA stage
           </p>
         </div>
       </div>
@@ -249,7 +254,7 @@ export default function FeatureSuggestions() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Search suggestions, person, GitHub ID, issue #, version..."
+            placeholder="Search suggestions, person, GitHub ID, issue #..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -282,11 +287,10 @@ export default function FeatureSuggestions() {
             pagination={true}
             paginationPageSize={25}
             onCellValueChanged={(e) => {
-              const field = e.colDef.field;
-              if (!isCurator || (field !== "qa_status" && field !== "target_version")) return;
+              if (!isCurator || e.colDef.field !== "qa_status") return;
               trackingMutation.mutate({
                 id: (e.data as Suggestion).id,
-                patch: { [field]: (e.newValue as string)?.trim() || null },
+                patch: { qa_status: (e.newValue as string)?.trim() || null },
               });
             }}
           />
