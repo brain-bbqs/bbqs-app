@@ -12,6 +12,15 @@ permissions:
   pull-requests: write
   id-token: write
 
+# A website-filed issue fires this workflow several times at once (issues:opened + one
+# issues:labeled per label + the @claude issue_comment the edge function posts), which raced past
+# the "already being addressed" guard and opened duplicate PRs (e.g. #359/#362/#363 for one request).
+# Serialize per issue: the first run implements and opens the PR; the queued runs then see the linked
+# PR and skip. cancel-in-progress:false so an in-flight implementation is never killed mid-run.
+concurrency:
+  group: issue-handler-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   handle-issue:
     # Trigger when:
