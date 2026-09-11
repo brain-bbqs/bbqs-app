@@ -61,12 +61,35 @@ untrusted input; the trust decision is made from GitHub metadata only.
 
 The workflows are inert until these are configured; the auto-merge job comments if they are missing.
 
-1. **Settings → General → Pull Requests → Allow auto-merge**: ON.
+1. **Settings → General → Pull Requests**: enable **Allow auto-merge** and **Automatically delete
+   head branches** (protected branches like `dev`/`main` are never auto-deleted, so this only cleans
+   up merged topic branches).
 2. **Settings → Branches → Branch protection rule** for `dev`:
-   - Require a pull request before merging; **require 1 approving review**.
-   - Require status checks to pass: **`verify`**, **`guards`**, **`triage/class`**, **`triage/spec-gate`**.
-   - Do **not** allow the pipeline's own identity to bypass these.
-3. Keep `main` protected with its existing human-review requirement — nothing here changes that.
+   - Require a pull request before merging. **Leave "Require approvals" unchecked (0)** — a solo
+     maintainer cannot approve their own PR, and the deterministic checks below are the real gate.
+     Keep the *rule itself* in place even at 0 approvals: its existence is what marks `dev` as
+     protected, which is what exempts it from auto-delete on a `dev→main` merge.
+   - Require status checks to pass: **`verify`**, **`guards`**, **`triage/class`**, **`classify`**.
+     **Do NOT require `triage/spec-gate`** — see the note below.
+3. `main` is currently unprotected. Production is reached only through a **manual `dev→main` PR**
+   (which triggers `publish.yml`); that human step is the production gate.
+
+### `triage/spec-gate` is advisory on `dev`, by design
+
+The classifier still labels every Class-C PR `spec:C` and posts the blast-radius attribution comment,
+so a danger-layer change is always **visible**. But `triage/spec-gate` is deliberately kept **out of
+`dev`'s required checks**, because the real Class-C block lives elsewhere:
+
+- **The bot cannot auto-merge Class C regardless.** `class-a-automerge.yml` re-classifies on approval
+  and enables auto-merge *only* for Class A; a bot Class-C PR just waits for a human. So requiring
+  spec-gate adds no protection against the pipeline.
+- **Requiring it only blocks the human maintainer.** A solo maintainer's own legitimate danger-layer
+  PRs (a workflow edit, a migration) would be held pending a `spec-signoff` label they'd add to
+  themselves — friction with no second reviewer. So the gate is advisory here.
+
+If a second reviewer joins and you re-add `triage/spec-gate` to the required checks, the **`spec-signoff`
+label is the one-click release** for a Class-C PR — and unlike the "merge without waiting for
+requirements" bypass, it keeps `verify`/`guards` enforced instead of skipping everything.
 
 ## Deploy
 
