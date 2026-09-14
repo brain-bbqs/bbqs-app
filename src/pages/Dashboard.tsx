@@ -15,9 +15,6 @@ import { DashboardSetup } from "@/components/dashboard/DashboardSetup";
 import { WorkingGroupMembersWidget } from "@/components/dashboard/widgets/WorkingGroupMembersWidget";
 import { WorkingGroupFeedWidget } from "@/components/dashboard/widgets/WorkingGroupFeedWidget";
 import { ConsortiumOverviewWidget } from "@/components/dashboard/widgets/ConsortiumOverviewWidget";
-import { FundingByYearWidget } from "@/components/dashboard/widgets/FundingByYearWidget";
-import { PublicationsTrendWidget } from "@/components/dashboard/widgets/PublicationsTrendWidget";
-import { SpeciesCoverageWidget } from "@/components/dashboard/widgets/SpeciesCoverageWidget";
 import { MemberProfileEditor } from "@/components/profile/MemberProfileEditor";
 import { ArrowDown, ArrowUp, LayoutDashboard, RotateCcw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
@@ -103,12 +100,6 @@ export default function Dashboard() {
         return <WorkingGroupMembersWidget workingGroups={workingGroups} investigatorId={investigatorId} />;
       case "working_group_feed":
         return <WorkingGroupFeedWidget workingGroups={workingGroups} />;
-      case "funding_by_year":
-        return <FundingByYearWidget />;
-      case "publications_trend":
-        return <PublicationsTrendWidget />;
-      case "species_coverage":
-        return <SpeciesCoverageWidget />;
       default:
         return null;
     }
