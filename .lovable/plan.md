@@ -1,61 +1,83 @@
-# Retiring Lovable from the BBQS site
+# Table cleanup plan
 
-Goal: the site builds, deploys, authenticates and runs its AI features with no Lovable
-service in the path. Changes reach production only through the GitHub review + QA gate.
+70 tables in the database today. Below is what I found for each group you named, and what I
+recommend. Nothing gets dropped until you approve the list.
 
-## What Lovable still touches
+## Safe to drop now — empty and nothing reads them
 
-1. **Build** — `vite.config.ts` loads the `lovable-tagger` plugin; `package.json` depends on it.
-2. **AI features** — 8 backend functions call Lovable's AI gateway with a Lovable-issued key:
-   assistant router, discovery chat, cohort summary, two grant-method harvesters, onboarding
-   parser, state-privacy scan, plus the shared security helper.
-3. **Billing** — `budget-sync` and three admin panels read Lovable invoice/credit/usage tables.
-4. **Hosting references** — `bbqs-app.lovable.app` in the sign-in allow-list and the approval
-   email link; preview-host detection in the app; the gateway host in the page security policy.
-5. **Editing** — Lovable pushes commits to `dev` between sessions.
+| Table | Rows | Notes |
+|---|---|---|
+| device_category_ml_specs | 0 | Never populated |
+| device_category_parameters | 0 | Never populated |
+| device_category_pitfalls | 0 | Never populated |
+| device_category_references | 0 | Never populated |
+| reporter_pi_observations | 0 | Leftover from the PI sync experiment |
+| harvester_synonyms | 0 | Part of the harvester group below |
 
-Deployment itself is already independent: GitHub Pages serves `brain-bbqs.org` from `main`.
+Note: `device_categories` itself has 34 rows and feeds the device pages — it stays.
 
-## Plan
+## Lovable billing — drop the whole group
 
-**Step 1 — cut the build dependency**
-Remove the tagger plugin from the build config and the dependency list. No visible change.
+`lovable_credit_events` (0 rows), `lovable_user_usage` (0 rows), `lovable_invoices` (22 rows).
+This goes away with Lovable anyway. Work involved:
 
-**Step 2 — move AI off the Lovable gateway**
-Point all eight functions at OpenRouter (the same provider the agent repo already uses),
-behind one shared helper so there is a single place to change providers. Add the OpenRouter
-key as a project secret; keep the Lovable key working until the switch is verified, then remove
-it. Test each function's live response before removing the old path.
+- Export the 22 invoices to a CSV first so the spend history isn't lost.
+- Delete the two admin panels (`LovableCreditsPanel`, `LovableInvoicesPanel`) and their tab in the
+  admin console.
+- Retire the `budget-sync` background job's Lovable portion.
+- Drop the three tables.
 
-**Step 3 — retire billing**
-Stop the budget sync job, hide the three Lovable billing panels from the admin console, and
-archive the invoice/credit/usage tables (kept read-only for the record, dropped once the
-billing relationship formally ends).
+## Harvester — drop, but it is not empty
 
-**Step 4 — repoint hosting references**
-Replace `bbqs-app.lovable.app` with `brain-bbqs.org` (and `sandbox.brain-bbqs.org`) in the
-sign-in allow-list, the approval email link, and the page security policy. Drop the
-Lovable preview-host detection. This is the one step that can break sign-in, so it ships
-with the guard test that already checks these allow-lists.
+`harvester_runs` (5,582), `harvester_keywords` (820), `harvester_queue` (30),
+`harvester_relations` (11), `harvester_settings` (1), `harvester_synonyms` (0).
 
-**Step 5 — make GitHub the only way in**
-Protect `dev` and `main` so every change arrives as a reviewed pull request; production
-deploys only after Sandbox QA passes. Remove the Lovable write access to the repo last, once
-steps 1–4 are merged and the site is verified.
+Two background jobs still write to these (`harvester-tick`, `harvest-grant-methods-multihop`), and
+`grant_methods_traversal_paths` (5,100 rows) and `grant_methods_evidence` (33 rows) are the output
+they produced — those feed the Grant Methods Evidence page.
 
-**Step 6 — documentation**
-Update the working agreement and README to describe the GitHub-only process, and record the
-change as a spec entry in the agent repo.
+Recommended: delete the two background jobs and the six harvester tables, keep the evidence and
+traversal tables so the page keeps working. If you'd rather keep the pipeline runnable, we stop the
+scheduled jobs instead and leave the tables.
 
-## Order and risk
+## Slack — my recommendation is keep
 
-Steps 1 and 3 are safe any time. Step 2 is the largest and should be verified function by
-function. Step 4 is the risky one — sign-in breaks if the allow-list and the served domain
-disagree, so it happens right before Step 5, never after Lovable access is gone.
+`slack_channel_members` (499), `slack_channel_pending` (243), `slack_channels` (6). These are live:
+the Slack survey tool and the group audit dialog in the admin console both read them, and the
+member roster is real data. Dropping them removes those two features. Say the word and I will, but
+it isn't dead weight.
 
-## Open questions
+## Feature suggestions — my recommendation is keep
 
-- Confirm OpenRouter as the AI provider for all eight functions (vs. direct vendor keys, or
-  turning some features off).
-- Keep the Lovable billing history visible read-only, or delete it outright.
-- Whether the Claude agent repo should keep opening pull requests after the cutover.
+`feature_suggestions` (22 real entries), `feature_votes` (2). This is the Suggest a Feature page you
+asked for recently and it has content in it. Removing it means deleting the page too.
+
+## Other empty tables worth a decision
+
+| Table | Rows | What it does |
+|---|---|---|
+| working_group_dashboard_defaults | 0 | Powers the working-group dashboard defaults admin panel — feature built, never filled in |
+| group_audit_dismissals | 0 | Stores "ignore this" choices in the group audit — empty because nobody has dismissed anything yet |
+| cohort_summaries | 2 | Cohort heatmap |
+| system_alerts | 1 | Admin alert banner |
+
+These are empty because the feature is new, not because it's dead. I'd leave all four.
+
+## How the drops happen
+
+One migration per group so each can be reviewed and rolled back independently:
+
+1. `drop_empty_device_category_tables`
+2. `drop_lovable_billing_tables` (after the CSV export)
+3. `drop_harvester_tables`
+
+Each drop also removes the matching rows in `field_provenance` and the provenance exclusion
+entries, and removes the tables from the data-model diagram (`src/data/data-model-schema.ts`) so
+the schema page stays accurate. Frontend and edge-function code is deleted in the same pass, before
+the migration runs, so nothing queries a missing table.
+
+## What I need from you
+
+- Confirm the harvester group goes (drop tables + jobs) rather than just pausing the jobs.
+- Confirm Slack and Suggest a Feature stay, or tell me to remove them.
+- Confirm you want the invoice CSV before the billing tables go.
