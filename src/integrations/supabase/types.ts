@@ -3802,6 +3802,7 @@ export type Database = {
       provenance_guardable_tables: {
         Row: {
           is_guarded: boolean | null
+          is_recorded: boolean | null
           table_name: unknown
         }
         Relationships: []
@@ -3971,6 +3972,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_lookup_user: {
+        Args: { _email?: string; _user_id?: string }
+        Returns: Json
+      }
       ai_authored_metadata_keys: { Args: never; Returns: string[] }
       approve_working_groups: {
         Args: { _groups?: string[]; _investigator_id: string }
@@ -3983,6 +3988,17 @@ export type Database = {
       }
       confirm_species_candidate: {
         Args: { _candidate: string; _grant_number: string; _replace?: boolean }
+        Returns: Json
+      }
+      create_grant: {
+        Args: {
+          _contact_pi_email?: string
+          _fiscal_year?: number
+          _grant_number: string
+          _institution?: string
+          _study_human?: boolean
+          _title: string
+        }
         Returns: Json
       }
       cron_invoke: {
@@ -4100,6 +4116,7 @@ export type Database = {
       }
       provenance_attach_all: { Args: never; Returns: number }
       provenance_attach_guard: { Args: { _table: string }; Returns: boolean }
+      provenance_attach_recorder: { Args: { _table: string }; Returns: boolean }
       provenance_backfill_all: {
         Args: never
         Returns: {
@@ -4175,6 +4192,7 @@ export type Database = {
         Returns: Json
       }
       set_source_class: { Args: { _code: string }; Returns: string }
+      source_class_was_declared: { Args: never; Returns: boolean }
       suggest_grants_for_investigator: {
         Args: { _investigator_id: string }
         Returns: {
@@ -4269,12 +4287,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4298,11 +4316,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4323,11 +4341,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4348,11 +4366,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4365,11 +4383,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
