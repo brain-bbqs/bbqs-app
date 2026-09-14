@@ -59,6 +59,60 @@ Deployment is already independent: GitHub Pages serves `brain-bbqs.org` from the
 - Update `CLAUDE.md` and the README to describe the GitHub-only contribution and deploy flow.
 - Record this change as a spec entry in the `../bbqs-agent` repository.
 
+## Diagrams
+
+### Sequence of work
+
+```mermaid
+flowchart LR
+    S1[1. Remove build plugin] --> S2[2. Move AI to OpenRouter]
+    S2 --> S3[3. Retire billing]
+    S3 --> S4[4. Repoint hosting refs]
+    S4 --> S5[5. GitHub-only editing]
+    S5 --> S6[6. Update docs]
+```
+
+### Ownership lanes
+
+```mermaid
+flowchart TB
+    subgraph DEV[Developer]
+        A1[Remove lovable-tagger]
+        A2[Write OpenRouter helper]
+        A3[Repoint hosting references]
+    end
+    subgraph QA[QA]
+        B1[Run guard tests]
+        B2[Verify each AI function]
+        B3[Verify sign-in on real domain]
+    end
+    subgraph ADMIN[Admin]
+        C1[Add OPENROUTER_API_KEY]
+        C2[Disable budget-sync]
+        C3[Revoke Lovable write access]
+    end
+    subgraph LOV[Lovable]
+        D1[Stops editing repo]
+        D2[Billing relationship ends]
+    end
+    A1 --> B1
+    C1 --> A2 --> B2
+    A3 --> B3 --> C3 --> D1
+    C2 --> D2
+```
+
+### What blocks what
+
+```mermaid
+flowchart TD
+    KEY[OPENROUTER_API_KEY added] --> AI[AI functions migrated]
+    AI --> REVOKE[Revoke Lovable access]
+    DOMAIN[Hosting references repointed] --> SIGNIN[Sign-in verified]
+    SIGNIN --> REVOKE
+    BILL[budget-sync disabled] --> DROP[Drop billing tables]
+    REVOKE --> DOCS[Docs and spec updated]
+```
+
 ## Execution order and risk
 
 - Steps 1 and 3 can happen anytime and are low risk.
