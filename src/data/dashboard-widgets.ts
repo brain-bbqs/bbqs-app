@@ -1,4 +1,4 @@
-import { FolderOpen, Users, Bell, Gauge, DollarSign, FileText, Bug, UserCog } from "lucide-react";
+import { FolderOpen, Users, Bell, Gauge, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type WidgetKey =
@@ -6,10 +6,7 @@ export type WidgetKey =
   | "my_profile"
   | "my_projects"
   | "working_group_members"
-  | "working_group_feed"
-  | "funding_by_year"
-  | "publications_trend"
-  | "species_coverage";
+  | "working_group_feed";
 
 export interface WidgetDef {
   key: WidgetKey;
@@ -52,24 +49,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     title: "Working group feed",
     description: "Latest consortium announcements for your groups.",
     icon: Bell,
-  },
-  {
-    key: "funding_by_year",
-    title: "Funding by fiscal year",
-    description: "Total awarded across the consortium, by NIH fiscal year.",
-    icon: DollarSign,
-  },
-  {
-    key: "publications_trend",
-    title: "Publications over time",
-    description: "Consortium publication output for the last ten years.",
-    icon: FileText,
-  },
-  {
-    key: "species_coverage",
-    title: "Species coverage",
-    description: "Which taxonomic classes the consortium studies most.",
-    icon: Bug,
   },
 ];
 
