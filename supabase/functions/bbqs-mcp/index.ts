@@ -507,6 +507,19 @@ app.all("/bbqs-mcp/*", async (c) => {
   const req = c.req.raw;
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
 
+  // OAuth-required mode (?oauth=1): challenge every unauthenticated request. Connector UIs
+  // (ChatGPT, Perplexity) discover auth via RFC 9728 by fetching
+  // /.well-known/oauth-protected-resource/<path> at the HOST root — but that URL lands on
+  // Supabase's API gateway, not this function, so they see "server does not support automatic
+  // registration" and never reach the consent screen. Answering 401 + WWW-Authenticate here
+  // hands them the resource_metadata pointer directly, and dynamic registration + the
+  // authorization code flow then work unchanged. Anonymous access stays the default when the
+  // param is absent.
+  if (!jwt && new URL(req.url).searchParams.has("oauth")) {
+    return c.json({ error: "unauthorized", error_description: "Sign in to use this MCP server." },
+      401, challenge());
+  }
+
   // Resolve the caller once if a token was sent. A present-but-invalid token is rejected here so a
   // stale token never silently degrades to anonymous.
   let caller: Caller | null = null;
