@@ -187,6 +187,7 @@ export default function FeatureSuggestions() {
       headerName: "Issue",
       field: "github_issue_number",
       width: 100,
+      type: "numericColumn",
       cellRenderer: (p: ICellRendererParams) => {
         const s = p.data as Suggestion;
         if (!s.github_issue_url) return <span className="text-muted-foreground">—</span>;
@@ -201,10 +202,15 @@ export default function FeatureSuggestions() {
       headerName: "Status",
       field: "status",
       width: 110,
-      cellRenderer: (p: ICellRendererParams) => {
+      // Sort/filter by the live GitHub state, not the stale stored `status` — otherwise
+      // sorting this column doesn't match the value the cell actually shows (issue #382).
+      valueGetter: (p) => {
         const s = p.data as Suggestion;
         const live = s.github_issue_number != null ? liveIssueStatus?.get(s.github_issue_number) : undefined;
-        const status = live || p.value;
+        return live || s.status;
+      },
+      cellRenderer: (p: ICellRendererParams) => {
+        const status = p.value;
         return <Badge variant={status === "open" ? "secondary" : "outline"} className="text-[10px]">{status}</Badge>;
       },
     },
@@ -215,8 +221,11 @@ export default function FeatureSuggestions() {
       editable: isCurator,
       cellEditor: "agSelectCellEditor",
       cellEditorParams: { values: QA_STAGES },
+      // Sort by the effective stage (mirrors PipelineBar below), not the raw nullable
+      // `qa_status` field, so sorting matches what's displayed (issue #382).
+      valueGetter: (p) => stageOf(p.data as Suggestion),
       cellRenderer: (p: ICellRendererParams) => (
-        <PipelineBar stage={stageOf(p.data as Suggestion)} />
+        <PipelineBar stage={p.value as string} />
       ),
     },
     {
@@ -235,7 +244,7 @@ export default function FeatureSuggestions() {
   }), []);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="w-full px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
           <Lightbulb className="h-5 w-5 text-primary" />
@@ -273,7 +282,7 @@ export default function FeatureSuggestions() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="ag-theme-alpine rounded-lg border border-border overflow-hidden" style={{ width: "100%" }}>
+        <div className="ag-theme-alpine rounded-lg border border-border overflow-x-auto" style={{ width: "100%" }}>
           <AgGridReact<Suggestion>
             rowData={filtered}
             columnDefs={columnDefs}
@@ -297,7 +306,7 @@ export default function FeatureSuggestions() {
         </div>
       )}
 
-      <Card>
+      <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle className="text-base">Suggest an improvement</CardTitle>
         </CardHeader>
