@@ -43,7 +43,6 @@ prefixes:
   bioschema: https://bioschemas.org/
   croissant: http://mlcommons.org/croissant/1.0/
   cogatlas: https://www.cognitiveatlas.org/concept/id/
-  dandi: https://dandiarchive.org/dandiset/
   orcid: https://orcid.org/
   ror: https://ror.org/
   doi: https://doi.org/
@@ -203,7 +202,6 @@ classes:
       - onboarding_status
       # --- graph edges ---
       - has_project_role     # → ProjectRole (project ↔ investigator + role)
-      - funded_datasets      # grant_dandisets → Dandiset
       - has_model            # → MarrModel  (RESERVED stub)
       - produced             # → any Artifact (dataset/software/publication/model…)
     slot_usage:
@@ -239,13 +237,6 @@ classes:
     exact_mappings: [bioschema:Dataset]
     related_mappings: [croissant:Dataset]
     slots: [license, access, dataset_species, measurement_technique]
-
-  Dandiset:
-    is_a: Dataset
-    class_uri: schema:Dataset
-    description: A DANDI-archived dataset (NWB). Linked to grants via award_numbers[].
-    exact_mappings: [dandi:]
-    slots: [dandiset_id, api_url, draft_url, neurosift_url, file_count, size_bytes, dandi_instance, award_numbers]
 
   Benchmark:
     is_a: Dataset
@@ -504,7 +495,6 @@ slots:
   fiscal_year: { range: integer }
   nih_link:    { slot_uri: schema:url, range: uriorcurie }
   mechanism:   { slot_uri: bbqs:mechanism, description: "R61/R34/RF1/U01… — DERIVED from grant_number, not stored." }
-  funded_datasets: { range: Dandiset, multivalued: true }
 
   # ---- ProjectRole (reified role) ------------------------------------------
   on_project:  { slot_uri: prov:hadPlan, range: Project, inverse_of: has_project_role }
@@ -534,14 +524,6 @@ slots:
   access:      { slot_uri: schema:conditionsOfAccess }
   dataset_species: { slot_uri: schema:about, range: Species, multivalued: true }
   measurement_technique: { slot_uri: schema:measurementTechnique, range: Device, multivalued: true }
-  dandiset_id: { slot_uri: schema:identifier }
-  api_url:     { slot_uri: schema:url, range: uriorcurie }
-  draft_url:   { range: uriorcurie }
-  neurosift_url: { range: uriorcurie }
-  file_count:  { range: integer }
-  size_bytes:  { slot_uri: schema:contentSize, range: integer }
-  dandi_instance: { description: "Which DANDI deployment hosts this dataset (e.g. dandi, dandi-staging)." }
-  award_numbers: { multivalued: true, description: "Links dandiset → grant(s)." }
   evaluates:   { slot_uri: bbqs:evaluates, range: Entity, multivalued: true, description: "What the benchmark scores (model/algorithm/tool)." }
   repo_url:    { slot_uri: schema:codeRepository, range: uriorcurie }
   docs_url:    { slot_uri: schema:url, range: uriorcurie }
