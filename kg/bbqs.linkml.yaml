@@ -265,17 +265,21 @@ classes:
     mixins: [CreativeWork]
     class_uri: schema:CreativeWork
     description: >-
-      RESERVED. A method/algorithm distinct from its software implementation and
-      from a trained model. No resource_type value yet — OPEN: promote to enum, or
-      treat as a facet of SoftwareTool/MLModel/Protocol.
-    todos: ["No DB home yet — decide enum value vs. fold into MLModel/Protocol."]
+      A computational algorithm, distinct from its software implementation and
+      from a trained model. Promoted to its own resource_type rather than folded
+      into SoftwareTool/MLModel/Protocol, since it's expected to link directly to
+      Species as its own scope grows.
+    slots: [studies_species]
+    todos: ["resource_type: algorithm needs the enum-extend + resource_id backfill migration (same batch as species/device/etc., see #386)."]
 
   Protocol:
     is_a: Entity
     mixins: [CreativeWork]
     class_uri: schema:CreativeWork
     description: An experimental/analysis protocol or method (resource_type protocol).
-    close_mappings: [OBI:0000272]   # protocol
+    # SOSA models this the other way (Sensor sosa:usedProcedure Procedure) -- kept
+    # as Protocol.uses_device for query convenience; flip if that becomes a problem.
+    close_mappings: [OBI:0000272, sosa:Procedure]
     slots: [uses_device, measures_construct]
 
   Device:
@@ -299,6 +303,8 @@ classes:
       - product_url
       - manual_urls
       - sdk_urls
+      - used_with_species    # which species this device model has actually been used on
+      - measures_construct   # → BehavioralConstruct, at the specific-device level
 
   DeviceCategory:
     is_a: Entity
@@ -544,6 +550,7 @@ slots:
   product_url: { slot_uri: schema:url, range: uriorcurie }
   manual_urls: { range: uriorcurie, multivalued: true }
   sdk_urls:    { range: uriorcurie, multivalued: true }
+  used_with_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "Species this device model has actually been used on in BBQS data collection." }
   category_key: { slot_uri: skos:notation, description: "device_categories.key." }
   label:       { slot_uri: skos:prefLabel }
   measures:    { slot_uri: bbqs:measures, close_mappings: [sosa:observes], multivalued: true, description: "What this device category measures (behavior/neural/physio…)." }
@@ -654,6 +661,7 @@ enums:
       funding: {}
       # ---- PROPOSED (backfill migration) ----
       species: { description: PROPOSED }
+      algorithm: { description: PROPOSED }
       device: { description: PROPOSED }
       device_category: { description: PROPOSED }
       device_manufacturer: { description: PROPOSED }
