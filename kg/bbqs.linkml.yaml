@@ -245,6 +245,18 @@ classes:
     close_mappings: [OBI:0000070]   # assay
     slots: [evaluates]
 
+  Protocol:
+    is_a: Dataset
+    class_uri: schema:Dataset
+    description: >-
+      An experimental/analysis protocol or method (resource_type protocol) --
+      the methodology write-up itself, not a record of device usage (see
+      DeviceDeployment for that). Modeled as a Dataset subtype because
+      production resource_type=protocol rows are the same shape as a dataset
+      entry describing a method, not something separate.
+    close_mappings: [OBI:0000272]   # protocol
+    slots: [measures_construct]
+
   SoftwareTool:
     is_a: Entity
     mixins: [CreativeWork]
