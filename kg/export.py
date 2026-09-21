@@ -115,18 +115,55 @@ def main(out_path):
         add(g, n, "award_amount", gr.get("award_amount"), cast=None)
         add(g, n, "fiscal_year", gr.get("fiscal_year"), cast=None)
 
-    # species name (lowercased) -> IRI, for resolving projects.study_species[].
-    species_by_name = {}
+    # Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so that
+    # projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
+    species_by_name = {}            # exact name/common_name (lower) -> IRI
+    species_rows = []
     for sp in fetch("species"):
         n = BID["species/" + sp["id"]]
+        species_rows.append((n, sp))
         g.add((n, RDF.type, BBQS["Species"]))
         add(g, n, "name", sp.get("name"))
         add(g, n, "common_name", sp.get("common_name"))
         add(g, n, "taxonomy_class", sp.get("taxonomy_class"))
-        if sp.get("name"):
-            species_by_name[sp["name"].strip().lower()] = n
-        if sp.get("common_name"):
-            species_by_name.setdefault(sp["common_name"].strip().lower(), n)
+        for key in (sp.get("name"), sp.get("common_name")):
+            if key:
+                species_by_name.setdefault(key.strip().lower(), n)
+
+    aliases = fetch("species_aliases")
+    canon_of = {}                   # any surface form (lower) -> canonical grouping key (lower)
+    for a in aliases:
+        canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
+        if not canon:
+            continue
+        for form in (a.get("alias"), a.get("canonical"), a.get("common_name")):
+            if form:
+                canon_of[form.strip().lower()] = canon
+    iri_of_canon = {}               # canonical key -> species IRI (via that species' own names)
+    for n, sp in species_rows:
+        for key in (sp.get("name"), sp.get("common_name")):
+            if key:
+                c = canon_of.get(key.strip().lower())
+                if c:
+                    iri_of_canon.setdefault(c, n)
+    # Emit each alias onto its species node so shape #7 verifies resolution from the graph itself.
+    for a in aliases:
+        canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
+        target = iri_of_canon.get(canon) or species_by_name.get(canon)
+        if target is None:
+            continue
+        for form in (a.get("alias"), a.get("canonical"), a.get("common_name")):
+            if form:
+                add(g, target, "aliases", form)
+
+    def resolve_species(value):
+        v = str(value).strip().lower()
+        if v in species_by_name:
+            return species_by_name[v]
+        c = canon_of.get(v)
+        if c:
+            return iri_of_canon.get(c) or species_by_name.get(c)
+        return None
 
     dangling_species = []
     for p in fetch("projects"):
@@ -141,7 +178,7 @@ def main(out_path):
             add(g, n, "keywords", kw)
         for name in p.get("study_species") or []:
             add(g, n, "studies_species_name", name)  # the raw claim, verbatim
-            target = species_by_name.get(str(name).strip().lower())
+            target = resolve_species(name)
             if target is not None:
                 g.add((n, BBQS["studies_species"], target))
             else:

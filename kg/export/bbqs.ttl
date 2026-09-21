@@ -2106,11 +2106,6 @@ bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
     bbqs:project_role "contact_pi" ;
     bbqs:role_source "curator" .
 
-<https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> a bbqs:Species ;
-    bbqs:common_name "Brown-headed Cowbird" ;
-    bbqs:name "Cowbird" ;
-    bbqs:taxonomy_class "Aves" .
-
 <https://brain-bbqs.org/id/species/45489142-c8c8-4ab9-9a20-bb541c17a8d9> a bbqs:Species ;
     bbqs:common_name "Cichlid Fish" ;
     bbqs:name "Cichlid" ;
@@ -2131,30 +2126,19 @@ bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
     bbqs:name "Acoel Worm" ;
     bbqs:taxonomy_class "Acoela" .
 
-<https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> a bbqs:Species ;
-    bbqs:common_name "White-faced Capuchin" ;
-    bbqs:name "Capuchin Monkey" ;
-    bbqs:taxonomy_class "Mammalia" .
-
 <https://brain-bbqs.org/id/species/be4986ab-ad5b-484a-8348-470194c17247> a bbqs:Species ;
+    bbqs:aliases "Mustela putorius furo",
+        "domestic ferret",
+        "ferret",
+        "ferrets" ;
     bbqs:common_name "Domestic Ferret" ;
     bbqs:name "Ferret" ;
-    bbqs:taxonomy_class "Mammalia" .
-
-<https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> a bbqs:Species ;
-    bbqs:common_name "Domestic Sheep" ;
-    bbqs:name "Sheep" ;
     bbqs:taxonomy_class "Mammalia" .
 
 <https://brain-bbqs.org/id/species/e8fd4683-6a50-4854-8301-2afc817680f4> a bbqs:Species ;
     bbqs:common_name "Cricket" ;
     bbqs:name "Cricket" ;
     bbqs:taxonomy_class "Insecta" .
-
-<https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> a bbqs:Species ;
-    bbqs:common_name "Common Marmoset" ;
-    bbqs:name "Marmoset" ;
-    bbqs:taxonomy_class "Mammalia" .
 
 bid:2db5ee93-296a-446a-a3e6-59fd3d28c4a6 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2249,6 +2233,7 @@ autobiographical memory formation, and synchronize this data with direct neural 
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135109-03" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans (Epilepsy Patients)" ;
     bbqs:title "Capturing Autobiographical memory formation in People moving Through real-world spaces Using synchronized wearables and intracranial Recordings of EEG" .
 
@@ -2297,6 +2282,7 @@ tool for facilitating social interaction.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138705-02" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Neural and Behavioral Correlates of Live Face-to-Face Interactions" .
 
@@ -2330,6 +2316,7 @@ complex collective behaviors in a large-brained highly social animal model.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059514-02" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> ;
     bbqs:studies_species_name "Ovis aries" ;
     bbqs:title "Towards High-Resolution Neuro-Behavioral Quantification of Sheep in the Field to Study Complex Social Behaviors" .
 
@@ -2365,6 +2352,7 @@ freely moving human behavior in naturalistic and ecologically valid environments
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "7R61MH135106-03" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Synchronized neuronal and peripheral biomarker recordings in freely moving humans" .
 
@@ -2512,19 +2500,46 @@ treating PTSD and related affective disorders.""" ;
     bbqs:studies_human true ;
     bbqs:title "A smart lens platform for real-world event capture and synchronized deep brain dynamics" .
 
-<https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> a bbqs:Species ;
-    bbqs:common_name "Mongolian Gerbil" ;
-    bbqs:name "Gerbil" ;
+<https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> a bbqs:Species ;
+    bbqs:aliases "Molothrus ater",
+        "brown-headed cowbird",
+        "molothrus ater" ;
+    bbqs:common_name "Brown-headed Cowbird" ;
+    bbqs:name "Cowbird" ;
+    bbqs:taxonomy_class "Aves" .
+
+<https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> a bbqs:Species ;
+    bbqs:aliases "Cebus imitator",
+        "cebus imitator",
+        "white-faced capuchin" ;
+    bbqs:common_name "White-faced Capuchin" ;
+    bbqs:name "Capuchin Monkey" ;
     bbqs:taxonomy_class "Mammalia" .
 
-<https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> a bbqs:Species ;
-    bbqs:common_name "Human" ;
-    bbqs:name "Human" ;
+<https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> a bbqs:Species ;
+    bbqs:aliases "Ovis aries",
+        "domestic sheep",
+        "ovis aries" ;
+    bbqs:common_name "Domestic Sheep" ;
+    bbqs:name "Sheep" ;
     bbqs:taxonomy_class "Mammalia" .
 
 <https://brain-bbqs.org/id/species/ef37411f-12de-410e-b100-7251dc530cbf> a bbqs:Species ;
+    bbqs:aliases "Norway rat",
+        "Rattus norvegicus",
+        "rat",
+        "rattus norvegicus" ;
     bbqs:common_name "Brown Rat" ;
     bbqs:name "Rat" ;
+    bbqs:taxonomy_class "Mammalia" .
+
+<https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> a bbqs:Species ;
+    bbqs:aliases "Callithrix jacchus",
+        "common marmoset",
+        "marmoset",
+        "marmosets" ;
+    bbqs:common_name "Common Marmoset" ;
+    bbqs:name "Marmoset" ;
     bbqs:taxonomy_class "Mammalia" .
 
 bid:3a4fb38d-dc54-4d06-a1cf-a5a959d3321b a bbqs:Project ;
@@ -2573,6 +2588,7 @@ unique brain-behavior insights into human emotion functioning applicable to broa
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135407-03" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Novel multimodal neural, physiological, and behavioral sensing and machine learning for mental states" .
 
@@ -2618,6 +2634,7 @@ intellectual development in children with neurodevelopmental disorders.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135114-02" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans (Pediatric)" ;
     bbqs:title "Integrated movement tracking for pediatric OPM-MEG studies of intellectual disability" .
 
@@ -2664,6 +2681,7 @@ significant step towards bridging the gap between basic neuroscience research an
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138966-02" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "A naturalistic multimodal platform for capturing brain-body interactions in people during physical effort-based decision making" .
 
@@ -2742,6 +2760,15 @@ way for a large-scale R01.""" ;
     bbqs:studies_species_name "Social species with male displays" ;
     bbqs:title "A modeling framework and arena for measuring contextual influences of behavior" .
 
+<https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> a bbqs:Species ;
+    bbqs:aliases "Meriones unguiculatus",
+        "Mongolian gerbil",
+        "gerbil",
+        "meriones unguiculatus" ;
+    bbqs:common_name "Mongolian Gerbil" ;
+    bbqs:name "Gerbil" ;
+    bbqs:taxonomy_class "Mammalia" .
+
 bid:1573f2f2-dfe7-476f-ba44-55011c0f5d1b a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY/ABSTRACT
 With the advent of new technologies to probe brain-behavior relationships deeper than ever before, the field of
@@ -2786,6 +2813,7 @@ to inform translational science and ultimately enhance our understanding of huma
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA061925-02" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> ;
     bbqs:studies_species_name "Cebus imitator" ;
     bbqs:title "Building an “AI Forest” to identify the social and environmental factors underlying complex behavioral traits in wild primates." .
 
@@ -2952,6 +2980,7 @@ to develop future neuromodulatory therapeutic approaches to facilitate the retur
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1R61MH138612-01" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection of consciousness" .
 
@@ -2994,6 +3023,7 @@ streaming delays. We will also develop computational frameworks for analyses of 
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059716-02" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Interpersonal behavioral synchrony in virtual and in-person dyadic conversation" .
 
@@ -3083,11 +3113,6 @@ To study these important epidemiological and biological questions in a controlle
     bbqs:studies_human false ;
     bbqs:studies_species_name "Developmental Models" ;
     bbqs:title "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development" .
-
-<https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> a bbqs:Species ;
-    bbqs:common_name "House Mouse" ;
-    bbqs:name "Mouse" ;
-    bbqs:taxonomy_class "Mammalia" .
 
 bid:071aa27a-456a-4eb1-abd2-35d9f0eceaf7 a bbqs:Project ;
     bbqs:abstract """Project Summary/Abstract
@@ -3221,6 +3246,7 @@ subjects.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135405-03" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Developing the Context-Aware Multimodal Ecological Research and Assessment (CAMERA) Platform for Continuous Measurement and Prediction of Anxiety and Memory State" .
 
@@ -3311,6 +3337,7 @@ during sound-driven social interactions.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063581-01" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> ;
     bbqs:studies_species_name "Meriones unguiculatus" ;
     bbqs:title "Computational Analyses of Family Auditory Communication: Linking Behavior, Vocalization, and Neural Dynamics" .
 
@@ -3364,6 +3391,7 @@ individual brain states and hormone systems on survival strategies.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063565-01" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
     bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "Neurobehavioral Mechanisms of Social Behavior and Familial Structure" .
 
@@ -3482,8 +3510,19 @@ activity.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059507-02" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> ;
     bbqs:studies_species_name "Molothrus ater" ;
     bbqs:title "Development of a \"smart aviary\" to probe neural dynamics of complex social behaviors in a gregarious songbird" .
+
+<https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> a bbqs:Species ;
+    bbqs:aliases "Mus musculus",
+        "house mouse",
+        "mice",
+        "mouse",
+        "mus musculus" ;
+    bbqs:common_name "House Mouse" ;
+    bbqs:name "Mouse" ;
+    bbqs:taxonomy_class "Mammalia" .
 
 bid:797fd7cf-49dc-40a2-811d-aeec94460ead a bbqs:Project ;
     bbqs:abstract """Summary/Abstract
@@ -3633,6 +3672,7 @@ of determining sources of inattention on individual basis, thus allowing for mor
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138713-02" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Combining neural oscillations, physiology and privacy-preserving LiDAR/millimeter wave sensing technology to track attention states in natural contexts" .
 
@@ -3679,6 +3719,7 @@ electroencephalographic (iEEG) recordings from DBS""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01MH144347-01" ;
     bbqs:studies_human true ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SMART-DBS: A Symptom-Manipulating, Adaptive and Responsive Therapy for continuous brain-behavioral recording and stimulation" .
 
@@ -3726,6 +3767,7 @@ understanding of primate social interactions to date, along with novel generativ
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063534-01" ;
     bbqs:studies_human false ;
+    bbqs:studies_species <https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> ;
     bbqs:studies_species_name "Marmosets" ;
     bbqs:title "Toward comprehensive models of naturalistic cooperation and competition in primates" .
 
@@ -3779,4 +3821,15 @@ and behavior, which in turn could advance neuroscience and our understanding of 
     bbqs:studies_human true ;
     bbqs:studies_species_name "All Species" ;
     bbqs:title "BBQS AI Resource and Data Coordinating Center (BARD.CC)" .
+
+<https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> a bbqs:Species ;
+    bbqs:aliases "Homo sapiens",
+        "homo sapiens",
+        "human",
+        "humans",
+        "humans (epilepsy patients)",
+        "humans (pediatric)" ;
+    bbqs:common_name "Human" ;
+    bbqs:name "Human" ;
+    bbqs:taxonomy_class "Mammalia" .
 

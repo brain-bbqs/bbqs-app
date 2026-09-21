@@ -80,7 +80,7 @@ bbqs:StudiesSpeciesResolvesShape
         $this bbqs:studies_species_name ?value .
         FILTER NOT EXISTS {
           $this bbqs:studies_species ?sp .
-          { ?sp bbqs:name ?n } UNION { ?sp bbqs:common_name ?n }
+          { ?sp bbqs:name ?n } UNION { ?sp bbqs:common_name ?n } UNION { ?sp bbqs:aliases ?n }
           FILTER(LCASE(STR(?n)) = LCASE(STR(?value)))
         }
       }
