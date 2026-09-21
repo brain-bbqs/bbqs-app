@@ -175,6 +175,10 @@ async function fetchGrantData(grantNumber: string): Promise<any | null> {
           "ProjectNum", "ProjectTitle", "ContactPiName", "PrincipalInvestigators",
           "Organization", "FiscalYear", "AwardAmount", "AbstractText", "CoreProjectNum"
         ],
+        // Latest fiscal year first. A multi-year grant returns one record per year; taking results[0]
+        // without this can pin an OLD year (e.g. after an IC transfer, U24DA064429 — issue #385).
+        sort_field: "fiscal_year",
+        sort_order: "desc",
         offset: 0,
         limit: 1
       })
@@ -439,9 +443,9 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
-    // ACTION: reconcile — fast PI-only sync from RePORTER. Skips publication
-    // fetches so it's safe to run on a cron without overrunning function
-    // time limits. Used by the weekly pg_cron job.
+    // ACTION: reconcile — light daily sync from RePORTER (pg_cron, 07:00 UTC).
+    // Syncs PIs and backfills grant-metadata fields, but skips the publication
+    // fetch that makes refresh heavy, so it stays inside the function time limit.
     if (action === "reconcile") {
       const grantNumbers = await loadGrantNumbers(supabase);
       console.log(`Reconciling PIs for ${grantNumbers.length} grants...`);
@@ -456,7 +460,9 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               criteria: { project_nums: [grantNumber] },
-              include_fields: ["ProjectNum", "PrincipalInvestigators"],
+              include_fields: ["ProjectNum", "PrincipalInvestigators", "AbstractText", "AwardAmount", "FiscalYear"],
+              sort_field: "fiscal_year",
+              sort_order: "desc",
               offset: 0,
               limit: 1,
             }),
@@ -472,6 +478,19 @@ Deno.serve(async (req) => {
           const { data: grantRow } = await supabase
             .from("grants").select("id").eq("grant_number", grantNumber).maybeSingle();
           if (!grantRow) continue;
+
+          // Backfill the grant-metadata fields refresh normally sets. Only write
+          // values RePORTER actually returned, so a sparse record never nulls out
+          // an existing field on this daily unattended pass.
+          const meta: Record<string, unknown> = {};
+          if (project.project_num) meta.reporter_project_num = project.project_num;
+          if (typeof project.award_amount === "number") meta.award_amount = project.award_amount;
+          if (project.fiscal_year) meta.fiscal_year = project.fiscal_year;
+          if (project.abstract_text) meta.abstract = project.abstract_text;
+          if (Object.keys(meta).length) {
+            meta.updated_at = new Date().toISOString();
+            await supabase.from("grants").update(meta).eq("id", grantRow.id);
+          }
 
           const pis = project.principal_investigators || [];
           const reporterPis: ReporterPi[] = [];
