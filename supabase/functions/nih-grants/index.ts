@@ -225,6 +225,40 @@ async function fetchGrantData(grantNumber: string): Promise<any | null> {
   }
 }
 
+// ─── Renumber detection helpers (issue #385) ────────────────
+// Latest RePORTER record for a stored number (fiscal-year-sorted so it's the current year).
+async function reporterLatest(grantNumber: string): Promise<any | null> {
+  const res = await fetch("https://api.reporter.nih.gov/v2/projects/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      criteria: { project_nums: [grantNumber] },
+      include_fields: ["ProjectNum", "CoreProjectNum", "FiscalYear", "ContactPiName"],
+      sort_field: "fiscal_year", sort_order: "desc", offset: 0, limit: 1,
+    }),
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json?.results?.[0] || null;
+}
+
+// Search RePORTER by project TITLE — the stable signal across a renumber (the core number changes on
+// an IC transfer, but the title and PI do not).
+async function reporterTitleSearch(title: string): Promise<any[]> {
+  const res = await fetch("https://api.reporter.nih.gov/v2/projects/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      criteria: { advanced_text_search: { operator: "and", search_field: "projecttitle", search_text: title } },
+      include_fields: ["ProjectNum", "CoreProjectNum", "FiscalYear", "ContactPiName", "ProjectTitle"],
+      sort_field: "fiscal_year", sort_order: "desc", offset: 0, limit: 20,
+    }),
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json?.results || [];
+}
+
 // ─── Full entity seeding pipeline ───────────────────────────
 // Given a grant number and its fetched data, ensures all related
 // entities exist: organization, resource nodes, investigators,
@@ -520,6 +554,66 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ACTION: detect-renumbers — find grants that silently FROZE because the award was renumbered
+    // (e.g. an administering-IC transfer: U24MH136628 -> U24DA064429, #385). reconcile only re-queries
+    // the stored number, so a renumbered grant never sees its continuation. For each grant whose latest
+    // RePORTER fiscal year is >= stale_years behind the current federal FY, this searches RePORTER by
+    // TITLE for a newer record under a DIFFERENT core number (same contact PI) and reports it as a
+    // probable renumber. REPORT ONLY — a curator confirms and runs repoint_grant; never auto-repoints
+    // on a fuzzy match (Principle I). Read-only, safe to run on a cron. ?stale_years=N (default 2).
+    if (action === "detect-renumbers") {
+      const staleYears = Number(url.searchParams.get("stale_years") || "2");
+      const now = new Date();
+      const currentFY = now.getUTCMonth() >= 9 ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+
+      const { data: grants } = await supabase
+        .from("grants").select("grant_number, title").order("grant_number");
+
+      const candidates: any[] = [];
+      let checked = 0;
+
+      for (const g of (grants || [])) {
+        const oldNum: string = g.grant_number;
+        const title: string = g.title || "";
+        try {
+          const cur = await reporterLatest(oldNum);
+          if (!cur || !cur.fiscal_year) continue;                 // not on RePORTER (pre-registry) — skip
+          checked++;
+          if (currentFY - cur.fiscal_year < staleYears) continue; // recent enough — not suspicious
+          if (!title) continue;
+
+          const oldCore = (cur.core_project_num || oldNum).toUpperCase();
+          const oldPi = (cur.contact_pi_name || "").toLowerCase();
+          const hits = await reporterTitleSearch(title);
+          const match = hits
+            .filter((h: any) => (h.core_project_num || "").toUpperCase() !== oldCore)
+            .filter((h: any) => (h.fiscal_year || 0) > cur.fiscal_year)
+            .filter((h: any) => !oldPi || (h.contact_pi_name || "").toLowerCase() === oldPi)
+            .sort((a: any, b: any) => (b.fiscal_year || 0) - (a.fiscal_year || 0))[0];
+
+          if (match) {
+            candidates.push({
+              current_number: oldNum,
+              current_latest_fy: cur.fiscal_year,
+              suggested_new_number: match.core_project_num,
+              new_reporter_project_num: match.project_num,
+              new_fy: match.fiscal_year,
+              contact_pi: match.contact_pi_name,
+              title,
+              repoint: `repoint_grant(grant_number="${oldNum}", new_grant_number="${match.core_project_num}", reporter_project_num="${match.project_num}")`,
+            });
+          }
+          await new Promise((r) => setTimeout(r, 120));
+        } catch (err) {
+          console.error(`detect-renumbers ${oldNum}:`, err instanceof Error ? err.message : "unknown");
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, current_federal_fy: currentFY, stale_years: staleYears, checked, candidates }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // ACTION: refresh — full pipeline: fetch from NIH APIs, seed all entities. ?grant=<number>
     // scopes it to one award (targeted, fast) instead of the whole roster.
