@@ -24,7 +24,7 @@ description: >-
   Bioschemas/Croissant, with reserved hooks for the neuroscience (Marr / causal-KG)
   layer. OWL is the schema logic; SHACL validates instance exports.
 license: MIT
-version: 0.2.0
+version: 0.3.0
 
 prefixes:
   linkml: https://w3id.org/linkml/
@@ -48,6 +48,7 @@ prefixes:
   ror: https://ror.org/
   doi: https://doi.org/
   pmid: https://pubmed.ncbi.nlm.nih.gov/
+  sosa: http://www.w3.org/ns/sosa/
 
 default_prefix: bbqs
 default_range: string
@@ -88,8 +89,8 @@ classes:
   # ---- schema.org abstract anchors (not instantiated) ----------------------
   Thing:      { class_uri: schema:Thing, abstract: true }
   Agent:      { is_a: Thing, class_uri: prov:Agent, abstract: true, description: A person or organization that can act. }
-  Person:     { is_a: Agent, class_uri: schema:Person, abstract: true }
-  Organization: { is_a: Agent, class_uri: schema:Organization, abstract: true }
+  Person:     { is_a: Agent, class_uri: schema:Person, abstract: true, disjoint_with: [Organization] }
+  Organization: { is_a: Agent, class_uri: schema:Organization, abstract: true, disjoint_with: [Person] }
   CreativeWork: { is_a: Thing, class_uri: schema:CreativeWork, abstract: true }
   Product:    { is_a: Thing, class_uri: schema:Product, abstract: true }
   ProjectAnchor: { is_a: Thing, class_uri: schema:Project, abstract: true }
@@ -162,6 +163,10 @@ classes:
       investigators.working_groups[] + canonical_working_group(); promoted here to
       a first-class node. Membership is the inverse of Investigator.member_of_group.
     slots: [members, dashboard_widgets]
+    slot_usage:
+      # `members` is reused by ResearchOrganization/Consortium too, where it has no
+      # matching reverse slot — scope the inverse declaration to WorkingGroup only.
+      members: { inverse_of: member_of_group }
 
   # =========================================================================
   # SCIENCE SPINE — the BBQS Project IS the node   (resource_type: grant)
@@ -183,7 +188,6 @@ classes:
       # --- NIH award facet (grants table) ---
       - grant_number
       - reporter_project_num
-      - title
       - abstract
       - award_amount
       - fiscal_year
@@ -202,6 +206,9 @@ classes:
       - funded_datasets      # grant_dandisets → Dandiset
       - has_model            # → MarrModel  (RESERVED stub)
       - produced             # → any Artifact (dataset/software/publication/model…)
+    slot_usage:
+      # P12: `title` used to duplicate this predicate (both mapped to schema:name).
+      name: { description: "grants.title — the award's title." }
 
   ProjectRole:
     class_uri: prov:Association
@@ -288,6 +295,7 @@ classes:
       A physical instrument model used in BBQS data collection (device_models).
       Its kind is a DeviceCategory (the ~32 canonical categories), NOT a subclass
       tree. NB: device_models needs resource_id backfill to enter the spine.
+    close_mappings: [sosa:Sensor]
     slots:
       - aliases
       - device_category      # device_class → DeviceCategory.key
@@ -308,6 +316,7 @@ classes:
       One of the ~32 canonical BBQS device categories (device_categories:
       key/label/measures[]/typical_use_cases[]). A SKOS concept scheme; each maps
       to a schema.org type and (via device_class_crosswalk) to external classes.
+    close_mappings: [sosa:ObservableProperty]
     slots: [category_key, label, measures, typical_use_cases, schema_org_type]
 
   Tool:
@@ -335,7 +344,7 @@ classes:
     mixins: [JobPosting]
     class_uri: schema:JobPosting
     description: A postdoc, staff, or trainee position posted by a BBQS lab.
-    slots: [job_institution, job_type, department, location, description_text,
+    slots: [job_institution, job_type, department, location,
             application_url, contact_name, contact_email, expires_at, is_active, posted_by]
 
   FundingOpportunity:
@@ -468,7 +477,7 @@ slots:
   consortium_role: { slot_uri: schema:jobTitle, description: "investigators.role — ONE free-text label; never a machine token (issue #283)." }
   research_areas: { multivalued: true }
   skills:      { multivalued: true }
-  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true }
+  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true, inverse_of: members }
   requested_groups: { range: WorkingGroup, multivalued: true }
   reporter_profile_id: { range: integer, description: "NIH RePORTER profile id." }
   members:     { slot_uri: schema:member, range: Investigator, multivalued: true }
@@ -487,10 +496,9 @@ slots:
   studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes." }
   studies_human: { range: boolean }
   metadata_completeness: { range: float }
-  onboarding_status: {}
+  onboarding_status: { description: "Project's onboarding/setup progress in the consortium intake workflow." }
   has_model:   { slot_uri: bbqs:hasModel, range: MarrModel, description: "→ the project's Marr/causal model (RESERVED)." }
   produced:    { slot_uri: schema:producer, range: Entity, multivalued: true, description: "Artifacts produced by the project." }
-  title:       { slot_uri: schema:name }
   abstract:    { slot_uri: schema:abstract }
   award_amount: { slot_uri: schema:amount, range: float }
   fiscal_year: { range: integer }
@@ -527,7 +535,7 @@ slots:
   neurosift_url: { range: uriorcurie }
   file_count:  { range: integer }
   size_bytes:  { slot_uri: schema:contentSize, range: integer }
-  dandi_instance: {}
+  dandi_instance: { description: "Which DANDI deployment hosts this dataset (e.g. dandi, dandi-staging)." }
   award_numbers: { multivalued: true, description: "Links dandiset → grant(s)." }
   evaluates:   { slot_uri: bbqs:evaluates, range: Entity, multivalued: true, description: "What the benchmark scores (model/algorithm/tool)." }
   repo_url:    { slot_uri: schema:codeRepository, range: uriorcurie }
@@ -544,14 +552,14 @@ slots:
   model_name:  { slot_uri: schema:model }
   output_signals: { multivalued: true }
   sampling_rate_hz: { range: float }
-  price_tier:  {}
-  regulatory_class: {}
+  price_tier:  { description: "Relative cost tier (device_models.price_tier) — a bucket, not a currency amount." }
+  regulatory_class: { description: "Regulatory classification (e.g. an FDA device class), where applicable." }
   product_url: { slot_uri: schema:url, range: uriorcurie }
   manual_urls: { range: uriorcurie, multivalued: true }
   sdk_urls:    { range: uriorcurie, multivalued: true }
   category_key: { slot_uri: skos:notation, description: "device_categories.key." }
   label:       { slot_uri: skos:prefLabel }
-  measures:    { slot_uri: bbqs:measures, multivalued: true, description: "What this device category measures (behavior/neural/physio…)." }
+  measures:    { slot_uri: bbqs:measures, close_mappings: [sosa:observes], multivalued: true, description: "What this device category measures (behavior/neural/physio…)." }
   typical_use_cases: { multivalued: true }
   schema_org_type: { description: "device_categories.schema_org_type — the schema.org type this category maps to." }
   uses_device: { slot_uri: schema:instrument, range: Device, multivalued: true }
@@ -560,23 +568,22 @@ slots:
   # ---- community / notices --------------------------------------------------
   content:     { slot_uri: schema:articleBody }
   link:        { slot_uri: schema:url, range: uriorcurie }
-  link_text:   {}
+  link_text:   { description: "Display text for `link`, when the announcement points off-site." }
   is_external_link: { range: boolean }
   posted_by:   { slot_uri: schema:author, range: Investigator }
   job_institution: { slot_uri: schema:hiringOrganization }
   job_type:    { slot_uri: schema:employmentType }
-  department:  {}
+  department:  { description: "Posting lab's department, as free text (jobs.department)." }
   location:    { slot_uri: schema:jobLocation }
-  description_text: { slot_uri: schema:description }
   application_url: { slot_uri: schema:url, range: uriorcurie }
-  contact_name: {}
-  contact_email: {}
+  contact_name: { description: "Name of the person to contact about the posting." }
+  contact_email: { description: "Email address to contact about the posting." }
   expires_at:  { slot_uri: schema:validThrough, range: datetime }
   is_active:   { range: boolean }
   fon:         { slot_uri: schema:identifier, description: "Funding Opportunity Number." }
-  activity_code: {}
+  activity_code: { description: "NIH activity code for the funding opportunity (e.g. R01, U01)." }
   eligible_activity_codes: { multivalued: true }
-  announcement_type: {}
+  announcement_type: { description: "Category of announcement (e.g. news, funding, event) — free text." }
   budget_floor: { range: float }
   budget_ceiling: { range: float }
   due_dates:   { description: "JSON of application due dates." }
@@ -584,9 +591,9 @@ slots:
   posted_date: { range: date }
   expiration_date: { range: date }
   participating_orgs: { multivalued: true }
-  purpose:     {}
+  purpose:     { description: "Free-text statement of the funding opportunity's purpose." }
   relevance_tags: { multivalued: true }
-  status:      {}
+  status:      { description: "Current lifecycle status of the funding opportunity (e.g. open, closed, forecasted)." }
   url:         { slot_uri: schema:url, range: uriorcurie }
 
   # ---- events ---------------------------------------------------------------
@@ -598,9 +605,9 @@ slots:
   common_name: { slot_uri: schema:alternateName }
   ncbi_taxon_id: { slot_uri: schema:identifier, range: uriorcurie, description: "NCBITaxon IRI (align species to NCBI)." }
   taxonomy_class: { slot_uri: schema:taxonRank }
-  taxonomy_order: {}
-  taxonomy_family: {}
-  taxonomy_genus: {}
+  taxonomy_order: { description: "Linnaean order for the species (e.g. Rodentia)." }
+  taxonomy_family: { description: "Linnaean family for the species (e.g. Muridae)." }
+  taxonomy_genus: { description: "Linnaean genus for the species (e.g. Mus)." }
 
   # ---- Marr stub hooks ------------------------------------------------------
   describes_project: { slot_uri: schema:about, range: Project }
