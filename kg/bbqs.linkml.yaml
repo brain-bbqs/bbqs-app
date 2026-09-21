@@ -121,7 +121,7 @@ classes:
       - member_of_group         # working_groups[]  → WorkingGroup nodes
       - requested_groups        # requested_working_groups[]
       - reporter_profile_id
-      - has_project_role        # → ProjectRole (reified per-project role)
+      - held_project_roles      # → ProjectRole (reified per-project role)
     slot_usage:
       email: { description: "PII — restricted in the public API/graph export." }
 
@@ -365,7 +365,7 @@ classes:
     description: >-
       A BBQS workshop, convening, or meeting. RESERVED: no data table populates
       this yet — class exists so the exporter/UI have a home when events land.
-    slots: [start_date, end_date, location, attendees]
+    slots: [start_date, end_date, venue, attendees]
     todos: ["No events table yet — decide source (new table vs. announcements subtype)."]
 
   # =========================================================================
@@ -507,11 +507,16 @@ slots:
   funded_datasets: { range: Dandiset, multivalued: true }
 
   # ---- ProjectRole (reified role) ------------------------------------------
-  on_project:  { slot_uri: prov:hadPlan, range: Project }
-  held_by:     { slot_uri: prov:agent, range: Investigator }
+  on_project:  { slot_uri: prov:hadPlan, range: Project, inverse_of: has_project_role }
+  held_by:     { slot_uri: prov:agent, range: Investigator, inverse_of: held_project_roles }
   project_role: { slot_uri: schema:roleName, range: project_role_enum, description: "Canonical token (trg_normalize_grant_role enforces)." }
   role_source: { description: "Where the role came from (RePORTER, curation…) — provenance." }
-  has_project_role: { range: ProjectRole, multivalued: true }
+  # `has_project_role` was reused by both Investigator and Project pointing at
+  # different halves of ProjectRole, which made a single inverse_of impossible
+  # to declare correctly (it would have implied on_project and held_by denote
+  # the same relation). Split so each direction is its own, unambiguous slot.
+  has_project_role: { range: ProjectRole, multivalued: true, inverse_of: on_project, description: "ProjectRole edges assigned under this project." }
+  held_project_roles: { range: ProjectRole, multivalued: true, inverse_of: held_by, description: "ProjectRole edges this investigator holds, across all projects." }
 
   # ---- publications ---------------------------------------------------------
   authors:     { slot_uri: schema:author }
@@ -575,6 +580,9 @@ slots:
   job_type:    { slot_uri: schema:employmentType }
   department:  { description: "Posting lab's department, as free text (jobs.department)." }
   location:    { slot_uri: schema:jobLocation }
+  # P01: Event used to reuse this same `location` slot with no override, silently
+  # inheriting Job's schema:jobLocation predicate for a workshop venue — wrong.
+  venue:       { slot_uri: schema:location, description: "Physical or virtual venue for the workshop/convening." }
   application_url: { slot_uri: schema:url, range: uriorcurie }
   contact_name: { description: "Name of the person to contact about the posting." }
   contact_email: { description: "Email address to contact about the posting." }
