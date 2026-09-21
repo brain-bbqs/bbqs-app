@@ -1,0 +1,31 @@
+# The same graph as contradictions.ttl, corrected. Every consistency shape should pass (conforms).
+# This is the GREEN half of the pair.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+
+# #4 — canonical token
+bid:role-1 a bbqs:ProjectRole ;
+  bbqs:project_role "contact-pi" ;
+  bbqs:held_by bid:inv-1 ;
+  bbqs:on_project bid:proj-1 .
+
+# #5 — consortium_role is a career label, not a role token
+bid:inv-1 a bbqs:Investigator ;
+  bbqs:name "Jane Roe" ;
+  bbqs:consortium_role "Associate Professor" .
+
+# #9 — mechanism matches the grant number
+bid:proj-1 a bbqs:Project ;
+  bbqs:name "Test project" ;
+  bbqs:grant_number "1U01MH135430-01" ;
+  bbqs:mechanism "U01" .
+
+# #12 — the two verified sources agree on projects.title
+bid:sc-reporter a bbqs:SourceClass ; bbqs:is_verified true .
+bid:sc-curator  a bbqs:SourceClass ; bbqs:is_verified true .
+bid:prov-a a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "title" ; bbqs:prov_entity_id "proj-1" ;
+  bbqs:prov_value_text "Title A" ; bbqs:prov_source_class bid:sc-reporter .
+bid:prov-b a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "title" ; bbqs:prov_entity_id "proj-1" ;
+  bbqs:prov_value_text "Title A" ; bbqs:prov_source_class bid:sc-curator .

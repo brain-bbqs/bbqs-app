@@ -1,0 +1,674 @@
+# ── BBQS KNOWLEDGE-GRAPH MASTER SCHEMA (LinkML) ───────────────────────────────
+# This is the SINGLE authoring source for the BBQS knowledge graph. From it we
+# generate:  OWL  (gen-owl → the logic/TBox) · SHACL (gen-shacl → validation) ·
+# JSON-LD context · SQL/TTL.  The exporter walks the Supabase `resources` spine
+# and emits instance TTL that these shapes validate.
+#
+# It SUPERSEDES public/bbqs-schema.linkml.yaml (the 29-class schema.org-only
+# subset published at brain-bbqs.org/schema). That file stays as-is until we
+# regenerate it as a view of this master.
+#
+# ── THE IDENTIFIER BASE IS brain-bbqs.org, AND MUST STAY THERE ────────────────
+# brain-bbqs.org is the site's own CNAME — it is what GitHub Pages serves and
+# what returns 200. Every BBQS class/slot IRI hangs off it and must outlive the
+# hosting. LOVABLE IS DECOMMISSIONED (week of 2026-09-01): do NOT repoint these
+# at any *.lovable.app host.  (See public/bbqs-schema.linkml.yaml header.)
+id: https://brain-bbqs.org/schema/bbqs
+name: bbqs
+title: BBQS Knowledge Graph Schema
+description: >-
+  LinkML master schema for the BBQS (Brain Behavior Quantification and
+  Synchronization) consortium knowledge graph. Models the consortium as people,
+  artifacts, and ideas connected by projects, grounded in the live Supabase
+  `resources` node spine, aligned to schema.org + PROV-O + NCBITaxon +
+  Bioschemas/Croissant, with reserved hooks for the neuroscience (Marr / causal-KG)
+  layer. OWL is the schema logic; SHACL validates instance exports.
+license: MIT
+version: 0.2.0
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  bbqs: https://brain-bbqs.org/schema#
+  schema: https://schema.org/
+  xsd: http://www.w3.org/2001/XMLSchema#
+  prov: http://www.w3.org/ns/prov#
+  dcterms: http://purl.org/dc/terms/
+  skos: http://www.w3.org/2004/02/skos/core#
+  obo: http://purl.obolibrary.org/obo/
+  NCBITaxon: http://purl.obolibrary.org/obo/NCBITaxon_
+  UBERON: http://purl.obolibrary.org/obo/UBERON_
+  NBO: http://purl.obolibrary.org/obo/NBO_
+  OBI: http://purl.obolibrary.org/obo/OBI_
+  PATO: http://purl.obolibrary.org/obo/PATO_
+  bioschema: https://bioschemas.org/
+  croissant: http://mlcommons.org/croissant/1.0/
+  cogatlas: https://www.cognitiveatlas.org/concept/id/
+  dandi: https://dandiarchive.org/dandiset/
+  orcid: https://orcid.org/
+  ror: https://ror.org/
+  doi: https://doi.org/
+  pmid: https://pubmed.ncbi.nlm.nih.gov/
+
+default_prefix: bbqs
+default_range: string
+
+imports:
+  - linkml:types
+
+# =============================================================================
+# CLASSES
+# =============================================================================
+classes:
+
+  # ---- Node spine ----------------------------------------------------------
+  # Every real-world entity is one row in Supabase `resources`, i.e. one IRI.
+  # `resource_type` is the rdf:type discriminator; `external_url` is its
+  # canonical off-graph URL (schema:url / candidate owl:sameAs).
+  Entity:
+    abstract: true
+    class_uri: schema:Thing
+    description: >-
+      Anything with a row in the `resources` spine — the abstract base of every
+      first-class BBQS node. IRI = resources.id; class = resources.resource_type.
+    slots:
+      - id
+      - name
+      - description
+      - external_url
+      - resource_type
+      - part_of_org
+      - metadata
+      - created_at
+      - updated_at
+      # provenance carried by every node (see PROV-O section)
+      - was_generated_by
+      - was_attributed_to
+      - dc_source
+
+  # ---- schema.org abstract anchors (not instantiated) ----------------------
+  Thing:      { class_uri: schema:Thing, abstract: true }
+  Agent:      { is_a: Thing, class_uri: prov:Agent, abstract: true, description: A person or organization that can act. }
+  Person:     { is_a: Agent, class_uri: schema:Person, abstract: true }
+  Organization: { is_a: Agent, class_uri: schema:Organization, abstract: true }
+  CreativeWork: { is_a: Thing, class_uri: schema:CreativeWork, abstract: true }
+  Product:    { is_a: Thing, class_uri: schema:Product, abstract: true }
+  ProjectAnchor: { is_a: Thing, class_uri: schema:Project, abstract: true }
+  JobPosting: { is_a: Thing, class_uri: schema:JobPosting, abstract: true }
+  Taxon:      { is_a: Thing, class_uri: schema:Taxon, abstract: true }
+  EventAnchor: { is_a: Thing, class_uri: schema:Event, abstract: true }
+
+  # =========================================================================
+  # PEOPLE & ORGANIZATIONS   (resources.resource_type: investigator, organization)
+  # =========================================================================
+  Investigator:
+    is_a: Entity
+    mixins: [Person]
+    class_uri: schema:Person
+    description: >-
+      A consortium member. May be a PI, co-I, trainee, collaborator, or a member
+      who is on NO project (III. Live State — membership is not project-derived).
+      Per-project role lives on the ProjectRole edge, NOT here (issue #283).
+    slots:
+      - email
+      - secondary_emails
+      - orcid
+      - scholar_id
+      - institution
+      - consortium_role         # investigators.role — one free-text career/consortium label
+      - research_areas
+      - skills
+      - member_of_group         # working_groups[]  → WorkingGroup nodes
+      - requested_groups        # requested_working_groups[]
+      - reporter_profile_id
+      - has_project_role        # → ProjectRole (reified per-project role)
+    slot_usage:
+      email: { description: "PII — restricted in the public API/graph export." }
+
+  ResearchOrganization:
+    is_a: Entity
+    mixins: [Organization]
+    class_uri: schema:ResearchOrganization
+    description: A university, institute, or lab participating in BBQS.
+    exact_mappings: [ror:]
+    slots: [ror_id, members]
+
+  Consortium:
+    is_a: Entity
+    mixins: [Organization]
+    class_uri: schema:Organization
+    description: The BBQS Consortium itself — a multi-institution NIH-funded collective.
+    slots: [members, funder]
+
+  FundingAgency:
+    is_a: Entity
+    mixins: [Organization]
+    class_uri: schema:GovernmentOrganization
+    description: An organization that funds BBQS research (typically an NIH institute).
+
+  DeviceManufacturer:
+    is_a: Entity
+    mixins: [Organization]
+    class_uri: schema:Organization
+    description: >-
+      A maker of neural/behavioral/physiological instruments. Sourced from
+      device_manufacturers (NB: needs resource_id backfill to enter the spine).
+    slots: [aliases, country, homepage_url]
+
+  WorkingGroup:
+    is_a: Entity
+    class_uri: schema:Organization
+    description: >-
+      A BBQS working group. Currently stored as a controlled tag on
+      investigators.working_groups[] + canonical_working_group(); promoted here to
+      a first-class node. Membership is the inverse of Investigator.member_of_group.
+    slots: [members, dashboard_widgets]
+
+  # =========================================================================
+  # SCIENCE SPINE — the BBQS Project IS the node   (resource_type: grant)
+  # =========================================================================
+  # "Grant" is only NIH terminology; there is ONE first-class node — the BBQS
+  # Project — and the NIH award (grant_number, mechanism, award_amount, RePORTER
+  # ids) is carried as attributes on it. In the DB the spine row is
+  # resource_type='grant' (grants table); the exporter joins grants ⋈ projects on
+  # grant_number into this single node.
+  Project:
+    is_a: Entity
+    mixins: [ProjectAnchor]
+    class_uri: schema:ResearchProject
+    related_mappings: [schema:MonetaryGrant]
+    description: >-
+      A BBQS project — the funded scientific work and its NIH award as one node,
+      keyed by grant_number. The Marr/causal model plugs in via has_model.
+    slots:
+      # --- NIH award facet (grants table) ---
+      - grant_number
+      - reporter_project_num
+      - title
+      - abstract
+      - award_amount
+      - fiscal_year
+      - nih_link
+      - mechanism            # derived from grant_number, not stored
+      - funder
+      # --- science facet (projects table) ---
+      - website
+      - keywords
+      - studies_species      # study_species[] → Species
+      - studies_human
+      - metadata_completeness
+      - onboarding_status
+      # --- graph edges ---
+      - has_project_role     # → ProjectRole (project ↔ investigator + role)
+      - funded_datasets      # grant_dandisets → Dandiset
+      - has_model            # → MarrModel  (RESERVED stub)
+      - produced             # → any Artifact (dataset/software/publication/model…)
+
+  ProjectRole:
+    class_uri: prov:Association
+    description: >-
+      Reified project↔investigator role (grant_investigators). THE authority for
+      "role on this project" — canonical tokens only (trg_normalize_grant_role),
+      with role_source provenance. A scalar on Investigator cannot express a role
+      that varies per project (issue #283).
+    slots: [on_project, held_by, project_role, role_source]
+
+  # =========================================================================
+  # ARTIFACTS — things produced   (resource_type: publication, dataset, software,
+  #   tool, ml_model, protocol, benchmark)
+  # =========================================================================
+  Publication:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:ScholarlyArticle
+    slots: [authors, author_orcids, doi, pmid, pubmed_link, journal, year, citations, rcr, keywords]
+    slot_usage:
+      authors: { description: "Free-text author string; ORCIDs in author_orcids. Not an FK to Investigator." }
+
+  Dataset:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:Dataset
+    description: A released dataset. Distinct from a project's Marr-layer ExperimentalData.
+    exact_mappings: [bioschema:Dataset]
+    related_mappings: [croissant:Dataset]
+    slots: [license, access, dataset_species, measurement_technique]
+
+  Dandiset:
+    is_a: Dataset
+    class_uri: schema:Dataset
+    description: A DANDI-archived dataset (NWB). Linked to grants via award_numbers[].
+    exact_mappings: [dandi:]
+    slots: [dandiset_id, api_url, draft_url, neurosift_url, file_count, size_bytes, dandi_instance, award_numbers]
+
+  Benchmark:
+    is_a: Dataset
+    class_uri: schema:Dataset
+    description: An evaluation dataset/task used to score models or algorithms.
+    close_mappings: [OBI:0000070]   # assay
+    slots: [evaluates]
+
+  SoftwareTool:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:SoftwareApplication
+    description: A software package, pipeline, or analysis library released by BBQS.
+    exact_mappings: [bioschema:ComputationalTool]
+    slots: [repo_url, docs_url, language, software_license, version]
+
+  MLModel:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:SoftwareApplication
+    description: A trained/released machine-learning model (resource_type ml_model).
+    slots: [repo_url, trained_on, evaluated_by]
+
+  Algorithm:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:CreativeWork
+    description: >-
+      RESERVED. A method/algorithm distinct from its software implementation and
+      from a trained model. No resource_type value yet — OPEN: promote to enum, or
+      treat as a facet of SoftwareTool/MLModel/Protocol.
+    todos: ["No DB home yet — decide enum value vs. fold into MLModel/Protocol."]
+
+  Protocol:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:CreativeWork
+    description: An experimental/analysis protocol or method (resource_type protocol).
+    close_mappings: [OBI:0000272]   # protocol
+    slots: [uses_device, measures_construct]
+
+  Device:
+    is_a: Entity
+    mixins: [Product]
+    class_uri: schema:Product
+    description: >-
+      A physical instrument model used in BBQS data collection (device_models).
+      Its kind is a DeviceCategory (the ~32 canonical categories), NOT a subclass
+      tree. NB: device_models needs resource_id backfill to enter the spine.
+    slots:
+      - aliases
+      - device_category      # device_class → DeviceCategory.key
+      - manufacturer         # → DeviceManufacturer
+      - model_name
+      - output_signals
+      - sampling_rate_hz
+      - price_tier
+      - regulatory_class
+      - product_url
+      - manual_urls
+      - sdk_urls
+
+  DeviceCategory:
+    is_a: Entity
+    class_uri: skos:Concept
+    description: >-
+      One of the ~32 canonical BBQS device categories (device_categories:
+      key/label/measures[]/typical_use_cases[]). A SKOS concept scheme; each maps
+      to a schema.org type and (via device_class_crosswalk) to external classes.
+    slots: [category_key, label, measures, typical_use_cases, schema_org_type]
+
+  Tool:
+    is_a: Entity
+    mixins: [Product]
+    class_uri: schema:Product
+    description: >-
+      A research tool/instrument resource that is neither software nor a catalogued
+      device model (resource_type tool). OPEN: confirm intended boundary vs.
+      Device/SoftwareTool.
+    todos: ["Clarify semantics of resource_type 'tool' vs 'software'/Device."]
+
+  # =========================================================================
+  # COMMUNITY / NOTICES   (resource_type: announcement, job, funding)
+  # =========================================================================
+  Announcement:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: schema:Article
+    description: A consortium news post or announcement. `news`, funding blurbs, etc.
+    slots: [content, link, link_text, is_external_link, posted_by]
+
+  Job:
+    is_a: Entity
+    mixins: [JobPosting]
+    class_uri: schema:JobPosting
+    description: A postdoc, staff, or trainee position posted by a BBQS lab.
+    slots: [job_institution, job_type, department, location, description_text,
+            application_url, contact_name, contact_email, expires_at, is_active, posted_by]
+
+  FundingOpportunity:
+    is_a: Entity
+    class_uri: schema:CreativeWork
+    description: >-
+      An NIH (or other) funding call — the "funding calls" surface
+      (funding_opportunities: fon/activity_code/due_dates…). resource_type=funding.
+      NB: table needs resource_id backfill to enter the spine.
+    slots: [fon, activity_code, eligible_activity_codes, announcement_type,
+            budget_floor, budget_ceiling, due_dates, open_date, posted_date,
+            expiration_date, participating_orgs, purpose, relevance_tags, status, url]
+
+  Event:
+    is_a: Entity
+    mixins: [EventAnchor]
+    class_uri: schema:Event
+    description: >-
+      A BBQS workshop, convening, or meeting. RESERVED: no data table populates
+      this yet — class exists so the exporter/UI have a home when events land.
+    slots: [start_date, end_date, location, attendees]
+    todos: ["No events table yet — decide source (new table vs. announcements subtype)."]
+
+  # =========================================================================
+  # IDEAS / KNOWLEDGE   (species + the reserved neuroscience / Marr layer)
+  # =========================================================================
+  Species:
+    is_a: Entity
+    mixins: [Taxon]
+    class_uri: schema:Taxon
+    description: A species studied in a BBQS project. Align identifiers to NCBITaxon.
+    exact_mappings: [NCBITaxon:]
+    slots: [common_name, ncbi_taxon_id, taxonomy_class, taxonomy_order, taxonomy_family, taxonomy_genus, aliases]
+
+  MarrModel:
+    is_a: Entity
+    class_uri: bbqs:MarrModel
+    description: >-
+      RESERVED STUB. The BBQS-Marr object: the causal / conceptual-neuroscience
+      graph for a project, spanning Marr's computational, algorithmic, and
+      implementational levels. Developed separately (Nader's causal-KG) and NOT
+      ready — modeled here only as a node Project.has_model can point at, plus the
+      hooks below. Do not flesh out until the causal-KG lands.
+    slots: [describes_project, computational_level, algorithmic_level,
+            implementational_level, has_experimental_data, about_construct,
+            about_anatomy, about_task]
+
+  ExperimentalData:
+    is_a: Entity
+    class_uri: prov:Entity
+    description: >-
+      RESERVED STUB. The empirical experiment/model data that grounds a MarrModel —
+      explicitly DISTINCT from a released Dataset artifact. Belongs to the Marr
+      layer; wait for the causal-KG.
+
+  # ---- neuroscience concept hooks (reserved; wire ranges, don't populate) ---
+  BehavioralConstruct:
+    is_a: Thing
+    class_uri: skos:Concept
+    description: A behavior or behavioral phenotype under study. RESERVED hook.
+    exact_mappings: [NBO:]
+  AnatomicalSite:
+    is_a: Thing
+    class_uri: skos:Concept
+    description: A nervous-system structure a signal is recorded from. RESERVED hook.
+    exact_mappings: [UBERON:]
+  CognitiveTask:
+    is_a: Thing
+    class_uri: skos:Concept
+    description: A cognitive task/paradigm or construct. RESERVED hook.
+    exact_mappings: [cogatlas:]
+
+  # =========================================================================
+  # PROVENANCE  (X. Full Data Provenance) — maps field_provenance + source_classes
+  # =========================================================================
+  ProvenanceRecord:
+    class_uri: prov:Activity
+    description: >-
+      Field-level provenance (field_provenance): one assertion that a given
+      (entity_table, entity_column, entity_id) value was generated by an activity,
+      attributed to an agent, from a graded source_class, with confidence/evidence.
+      Reifies PROV onto individual cell writes.
+    slots: [prov_entity_table, prov_entity_column, prov_entity_id, prov_value_text,
+            prov_activity, prov_agent_id, prov_agent_label, prov_source_class,
+            prov_source_ref, prov_confidence, prov_authored_at, prov_recorded_at,
+            prov_recorded_by, prov_evidence, prov_model_id]
+
+  SourceClass:
+    class_uri: skos:Concept
+    description: >-
+      A provenance source category (source_classes) graded by reliability —
+      whether the who/what behind a value is human, agent, harvester, RePORTER,
+      etc., and how much it is trusted.
+    slots: [source_code, label, description, agent_kind, grade, is_verified]
+
+# =============================================================================
+# SLOTS
+# =============================================================================
+slots:
+
+  # ---- identity / core (Entity) --------------------------------------------
+  id:
+    identifier: true
+    slot_uri: schema:identifier
+    range: uriorcurie
+    description: The node IRI — minted from resources.id.
+  name:        { slot_uri: schema:name }
+  description: { slot_uri: schema:description }
+  external_url: { slot_uri: schema:url, range: uriorcurie, description: "resources.external_url — canonical off-graph URL." }
+  resource_type:
+    slot_uri: bbqs:resourceType
+    range: resource_type_enum
+    description: The rdf:type discriminator, from resources.resource_type.
+  part_of_org: { slot_uri: schema:parentOrganization, range: ResearchOrganization, description: "resources.organization_id." }
+  metadata:    { slot_uri: bbqs:metadata, description: "resources.metadata JSON overflow — un-promoted fields." }
+  created_at:  { slot_uri: schema:dateCreated, range: datetime }
+  updated_at:  { slot_uri: schema:dateModified, range: datetime }
+
+  # ---- provenance on every node --------------------------------------------
+  was_generated_by: { slot_uri: prov:wasGeneratedBy, range: ProvenanceRecord, multivalued: true }
+  was_attributed_to: { slot_uri: prov:wasAttributedTo, range: Agent }
+  dc_source:   { slot_uri: dcterms:source, range: uriorcurie, multivalued: true }
+
+  # ---- Agent / people -------------------------------------------------------
+  email:       { slot_uri: schema:email }
+  secondary_emails: { slot_uri: schema:email, multivalued: true }
+  orcid:       { slot_uri: schema:identifier, range: uriorcurie, description: "ORCID iD (orcid: prefix)." }
+  scholar_id:  { description: "Google Scholar id." }
+  institution: { slot_uri: schema:affiliation }
+  consortium_role: { slot_uri: schema:jobTitle, description: "investigators.role — ONE free-text label; never a machine token (issue #283)." }
+  research_areas: { multivalued: true }
+  skills:      { multivalued: true }
+  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true }
+  requested_groups: { range: WorkingGroup, multivalued: true }
+  reporter_profile_id: { range: integer, description: "NIH RePORTER profile id." }
+  members:     { slot_uri: schema:member, range: Investigator, multivalued: true }
+  funder:      { slot_uri: schema:funder, range: FundingAgency }
+  ror_id:      { slot_uri: schema:identifier, range: uriorcurie }
+  aliases:     { slot_uri: schema:alternateName, multivalued: true }
+  country:     { slot_uri: schema:addressCountry }
+  homepage_url: { slot_uri: schema:url, range: uriorcurie }
+  dashboard_widgets: { slot_uri: bbqs:dashboardWidgets, description: "working_group_dashboard_defaults.widgets JSON." }
+
+  # ---- project / grant ------------------------------------------------------
+  grant_number: { slot_uri: schema:identifier, description: "NIH grant number; encodes mechanism." }
+  reporter_project_num: { description: "Full per-year RePORTER project_num (not the core)." }
+  website:     { slot_uri: schema:url, range: uriorcurie }
+  keywords:    { slot_uri: schema:keywords, multivalued: true }
+  studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes." }
+  studies_human: { range: boolean }
+  metadata_completeness: { range: float }
+  onboarding_status: {}
+  has_model:   { slot_uri: bbqs:hasModel, range: MarrModel, description: "→ the project's Marr/causal model (RESERVED)." }
+  produced:    { slot_uri: schema:producer, range: Entity, multivalued: true, description: "Artifacts produced by the project." }
+  title:       { slot_uri: schema:name }
+  abstract:    { slot_uri: schema:abstract }
+  award_amount: { slot_uri: schema:amount, range: float }
+  fiscal_year: { range: integer }
+  nih_link:    { slot_uri: schema:url, range: uriorcurie }
+  mechanism:   { slot_uri: bbqs:mechanism, description: "R61/R34/RF1/U01… — DERIVED from grant_number, not stored." }
+  funded_datasets: { range: Dandiset, multivalued: true }
+
+  # ---- ProjectRole (reified role) ------------------------------------------
+  on_project:  { slot_uri: prov:hadPlan, range: Project }
+  held_by:     { slot_uri: prov:agent, range: Investigator }
+  project_role: { slot_uri: schema:roleName, range: project_role_enum, description: "Canonical token (trg_normalize_grant_role enforces)." }
+  role_source: { description: "Where the role came from (RePORTER, curation…) — provenance." }
+  has_project_role: { range: ProjectRole, multivalued: true }
+
+  # ---- publications ---------------------------------------------------------
+  authors:     { slot_uri: schema:author }
+  author_orcids: { slot_uri: schema:author, description: "JSON of author ORCIDs." }
+  doi:         { slot_uri: schema:identifier, range: uriorcurie }
+  pmid:        { slot_uri: schema:identifier }
+  pubmed_link: { slot_uri: schema:url, range: uriorcurie }
+  journal:     { slot_uri: schema:isPartOf }
+  year:        { slot_uri: schema:datePublished, range: integer }
+  citations:   { range: integer }
+  rcr:         { range: float, description: "Relative Citation Ratio." }
+
+  # ---- datasets / software / models ----------------------------------------
+  license:     { slot_uri: schema:license }
+  access:      { slot_uri: schema:conditionsOfAccess }
+  dataset_species: { slot_uri: schema:about, range: Species, multivalued: true }
+  measurement_technique: { slot_uri: schema:measurementTechnique, range: Device, multivalued: true }
+  dandiset_id: { slot_uri: schema:identifier }
+  api_url:     { slot_uri: schema:url, range: uriorcurie }
+  draft_url:   { range: uriorcurie }
+  neurosift_url: { range: uriorcurie }
+  file_count:  { range: integer }
+  size_bytes:  { slot_uri: schema:contentSize, range: integer }
+  dandi_instance: {}
+  award_numbers: { multivalued: true, description: "Links dandiset → grant(s)." }
+  evaluates:   { slot_uri: bbqs:evaluates, range: Entity, multivalued: true, description: "What the benchmark scores (model/algorithm/tool)." }
+  repo_url:    { slot_uri: schema:codeRepository, range: uriorcurie }
+  docs_url:    { slot_uri: schema:url, range: uriorcurie }
+  language:    { slot_uri: schema:programmingLanguage }
+  software_license: { slot_uri: schema:license }
+  version:     { slot_uri: schema:softwareVersion }
+  trained_on:  { slot_uri: bbqs:trainedOn, range: Dataset, multivalued: true }
+  evaluated_by: { slot_uri: bbqs:evaluatedBy, range: Benchmark, multivalued: true }
+
+  # ---- devices --------------------------------------------------------------
+  device_category: { slot_uri: schema:category, range: DeviceCategory, description: "device_models.device_class → DeviceCategory.key." }
+  manufacturer: { slot_uri: schema:manufacturer, range: DeviceManufacturer }
+  model_name:  { slot_uri: schema:model }
+  output_signals: { multivalued: true }
+  sampling_rate_hz: { range: float }
+  price_tier:  {}
+  regulatory_class: {}
+  product_url: { slot_uri: schema:url, range: uriorcurie }
+  manual_urls: { range: uriorcurie, multivalued: true }
+  sdk_urls:    { range: uriorcurie, multivalued: true }
+  category_key: { slot_uri: skos:notation, description: "device_categories.key." }
+  label:       { slot_uri: skos:prefLabel }
+  measures:    { slot_uri: bbqs:measures, multivalued: true, description: "What this device category measures (behavior/neural/physio…)." }
+  typical_use_cases: { multivalued: true }
+  schema_org_type: { description: "device_categories.schema_org_type — the schema.org type this category maps to." }
+  uses_device: { slot_uri: schema:instrument, range: Device, multivalued: true }
+  measures_construct: { slot_uri: bbqs:measuresConstruct, range: BehavioralConstruct, multivalued: true }
+
+  # ---- community / notices --------------------------------------------------
+  content:     { slot_uri: schema:articleBody }
+  link:        { slot_uri: schema:url, range: uriorcurie }
+  link_text:   {}
+  is_external_link: { range: boolean }
+  posted_by:   { slot_uri: schema:author, range: Investigator }
+  job_institution: { slot_uri: schema:hiringOrganization }
+  job_type:    { slot_uri: schema:employmentType }
+  department:  {}
+  location:    { slot_uri: schema:jobLocation }
+  description_text: { slot_uri: schema:description }
+  application_url: { slot_uri: schema:url, range: uriorcurie }
+  contact_name: {}
+  contact_email: {}
+  expires_at:  { slot_uri: schema:validThrough, range: datetime }
+  is_active:   { range: boolean }
+  fon:         { slot_uri: schema:identifier, description: "Funding Opportunity Number." }
+  activity_code: {}
+  eligible_activity_codes: { multivalued: true }
+  announcement_type: {}
+  budget_floor: { range: float }
+  budget_ceiling: { range: float }
+  due_dates:   { description: "JSON of application due dates." }
+  open_date:   { range: date }
+  posted_date: { range: date }
+  expiration_date: { range: date }
+  participating_orgs: { multivalued: true }
+  purpose:     {}
+  relevance_tags: { multivalued: true }
+  status:      {}
+  url:         { slot_uri: schema:url, range: uriorcurie }
+
+  # ---- events ---------------------------------------------------------------
+  start_date:  { slot_uri: schema:startDate, range: date }
+  end_date:    { slot_uri: schema:endDate, range: date }
+  attendees:   { slot_uri: schema:attendee, range: Investigator, multivalued: true }
+
+  # ---- species / ideas ------------------------------------------------------
+  common_name: { slot_uri: schema:alternateName }
+  ncbi_taxon_id: { slot_uri: schema:identifier, range: uriorcurie, description: "NCBITaxon IRI (align species to NCBI)." }
+  taxonomy_class: { slot_uri: schema:taxonRank }
+  taxonomy_order: {}
+  taxonomy_family: {}
+  taxonomy_genus: {}
+
+  # ---- Marr stub hooks ------------------------------------------------------
+  describes_project: { slot_uri: schema:about, range: Project }
+  computational_level: { description: "Marr level 1 — the problem/goal. RESERVED." }
+  algorithmic_level: { description: "Marr level 2 — representation & algorithm. RESERVED." }
+  implementational_level: { description: "Marr level 3 — physical realization. RESERVED." }
+  has_experimental_data: { range: ExperimentalData, multivalued: true }
+  about_construct: { range: BehavioralConstruct, multivalued: true }
+  about_anatomy: { range: AnatomicalSite, multivalued: true }
+  about_task:  { range: CognitiveTask, multivalued: true }
+
+  # ---- provenance record (field_provenance) --------------------------------
+  prov_entity_table: {}
+  prov_entity_column: {}
+  prov_entity_id: {}
+  prov_value_text: {}
+  prov_activity: { slot_uri: prov:activity }
+  prov_agent_id: {}
+  prov_agent_label: { slot_uri: prov:agent }
+  prov_source_class: { slot_uri: prov:hadPrimarySource, range: SourceClass }
+  prov_source_ref: {}
+  prov_confidence: { range: float }
+  prov_authored_at: { range: datetime }
+  prov_recorded_at: { range: datetime }
+  prov_recorded_by: {}
+  prov_evidence: {}
+  prov_model_id: {}
+  source_code: { slot_uri: skos:notation }
+  agent_kind:  { description: "human | agent | harvester | reporter …" }
+  grade:       { range: integer, description: "Source reliability grade." }
+  is_verified: { range: boolean }
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  resource_type_enum:
+    description: >-
+      resources.resource_type. First block = shipped values; second block =
+      PROPOSED additions requiring the enum-extend + resource_id backfill migration.
+    permissible_values:
+      investigator: {}
+      organization: {}
+      grant: { description: "The BBQS Project node (DB keeps the NIH term 'grant'; class = Project)." }
+      publication: {}
+      software: {}
+      tool: {}
+      dataset: {}
+      protocol: {}
+      benchmark: {}
+      ml_model: {}
+      job: {}
+      announcement: {}
+      funding: {}
+      # ---- PROPOSED (backfill migration) ----
+      species: { description: PROPOSED }
+      device: { description: PROPOSED }
+      device_category: { description: PROPOSED }
+      device_manufacturer: { description: PROPOSED }
+      working_group: { description: PROPOSED }
+      event: { description: PROPOSED }
+
+  project_role_enum:
+    description: Canonical per-project role tokens (grant_investigators.role; trg_normalize_grant_role enforces).
+    permissible_values:
+      contact-pi: {}
+      pi: {}
+      co-pi: {}
+      co-investigator: {}
+      trainee: {}
+      other: {}

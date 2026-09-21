@@ -1,0 +1,31 @@
+# Deliberately-inconsistent graph. Every consistency shape should fire on exactly one node here.
+# This is the RED half of the RED/GREEN pair that proves the shapes actually bite.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+
+# #4 — non-canonical project_role token
+bid:role-1 a bbqs:ProjectRole ;
+  bbqs:project_role "Principal Investigator" ;
+  bbqs:held_by bid:inv-1 ;
+  bbqs:on_project bid:proj-1 .
+
+# #5 — a per-project role token stuffed into the free-text consortium_role
+bid:inv-1 a bbqs:Investigator ;
+  bbqs:name "Jane Roe" ;
+  bbqs:consortium_role "Contact PI" .
+
+# #9 — mechanism disagrees with the grant number (award is U01, mechanism says R61)
+bid:proj-1 a bbqs:Project ;
+  bbqs:name "Test project" ;
+  bbqs:grant_number "1U01MH135430-01" ;
+  bbqs:mechanism "R61" .
+
+# #12 — two verified provenance records disagree on projects.title for proj-1
+bid:sc-reporter a bbqs:SourceClass ; bbqs:is_verified true .
+bid:sc-curator  a bbqs:SourceClass ; bbqs:is_verified true .
+bid:prov-a a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "title" ; bbqs:prov_entity_id "proj-1" ;
+  bbqs:prov_value_text "Title A" ; bbqs:prov_source_class bid:sc-reporter .
+bid:prov-b a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "title" ; bbqs:prov_entity_id "proj-1" ;
+  bbqs:prov_value_text "Title B" ; bbqs:prov_source_class bid:sc-curator .
