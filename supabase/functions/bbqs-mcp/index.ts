@@ -57,7 +57,7 @@ const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
-  "create_grant", "repoint_grant",
+  "create_grant", "repoint_grant", "detect_grant_renumbers",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -472,6 +472,15 @@ function buildServer(jwt: string, caller: Caller | null) {
         _new_grant_number: a.new_grant_number,
         _reporter_project_num: a.reporter_project_num ?? null,
       })),
+  });
+
+  T("detect_grant_renumbers", {
+    description: "[curator] Find grants that silently froze because the award was RENUMBERED — e.g. an NIH administering-IC transfer that mints a new core number (#385). Cross-checks RePORTER: for each grant whose latest fiscal year is stale (2+ years behind), it looks for the same title/PI under a NEWER, DIFFERENT number and reports it as a probable renumber, with the exact repoint_grant call to run. REPORT ONLY — review each candidate and run repoint_grant to confirm. Good to run periodically or when a grant looks out of date.",
+    parameters: obj({ stale_years: { type: "number", description: "flag grants whose latest RePORTER year is this many years behind (default 2)" } }),
+    handler: async (a: { stale_years?: number }) => {
+      const q = a.stale_years ? `?action=detect-renumbers&stale_years=${a.stale_years}` : "?action=detect-renumbers";
+      return text(await callFunction(jwt, `nih-grants${q}`, {}));
+    },
   });
 
   T("add_funding_opportunity", {
