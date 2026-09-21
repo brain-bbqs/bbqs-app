@@ -57,6 +57,7 @@ const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
+  "create_grant", "repoint_grant",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -160,7 +161,7 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
 }
 
 function buildServer(jwt: string, caller: Caller | null) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.1.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.2.0" });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
@@ -431,6 +432,24 @@ function buildServer(jwt: string, caller: Caller | null) {
       text(await rpcC( "offboard_member", { _investigator_id: a.investigator_id, _grant_id: a.grant_id ?? null })),
   });
 
+  T("create_grant", {
+    description: "[curator] Create an award that is NOT YET on NIH RePORTER — a funder notice — so a new team can be onboarded before the registry catches up. This is the missing primitive: onboard_member links a person to a grant that must already exist, and refresh_grant_from_reporter is a no-op until RePORTER has the award. Inserts the grant (grant_number, title, and fiscal_year if known), optionally its awardee project row (pass institution), and optionally links an ALREADY-EXISTING contact PI to the roster (role_source funder_notice). Idempotent on grant_number; provenance is recorded as funder_notice (G1). It does NOT create people (an unknown contact_pi_email is reported back — use onboard_member) and does NOT touch Google Groups. Sequence for a new team: create_grant → onboard_member(grant_id, …) for each PI/member → sync_member_groups → send_welcome_email → refresh_grant_from_reporter once the award appears on RePORTER (it fills abstract/amount/publications, adds MPIs, and never demotes a role). Do not write SQL for this.",
+    parameters: obj({
+      grant_number: { type: "string", description: "Core project number, e.g. U01MH143789 — a -01 year suffix is stripped and it is upper-cased" },
+      title: { type: "string", description: "Award title from the funder notice (required; RePORTER cannot supply it yet)" },
+      fiscal_year: { type: "number", description: "Award fiscal year, if known" },
+      institution: { type: "string", description: "Awardee institution; when given, creates the project row. Upper-case matches how RePORTER writes org_name." },
+      study_human: { type: "boolean", description: "Whether the project studies humans, if known" },
+      contact_pi_email: { type: "string", description: "Contact PI. Linked as contact_pi ONLY if this person already exists in the KG; if not found the grant is still created and the result says so — then use onboard_member with the returned grant_id." },
+    }, ["grant_number", "title"]),
+    handler: async (a: { grant_number: string; title: string; fiscal_year?: number; institution?: string; study_human?: boolean; contact_pi_email?: string }) =>
+      text(await rpcC("create_grant", {
+        _grant_number: a.grant_number, _title: a.title,
+        _fiscal_year: a.fiscal_year ?? null, _institution: a.institution ?? null,
+        _study_human: a.study_human ?? null, _contact_pi_email: a.contact_pi_email ?? null,
+      })),
+  });
+
   T("refresh_grant_from_reporter", {
     description: "[curator] Pull the latest NIH RePORTER data for a grant and fill the KG — abstract, award amount, nih_link, reporter_project_num, publications. Use this when a grant is newly on RePORTER or its registry data changed (e.g. a funder-notice grant that was pre-registry). Omit grant_number to refresh every grant. Does not demote roster roles. This is the tool for \"fix the RePORTER data for grant X\" — do not write SQL.",
     parameters: obj({ grant_number: { type: "string", description: "e.g. R61MH142354; omit to refresh all" } }),
@@ -438,6 +457,21 @@ function buildServer(jwt: string, caller: Caller | null) {
       const q = a.grant_number ? `?action=refresh&grant=${encodeURIComponent(a.grant_number)}` : "?action=refresh";
       return text(await callFunction(jwt, `nih-grants${q}`, {}));
     },
+  });
+
+  T("repoint_grant", {
+    description: "[curator] Repoint a grant to a NEW award number after it was renumbered — e.g. an NIH administering-IC transfer that mints a new core number (U24MH136628 -> U24DA064429). Updates the grant + its project rows + nih_link and records provenance; the old number stays in the audit history. THE tool for \"the grant number changed / it moved to a different IC\" — do not write SQL. Refuses if another grant already uses the new number. Follow with refresh_grant_from_reporter for the new number to fill current-year metadata and publications.",
+    parameters: obj({
+      grant_number: { type: "string", description: "current number in the KG, e.g. U24MH136628" },
+      new_grant_number: { type: "string", description: "the award's current/correct number, e.g. U24DA064429" },
+      reporter_project_num: { type: "string", description: "optional full per-year string e.g. 5U24DA064429-03; else left for refresh" },
+    }, ["grant_number", "new_grant_number"]),
+    handler: async (a: { grant_number: string; new_grant_number: string; reporter_project_num?: string }) =>
+      text(await rpcC("repoint_grant", {
+        _grant_number: a.grant_number,
+        _new_grant_number: a.new_grant_number,
+        _reporter_project_num: a.reporter_project_num ?? null,
+      })),
   });
 
   T("add_funding_opportunity", {
@@ -506,19 +540,6 @@ app.get("/bbqs-mcp/.well-known/oauth-protected-resource", (c) =>
 app.all("/bbqs-mcp/*", async (c) => {
   const req = c.req.raw;
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-
-  // OAuth-required mode (?oauth=1): challenge every unauthenticated request. Connector UIs
-  // (ChatGPT, Perplexity) discover auth via RFC 9728 by fetching
-  // /.well-known/oauth-protected-resource/<path> at the HOST root — but that URL lands on
-  // Supabase's API gateway, not this function, so they see "server does not support automatic
-  // registration" and never reach the consent screen. Answering 401 + WWW-Authenticate here
-  // hands them the resource_metadata pointer directly, and dynamic registration + the
-  // authorization code flow then work unchanged. Anonymous access stays the default when the
-  // param is absent.
-  if (!jwt && new URL(req.url).searchParams.has("oauth")) {
-    return c.json({ error: "unauthorized", error_description: "Sign in to use this MCP server." },
-      401, challenge());
-  }
 
   // Resolve the caller once if a token was sent. A present-but-invalid token is rejected here so a
   // stale token never silently degrades to anonymous.
