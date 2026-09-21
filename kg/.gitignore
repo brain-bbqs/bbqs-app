@@ -1,0 +1,8 @@
+# Local Python toolchain for the KG validation harness — never commit it.
+.venv/
+__pycache__/
+# Generated artifacts (regenerated from bbqs.linkml.yaml / the exporter).
+bbqs.owl.ttl
+bbqs.shapes.gen.ttl
+bbqs.context.jsonld
+export/

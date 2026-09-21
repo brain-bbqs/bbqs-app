@@ -1,0 +1,90 @@
+# BBQS KG consistency shapes — the CONTRADICTION checks, hand-written.
+#
+# These are the shapes LinkML's gen-shacl cannot produce: cross-field and cross-node SPARQL
+# constraints that catch "one part of the graph disagrees with another". The boilerplate node/
+# cardinality/datatype/pattern shapes come from `gen-shacl kg/bbqs.linkml.yaml` and live separately;
+# this file is only the invariants that require reasoning across triples.
+#
+# Run:  python kg/validate.py kg/fixtures/contradictions.ttl   # expect NON-conformance (fires)
+#       python kg/validate.py kg/fixtures/clean.ttl            # expect conformance
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix bbqs:  <https://brain-bbqs.org/schema#> .
+
+# Shared prefix declaration for the SPARQL constraints below.
+bbqs:prefixes
+  sh:declare [ sh:prefix "bbqs" ; sh:namespace "https://brain-bbqs.org/schema#"^^xsd:anyURI ] .
+
+# ── Invariant #4 — role tokens are canonical ─────────────────────────────────
+# A per-project role may only be one of the canonical tokens (trg_normalize_grant_role enforces this
+# in the DB; the graph must not smuggle a free-text role past it).
+bbqs:ProjectRoleTokenShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ProjectRole ;
+  sh:property [
+    sh:path bbqs:project_role ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( "contact-pi" "pi" "co-pi" "co-investigator" "trainee" "other" ) ;
+    sh:message "ProjectRole.project_role must be a canonical token, not free text (#283)." ;
+  ] .
+
+# ── Invariant #5 — the two role columns must not be conflated ─────────────────
+# investigators.role (consortium_role) is ONE free-text career/consortium label. The per-project
+# machine role lives on ProjectRole. A canonical role token appearing in consortium_role means the
+# graph is asserting project standing from the wrong source — the exact #283 failure.
+bbqs:ConsortiumRoleNotAProjectRoleShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Investigator ;
+  sh:sparql [
+    sh:message "consortium_role holds a per-project role token; project role belongs on ProjectRole (#283)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:consortium_role ?value .
+        FILTER(REGEX(?value, '(contact.?pi|co.?pi|principal investigator|multiple.?pi|^mpi$|^pi$)', 'i'))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #9 — mechanism must be consistent with grant_number ─────────────
+# mechanism (R61/U01/RF1/…) is DERIVED from grant_number; if it is present it must appear inside the
+# grant_number. Catches a stored/parsed mechanism that disagrees with the award it describes.
+bbqs:MechanismMatchesGrantNumberShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:sparql [
+    sh:message "mechanism is not contained in grant_number -- they disagree about the award." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?mechanism ?grant WHERE {
+        $this bbqs:mechanism ?mechanism .
+        $this bbqs:grant_number ?grant .
+        FILTER(!CONTAINS(UCASE(STR(?grant)), UCASE(STR(?mechanism))))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #12 — no two VERIFIED sources disagree on one field ─────────────
+# field_provenance can hold many records for the same (table, column, id). If two of them come from
+# verified source classes yet carry different values, the graph literally contradicts itself about a
+# single fact. This is the heart of "parts of the graph must not contradict other parts".
+bbqs:ConflictingVerifiedProvenanceShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ProvenanceRecord ;
+  sh:sparql [
+    sh:message "two verified provenance records disagree on the same (table,column,id) field." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?other WHERE {
+        $this  bbqs:prov_entity_table ?t ; bbqs:prov_entity_column ?c ; bbqs:prov_entity_id ?i ;
+               bbqs:prov_value_text ?v1 ; bbqs:prov_source_class ?sc1 .
+        ?sc1   bbqs:is_verified true .
+        ?other bbqs:prov_entity_table ?t ; bbqs:prov_entity_column ?c ; bbqs:prov_entity_id ?i ;
+               bbqs:prov_value_text ?v2 ; bbqs:prov_source_class ?sc2 .
+        ?sc2   bbqs:is_verified true .
+        FILTER(?v1 != ?v2)
+        FILTER(STR($this) < STR(?other))
+      }
+    """ ;
+  ] .
