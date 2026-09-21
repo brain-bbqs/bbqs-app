@@ -354,7 +354,7 @@ classes:
       An NIH (or other) funding call — the "funding calls" surface
       (funding_opportunities: fon/activity_code/due_dates…). resource_type=funding.
       NB: table needs resource_id backfill to enter the spine.
-    slots: [fon, activity_code, eligible_activity_codes, announcement_type,
+    slots: [fon, activity_code, eligible_activity_codes, opportunity_type,
             budget_floor, budget_ceiling, due_dates, open_date, posted_date,
             expiration_date, participating_orgs, purpose, relevance_tags, status, url]
 
@@ -583,7 +583,7 @@ slots:
   fon:         { slot_uri: schema:identifier, description: "Funding Opportunity Number." }
   activity_code: { description: "NIH activity code for the funding opportunity (e.g. R01, U01)." }
   eligible_activity_codes: { multivalued: true }
-  announcement_type: { description: "Category of announcement (e.g. news, funding, event) — free text." }
+  opportunity_type: { description: "funding_opportunities.announcement_type — the notice type (e.g. NOFO, RFA, PA), not a category of the Announcement class." }
   budget_floor: { range: float }
   budget_ceiling: { range: float }
   due_dates:   { description: "JSON of application due dates." }
