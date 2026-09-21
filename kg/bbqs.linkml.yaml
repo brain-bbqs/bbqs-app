@@ -272,16 +272,6 @@ classes:
     slots: [studies_species]
     todos: ["resource_type: algorithm needs the enum-extend + resource_id backfill migration (same batch as species/device/etc., see #386)."]
 
-  Protocol:
-    is_a: Entity
-    mixins: [CreativeWork]
-    class_uri: schema:CreativeWork
-    description: An experimental/analysis protocol or method (resource_type protocol).
-    # SOSA models this the other way (Sensor sosa:usedProcedure Procedure) -- kept
-    # as Protocol.uses_device for query convenience; flip if that becomes a problem.
-    close_mappings: [OBI:0000272, sosa:Procedure]
-    slots: [uses_device, measures_construct]
-
   Device:
     is_a: Entity
     mixins: [Product]
@@ -305,6 +295,17 @@ classes:
       - sdk_urls
       - used_with_species    # which species this device model has actually been used on
       - measures_construct   # → BehavioralConstruct, at the specific-device level
+      - deployments           # → DeviceDeployment (real-world lab usage, reified)
+
+  DeviceDeployment:
+    class_uri: bbqs:DeviceDeployment
+    close_mappings: [sosa:Deployment]   # unverified -- confirm against the SSN system module
+    description: >-
+      One lab's real-world use of a catalogued Device -- who reported it, which
+      institution, and what it actually measured there (may differ from the
+      device model's own `output_signals`). Reified because the same Device is
+      independently deployed by many labs (workshop device-inventory survey).
+    slots: [deployed_device, reported_by, deployed_at, deployment_measures]
 
   DeviceCategory:
     is_a: Entity
@@ -551,12 +552,16 @@ slots:
   manual_urls: { range: uriorcurie, multivalued: true }
   sdk_urls:    { range: uriorcurie, multivalued: true }
   used_with_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "Species this device model has actually been used on in BBQS data collection." }
+  deployments: { range: DeviceDeployment, multivalued: true, inverse_of: deployed_device }
+  deployed_device: { range: Device, inverse_of: deployments, description: "The catalogued Device model this deployment is an instance of." }
+  reported_by: { range: Investigator, description: "Who reported/operates this deployment (workshop survey's 'spoke to it')." }
+  deployed_at: { slot_uri: schema:location, range: ResearchOrganization, description: "Institution where this deployment happens (workshop survey's 'Award' column names institutions, not grant numbers)." }
+  deployment_measures: { multivalued: true, description: "What this specific deployment measures -- may be more specific than the device model's own output_signals." }
   category_key: { slot_uri: skos:notation, description: "device_categories.key." }
   label:       { slot_uri: skos:prefLabel }
   measures:    { slot_uri: bbqs:measures, close_mappings: [sosa:observes], multivalued: true, description: "What this device category measures (behavior/neural/physio…)." }
   typical_use_cases: { multivalued: true }
   schema_org_type: { description: "device_categories.schema_org_type — the schema.org type this category maps to." }
-  uses_device: { slot_uri: schema:instrument, range: Device, multivalued: true }
   measures_construct: { slot_uri: bbqs:measuresConstruct, range: BehavioralConstruct, multivalued: true }
 
   # ---- community / notices --------------------------------------------------
