@@ -5,7 +5,7 @@
 
 # #4 — canonical token
 bid:role-1 a bbqs:ProjectRole ;
-  bbqs:project_role "contact-pi" ;
+  bbqs:project_role "contact_pi" ;
   bbqs:held_by bid:inv-1 ;
   bbqs:on_project bid:proj-1 .
 
