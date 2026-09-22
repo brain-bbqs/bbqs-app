@@ -24,7 +24,7 @@ description: >-
   Bioschemas/Croissant, with reserved hooks for the neuroscience (Marr / causal-KG)
   layer. OWL is the schema logic; SHACL validates instance exports.
 license: MIT
-version: 0.2.0
+version: 0.3.0
 
 prefixes:
   linkml: https://w3id.org/linkml/
@@ -88,8 +88,8 @@ classes:
   # ---- schema.org abstract anchors (not instantiated) ----------------------
   Thing:      { class_uri: schema:Thing, abstract: true }
   Agent:      { is_a: Thing, class_uri: prov:Agent, abstract: true, description: A person or organization that can act. }
-  Person:     { is_a: Agent, class_uri: schema:Person, abstract: true }
-  Organization: { is_a: Agent, class_uri: schema:Organization, abstract: true }
+  Person:     { is_a: Agent, class_uri: schema:Person, abstract: true, disjoint_with: [Organization] }
+  Organization: { is_a: Agent, class_uri: schema:Organization, abstract: true, disjoint_with: [Person] }
   CreativeWork: { is_a: Thing, class_uri: schema:CreativeWork, abstract: true }
   Product:    { is_a: Thing, class_uri: schema:Product, abstract: true }
   ProjectAnchor: { is_a: Thing, class_uri: schema:Project, abstract: true }
@@ -120,7 +120,7 @@ classes:
       - member_of_group         # working_groups[]  → WorkingGroup nodes
       - requested_groups        # requested_working_groups[]
       - reporter_profile_id
-      - has_project_role        # → ProjectRole (reified per-project role)
+      - held_project_roles      # → ProjectRole (reified per-project role)
     slot_usage:
       email: { description: "PII — restricted in the public API/graph export." }
 
@@ -162,6 +162,10 @@ classes:
       investigators.working_groups[] + canonical_working_group(); promoted here to
       a first-class node. Membership is the inverse of Investigator.member_of_group.
     slots: [members, dashboard_widgets]
+    slot_usage:
+      # `members` is reused by ResearchOrganization/Consortium too, where it has no
+      # matching reverse slot — scope the inverse declaration to WorkingGroup only.
+      members: { inverse_of: member_of_group }
 
   # =========================================================================
   # SCIENCE SPINE — the BBQS Project IS the node   (resource_type: grant)
@@ -268,10 +272,12 @@ classes:
     mixins: [CreativeWork]
     class_uri: schema:CreativeWork
     description: >-
-      RESERVED. A method/algorithm distinct from its software implementation and
-      from a trained model. No resource_type value yet — OPEN: promote to enum, or
-      treat as a facet of SoftwareTool/MLModel/Protocol.
-    todos: ["No DB home yet — decide enum value vs. fold into MLModel/Protocol."]
+      A computational algorithm, distinct from its software implementation and
+      from a trained model. Promoted to its own resource_type rather than folded
+      into SoftwareTool/MLModel/Protocol, since it's expected to link directly to
+      Species as its own scope grows.
+    slots: [studies_species]
+    todos: ["resource_type: algorithm needs the enum-extend + resource_id backfill migration (same batch as species/device/etc., see #386)."]
 
   Protocol:
     is_a: Entity
@@ -346,7 +352,7 @@ classes:
       An NIH (or other) funding call — the "funding calls" surface
       (funding_opportunities: fon/activity_code/due_dates…). resource_type=funding.
       NB: table needs resource_id backfill to enter the spine.
-    slots: [fon, activity_code, eligible_activity_codes, announcement_type,
+    slots: [fon, activity_code, eligible_activity_codes, opportunity_type,
             budget_floor, budget_ceiling, due_dates, open_date, posted_date,
             expiration_date, participating_orgs, purpose, relevance_tags, status, url]
 
@@ -357,7 +363,7 @@ classes:
     description: >-
       A BBQS workshop, convening, or meeting. RESERVED: no data table populates
       this yet — class exists so the exporter/UI have a home when events land.
-    slots: [start_date, end_date, location, attendees]
+    slots: [start_date, end_date, venue, attendees]
     todos: ["No events table yet — decide source (new table vs. announcements subtype)."]
 
   # =========================================================================
@@ -469,7 +475,7 @@ slots:
   consortium_role: { slot_uri: schema:jobTitle, description: "investigators.role — ONE free-text label; never a machine token (issue #283)." }
   research_areas: { multivalued: true }
   skills:      { multivalued: true }
-  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true }
+  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true, inverse_of: members }
   requested_groups: { range: WorkingGroup, multivalued: true }
   reporter_profile_id: { range: integer, description: "NIH RePORTER profile id." }
   members:     { slot_uri: schema:member, range: Investigator, multivalued: true }
@@ -489,7 +495,7 @@ slots:
   studies_species_name: { multivalued: true, description: "Raw study_species[] free-text claim, verbatim. Must resolve to a Species via studies_species (#7)." }
   studies_human: { range: boolean }
   metadata_completeness: { range: float }
-  onboarding_status: {}
+  onboarding_status: { description: "Project's onboarding/setup progress in the consortium intake workflow." }
   has_model:   { slot_uri: bbqs:hasModel, range: MarrModel, description: "→ the project's Marr/causal model (RESERVED)." }
   produced:    { slot_uri: schema:producer, range: Entity, multivalued: true, description: "Artifacts produced by the project." }
   title:       { slot_uri: schema:name }
@@ -501,11 +507,15 @@ slots:
   funded_datasets: { range: Dandiset, multivalued: true }
 
   # ---- ProjectRole (reified role) ------------------------------------------
-  on_project:  { slot_uri: prov:hadPlan, range: Project }
-  held_by:     { slot_uri: prov:agent, range: Investigator }
+  on_project:  { slot_uri: prov:hadPlan, range: Project, inverse_of: has_project_role }
+  held_by:     { slot_uri: prov:agent, range: Investigator, inverse_of: held_project_roles }
   project_role: { slot_uri: schema:roleName, range: project_role_enum, description: "Canonical token (trg_normalize_grant_role enforces)." }
   role_source: { range: role_source_enum, description: "Where the role came from -- provenance of the role assignment." }
-  has_project_role: { range: ProjectRole, multivalued: true }
+  # has_project_role was reused by both Investigator and Project pointing at different halves of
+  # ProjectRole, making a single inverse_of impossible to declare correctly. Split so each direction
+  # is its own unambiguous slot.
+  has_project_role: { range: ProjectRole, multivalued: true, inverse_of: on_project, description: "ProjectRole edges assigned under this project." }
+  held_project_roles: { range: ProjectRole, multivalued: true, inverse_of: held_by, description: "ProjectRole edges this investigator holds, across all projects." }
 
   # ---- publications ---------------------------------------------------------
   authors:     { slot_uri: schema:author }
@@ -546,8 +556,8 @@ slots:
   model_name:  { slot_uri: schema:model }
   output_signals: { multivalued: true }
   sampling_rate_hz: { range: float }
-  price_tier:  {}
-  regulatory_class: {}
+  price_tier:  { description: "Relative cost tier (device_models.price_tier) — a bucket, not a currency amount." }
+  regulatory_class: { description: "Regulatory classification (e.g. an FDA device class), where applicable." }
   product_url: { slot_uri: schema:url, range: uriorcurie }
   manual_urls: { range: uriorcurie, multivalued: true }
   sdk_urls:    { range: uriorcurie, multivalued: true }
@@ -562,23 +572,25 @@ slots:
   # ---- community / notices --------------------------------------------------
   content:     { slot_uri: schema:articleBody }
   link:        { slot_uri: schema:url, range: uriorcurie }
-  link_text:   {}
+  link_text:   { description: "Display text for `link`, when the announcement points off-site." }
   is_external_link: { range: boolean }
   posted_by:   { slot_uri: schema:author, range: Investigator }
   job_institution: { slot_uri: schema:hiringOrganization }
   job_type:    { slot_uri: schema:employmentType }
-  department:  {}
+  department:  { description: "Posting lab's department, as free text (jobs.department)." }
   location:    { slot_uri: schema:jobLocation }
   description_text: { slot_uri: schema:description }
+  # P01 (OOPS): Event must not reuse Job's `location` (schema:jobLocation) for a venue.
+  venue:       { slot_uri: schema:location, description: "Physical or virtual venue for the workshop/convening." }
   application_url: { slot_uri: schema:url, range: uriorcurie }
-  contact_name: {}
-  contact_email: {}
+  contact_name: { description: "Name of the person to contact about the posting." }
+  contact_email: { description: "Email address to contact about the posting." }
   expires_at:  { slot_uri: schema:validThrough, range: datetime }
   is_active:   { range: boolean }
   fon:         { slot_uri: schema:identifier, description: "Funding Opportunity Number." }
-  activity_code: {}
+  activity_code: { description: "NIH activity code for the funding opportunity (e.g. R01, U01)." }
   eligible_activity_codes: { multivalued: true }
-  announcement_type: {}
+  opportunity_type: { description: "funding_opportunities.announcement_type — the notice type (e.g. NOFO, RFA, PA), not a category of the Announcement class." }
   budget_floor: { range: float }
   budget_ceiling: { range: float }
   due_dates:   { description: "JSON of application due dates." }
@@ -586,9 +598,9 @@ slots:
   posted_date: { range: date }
   expiration_date: { range: date }
   participating_orgs: { multivalued: true }
-  purpose:     {}
+  purpose:     { description: "Free-text statement of the funding opportunity's purpose." }
   relevance_tags: { multivalued: true }
-  status:      {}
+  status:      { description: "Current lifecycle status of the funding opportunity (e.g. open, closed, forecasted)." }
   url:         { slot_uri: schema:url, range: uriorcurie }
 
   # ---- events ---------------------------------------------------------------
@@ -600,9 +612,9 @@ slots:
   common_name: { slot_uri: schema:alternateName }
   ncbi_taxon_id: { slot_uri: schema:identifier, range: uriorcurie, description: "NCBITaxon IRI (align species to NCBI)." }
   taxonomy_class: { slot_uri: schema:taxonRank }
-  taxonomy_order: {}
-  taxonomy_family: {}
-  taxonomy_genus: {}
+  taxonomy_order: { description: "Linnaean order for the species (e.g. Rodentia)." }
+  taxonomy_family: { description: "Linnaean family for the species (e.g. Muridae)." }
+  taxonomy_genus: { description: "Linnaean genus for the species (e.g. Mus)." }
 
   # ---- Marr stub hooks ------------------------------------------------------
   describes_project: { slot_uri: schema:about, range: Project }
@@ -659,6 +671,7 @@ enums:
       funding: {}
       # ---- PROPOSED (backfill migration) ----
       species: { description: PROPOSED }
+      algorithm: { description: PROPOSED }
       device: { description: PROPOSED }
       device_category: { description: PROPOSED }
       device_manufacturer: { description: PROPOSED }
