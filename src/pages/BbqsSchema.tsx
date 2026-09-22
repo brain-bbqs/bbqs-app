@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useUserTier } from "@/hooks/useUserTier";
 
 function TreeNode({
   node,
@@ -75,6 +76,7 @@ function TreeNode({
 export default function BbqsSchema() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string>("bbqs:FundedProject");
+  const { isAdmin, isLoading: tierLoading } = useUserTier();
 
   const type = findType(selected)!;
 
@@ -107,10 +109,33 @@ export default function BbqsSchema() {
     return chain;
   }, [type]);
 
+  // Internal while the KG schema migration is in progress: signed-in admins only.
+  // (The route is also wrapped in ProtectedRoute, so the public never reaches this.)
+  if (tierLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (!isAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center px-6 text-center text-sm text-muted-foreground">
+        This page is internal and not yet published.
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+            <strong>Internal — work in progress.</strong> This page is being migrated to the new BBQS
+            knowledge-graph schema (OWL + SHACL consistency validation; master at{" "}
+            <code className="font-mono">kg/bbqs.linkml.yaml</code>). It is admin-only and not yet
+            public. The interactive tree below still reflects the previous schema.org-only model.
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight">BBQS Schema</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
             A canonical type hierarchy for the BBQS Consortium, aligned to{" "}

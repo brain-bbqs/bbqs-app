@@ -89,7 +89,9 @@ const App = () => (
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/data-model" element={<DataModel />} />
-              <Route path="/schema" element={<BbqsSchema />} />
+              {/* Internal/WIP: admin-gated while the KG schema migration is in progress.
+                  ProtectedRoute removes public (anon) access; the page also checks isAdmin. */}
+              <Route path="/schema" element={<ProtectedRoute><BbqsSchema /></ProtectedRoute>} />
               
               <Route path="/auth" element={<Auth />} />
               {/* Supabase OAuth 2.1 consent screen. Not ProtectedRoute: it stashes the request and

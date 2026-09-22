@@ -4,6 +4,24 @@ RDF/OWL knowledge graph of the BBQS consortium. **Current goal: generate a *cons
 validate that no part contradicts another** — not enrichment. Consistency ≠ completeness; missing
 per-project detail is out of scope for now.
 
+## Build phases
+
+**Where we are: Phase 3 (exporter) done — Phase 4 (generate OWL/SHACL) is next.** This table is the
+running status of the whole effort; the Status column is updated as each phase lands.
+
+| # | Phase | Step | Status |
+|---|---|---|---|
+| 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
+| 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.2; v0.3 SOSA/DeviceDeployment in PR #397, pending merge) |
+| 2 | Consistency invariants — the 13-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (5 shapes + 1 guard live) |
+| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (2,476 triples; 9 dangling) |
+| 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) — makes catalogue rows 1/2/3/6/8/10/11 enforceable | **B** | **← next** |
+| 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | planned |
+| 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
+| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | planned |
+| 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
+| 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
+
 ## Layout
 
 | Path | What it is |
@@ -14,6 +32,7 @@ per-project detail is out of scope for now.
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner: `python kg/validate.py <data.ttl> [shapes…]`. |
+| `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 
 ## The three validation layers
 

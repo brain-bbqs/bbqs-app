@@ -184,6 +184,16 @@ def main(out_path):
             else:
                 dangling_species.append((p["grant_number"], name))
 
+    # investigators.id -> spine node IRI. The spine mints Investigator nodes at BID[resources.id],
+    # but grant_investigators.investigator_id is investigators.id (a DIFFERENT key). Resolve through
+    # this map so held_by points at the real node, never a dangling second IRI for the same person.
+    # Under the anon role investigators is RLS-hidden (0 rows) -> map empty -> held_by is omitted
+    # rather than dangling; it resolves in the full-access export (Phase 6).
+    inv_node = {}
+    for inv in fetch("investigators", "id,resource_id"):
+        if inv.get("resource_id"):
+            inv_node[inv["id"]] = BID[inv["resource_id"]]
+
     # ---- 3. Reified per-project role (grant_investigators) ----
     roles = 0
     for gi in fetch("grant_investigators"):
@@ -193,8 +203,9 @@ def main(out_path):
         add(g, n, "role_source", gi.get("role_source"))
         if gi.get("grant_id") and gi["grant_id"] in grant_node:
             g.add((n, BBQS["on_project"], grant_node[gi["grant_id"]]))
-        if gi.get("investigator_id"):
-            g.add((n, BBQS["held_by"], BID[gi["investigator_id"]]))
+        held = inv_node.get(gi.get("investigator_id"))
+        if held is not None:                         # omit rather than write a dangling edge
+            g.add((n, BBQS["held_by"], held))
         roles += 1
 
     # ---- 4. Non-spine entities minted from their own tables ----

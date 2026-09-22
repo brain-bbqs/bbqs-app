@@ -29,6 +29,19 @@ bbqs:ProjectRoleTokenShape
     sh:message "ProjectRole.project_role must be a canonical token, not free text (#283)." ;
   ] .
 
+# ── Invariant — ProjectRole.held_by must resolve to a real Investigator ───────
+# grant_investigators.investigator_id is investigators.id, but Investigator nodes are minted at
+# resources.id — using the wrong key made every held_by dangle. The exporter now resolves it; this
+# shape guards the invariant so a regression can't silently reintroduce a dangling role holder.
+bbqs:HeldByResolvesShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ProjectRole ;
+  sh:property [
+    sh:path bbqs:held_by ;
+    sh:class bbqs:Investigator ;
+    sh:message "ProjectRole.held_by must point at a bbqs:Investigator node (no dangling role holder)." ;
+  ] .
+
 # ── Invariant #5 — the two role columns must not be conflated ─────────────────
 # investigators.role (consortium_role) is ONE free-text career/consortium label. The per-project
 # machine role lives on ProjectRole. A canonical role token appearing in consortium_role means the
