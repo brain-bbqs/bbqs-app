@@ -32,6 +32,7 @@ running status of the whole effort; the Status column is updated as each phase l
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner: `python kg/validate.py <data.ttl> [shapes…]`. |
+| `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 
 ## The three validation layers
 
