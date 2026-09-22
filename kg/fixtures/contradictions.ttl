@@ -29,3 +29,9 @@ bid:prov-a a bbqs:ProvenanceRecord ;
 bid:prov-b a bbqs:ProvenanceRecord ;
   bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "title" ; bbqs:prov_entity_id "proj-1" ;
   bbqs:prov_value_text "Title B" ; bbqs:prov_source_class bid:sc-curator .
+
+# held_by — a role whose holder IRI has no Investigator node (the investigator_id-vs-resource_id
+# identity bug). bid:ghost-investigator is never typed bbqs:Investigator, so held_by dangles.
+bid:role-dangling a bbqs:ProjectRole ;
+  bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:ghost-investigator .
