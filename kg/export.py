@@ -108,7 +108,7 @@ def main(out_path):
         g.add((n, RDF.type, BBQS["Project"]))
         add(g, n, "grant_number", gr.get("grant_number"))
         add(g, n, "mechanism", mechanism(gr.get("grant_number")))
-        add(g, n, "title", gr.get("title"))
+        add(g, n, "name", gr.get("title"))   # grants.title folds into schema:name (P12 fix)
         add(g, n, "abstract", gr.get("abstract"))
         add(g, n, "nih_link", gr.get("nih_link"))
         add(g, n, "reporter_project_num", gr.get("reporter_project_num"))
@@ -206,7 +206,7 @@ def main(out_path):
     for pub in fetch("publications"):
         n = BID["pub/" + pub["id"]]
         g.add((n, RDF.type, BBQS["Publication"]))
-        add(g, n, "title", pub.get("title"))
+        add(g, n, "name", pub.get("title"))   # Publication inherits name from Entity (P12 fix)
         add(g, n, "doi", pub.get("doi"))
         add(g, n, "pmid", pub.get("pmid"))
         add(g, n, "journal", pub.get("journal"))

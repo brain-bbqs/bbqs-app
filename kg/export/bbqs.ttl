@@ -1173,271 +1173,271 @@ bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
 <https://brain-bbqs.org/id/pub/039879ce-4ce7-400c-a0de-1c31c2e55d15> a bbqs:Publication ;
     bbqs:journal "Mol Psychiatry" ;
     bbqs:pmid "40514388" ;
-    bbqs:title "Directing negative emotional states through parallel genetically-distinct basolateral amygdala pathways to ventral striatum subregions." ;
+    bbqs:name "Directing negative emotional states through parallel genetically-distinct basolateral amygdala pathways to ventral striatum subregions." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/050150c7-98b6-4514-8186-541a2999f7d9> a bbqs:Publication ;
     bbqs:journal "ArXiv" ;
     bbqs:pmid "38196745" ;
-    bbqs:title "Rethinking the external globus pallidus and information flow in cortico-basal ganglia-thalamic circuits." ;
+    bbqs:name "Rethinking the external globus pallidus and information flow in cortico-basal ganglia-thalamic circuits." ;
     bbqs:year 2023 .
 
 <https://brain-bbqs.org/id/pub/0541daa7-93d6-40d2-a2fe-db781238ac69> a bbqs:Publication ;
     bbqs:journal "Neurobiol Dis" ;
     bbqs:pmid "38670278" ;
-    bbqs:title "Dopamine depletion weakens direct pathway modulation of SNr neurons." ;
+    bbqs:name "Dopamine depletion weakens direct pathway modulation of SNr neurons." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/12e91326-158d-4b16-acb2-143e06c21732> a bbqs:Publication ;
     bbqs:journal "Adv Funct Mater" ;
     bbqs:pmid "41536438" ;
-    bbqs:title "Delivery of Angiogenic Therapy from Flowable Hyaluronic Acid Porous Scaffolds Results in Functional Improvement without Anti-Inflammatory Agents." ;
+    bbqs:name "Delivery of Angiogenic Therapy from Flowable Hyaluronic Acid Porous Scaffolds Results in Functional Improvement without Anti-Inflammatory Agents." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/261076a5-3865-41cb-8af2-4c6ee4f5fcd4> a bbqs:Publication ;
     bbqs:journal "eNeuro" ;
     bbqs:pmid "41093749" ;
-    bbqs:title "Prefrontal and Subcortical c-Fos Mapping of Reward Responses across Competitive and Social Contexts." ;
+    bbqs:name "Prefrontal and Subcortical c-Fos Mapping of Reward Responses across Competitive and Social Contexts." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/2a411993-c47e-4970-b503-3cbd9db30be1> a bbqs:Publication ;
     bbqs:journal "Front Epigenet Epigenom" ;
     bbqs:pmid "40761288" ;
-    bbqs:title "HDAC3 regulates the diurnal rhythms of claudin expression and intestinal permeability." ;
+    bbqs:name "HDAC3 regulates the diurnal rhythms of claudin expression and intestinal permeability." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/32af80b7-6293-4834-a3b2-d44f37b073db> a bbqs:Publication ;
     bbqs:journal "ArXiv" ;
     bbqs:pmid "40832056" ;
-    bbqs:title "An Intelligent Infrastructure as a Foundation for Modern Science." ;
+    bbqs:name "An Intelligent Infrastructure as a Foundation for Modern Science." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/34f1b5d7-0c09-4ad2-810f-9ffb8646fb4e> a bbqs:Publication ;
     bbqs:journal "Nat Methods" ;
     bbqs:pmid "41331138" ;
-    bbqs:title "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:name "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
     bbqs:year 2026 .
 
 <https://brain-bbqs.org/id/pub/351e498b-96c1-4e96-afab-613f06478901> a bbqs:Publication ;
     bbqs:journal "Proc Natl Acad Sci U S A" ;
     bbqs:pmid "39536079" ;
-    bbqs:title "Arkypallidal neurons in the external globus pallidus can mediate inhibitory control by altering competition in the striatum." ;
+    bbqs:name "Arkypallidal neurons in the external globus pallidus can mediate inhibitory control by altering competition in the striatum." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/3aca132d-0da2-4b7c-8a01-14a437e79f5c> a bbqs:Publication ;
     bbqs:journal "Adv Intell Syst" ;
     bbqs:pmid "41122417" ;
-    bbqs:title "Printed Wearable Sweat Rate Sensor for Continuous <i>in-situ</i> Perspiration Measurement." ;
+    bbqs:name "Printed Wearable Sweat Rate Sensor for Continuous <i>in-situ</i> Perspiration Measurement." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/40d66e6d-08ed-441b-b36a-daf4f39ccd45> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "38014127" ;
-    bbqs:title "A behavioral roadmap for the development of agency in the rodent." ;
+    bbqs:name "A behavioral roadmap for the development of agency in the rodent." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/415e7465-0260-40c1-961a-724b791e21f1> a bbqs:Publication ;
     bbqs:journal "Proc Natl Acad Sci U S A" ;
     bbqs:pmid "39602254" ;
-    bbqs:title "BCL2 regulates antibacterial autophagy in the intestinal epithelium." ;
+    bbqs:name "BCL2 regulates antibacterial autophagy in the intestinal epithelium." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/4403c245-5e22-43bd-8908-ff2a1cd3a55f> a bbqs:Publication ;
     bbqs:journal "ACS Nano" ;
     bbqs:pmid "40063703" ;
-    bbqs:title "Interfacing with the Brain: How Nanotechnology Can Contribute." ;
+    bbqs:name "Interfacing with the Brain: How Nanotechnology Can Contribute." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/44306c0b-8707-400a-9049-f89f5ac1682a> a bbqs:Publication ;
     bbqs:journal "J Neurosci Methods" ;
     bbqs:pmid "38486714" ;
-    bbqs:title "Introducing the STReaC (Spike Train Response Classification) toolbox." ;
+    bbqs:name "Introducing the STReaC (Spike Train Response Classification) toolbox." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/45d3b5ea-9439-4cf8-aed4-f07072e08abc> a bbqs:Publication ;
     bbqs:journal "IEEE Sens Lett" ;
     bbqs:pmid "41104294" ;
-    bbqs:title "A Wearable Sweat Rate Sensor with Adaptive Sweat Ion Concentration Calibration." ;
+    bbqs:name "A Wearable Sweat Rate Sensor with Adaptive Sweat Ion Concentration Calibration." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/4f5e0d72-9165-4663-8f47-e8ef152c60e3> a bbqs:Publication ;
     bbqs:journal "Neuropsychologia" ;
     bbqs:pmid "38428520" ;
-    bbqs:title "FMRI correlates of autobiographical memory: Comparing silent retrieval with narrated retrieval." ;
+    bbqs:name "FMRI correlates of autobiographical memory: Comparing silent retrieval with narrated retrieval." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/5b5d1166-b2a5-4f67-be77-e61cc1cd989e> a bbqs:Publication ;
     bbqs:journal "Adv Neural Inf Process Syst" ;
     bbqs:pmid "41306626" ;
-    bbqs:title "Spectral Learning of Shared Dynamics Between Generalized-Linear Processes." ;
+    bbqs:name "Spectral Learning of Shared Dynamics Between Generalized-Linear Processes." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/5eb7a7ed-1e4b-4621-a5ea-cabc130a8ec0> a bbqs:Publication ;
     bbqs:journal "Cell" ;
     bbqs:pmid "40043703" ;
-    bbqs:title "Mapping the landscape of social behavior." ;
+    bbqs:name "Mapping the landscape of social behavior." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/6bd8067b-a6cb-4b78-9750-57b6230291bb> a bbqs:Publication ;
     bbqs:journal "ArXiv" ;
     bbqs:pmid "41040797" ;
-    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:name "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/6fb73bfd-21d3-484e-a8a6-237568fa20c4> a bbqs:Publication ;
     bbqs:journal "Cell Chem Biol" ;
     bbqs:pmid "38776923" ;
-    bbqs:title "Chemical interplay between gut microbiota and epigenetics: Implications in circadian biology." ;
+    bbqs:name "Chemical interplay between gut microbiota and epigenetics: Implications in circadian biology." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/7947fadd-f16f-48cc-9fdc-6fdda8b5501f> a bbqs:Publication ;
     bbqs:journal "Immunometabolism (Cobham)" ;
     bbqs:pmid "39634021" ;
-    bbqs:title "Evaluating diurnal rhythms of host responses to enteric norovirus infection in mouse models." ;
+    bbqs:name "Evaluating diurnal rhythms of host responses to enteric norovirus infection in mouse models." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/7ac42f55-136d-40f0-b8e6-c73b2bcf56f1> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "38979377" ;
-    bbqs:title "Distinct dopaminergic spike-timing-dependent plasticity rules are suited to different functional roles." ;
+    bbqs:name "Distinct dopaminergic spike-timing-dependent plasticity rules are suited to different functional roles." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/8201e8df-6e23-4af5-987a-f233402fcd5a> a bbqs:Publication ;
     bbqs:journal "J Neural Eng" ;
     bbqs:pmid "40527329" ;
-    bbqs:title "Prioritized learning of cross-population neural dynamics." ;
+    bbqs:name "Prioritized learning of cross-population neural dynamics." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/85f2a750-95a9-4a6b-8acd-16b4d96f3ae6> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "41292955" ;
-    bbqs:title "CapuchinAI 1.0: Development of a machine learning-based touchscreen paradigm to test cognition in wild capuchins." ;
+    bbqs:name "CapuchinAI 1.0: Development of a machine learning-based touchscreen paradigm to test cognition in wild capuchins." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/93bc17c5-e6f4-4a28-b86b-328a7158183b> a bbqs:Publication ;
     bbqs:journal "Nat Commun" ;
     bbqs:pmid "39747223" ;
-    bbqs:title "Dopaminergic signaling to ventral striatum neurons initiates sniffing behavior." ;
+    bbqs:name "Dopaminergic signaling to ventral striatum neurons initiates sniffing behavior." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/977f9130-9cc2-4328-b441-c4a8f3bb91d3> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "39345431" ;
-    bbqs:title "Vocal Call Locator Benchmark (VCL) for localizing rodent vocalizations from multi-channel audio." ;
+    bbqs:name "Vocal Call Locator Benchmark (VCL) for localizing rodent vocalizations from multi-channel audio." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/a3f1cd6f-c76f-423c-87ff-4932c8bb4d57> a bbqs:Publication ;
     bbqs:journal "Elife" ;
     bbqs:pmid "39680425" ;
-    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:name "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/a7f6f9bf-0d89-4862-b8d1-1b3d7663924d> a bbqs:Publication ;
     bbqs:journal "Device" ;
     bbqs:pmid "41393219" ;
-    bbqs:title "Wearable organic-electrochemical-transistor-based lithium sensor for precision mental health." ;
+    bbqs:name "Wearable organic-electrochemical-transistor-based lithium sensor for precision mental health." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/a8446c7f-0802-4859-8726-a989967dae4c> a bbqs:Publication ;
     bbqs:journal "Math Biosci" ;
     bbqs:pmid "40582587" ;
-    bbqs:title "GMFOLD: Subgraph matching for high-throughput DNA-aptamer secondary structure classification and machine learning interpretability." ;
+    bbqs:name "GMFOLD: Subgraph matching for high-throughput DNA-aptamer secondary structure classification and machine learning interpretability." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/aa381ac5-fd51-4a3e-a6aa-63d2f31a5dc8> a bbqs:Publication ;
     bbqs:journal "ArXiv" ;
     bbqs:pmid "41040807" ;
-    bbqs:title "BRAID: Input-driven nonlinear dynamical modeling of neural-behavioral data." ;
+    bbqs:name "BRAID: Input-driven nonlinear dynamical modeling of neural-behavioral data." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/b7300c7a-c456-4f34-9198-b8af65617157> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "39282260" ;
-    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:name "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/b9eade70-cfdd-4e64-93de-d3388fa35978> a bbqs:Publication ;
     bbqs:journal "Trends Biotechnol" ;
     bbqs:pmid "41571550" ;
-    bbqs:title "The FDA's plan to phase out animal testing." ;
+    bbqs:name "The FDA's plan to phase out animal testing." ;
     bbqs:year 2026 .
 
 <https://brain-bbqs.org/id/pub/be8e03cb-7db3-4489-83ab-8c2cd21de222> a bbqs:Publication ;
     bbqs:journal "eNeuro" ;
     bbqs:pmid "39500574" ;
-    bbqs:title "A Multiparadigm Approach to Characterize Dominance Behaviors in CD1 and C57BL6 Male Mice." ;
+    bbqs:name "A Multiparadigm Approach to Characterize Dominance Behaviors in CD1 and C57BL6 Male Mice." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/c0dee7de-b557-4f51-a36d-15e401a54581> a bbqs:Publication ;
     bbqs:journal "Nat Neurosci" ;
     bbqs:pmid "39242944" ;
-    bbqs:title "Dissociative and prioritized modeling of behaviorally relevant neural dynamics using recurrent neural networks." ;
+    bbqs:name "Dissociative and prioritized modeling of behaviorally relevant neural dynamics using recurrent neural networks." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/d44b52ce-0bf4-43c3-85c9-77c087aa105d> a bbqs:Publication ;
     bbqs:journal "Proc Mach Learn Res" ;
     bbqs:pmid "41321375" ;
-    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:name "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/e070b984-f08b-4dd0-b3c8-4f876cb3bb07> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "38746090" ;
-    bbqs:title "Mimicking opioid analgesia in cortical pain circuits." ;
+    bbqs:name "Mimicking opioid analgesia in cortical pain circuits." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/e0ad7bf8-09ca-4f37-8598-d3a4ae4f72de> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "37425712" ;
-    bbqs:title "CaBLAM! A high-contrast bioluminescent Ca[2+] indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:name "CaBLAM! A high-contrast bioluminescent Ca[2+] indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/e3f14972-0600-48a7-b036-21e1b3de7ace> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "40166196" ;
-    bbqs:title "How the dynamic interplay of cortico-basal ganglia-thalamic pathways shapes the time course of deliberation and commitment." ;
+    bbqs:name "How the dynamic interplay of cortico-basal ganglia-thalamic pathways shapes the time course of deliberation and commitment." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/e4828aea-1261-4797-9247-b3af877ed799> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "41256607" ;
-    bbqs:title "Distributed neural computation and the evolution of the first brains." ;
+    bbqs:name "Distributed neural computation and the evolution of the first brains." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/ef5f9a9f-055b-4053-918e-d8e2fde0551e> a bbqs:Publication ;
     bbqs:journal "bioRxiv" ;
     bbqs:pmid "38826315" ;
-    bbqs:title "How cortico-basal ganglia-thalamic subnetworks can shift decision policies to maximize reward rate." ;
+    bbqs:name "How cortico-basal ganglia-thalamic subnetworks can shift decision policies to maximize reward rate." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/ef9f5b70-0d1f-4a66-8664-c8684eaca089> a bbqs:Publication ;
     bbqs:journal "Nat Biomed Eng" ;
     bbqs:pmid "39730913" ;
-    bbqs:title "Challenges and opportunities of acquiring cortical recordings for chronic adaptive deep brain stimulation." ;
+    bbqs:name "Challenges and opportunities of acquiring cortical recordings for chronic adaptive deep brain stimulation." ;
     bbqs:year 2025 .
 
 <https://brain-bbqs.org/id/pub/f711388b-a2d2-4057-b92b-9ddc0201483a> a bbqs:Publication ;
     bbqs:journal "Front Behav Neurosci" ;
     bbqs:pmid "39703614" ;
-    bbqs:title "SARTAB, a scalable system for automated real-time behavior detection based on animal tracking and Region Of Interest analysis: validation on fish courtship behavior." ;
+    bbqs:name "SARTAB, a scalable system for automated real-time behavior detection based on animal tracking and Region Of Interest analysis: validation on fish courtship behavior." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/fd2c0202-1121-41d7-8cd8-4736491feb45> a bbqs:Publication ;
     bbqs:journal "Proc IEEE Sens" ;
     bbqs:pmid "41048822" ;
-    bbqs:title "Fully-Printed Sensor Based Extended Gate Field Effect Transistors for Wireless Monitoring of Potassium and Ammonium Ions." ;
+    bbqs:name "Fully-Printed Sensor Based Extended Gate Field Effect Transistors for Wireless Monitoring of Potassium and Ammonium Ions." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/fe08bcd1-d224-43e8-9eba-70bc3afc2bdf> a bbqs:Publication ;
     bbqs:journal "Nat Rev Bioeng" ;
     bbqs:pmid "40988938" ;
-    bbqs:title "Brain-computer interfaces for neuropsychiatric disorders." ;
+    bbqs:name "Brain-computer interfaces for neuropsychiatric disorders." ;
     bbqs:year 2024 .
 
 <https://brain-bbqs.org/id/pub/fe90b0f8-84b3-4b76-a868-d6810130ebf9> a bbqs:Publication ;
     bbqs:journal "Front Syst Biol" ;
     bbqs:pmid "40747296" ;
-    bbqs:title "A microbiota-epigenetic circuit controls systematic circadian programs in the gut epithelium." ;
+    bbqs:name "A microbiota-epigenetic circuit controls systematic circadian programs in the gut epithelium." ;
     bbqs:year 2023 .
 
 <https://brain-bbqs.org/id/role/02220da7-1bf8-49e9-8ff0-ed008ea8d03e> a bbqs:ProjectRole ;
@@ -2183,7 +2183,7 @@ in general.""" ;
     bbqs:reporter_project_num "5R34DA059723-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Freely moving animals" ;
-    bbqs:title "Multimodal behavioral analysis of oromanual food-handling in freely moving animals" .
+    bbqs:name "Multimodal behavioral analysis of oromanual food-handling in freely moving animals" .
 
 bid:3352859e-5677-46dd-89d6-17c898b6f097 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -2235,7 +2235,7 @@ autobiographical memory formation, and synchronize this data with direct neural 
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans (Epilepsy Patients)" ;
-    bbqs:title "Capturing Autobiographical memory formation in People moving Through real-world spaces Using synchronized wearables and intracranial Recordings of EEG" .
+    bbqs:name "Capturing Autobiographical memory formation in People moving Through real-world spaces Using synchronized wearables and intracranial Recordings of EEG" .
 
 bid:38289d36-f3a6-43e1-955b-db1d3d400cb2 a bbqs:Project ;
     bbqs:abstract """Summary
@@ -2284,7 +2284,7 @@ tool for facilitating social interaction.""" ;
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Neural and Behavioral Correlates of Live Face-to-Face Interactions" .
+    bbqs:name "Neural and Behavioral Correlates of Live Face-to-Face Interactions" .
 
 bid:3846417f-c783-484b-9cfc-fbbf8f83fdf5 a bbqs:Project ;
     bbqs:abstract """Abstract
@@ -2318,7 +2318,7 @@ complex collective behaviors in a large-brained highly social animal model.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> ;
     bbqs:studies_species_name "Ovis aries" ;
-    bbqs:title "Towards High-Resolution Neuro-Behavioral Quantification of Sheep in the Field to Study Complex Social Behaviors" .
+    bbqs:name "Towards High-Resolution Neuro-Behavioral Quantification of Sheep in the Field to Study Complex Social Behaviors" .
 
 bid:80db3a04-a9ad-486d-abf1-4b20f8370ff9 a bbqs:Project ;
     bbqs:abstract """Project Summary/Abstract
@@ -2354,7 +2354,7 @@ freely moving human behavior in naturalistic and ecologically valid environments
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Synchronized neuronal and peripheral biomarker recordings in freely moving humans" .
+    bbqs:name "Synchronized neuronal and peripheral biomarker recordings in freely moving humans" .
 
 bid:ca25b66c-c03f-4d7e-90e8-93bc12fafeb1 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2402,7 +2402,7 @@ general principles of behavioral control, particularly via distributed computati
     bbqs:reporter_project_num "5R34DA061984-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Hofstenia miamia" ;
-    bbqs:title "Quantifying organism-environment interactions in a new model system for neuroscience" .
+    bbqs:name "Quantifying organism-environment interactions in a new model system for neuroscience" .
 
 <https://brain-bbqs.org/id/devicecat/behavioral_apparatus> a bbqs:DeviceCategory ;
     bbqs:category_key "behavioral_apparatus" ;
@@ -2498,7 +2498,7 @@ treating PTSD and related affective disorders.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01MH143789-01" ;
     bbqs:studies_human true ;
-    bbqs:title "A smart lens platform for real-world event capture and synchronized deep brain dynamics" .
+    bbqs:name "A smart lens platform for real-world event capture and synchronized deep brain dynamics" .
 
 <https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> a bbqs:Species ;
     bbqs:aliases "Molothrus ater",
@@ -2590,7 +2590,7 @@ unique brain-behavior insights into human emotion functioning applicable to broa
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Novel multimodal neural, physiological, and behavioral sensing and machine learning for mental states" .
+    bbqs:name "Novel multimodal neural, physiological, and behavioral sensing and machine learning for mental states" .
 
 bid:4614269a-0d7f-4390-b4cc-568a09fa6a45 a bbqs:Project ;
     bbqs:abstract """Abstract
@@ -2636,7 +2636,7 @@ intellectual development in children with neurodevelopmental disorders.""" ;
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans (Pediatric)" ;
-    bbqs:title "Integrated movement tracking for pediatric OPM-MEG studies of intellectual disability" .
+    bbqs:name "Integrated movement tracking for pediatric OPM-MEG studies of intellectual disability" .
 
 bid:adc6c1dd-57a9-49bb-a57d-521fd1208a76 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2683,7 +2683,7 @@ significant step towards bridging the gap between basic neuroscience research an
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "A naturalistic multimodal platform for capturing brain-body interactions in people during physical effort-based decision making" .
+    bbqs:name "A naturalistic multimodal platform for capturing brain-body interactions in people during physical effort-based decision making" .
 
 <https://brain-bbqs.org/id/devicecat/eeg> a bbqs:DeviceCategory ;
     bbqs:category_key "eeg" ;
@@ -2758,7 +2758,7 @@ way for a large-scale R01.""" ;
     bbqs:reporter_project_num "5R34DA059510-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Social species with male displays" ;
-    bbqs:title "A modeling framework and arena for measuring contextual influences of behavior" .
+    bbqs:name "A modeling framework and arena for measuring contextual influences of behavior" .
 
 <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> a bbqs:Species ;
     bbqs:aliases "Meriones unguiculatus",
@@ -2815,7 +2815,7 @@ to inform translational science and ultimately enhance our understanding of huma
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> ;
     bbqs:studies_species_name "Cebus imitator" ;
-    bbqs:title "Building an “AI Forest” to identify the social and environmental factors underlying complex behavioral traits in wild primates." .
+    bbqs:name "Building an “AI Forest” to identify the social and environmental factors underlying complex behavioral traits in wild primates." .
 
 bid:1f64a2ba-572e-415a-ac19-68a6e3a0f15e a bbqs:Project ;
     bbqs:abstract """Summary
@@ -2862,7 +2862,7 @@ unprecedented resolution.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
     bbqs:studies_species_name "Mouse" ;
-    bbqs:title "Harnessing biological rhythms for a resilient social motif generator" .
+    bbqs:name "Harnessing biological rhythms for a resilient social motif generator" .
 
 bid:492fdfe9-53d5-4926-8ef0-933e957fed18 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2906,7 +2906,7 @@ auditory/behavioral covariates (encoding models).""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> ;
     bbqs:studies_species_name "Gerbil" ;
-    bbqs:title "Computational attribution and fusion of vocalizations, social behavior, and neural recordings in a naturalistic environment" .
+    bbqs:name "Computational attribution and fusion of vocalizations, social behavior, and neural recordings in a naturalistic environment" .
 
 bid:4f2619b1-a6a4-48e5-b21a-0f5455354ea9 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -2944,7 +2944,7 @@ quantitative descriptions of animal behavior.""" ;
         <https://brain-bbqs.org/id/species/ef37411f-12de-410e-b100-7251dc530cbf> ;
     bbqs:studies_species_name "Mouse",
         "Rat" ;
-    bbqs:title "High-resolution 3D tracking of social behaviors for deep phenotypic analysis" .
+    bbqs:name "High-resolution 3D tracking of social behaviors for deep phenotypic analysis" .
 
 bid:a1b2c3d4-0004-4000-8000-000000000001 a bbqs:Project ;
     bbqs:abstract """SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection
@@ -2982,7 +2982,7 @@ to develop future neuromodulatory therapeutic approaches to facilitate the retur
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Homo sapiens" ;
-    bbqs:title "SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection of consciousness" .
+    bbqs:name "SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection of consciousness" .
 
 bid:b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY/ABSTRACT
@@ -3025,7 +3025,7 @@ streaming delays. We will also develop computational frameworks for analyses of 
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Interpersonal behavioral synchrony in virtual and in-person dyadic conversation" .
+    bbqs:name "Interpersonal behavioral synchrony in virtual and in-person dyadic conversation" .
 
 <https://brain-bbqs.org/id/devicecat/video_camera> a bbqs:DeviceCategory ;
     bbqs:category_key "video_camera" ;
@@ -3090,7 +3090,7 @@ objectives of transforming our understanding of the link between brain and behav
     bbqs:reporter_project_num "1R24MH136632-01" ;
     bbqs:studies_human true ;
     bbqs:studies_species_name "All Species" ;
-    bbqs:title "Ecosystem for Multi-modal Brain-behavior Experimentation and Research (EMBER)" ;
+    bbqs:name "Ecosystem for Multi-modal Brain-behavior Experimentation and Research (EMBER)" ;
     bbqs:website "Visit EMBER via the Brain-Behavior Data Archive portal" .
 
 bid:f294b0d9-175a-47c7-854c-d4d750009812 a bbqs:Project ;
@@ -3112,7 +3112,7 @@ To study these important epidemiological and biological questions in a controlle
     bbqs:reporter_project_num "1R34DA062119-01" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Developmental Models" ;
-    bbqs:title "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development" .
+    bbqs:name "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development" .
 
 bid:071aa27a-456a-4eb1-abd2-35d9f0eceaf7 a bbqs:Project ;
     bbqs:abstract """Project Summary/Abstract
@@ -3158,7 +3158,7 @@ Aim 1 – as well as to explore the potential to address targeted research quest
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
     bbqs:studies_species_name "Mouse" ;
-    bbqs:title "Behavioral quantification through active learning and multidimensional physiological monitoring" .
+    bbqs:name "Behavioral quantification through active learning and multidimensional physiological monitoring" .
 
 bid:1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8 a bbqs:Project ;
     bbqs:abstract """Summary
@@ -3200,7 +3200,7 @@ wide range of new research into brain function and treatments for neurological d
     bbqs:reporter_project_num "5R34DA059512-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Rodents" ;
-    bbqs:title "High-throughput, high-resolution 3D measurement of ethologically relevant rodent behavior in a dynamic environment" .
+    bbqs:name "High-throughput, high-resolution 3D measurement of ethologically relevant rodent behavior in a dynamic environment" .
 
 bid:22e61529-38ba-465f-b38b-274e24160fb6 a bbqs:Project ;
     bbqs:abstract """Summary/Abstract (30 line max):
@@ -3248,7 +3248,7 @@ subjects.""" ;
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Developing the Context-Aware Multimodal Ecological Research and Assessment (CAMERA) Platform for Continuous Measurement and Prediction of Anxiety and Memory State" .
+    bbqs:name "Developing the Context-Aware Multimodal Ecological Research and Assessment (CAMERA) Platform for Continuous Measurement and Prediction of Anxiety and Memory State" .
 
 bid:35f57798-cd39-4ec1-a147-3b0ccf9d3608 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY / ABSTRACT
@@ -3285,7 +3285,7 @@ collaborative team to pursue this work.""" ;
     bbqs:reporter_project_num "5R34DA059500-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Genetic Species" ;
-    bbqs:title "Transformative Optical Imaging of Brain & Behavior in Navigating Genetic Species" .
+    bbqs:name "Transformative Optical Imaging of Brain & Behavior in Navigating Genetic Species" .
 
 bid:a98fe953-d2ad-4770-8c8c-1759f8500c4a a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -3339,7 +3339,7 @@ during sound-driven social interactions.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> ;
     bbqs:studies_species_name "Meriones unguiculatus" ;
-    bbqs:title "Computational Analyses of Family Auditory Communication: Linking Behavior, Vocalization, and Neural Dynamics" .
+    bbqs:name "Computational Analyses of Family Auditory Communication: Linking Behavior, Vocalization, and Neural Dynamics" .
 
 bid:bf3493c0-de28-4731-9baf-c976ccc7c484 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -3393,7 +3393,7 @@ individual brain states and hormone systems on survival strategies.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
     bbqs:studies_species_name "Mus musculus" ;
-    bbqs:title "Neurobehavioral Mechanisms of Social Behavior and Familial Structure" .
+    bbqs:name "Neurobehavioral Mechanisms of Social Behavior and Familial Structure" .
 
 bid:cbc8640e-6d05-4872-bf01-6e3f7d89c349 a bbqs:Project ;
     bbqs:abstract """Project summary
@@ -3442,7 +3442,7 @@ simple behaviors, but fail to prope""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1R61MH142354-01" ;
     bbqs:studies_human true ;
-    bbqs:title "Multimodal AI-enabled synchronized neural, physiological, and behavioral recordings in humans during unstructured behavior to study dynamic task control" .
+    bbqs:name "Multimodal AI-enabled synchronized neural, physiological, and behavioral recordings in humans during unstructured behavior to study dynamic task control" .
 
 bid:e285ab2b-1a7d-4b2e-9400-b24d6faff6de a bbqs:Project ;
     bbqs:abstract """SUMMARY
@@ -3512,7 +3512,7 @@ activity.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> ;
     bbqs:studies_species_name "Molothrus ater" ;
-    bbqs:title "Development of a \"smart aviary\" to probe neural dynamics of complex social behaviors in a gregarious songbird" .
+    bbqs:name "Development of a \"smart aviary\" to probe neural dynamics of complex social behaviors in a gregarious songbird" .
 
 <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> a bbqs:Species ;
     bbqs:aliases "Mus musculus",
@@ -3573,7 +3573,7 @@ world. For example, the response of the brain to """ ;
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Human" ;
-    bbqs:title "A Day in the Life of the Human Brain: Investigating the Dynamic Interrelationship Between Brain, Cognition, Behavior, and Physiology" .
+    bbqs:name "A Day in the Life of the Human Brain: Investigating the Dynamic Interrelationship Between Brain, Cognition, Behavior, and Physiology" .
 
 bid:d663edcd-08bc-426b-b97d-a45cd47a97c0 a bbqs:Project ;
     bbqs:abstract """Project Summary BBQS R34 – Zhang & Frohlich
@@ -3624,7 +3624,7 @@ psychosocial interventions.""" ;
     bbqs:reporter_project_num "5R34DA061924-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Interacting Animals" ;
-    bbqs:title "Mapping dynamic transitions across neural, behavioral, and social scales in interacting animals" .
+    bbqs:name "Mapping dynamic transitions across neural, behavioral, and social scales in interacting animals" .
 
 bid:f70949e4-d1f6-4364-a940-741c96057bae a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -3674,7 +3674,7 @@ of determining sources of inattention on individual basis, thus allowing for mor
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Humans" ;
-    bbqs:title "Combining neural oscillations, physiology and privacy-preserving LiDAR/millimeter wave sensing technology to track attention states in natural contexts" .
+    bbqs:name "Combining neural oscillations, physiology and privacy-preserving LiDAR/millimeter wave sensing technology to track attention states in natural contexts" .
 
 <https://brain-bbqs.org/id/devicecat/clinical_assessment> a bbqs:DeviceCategory ;
     bbqs:category_key "clinical_assessment" ;
@@ -3721,7 +3721,7 @@ electroencephalographic (iEEG) recordings from DBS""" ;
     bbqs:studies_human true ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
     bbqs:studies_species_name "Homo sapiens" ;
-    bbqs:title "SMART-DBS: A Symptom-Manipulating, Adaptive and Responsive Therapy for continuous brain-behavioral recording and stimulation" .
+    bbqs:name "SMART-DBS: A Symptom-Manipulating, Adaptive and Responsive Therapy for continuous brain-behavioral recording and stimulation" .
 
 bid:1e2423ff-965b-4485-8557-797c1e1dee38 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -3769,7 +3769,7 @@ understanding of primate social interactions to date, along with novel generativ
     bbqs:studies_human false ;
     bbqs:studies_species <https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> ;
     bbqs:studies_species_name "Marmosets" ;
-    bbqs:title "Toward comprehensive models of naturalistic cooperation and competition in primates" .
+    bbqs:name "Toward comprehensive models of naturalistic cooperation and competition in primates" .
 
 bid:4a00b65d-6b1b-4385-86c7-9f72c2724152 a bbqs:Project ;
     bbqs:abstract """SUMMARY
@@ -3820,7 +3820,7 @@ and behavior, which in turn could advance neuroscience and our understanding of 
     bbqs:reporter_project_num "5U24DA064429-03" ;
     bbqs:studies_human true ;
     bbqs:studies_species_name "All Species" ;
-    bbqs:title "BBQS AI Resource and Data Coordinating Center (BARD.CC)" .
+    bbqs:name "BBQS AI Resource and Data Coordinating Center (BARD.CC)" .
 
 <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> a bbqs:Species ;
     bbqs:aliases "Homo sapiens",
