@@ -129,7 +129,7 @@ classes:
     mixins: [Organization]
     class_uri: schema:ResearchOrganization
     description: A university, institute, or lab participating in BBQS.
-    exact_mappings: [ror:]
+    exact_mappings: ["ror:"]
     slots: [ror_id, members]
 
   Consortium:
@@ -165,7 +165,7 @@ classes:
     slot_usage:
       # `members` is reused by ResearchOrganization/Consortium too, where it has no
       # matching reverse slot — scope the inverse declaration to WorkingGroup only.
-      members: { inverse_of: member_of_group }
+      members: { inverse: member_of_group }
 
   # =========================================================================
   # SCIENCE SPINE — the BBQS Project IS the node   (resource_type: grant)
@@ -242,7 +242,7 @@ classes:
     is_a: Dataset
     class_uri: schema:Dataset
     description: A DANDI-archived dataset (NWB). Linked to grants via award_numbers[].
-    exact_mappings: [dandi:]
+    exact_mappings: ["dandi:"]
     slots: [dandiset_id, api_url, draft_url, neurosift_url, file_count, size_bytes, dandi_instance, award_numbers]
 
   Benchmark:
@@ -374,7 +374,7 @@ classes:
     mixins: [Taxon]
     class_uri: schema:Taxon
     description: A species studied in a BBQS project. Align identifiers to NCBITaxon.
-    exact_mappings: [NCBITaxon:]
+    exact_mappings: ["NCBITaxon:"]
     slots: [common_name, ncbi_taxon_id, taxonomy_class, taxonomy_order, taxonomy_family, taxonomy_genus, aliases]
 
   MarrModel:
@@ -403,17 +403,17 @@ classes:
     is_a: Thing
     class_uri: skos:Concept
     description: A behavior or behavioral phenotype under study. RESERVED hook.
-    exact_mappings: [NBO:]
+    exact_mappings: ["NBO:"]
   AnatomicalSite:
     is_a: Thing
     class_uri: skos:Concept
     description: A nervous-system structure a signal is recorded from. RESERVED hook.
-    exact_mappings: [UBERON:]
+    exact_mappings: ["UBERON:"]
   CognitiveTask:
     is_a: Thing
     class_uri: skos:Concept
     description: A cognitive task/paradigm or construct. RESERVED hook.
-    exact_mappings: [cogatlas:]
+    exact_mappings: ["cogatlas:"]
 
   # =========================================================================
   # PROVENANCE  (X. Full Data Provenance) — maps field_provenance + source_classes
@@ -475,7 +475,7 @@ slots:
   consortium_role: { slot_uri: schema:jobTitle, description: "investigators.role — ONE free-text label; never a machine token (issue #283)." }
   research_areas: { multivalued: true }
   skills:      { multivalued: true }
-  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true, inverse_of: members }
+  member_of_group: { slot_uri: schema:memberOf, range: WorkingGroup, multivalued: true, inverse: members }
   requested_groups: { range: WorkingGroup, multivalued: true }
   reporter_profile_id: { range: integer, description: "NIH RePORTER profile id." }
   members:     { slot_uri: schema:member, range: Investigator, multivalued: true }
@@ -507,15 +507,15 @@ slots:
   funded_datasets: { range: Dandiset, multivalued: true }
 
   # ---- ProjectRole (reified role) ------------------------------------------
-  on_project:  { slot_uri: prov:hadPlan, range: Project, inverse_of: has_project_role }
-  held_by:     { slot_uri: prov:agent, range: Investigator, inverse_of: held_project_roles }
+  on_project:  { slot_uri: prov:hadPlan, range: Project, inverse: has_project_role }
+  held_by:     { slot_uri: prov:agent, range: Investigator, inverse: held_project_roles }
   project_role: { slot_uri: schema:roleName, range: project_role_enum, description: "Canonical token (trg_normalize_grant_role enforces)." }
   role_source: { range: role_source_enum, description: "Where the role came from -- provenance of the role assignment." }
   # has_project_role was reused by both Investigator and Project pointing at different halves of
   # ProjectRole, making a single inverse_of impossible to declare correctly. Split so each direction
   # is its own unambiguous slot.
-  has_project_role: { range: ProjectRole, multivalued: true, inverse_of: on_project, description: "ProjectRole edges assigned under this project." }
-  held_project_roles: { range: ProjectRole, multivalued: true, inverse_of: held_by, description: "ProjectRole edges this investigator holds, across all projects." }
+  has_project_role: { range: ProjectRole, multivalued: true, inverse: on_project, description: "ProjectRole edges assigned under this project." }
+  held_project_roles: { range: ProjectRole, multivalued: true, inverse: held_by, description: "ProjectRole edges this investigator holds, across all projects." }
 
   # ---- publications ---------------------------------------------------------
   authors:     { slot_uri: schema:author }

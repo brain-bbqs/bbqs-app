@@ -1,0 +1,2566 @@
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://schema.org/Article> a sh:NodeShape ;
+    rdfs:comment "A consortium news post or announcement. `news`, funding blurbs, etc." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 15 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "Display text for `link`, when the announcement points off-site." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:link_text ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:is_external_link ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/author> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dcterms:source ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/articleBody> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/identifier> ] ;
+    sh:targetClass <http://schema.org/Article> .
+
+<http://schema.org/CreativeWork> a sh:NodeShape ;
+    rdfs:comment "A computational algorithm, distinct from its software implementation and from a trained model. Promoted to its own resource_type rather than folded into SoftwareTool/MLModel/Protocol, since it's expected to link directly to Species as its own scope grows.",
+        "An NIH (or other) funding call — the \"funding calls\" surface (funding_opportunities: fon/activity_code/due_dates…). resource_type=funding. NB: table needs resource_id backfill to enter the spine.",
+        "An experimental/analysis protocol or method (resource_type protocol)." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:description "NIH activity code for the funding opportunity (e.g. R01, U01)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path bbqs:activity_code ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:date ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:open_date ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 19 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:string ;
+            sh:description "Funding Opportunity Number." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:budget_ceiling ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 20 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 26 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path bbqs:participating_orgs ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:description "JSON of application due dates." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:due_dates ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:eligible_activity_codes ],
+        [ sh:datatype xsd:date ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:posted_date ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 24 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:date ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path bbqs:expiration_date ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "Free-text statement of the funding opportunity's purpose." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:purpose ],
+        [ sh:datatype xsd:string ;
+            sh:description "funding_opportunities.announcement_type — the notice type (e.g. NOFO, RFA, PA), not a category of the Announcement class." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:opportunity_type ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 12 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 21 ;
+            sh:path bbqs:metadata ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 25 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 23 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class <http://schema.org/Taxon> ;
+            sh:description "study_species[] names → Species nodes (resolved)." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class <http://schema.org/Product> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/instrument> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Current lifecycle status of the funding opportunity (e.g. open, closed, forecasted)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path bbqs:status ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:budget_floor ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path bbqs:relevance_tags ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 18 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class skos:Concept ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path bbqs:measuresConstruct ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dcterms:source ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 5 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 22 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/dateCreated> ] ;
+    sh:targetClass <http://schema.org/CreativeWork> .
+
+<http://schema.org/Event> a sh:NodeShape ;
+    rdfs:comment "A BBQS workshop, convening, or meeting. RESERVED: no data table populates this yet — class exists so the exporter/UI have a home when events land." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/attendee> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:date ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/endDate> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 9 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Physical or virtual venue for the workshop/convening." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/location> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:date ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/startDate> ] ;
+    sh:targetClass <http://schema.org/Event> .
+
+<http://schema.org/JobPosting> a sh:NodeShape ;
+    rdfs:comment "A postdoc, staff, or trainee position posted by a BBQS lab." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/hiringOrganization> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 22 ;
+            sh:path dcterms:source ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Posting lab's department, as free text (jobs.department)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:department ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 21 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/jobLocation> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/author> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Name of the person to contact about the posting." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:contact_name ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Email address to contact about the posting." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:contact_email ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/employmentType> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 20 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/validThrough> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 15 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path bbqs:is_active ] ;
+    sh:targetClass <http://schema.org/JobPosting> .
+
+<http://schema.org/Project> a sh:NodeShape ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:targetClass <http://schema.org/Project> .
+
+<http://schema.org/ScholarlyArticle> a sh:NodeShape ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Free-text author string; ORCIDs in author_orcids. Not an FK to Investigator." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/author> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 20 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "JSON of author ORCIDs." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/author> ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/datePublished> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 19 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:float ;
+            sh:description "Relative Citation Ratio." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:rcr ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:citations ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/isPartOf> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 14 ;
+            sh:path bbqs:resourceType ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 21 ;
+            sh:path dcterms:source ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/keywords> ] ;
+    sh:targetClass <http://schema.org/ScholarlyArticle> .
+
+<http://schema.org/SoftwareApplication> a sh:NodeShape ;
+    rdfs:comment "A software package, pipeline, or analysis library released by BBQS.",
+        "A trained/released machine-learning model (resource_type ml_model)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/softwareVersion> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 7 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/license> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/Dataset> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path bbqs:evaluatedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:metadata ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 15 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/codeRepository> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/programmingLanguage> ],
+        [ sh:class <http://schema.org/Dataset> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path bbqs:trainedOn ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path bbqs:metadata ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dcterms:source ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/codeRepository> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateCreated> ] ;
+    sh:targetClass <http://schema.org/SoftwareApplication> .
+
+prov:Entity a sh:NodeShape ;
+    rdfs:comment "RESERVED STUB. The empirical experiment/model data that grounds a MarrModel — explicitly DISTINCT from a released Dataset artifact. Belongs to the Marr layer; wait for the causal-KG." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path bbqs:resourceType ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path dcterms:source ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path prov:wasAttributedTo ] ;
+    sh:targetClass prov:Entity .
+
+bbqs:MarrModel a sh:NodeShape ;
+    rdfs:comment "RESERVED STUB. The BBQS-Marr object: the causal / conceptual-neuroscience graph for a project, spanning Marr's computational, algorithmic, and implementational levels. Developed separately (Nader's causal-KG) and NOT ready — modeled here only as a node Project.has_model can point at, plus the hooks below. Do not flesh out until the causal-KG lands." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class skos:Concept ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path bbqs:about_anatomy ],
+        [ sh:class skos:Concept ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path bbqs:about_task ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Marr level 3 — physical realization. RESERVED." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:implementational_level ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 19 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class prov:Entity ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path bbqs:has_experimental_data ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 18 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class skos:Concept ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path bbqs:about_construct ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class <http://schema.org/ResearchProject> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 17 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "Marr level 1 — the problem/goal. RESERVED." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path bbqs:computational_level ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:description "Marr level 2 — representation & algorithm. RESERVED." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:algorithmic_level ] ;
+    sh:targetClass bbqs:MarrModel .
+
+<http://schema.org/GovernmentOrganization> a sh:NodeShape ;
+    rdfs:comment "An organization that funds BBQS research (typically an NIH institute)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path bbqs:resourceType ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path dcterms:source ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/parentOrganization> ] ;
+    sh:targetClass <http://schema.org/GovernmentOrganization> .
+
+<http://schema.org/ResearchProject> a sh:NodeShape ;
+    rdfs:comment "A BBQS project — the funded scientific work and its NIH award as one node, keyed by grant_number. The Marr/causal model plugs in via has_model." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/abstract> ],
+        [ sh:class bbqs:MarrModel ;
+            sh:description "→ the project's Marr/causal model (RESERVED)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 18 ;
+            sh:path bbqs:hasModel ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 22 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "NIH grant number; encodes mechanism." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 24 ;
+            sh:path bbqs:resourceType ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 20 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 28 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:description "R61/R34/RF1/U01… — DERIVED from grant_number, not stored." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:mechanism ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 30 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 21 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:class <http://schema.org/Thing> ;
+            sh:description "Artifacts produced by the project." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 19 ;
+            sh:path <http://schema.org/producer> ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path bbqs:metadata_completeness ],
+        [ sh:class prov:Association ;
+            sh:description "ProjectRole edges assigned under this project." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 16 ;
+            sh:path bbqs:has_project_role ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 26 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 23 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 29 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "Raw study_species[] free-text claim, verbatim. Must resolve to a Species via studies_species (#7)." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path bbqs:studies_species_name ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/amount> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Project's onboarding/setup progress in the consortium intake workflow." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path bbqs:onboarding_status ],
+        [ sh:datatype xsd:string ;
+            sh:description "Full per-year RePORTER project_num (not the core)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path bbqs:reporter_project_num ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path bbqs:studies_human ],
+        [ sh:class <http://schema.org/Dataset> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 17 ;
+            sh:path bbqs:funded_datasets ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 25 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class <http://schema.org/Taxon> ;
+            sh:description "study_species[] names → Species nodes (resolved)." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 31 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 27 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/GovernmentOrganization> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/funder> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 9 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:fiscal_year ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/keywords> ] ;
+    sh:targetClass <http://schema.org/ResearchProject> .
+
+<http://schema.org/Thing> a sh:NodeShape ;
+    rdfs:comment "Anything with a row in the `resources` spine — the abstract base of every first-class BBQS node. IRI = resources.id; class = resources.resource_type." ;
+    sh:closed false ;
+    sh:ignoredProperties ( bbqs:eligible_activity_codes <http://schema.org/startDate> bbqs:award_numbers bbqs:contact_name bbqs:measuresConstruct <http://schema.org/programmingLanguage> <http://schema.org/validThrough> bbqs:measures bbqs:link_text bbqs:due_dates bbqs:budget_floor <http://schema.org/employmentType> <http://schema.org/jobTitle> <http://schema.org/email> <http://schema.org/affiliation> bbqs:studies_species_name bbqs:open_date bbqs:activity_code bbqs:evaluatedBy bbqs:computational_level bbqs:implementational_level bbqs:about_construct <http://schema.org/alternateName> bbqs:is_external_link <http://schema.org/amount> bbqs:onboarding_status <http://schema.org/endDate> bbqs:research_areas <http://schema.org/abstract> bbqs:trainedOn bbqs:rcr bbqs:taxonomy_order bbqs:posted_date <http://schema.org/datePublished> bbqs:relevance_tags <http://schema.org/codeRepository> bbqs:participating_orgs bbqs:file_count bbqs:taxonomy_family bbqs:draft_url <http://schema.org/attendee> skos:notation <http://schema.org/taxonRank> bbqs:taxonomy_genus bbqs:fiscal_year skos:prefLabel bbqs:expiration_date bbqs:held_project_roles <http://schema.org/model> bbqs:skills bbqs:citations bbqs:is_active bbqs:about_task bbqs:mechanism <http://schema.org/manufacturer> <http://schema.org/keywords> <http://schema.org/category> bbqs:has_experimental_data <http://schema.org/articleBody> bbqs:department bbqs:contact_email <http://schema.org/instrument> <http://schema.org/license> <http://schema.org/memberOf> bbqs:budget_ceiling <http://schema.org/jobLocation> <http://schema.org/funder> bbqs:typical_use_cases bbqs:opportunity_type bbqs:price_tier bbqs:about_anatomy bbqs:hasModel <http://schema.org/producer> <http://schema.org/member> bbqs:manual_urls rdf:type bbqs:neurosift_url bbqs:sampling_rate_hz <http://schema.org/addressCountry> bbqs:requested_groups bbqs:status <http://schema.org/hiringOrganization> bbqs:dashboardWidgets bbqs:regulatory_class bbqs:dandi_instance bbqs:scholar_id <http://schema.org/about> <http://schema.org/isPartOf> bbqs:funded_datasets <http://schema.org/measurementTechnique> <http://schema.org/conditionsOfAccess> bbqs:evaluates bbqs:output_signals bbqs:algorithmic_level bbqs:sdk_urls bbqs:purpose bbqs:schema_org_type <http://schema.org/location> <http://schema.org/contentSize> bbqs:has_project_role bbqs:metadata_completeness <http://schema.org/softwareVersion> bbqs:reporter_project_num <http://schema.org/author> bbqs:reporter_profile_id bbqs:studies_human ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path dcterms:source ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path bbqs:resourceType ] ;
+    sh:targetClass <http://schema.org/Thing> .
+
+prov:Association a sh:NodeShape ;
+    rdfs:comment "Reified project↔investigator role (grant_investigators). THE authority for \"role on this project\" — canonical tokens only (trg_normalize_grant_role), with role_source provenance. A scalar on Investigator cannot express a role that varies per project (issue #283)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "Where the role came from -- provenance of the role assignment." ;
+            sh:in ( "reporter" "curator" "funder_notice" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path bbqs:role_source ],
+        [ sh:description "Canonical token (trg_normalize_grant_role enforces)." ;
+            sh:in ( "contact_pi" "co_pi" "mpi" "co-investigator" "trainee" "postdoc" "graduate_student" "research_staff" ) ;
+            sh:maxCount 1 ;
+            sh:order 2 ;
+            sh:path <http://schema.org/roleName> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path prov:agent ],
+        [ sh:class <http://schema.org/ResearchProject> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path prov:hadPlan ] ;
+    sh:targetClass prov:Association .
+
+<http://schema.org/Dataset> a sh:NodeShape ;
+    rdfs:comment "A DANDI-archived dataset (NWB). Linked to grants via award_numbers[].",
+        "A released dataset. Distinct from a project's Marr-layer ExperimentalData.",
+        "An evaluation dataset/task used to score models or algorithms." ;
+    sh:closed true ;
+    sh:ignoredProperties ( bbqs:file_count bbqs:award_numbers bbqs:evaluates bbqs:draft_url rdf:type bbqs:neurosift_url <http://schema.org/contentSize> bbqs:dandi_instance ),
+        ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/conditionsOfAccess> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class <http://schema.org/Product> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/measurementTechnique> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path bbqs:draft_url ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class <http://schema.org/Product> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path <http://schema.org/measurementTechnique> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:dandi_instance ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 16 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/conditionsOfAccess> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 15 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/contentSize> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/conditionsOfAccess> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:file_count ],
+        [ sh:class <http://schema.org/Product> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/measurementTechnique> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/license> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Links dandiset → grant(s)." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:award_numbers ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 20 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class <http://schema.org/Taxon> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/license> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 17 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 9 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class <http://schema.org/Thing> ;
+            sh:description "What the benchmark scores (model/algorithm/tool)." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path bbqs:evaluates ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path bbqs:metadata ],
+        [ sh:class <http://schema.org/Taxon> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/license> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 23 ;
+            sh:path dcterms:source ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:metadata ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 21 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class <http://schema.org/Taxon> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/about> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 12 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path bbqs:neurosift_url ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 22 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path bbqs:resourceType ] ;
+    sh:targetClass <http://schema.org/Dataset> .
+
+<http://schema.org/Organization> a sh:NodeShape ;
+    rdfs:comment "A BBQS working group. Currently stored as a controlled tag on investigators.working_groups[] + canonical_working_group(); promoted here to a first-class node. Membership is the inverse of Investigator.member_of_group.",
+        "A maker of neural/behavioral/physiological instruments. Sourced from device_manufacturers (NB: needs resource_id backfill to enter the spine).",
+        "The BBQS Consortium itself — a multi-institution NIH-funded collective." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path dcterms:source ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/addressCountry> ],
+        [ sh:class <http://schema.org/GovernmentOrganization> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/funder> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/member> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/alternateName> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:metadata ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 7 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path bbqs:metadata ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:description "working_group_dashboard_defaults.widgets JSON." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path bbqs:dashboardWidgets ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/member> ] ;
+    sh:targetClass <http://schema.org/Organization> .
+
+<http://schema.org/Product> a sh:NodeShape ;
+    rdfs:comment "A physical instrument model used in BBQS data collection (device_models). Its kind is a DeviceCategory (the ~32 canonical categories), NOT a subclass tree. NB: device_models needs resource_id backfill to enter the spine.",
+        "A research tool/instrument resource that is neither software nor a catalogued device model (resource_type tool). OPEN: confirm intended boundary vs. Device/SoftwareTool." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 9 ;
+            sh:path bbqs:manual_urls ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/model> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 20 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path bbqs:metadata ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 21 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Regulatory classification (e.g. an FDA device class), where applicable." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:regulatory_class ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Relative cost tier (device_models.price_tier) — a bucket, not a currency amount." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:price_tier ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/alternateName> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class <http://schema.org/Organization> ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/manufacturer> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path bbqs:sdk_urls ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:output_signals ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:sampling_rate_hz ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 22 ;
+            sh:path dcterms:source ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 15 ;
+            sh:path bbqs:resourceType ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class skos:Concept ;
+            sh:description "device_models.device_class → DeviceCategory.key." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/category> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path <http://schema.org/identifier> ] ;
+    sh:targetClass <http://schema.org/Product> .
+
+<http://schema.org/Taxon> a sh:NodeShape ;
+    rdfs:comment "A species studied in a BBQS project. Align identifiers to NCBITaxon." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 11 ;
+            sh:path bbqs:resourceType ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 18 ;
+            sh:path dcterms:source ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/alternateName> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Linnaean order for the species (e.g. Rodentia)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:taxonomy_order ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/taxonRank> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 16 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "Linnaean family for the species (e.g. Muridae)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:taxonomy_family ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 17 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "Linnaean genus for the species (e.g. Mus)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:taxonomy_genus ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 12 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "NCBITaxon IRI (align species to NCBI)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/alternateName> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/url> ] ;
+    sh:targetClass <http://schema.org/Taxon> .
+
+skos:Concept a sh:NodeShape ;
+    rdfs:comment "A behavior or behavioral phenotype under study. RESERVED hook.",
+        "A cognitive task/paradigm or construct. RESERVED hook.",
+        "A nervous-system structure a signal is recorded from. RESERVED hook.",
+        "A provenance source category (source_classes) graded by reliability — whether the who/what behind a value is human, agent, harvester, RePORTER, etc., and how much it is trusted.",
+        "One of the ~32 canonical BBQS device categories (device_categories: key/label/measures[]/typical_use_cases[]). A SKOS concept scheme; each maps to a schema.org type and (via device_class_crosswalk) to external classes." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "device_categories.schema_org_type — the schema.org type this category maps to." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:schema_org_type ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path bbqs:resourceType ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path dcterms:source ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path skos:prefLabel ],
+        [ sh:datatype xsd:string ;
+            sh:description "What this device category measures (behavior/neural/physio…)." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:measures ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:metadata ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 14 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:integer ;
+            sh:description "Source reliability grade." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path bbqs:grade ],
+        [ sh:datatype xsd:string ;
+            sh:description "device_categories.key." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path skos:notation ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:typical_use_cases ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 15 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "human | agent | harvester | reporter …" ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:agent_kind ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:is_verified ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path skos:prefLabel ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path skos:notation ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 10 ;
+            sh:path <http://schema.org/parentOrganization> ] ;
+    sh:targetClass skos:Concept .
+
+<http://schema.org/Person> a sh:NodeShape ;
+    rdfs:comment "A consortium member. May be a PI, co-I, trainee, collaborator, or a member who is on NO project (III. Live State — membership is not project-derived). Per-project role lives on the ProjectRole edge, NOT here (issue #283)." ;
+    sh:closed false,
+        true ;
+    sh:ignoredProperties ( rdf:type ),
+        ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path bbqs:research_areas ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 20 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <http://schema.org/email> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 21 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/affiliation> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "NIH RePORTER profile id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path bbqs:reporter_profile_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 12 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:class <http://schema.org/Organization> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 9 ;
+            sh:path bbqs:requested_groups ],
+        [ sh:datatype xsd:string ;
+            sh:description "PII — restricted in the public API/graph export." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <http://schema.org/email> ],
+        [ sh:description "ORCID iD (orcid: prefix)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Association ;
+            sh:description "ProjectRole edges this investigator holds, across all projects." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path bbqs:held_project_roles ],
+        [ sh:class <http://schema.org/Organization> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path <http://schema.org/memberOf> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:nodeKind sh:IRI ;
+            sh:order 23 ;
+            sh:path dcterms:source ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 16 ;
+            sh:path bbqs:resourceType ],
+        [ sh:datatype xsd:string ;
+            sh:description "investigators.role — ONE free-text label; never a machine token (issue #283)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <http://schema.org/jobTitle> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 22 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "Google Scholar id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:scholar_id ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path bbqs:skills ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 17 ;
+            sh:path <http://schema.org/parentOrganization> ] ;
+    sh:targetClass <http://schema.org/Person> .
+
+<http://schema.org/ResearchOrganization> a sh:NodeShape ;
+    rdfs:comment "A university, institute, or lab participating in BBQS." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dcterms:source ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <http://schema.org/description> ],
+        [ sh:class prov:Activity ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path <http://schema.org/dateCreated> ],
+        [ sh:class prov:Agent ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 12 ;
+            sh:path prov:wasAttributedTo ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <http://schema.org/name> ],
+        [ sh:description "The node IRI — minted from resources.id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path <http://schema.org/identifier> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path <http://schema.org/dateModified> ],
+        [ sh:description "resources.external_url — canonical off-graph URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path <http://schema.org/url> ],
+        [ sh:class <http://schema.org/Person> ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path <http://schema.org/member> ],
+        [ sh:class <http://schema.org/ResearchOrganization> ;
+            sh:description "resources.organization_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path <http://schema.org/parentOrganization> ],
+        [ sh:datatype xsd:string ;
+            sh:description "resources.metadata JSON overflow — un-promoted fields." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:metadata ],
+        [ sh:description "The rdf:type discriminator, from resources.resource_type." ;
+            sh:in ( "investigator" "organization" "grant" "publication" "software" "tool" "dataset" "protocol" "benchmark" "ml_model" "job" "announcement" "funding" "species" "algorithm" "device" "device_category" "device_manufacturer" "working_group" "event" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path bbqs:resourceType ] ;
+    sh:targetClass <http://schema.org/ResearchOrganization> .
+
+prov:Activity a sh:NodeShape ;
+    rdfs:comment "Field-level provenance (field_provenance): one assertion that a given (entity_table, entity_column, entity_id) value was generated by an activity, attributed to an agent, from a graded source_class, with confidence/evidence. Reifies PROV onto individual cell writes." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path bbqs:prov_recorded_at ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:activity ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path prov:agent ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path bbqs:prov_authored_at ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path bbqs:prov_recorded_by ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path bbqs:prov_confidence ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path bbqs:prov_entity_id ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path bbqs:prov_value_text ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path bbqs:prov_entity_table ],
+        [ sh:class skos:Concept ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path prov:hadPrimarySource ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path bbqs:prov_model_id ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path bbqs:prov_agent_id ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path bbqs:prov_source_ref ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path bbqs:prov_entity_column ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path bbqs:prov_evidence ] ;
+    sh:targetClass prov:Activity .
+
+prov:Agent a sh:NodeShape ;
+    rdfs:comment "A person or organization that can act." ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:targetClass prov:Agent .
+
+

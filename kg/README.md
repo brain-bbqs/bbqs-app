@@ -6,16 +6,16 @@ per-project detail is out of scope for now.
 
 ## Build phases
 
-**Where we are: Phase 3 (exporter) done — Phase 4 (generate OWL/SHACL) is next.** This table is the
-running status of the whole effort; the Status column is updated as each phase lands.
+**Where we are: Phase 4 (generate OWL/SHACL) done — Phase 5 (backfill migration) next.** This table
+is the running status of the whole effort; the Status column is updated as each phase lands.
 
 | # | Phase | Step | Status |
 |---|---|---|---|
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
-| 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.2; v0.3 SOSA/DeviceDeployment in PR #397, pending merge) |
+| 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
 | 2 | Consistency invariants — the 13-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (5 shapes + 1 guard live) |
 | 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (2,476 triples; 9 dangling) |
-| 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) — makes catalogue rows 1/2/3/6/8/10/11 enforceable | **B** | **← next** |
+| 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done** (`bbqs.owl.ttl` 3,165 triples; `bbqs.shapes.gen.ttl` 22 NodeShapes; `disjoint_with` → `owl:disjointWith` didn't emit — deferred to Phase 6) |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | planned |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
 | 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | planned |
@@ -33,6 +33,8 @@ running status of the whole effort; the Status column is updated as each phase l
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner: `python kg/validate.py <data.ttl> [shapes…]`. |
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
+| `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
+| `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
 
 ## The three validation layers
 
@@ -54,8 +56,8 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 3 | Core classes mutually disjoint (Person/Org/Dataset/Project/Species/Event) | a node typed Person and Product | OWL `disjointWith` | planned |
 | 4 | `ProjectRole.project_role` is a canonical token | role = "Principal Investigator" free text | SHACL `sh:in` | **live** |
 | 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | exporter rule + SHACL | partial |
-| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source` | dangling / source-less role edge | SHACL + OWL functional | planned |
-| 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (26 real hits) |
+| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **partial** (`held_by` → Investigator referential shape live; cardinality via gen-shacl) |
+| 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (9 real hits, after `species_aliases` resolution) |
 | 8 | Working-group tags are canonical (`canonical_working_group`) | non-canonical WG label | SHACL `sh:in` | planned |
 | 9 | `mechanism` is consistent with `grant_number` | mechanism `R61` on a `U01...` number | SHACL SPARQL | **live** |
 | 10 | Format patterns hold: ORCID, DOI, grant_number, NCBITaxon IRI | malformed ORCID | SHACL `sh:pattern` | planned |
@@ -63,10 +65,11 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
 
-**live** = enforced now: 4/5/7/9/12 in `shapes/consistency.shapes.ttl`, 13 in
+**live** = enforced now: 4/5/6(held_by)/7/9/12 in `shapes/consistency.shapes.ttl`, 13 in
 `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4 and 9 conform, 7
-fires 26×, and 5/12 have no targets (investigators-detail and field_provenance are RLS-hidden from
-anon — a full-access export exercises them). **partial** = one half in place — for #5 the
+fires 9×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and 5/12 have
+no targets (investigators-detail and field_provenance are RLS-hidden from anon — a full-access
+export exercises them). **partial** = one half in place — for #5 the
 `consortium_role` conflation shape exists, but the exporter's roster-only generation rule is pending.
 **planned** = arrives with the `gen-shacl` boilerplate shapes, the full-access export, or the OWL layer.
 
@@ -75,17 +78,24 @@ anon — a full-access export exercises them). **partial** = one half in place �
 ```bash
 python -m venv kg/.venv
 kg/.venv/Scripts/python -m pip install pyshacl        # Windows; use bin/ on macOS/Linux
-kg/.venv/Scripts/python kg/validate.py kg/fixtures/contradictions.ttl   # -> conforms=False, 4 results
+kg/.venv/Scripts/python kg/validate.py kg/fixtures/contradictions.ttl   # -> conforms=False (every shape fires)
 kg/.venv/Scripts/python kg/validate.py kg/fixtures/clean.ttl            # -> conforms=True
 ```
 
-## Generate OWL + boilerplate SHACL from the schema (once linkml is installed)
+## Generate OWL + boilerplate SHACL from the schema
+
+Done — `bbqs.owl.ttl` and `bbqs.shapes.gen.ttl` are committed. To regenerate after editing the schema
+(Windows needs `PYTHONUTF8=1`, and the generators write to stdout — `-o` is ignored):
 
 ```bash
 kg/.venv/Scripts/python -m pip install linkml
-gen-owl   kg/bbqs.linkml.yaml > kg/bbqs.owl.ttl
-gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen.ttl   # validate alongside shapes/consistency.shapes.ttl
+PYTHONUTF8=1 kg/.venv/Scripts/gen-owl   kg/bbqs.linkml.yaml > kg/bbqs.owl.ttl
+PYTHONUTF8=1 kg/.venv/Scripts/gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen.ttl
 ```
+
+`gen-shacl` gives the boilerplate node/cardinality/`sh:pattern` shapes (run alongside
+`shapes/consistency.shapes.ttl`); `gen-owl` gives the TBox for the Phase 6 reasoner. Note:
+`disjoint_with` did not translate to `owl:disjointWith` — deferred to Phase 6.
 
 ## Run the exporter
 
