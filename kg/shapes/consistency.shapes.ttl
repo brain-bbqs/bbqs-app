@@ -25,7 +25,7 @@ bbqs:ProjectRoleTokenShape
     sh:path bbqs:project_role ;
     sh:minCount 1 ;
     sh:maxCount 1 ;
-    sh:in ( "contact-pi" "pi" "co-pi" "co-investigator" "trainee" "other" ) ;
+    sh:in ( "contact_pi" "co_pi" "mpi" "co-investigator" "trainee" "postdoc" "graduate_student" "research_staff" ) ;
     sh:message "ProjectRole.project_role must be a canonical token, not free text (#283)." ;
   ] .
 
@@ -61,6 +61,28 @@ bbqs:MechanismMatchesGrantNumberShape
         $this bbqs:mechanism ?mechanism .
         $this bbqs:grant_number ?grant .
         FILTER(!CONTAINS(UCASE(STR(?grant)), UCASE(STR(?mechanism))))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #7 — study_species must resolve to a Species node ───────────────
+# projects.study_species[] is free text ("Mus musculus", "Humans", "All Species"). Each raw claim
+# must resolve to a real Species node (by name or common_name); one that does not is a dangling
+# reference — the graph asserts a subject that isn't in it.
+bbqs:StudiesSpeciesResolvesShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:sparql [
+    sh:message "study_species does not resolve to a Species node -- dangling reference (#7)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:studies_species_name ?value .
+        FILTER NOT EXISTS {
+          $this bbqs:studies_species ?sp .
+          { ?sp bbqs:name ?n } UNION { ?sp bbqs:common_name ?n } UNION { ?sp bbqs:aliases ?n }
+          FILTER(LCASE(STR(?n)) = LCASE(STR(?value)))
+        }
       }
     """ ;
   ] .

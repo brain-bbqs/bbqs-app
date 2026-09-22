@@ -22,7 +22,7 @@ const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
 /** DB truth: the runtime `resource_type: [ ... ]` array in the generated Supabase types. */
 function dbResourceTypes() {
-  const src = readFileSync(ROOT + "src/integrations/supabase/types.ts", "utf8");
+  const src = readFileSync(ROOT + "src/integrations/supabase/types.ts", "utf8").replace(/\r\n/g, "\n");
   // Only the runtime Constants array is `resource_type:` immediately followed by `[`; the type
   // union uses `|` and the Row fields use `Database[...]`, so neither matches.
   const m = src.match(/resource_type:\s*\[([^\]]*)\]/);
@@ -32,7 +32,9 @@ function dbResourceTypes() {
 
 /** KG schema: resource_type_enum permissible values, split into shipped vs PROPOSED. */
 function linkmlResourceTypes() {
-  const src = readFileSync(ROOT + "kg/bbqs.linkml.yaml", "utf8");
+  // Normalize CRLF: git checks these files out with CRLF on Windows, and the \n-anchored regexes
+  // below would silently miss (a known CRLF-fragility class in this repo's guards).
+  const src = readFileSync(ROOT + "kg/bbqs.linkml.yaml", "utf8").replace(/\r\n/g, "\n");
   const block = src.match(/\n {2}resource_type_enum:\n([\s\S]*?)(?=\n {2}\w+_enum:|\n\w|$)/);
   assert.ok(block, "could not find resource_type_enum in kg/bbqs.linkml.yaml");
   const pv = block[1].match(/permissible_values:\n([\s\S]*)/);

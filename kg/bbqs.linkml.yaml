@@ -196,7 +196,8 @@ classes:
       # --- science facet (projects table) ---
       - website
       - keywords
-      - studies_species      # study_species[] → Species
+      - studies_species      # study_species[] → Species (resolved)
+      - studies_species_name # study_species[] raw claim, verbatim
       - studies_human
       - metadata_completeness
       - onboarding_status
@@ -503,7 +504,8 @@ slots:
   reporter_project_num: { description: "Full per-year RePORTER project_num (not the core)." }
   website:     { slot_uri: schema:url, range: uriorcurie }
   keywords:    { slot_uri: schema:keywords, multivalued: true }
-  studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes." }
+  studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes (resolved)." }
+  studies_species_name: { multivalued: true, description: "Raw study_species[] free-text claim, verbatim. Must resolve to a Species via studies_species (#7)." }
   studies_human: { range: boolean }
   metadata_completeness: { range: float }
   onboarding_status: { description: "Project's onboarding/setup progress in the consortium intake workflow." }
@@ -686,11 +688,23 @@ enums:
       event: { description: PROPOSED }
 
   project_role_enum:
-    description: Canonical per-project role tokens (grant_investigators.role; trg_normalize_grant_role enforces).
+    description: >-
+      Per-project role tokens actually present in grant_investigators.role (live 2026-09-21). Mixes
+      PI roles (contact_pi/co_pi/mpi) with trainee/staff roles. NB: the separator is inconsistent in
+      the data -- co-investigator is hyphenated while co_pi/contact_pi use underscores.
     permissible_values:
-      contact-pi: {}
-      pi: {}
-      co-pi: {}
+      contact_pi: {}
+      co_pi: {}
+      mpi: {}
       co-investigator: {}
       trainee: {}
-      other: {}
+      postdoc: {}
+      graduate_student: {}
+      research_staff: {}
+
+  role_source_enum:
+    description: Provenance of a ProjectRole assignment (grant_investigators.role_source; live 2026-09-21).
+    permissible_values:
+      reporter: {}
+      curator: {}
+      funder_notice: {}
