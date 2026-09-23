@@ -13,8 +13,8 @@ status of the whole effort; the Status column is updated as each phase lands.
 |---|---|---|---|
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
 | 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
-| 2 | Consistency invariants — the 13-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (5 shapes + 1 guard live) |
-| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (2,476 triples; 9 dangling) |
+| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (12 shapes + 1 guard live) |
+| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (3,044 triples; 6 dangling after aliases + study_scope) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done** (`bbqs.owl.ttl` 3,165 triples; `bbqs.shapes.gen.ttl` 22 NodeShapes; `disjoint_with` → `owl:disjointWith` didn't emit — deferred to Phase 6) |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
@@ -26,7 +26,7 @@ status of the whole effort; the Status column is updated as each phase lands.
 
 - **0 — Foundations.** Locked the goal (*consistency, not enrichment*), and the four choices everything else depends on: LinkML as the single source of truth, the `resources` table as the node spine, SHACL-first validation, and `Project`=`Grant` as one node. *Why:* a KG drifts without one rule for identity, typing, and schema; deciding these up front keeps every later phase mechanical, and the consistency-not-completeness framing bounds the scope to contradictions we can actually detect.
 - **1 — Schema authored.** Wrote `bbqs.linkml.yaml` with one class per real entity, grounded in the actual Supabase columns; the Marr/causal layer is stubbed. *Why:* LinkML is the one artifact that generates OWL + SHACL + JSON-LD, so we author once instead of hand-syncing three formats. Grounding in real columns means the schema describes what exists; stubbing Marr avoids modeling a layer that isn't ready.
-- **2 — Consistency invariants.** The 13-row catalogue of what must not contradict, RED/GREEN fixtures, and a zero-dep schema↔DB drift guard. *Why:* "consistent" is meaningless without a written list of the specific contradictions we reject; proving each shape RED first means a green result actually means something; the guard catches enum drift in CI before it reaches the graph.
+- **2 — Consistency invariants.** The 19-row catalogue of what must not contradict, RED/GREEN fixtures, and a zero-dep schema↔DB drift guard. *Why:* "consistent" is meaningless without a written list of the specific contradictions we reject; proving each shape RED first means a green result actually means something; the guard catches enum drift in CI before it reaches the graph.
 - **3 — Exporter (A).** Walk the spine → instance TTL (grants⋈projects, reified `ProjectRole`, `species_aliases` resolver, `field_provenance`→PROV). *Why:* you cannot validate a graph you haven't generated — this is the "generate" half. Running it on real data immediately surfaced real bugs (9 dangling species; the `held_by` two-keys identity error), which is the entire point.
 - **4 — Generate OWL + boilerplate SHACL (B).** `gen-owl` → the TBox; `gen-shacl` → node/cardinality/pattern shapes. *Why:* the hand-written shapes cover only cross-field contradictions; the mechanical structural checks should be *generated* from the schema so they can never drift from it, and the OWL TBox is the input the Phase 6 reasoner needs.
 - **5 — Backfill migration (C).** Extend `resource_type` + add `resource_id` so species/devices/working-groups/funding/events/orgs/pubs enter the spine. *Why:* the spine is only a real spine if every entity is in it. Today several live only in satellite tables, forcing the exporter to mint IRIs two ways — the migration makes identity single-sourced, which is what makes "one IRI per entity" enforceable.
@@ -79,14 +79,28 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 11 | Numeric/temporal sanity: amount >= 0, budget_floor <= ceiling, open <= expiration | expiration date before open date | SHACL SPARQL | planned |
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
+| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL | **live** (no targets — anon omits `orcid`) |
+| 15 | One email (primary or secondary) → one Investigator node | same address as one node's `email` and another's `secondary_emails` (the `lyc5332@psu.edu` failure) | SHACL SPARQL | **live** (no targets — PII, restricted from anon) |
+| 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` assert different `project_role` | SHACL SPARQL | **live** (conforms on anon — `held_by` omitted) |
+| 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL | **live** (no targets — exporter doesn't emit `author_orcids` yet) |
+| 18 | A grade-1 (curator) claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
+| 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; guarded dormant when the whole provenance layer is RLS-hidden, so no false-fire on anon) |
 
-**live** = enforced now: 4/5/6(held_by)/7/9/12 in `shapes/consistency.shapes.ttl`, 13 in
-`../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4 and 9 conform, 7
-fires 6×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and 5/12 have
-no targets (investigators-detail and field_provenance are RLS-hidden from anon — a full-access
-export exercises them). **partial** = one half in place — for #5 the
+**live** = enforced now: 4/5/6(held_by)/7/9/12/14/15/16/17/18/19 in `shapes/consistency.shapes.ttl`,
+13 in `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4/9/16 conform,
+7 fires 6×, `held_by` is omitted (its shape passes; it fired on 111 pre-fix roles), and
+5/12/14/15/17/18/19 have no targets — investigators-detail, `field_provenance`, `orcid`,
+`secondary_emails`, and `author_orcids` are either RLS-hidden from anon or not yet emitted, and #19 is
+guarded to stay dormant while the whole provenance layer is absent (a full-access export exercises them
+all). **partial** = one half in place — for #5 the
 `consortium_role` conflation shape exists, but the exporter's roster-only generation rule is pending.
 **planned** = arrives with the `gen-shacl` boilerplate shapes, the full-access export, or the OWL layer.
+
+Rows 14–19 came from an external review (via Lovable) against #386; three overlapping proposals were
+folded into existing rows instead of duplicated (canonical role token → #4; working-group canonical
+labels → #8; `Grant.funder` typed `FundingAgency` → a gen-shacl range constraint), and four were
+deferred because the schema doesn't model the fields yet (org-name variants and device categories
+need their `resource_id` backfill; grant/publication date-sanity needs date slots that don't exist).
 
 ## Run the consistency harness
 
