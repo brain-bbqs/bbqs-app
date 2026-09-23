@@ -3807,7 +3807,7 @@ objectives of transforming our understanding of the link between brain and behav
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1R24MH136632-01" ;
     bbqs:studies_human true ;
-    bbqs:studies_species_name "All Species" ;
+    bbqs:study_scope "All Species" ;
     bbqs:title "Ecosystem for Multi-modal Brain-behavior Experimentation and Research (EMBER)" ;
     bbqs:website "Visit EMBER via the Brain-Behavior Data Archive portal" .
 
@@ -4547,7 +4547,7 @@ and behavior, which in turn could advance neuroscience and our understanding of 
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5U24DA064429-03" ;
     bbqs:studies_human true ;
-    bbqs:studies_species_name "All Species" ;
+    bbqs:study_scope "All Species" ;
     bbqs:title "BBQS AI Resource and Data Coordinating Center (BARD.CC)" .
 
 bid:63464d21-4ef2-4405-a192-4b60e344ff40 a bbqs:Species ;

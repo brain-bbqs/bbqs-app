@@ -72,7 +72,7 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 4 | `ProjectRole.project_role` is a canonical token | role = "Principal Investigator" free text | SHACL `sh:in` | **live** |
 | 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | exporter rule + SHACL | partial |
 | 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **partial** (`held_by` → Investigator referential shape live; cardinality via gen-shacl) |
-| 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (9 real hits, after `species_aliases` resolution) |
+| 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (6 real hits; `species_aliases` resolves synonyms, and "no species by design" values like "All Species" route to `study_scope` instead of being flagged) |
 | 8 | Working-group tags are canonical (`canonical_working_group`) | non-canonical WG label | SHACL `sh:in` | planned |
 | 9 | `mechanism` is consistent with `grant_number` | mechanism `R61` on a `U01...` number | SHACL SPARQL | **live** |
 | 10 | Format patterns hold: ORCID, DOI, grant_number, NCBITaxon IRI | malformed ORCID | SHACL `sh:pattern` | planned |
@@ -82,7 +82,7 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 
 **live** = enforced now: 4/5/6(held_by)/7/9/12 in `shapes/consistency.shapes.ttl`, 13 in
 `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4 and 9 conform, 7
-fires 9×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and 5/12 have
+fires 6×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and 5/12 have
 no targets (investigators-detail and field_provenance are RLS-hidden from anon — a full-access
 export exercises them). **partial** = one half in place — for #5 the
 `consortium_role` conflation shape exists, but the exporter's roster-only generation rule is pending.

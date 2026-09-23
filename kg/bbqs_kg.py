@@ -6,9 +6,14 @@ SHACL validator (pyshacl) as methods of a single class. `export.py` and `validat
 click CLIs over this class, so their documented commands keep working; `main.py` runs the two
 steps in sequence with one call.
 
+Spine-first: since the Phase-5 backfill EVERY entity is in `resources`, so every node is minted from
+resources.id and each detail table is joined on by resource_id. An unknown/deprecated resource_type
+(e.g. legacy `project`, superseded by `grant` since Project=Grant) is skipped, never noded.
+
     python kg/main.py [out.ttl]        # export, then validate the result
 Requires rdflib (already in kg/.venv from pyshacl).
 """
+import collections
 import json
 import os
 import re
@@ -24,12 +29,15 @@ HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = Namespace("https://brain-bbqs.org/id/")
 
-# resources.resource_type -> bbqs class local name.
+# resources.resource_type -> bbqs class local name. A type absent here (e.g. deprecated `project`)
+# is NOT minted as a node.
 TYPE_CLASS = {
     "investigator": "Investigator", "organization": "ResearchOrganization", "grant": "Project",
     "publication": "Publication", "software": "SoftwareTool", "tool": "Tool", "dataset": "Dataset",
     "protocol": "Protocol", "benchmark": "Benchmark", "ml_model": "MLModel", "job": "Job",
-    "announcement": "Announcement", "funding": "FundingOpportunity",
+    "announcement": "Announcement", "funding": "FundingOpportunity", "species": "Species",
+    "device": "Device", "device_category": "DeviceCategory", "device_manufacturer": "DeviceManufacturer",
+    "working_group": "WorkingGroup", "event": "Event",
 }
 
 
@@ -85,29 +93,48 @@ class BBQSKnowledgeGraph:
             self.graph.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
 
     def export(self, out_path: Path | str | None = None) -> Path:
-        """Build the instance graph from Supabase and serialize it to out_path. Returns out_path."""
+        """Build the instance graph from Supabase and serialize it to out_path. Returns out_path.
+
+        Spine-first: one node per `resources` row, keyed by resources.id; each detail table is joined
+        onto its spine node by resource_id. Unknown/deprecated resource_types are skipped.
+        """
         out_path = Path(out_path) if out_path else self.DEFAULT_EXPORT_PATH
         g = self.graph
 
+        # ---- id -> spine IRI maps (every entity is now in the resources spine) ----
+        def id_map(table):
+            return {r["id"]: BID[r["resource_id"]]
+                    for r in self.fetch(table, "id,resource_id") if r.get("resource_id")}
+
+        org_node = id_map("organizations")
+        man_node = id_map("device_manufacturers")
+        inv_node = id_map("investigators")          # RLS-hidden under anon -> {} -> held_by omitted
+        grant_node, gn_node, cat_node = {}, {}, {}
+
         # ---- 1. Node spine: one node per resources row, typed by resource_type ----
+        skipped = collections.Counter()
         for r in self.fetch("resources"):
-            n = BID[r["id"]]
             cls = TYPE_CLASS.get(r["resource_type"])
-            if cls:
-                g.add((n, RDF.type, BBQS[cls]))
+            if cls is None:                          # deprecated/unknown type (e.g. legacy 'project')
+                skipped[r["resource_type"]] += 1
+                continue
+            n = BID[r["id"]]
+            g.add((n, RDF.type, BBQS[cls]))
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
             self.add(n, "external_url", r.get("external_url"))
-            if r.get("organization_id"):
-                g.add((n, BBQS["part_of_org"], BID["org/" + r["organization_id"]]))
+            if r.get("organization_id") and r["organization_id"] in org_node:
+                g.add((n, BBQS["part_of_org"], org_node[r["organization_id"]]))
 
-        # ---- 2. Project = grants (award) enriched by projects (science) on grant_number ----
-        grant_node, gn_node = {}, {}
+        # ---- 2. Detail: attach each table's columns to its spine node (by resource_id) ----
+        # Project = grants (award facet) enriched by projects (science facet), both on the grant node.
         for gr in self.fetch("grants"):
-            n = BID[gr["resource_id"]] if gr.get("resource_id") else BID["grant/" + gr["id"]]
+            rid = gr.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
             grant_node[gr["id"]] = n
             gn_node[gr["grant_number"]] = n
-            g.add((n, RDF.type, BBQS["Project"]))
             self.add(n, "grant_number", gr.get("grant_number"))
             self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
             self.add(n, "title", gr.get("title"))
@@ -117,15 +144,14 @@ class BBQSKnowledgeGraph:
             self.add(n, "award_amount", gr.get("award_amount"), cast=None)
             self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
 
-        # Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so
-        # that projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
-        species_by_name = {}            # exact name/common_name (lower) -> IRI
-        species_rows = []
+        # Species detail + a resolver that folds species_aliases (synonyms / scientific names).
+        species_by_name, species_rows = {}, []
         for sp in self.fetch("species"):
-            n = BID["species/" + sp["id"]]
+            rid = sp.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
             species_rows.append((n, sp))
-            g.add((n, RDF.type, BBQS["Species"]))
-            self.add(n, "name", sp.get("name"))
             self.add(n, "common_name", sp.get("common_name"))
             self.add(n, "taxonomy_class", sp.get("taxonomy_class"))
             for key in (sp.get("name"), sp.get("common_name")):
@@ -133,7 +159,7 @@ class BBQSKnowledgeGraph:
                     species_by_name.setdefault(key.strip().lower(), n)
 
         aliases = self.fetch("species_aliases")
-        canon_of = {}                    # any surface form (lower) -> canonical grouping key (lower)
+        canon_of = {}
         for a in aliases:
             canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
             if not canon:
@@ -141,15 +167,14 @@ class BBQSKnowledgeGraph:
             for form in (a.get("alias"), a.get("canonical"), a.get("common_name")):
                 if form:
                     canon_of[form.strip().lower()] = canon
-        iri_of_canon = {}                 # canonical key -> species IRI (via that species' own names)
+        iri_of_canon = {}
         for n, sp in species_rows:
             for key in (sp.get("name"), sp.get("common_name")):
                 if key:
                     c = canon_of.get(key.strip().lower())
                     if c:
                         iri_of_canon.setdefault(c, n)
-        # Emit each alias onto its species node so shape #7 verifies resolution from the graph itself.
-        for a in aliases:
+        for a in aliases:  # emit aliases onto species nodes so shape #7 verifies from the graph itself
             canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
             target = iri_of_canon.get(canon) or species_by_name.get(canon)
             if target is None:
@@ -167,6 +192,14 @@ class BBQSKnowledgeGraph:
                 return iri_of_canon.get(c) or species_by_name.get(c)
             return None
 
+        # "No species by design" markers (infrastructure awards): recorded as study_scope, NOT a
+        # species claim, so #7 doesn't flag them. Driven by a species_aliases 'not_applicable' subkind
+        # when it exists; until then "all species" is the fallback. TBD placeholders (genetic species,
+        # requires verification, new model system) are deliberately NOT here -- #7 must keep flagging.
+        not_applicable = {"all species"}
+        not_applicable |= {a["alias"].strip().lower() for a in aliases
+                           if a.get("kind") in ("not_applicable", "no_species") and a.get("alias")}
+
         dangling_species = []
         for p in self.fetch("projects"):
             n = gn_node.get(p["grant_number"])
@@ -179,6 +212,9 @@ class BBQSKnowledgeGraph:
             for kw in p.get("keywords") or []:
                 self.add(n, "keywords", kw)
             for name in p.get("study_species") or []:
+                if str(name).strip().lower() in not_applicable:
+                    self.add(n, "study_scope", name)   # names no species by design (e.g. infra awards)
+                    continue
                 self.add(n, "studies_species_name", name)  # the raw claim, verbatim
                 target = resolve_species(name)
                 if target is not None:
@@ -186,15 +222,52 @@ class BBQSKnowledgeGraph:
                 else:
                     dangling_species.append((p["grant_number"], name))
 
-        # investigators.id -> spine node IRI. The spine mints Investigator nodes at BID[resources.id],
-        # but grant_investigators.investigator_id is investigators.id (a DIFFERENT key). Resolve
-        # through this map so held_by points at the real node, never a dangling second IRI for the
-        # same person. Under the anon role investigators is RLS-hidden (0 rows) -> map empty ->
-        # held_by is omitted rather than dangling; it resolves in the full-access export (Phase 6).
-        inv_node = {}
-        for inv in self.fetch("investigators", "id,resource_id"):
-            if inv.get("resource_id"):
-                inv_node[inv["id"]] = BID[inv["resource_id"]]
+        # Device categories (build key -> node for device_models), then models and manufacturers.
+        for cat in self.fetch("device_categories"):
+            rid = cat.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            cat_node[cat["key"]] = n
+            self.add(n, "category_key", cat.get("key"))
+            self.add(n, "label", cat.get("label"))
+            for meas in cat.get("measures") or []:
+                self.add(n, "measures", meas)
+        for dm in self.fetch("device_models"):
+            rid = dm.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            self.add(n, "model_name", dm.get("model_name"))
+            if dm.get("device_class") and dm["device_class"] in cat_node:
+                g.add((n, BBQS["device_category"], cat_node[dm["device_class"]]))
+            if dm.get("manufacturer_id") and dm["manufacturer_id"] in man_node:
+                g.add((n, BBQS["manufacturer"], man_node[dm["manufacturer_id"]]))
+            self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
+        for man in self.fetch("device_manufacturers"):
+            rid = man.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            self.add(n, "homepage_url", man.get("homepage_url"))
+            for al in man.get("aliases") or []:
+                self.add(n, "aliases", al)
+
+        for pub in self.fetch("publications"):
+            rid = pub.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            self.add(n, "title", pub.get("title"))
+            self.add(n, "doi", pub.get("doi"))
+            self.add(n, "pmid", pub.get("pmid"))
+            self.add(n, "journal", pub.get("journal"))
+            self.add(n, "year", pub.get("year"), cast=None)
+
+        for o in self.fetch("organizations"):        # name/description already come from the spine row
+            rid = o.get("resource_id")
+            if rid:
+                self.add(BID[rid], "external_url", o.get("url"))
 
         # ---- 3. Reified per-project role (grant_investigators) ----
         roles = 0
@@ -210,35 +283,6 @@ class BBQSKnowledgeGraph:
                 g.add((n, BBQS["held_by"], held))
             roles += 1
 
-        # ---- 4. Non-spine entities minted from their own tables ----
-        for o in self.fetch("organizations"):
-            n = BID["org/" + o["id"]]
-            g.add((n, RDF.type, BBQS["ResearchOrganization"]))
-            self.add(n, "name", o.get("name"))
-            self.add(n, "external_url", o.get("url"))
-        for pub in self.fetch("publications"):
-            n = BID["pub/" + pub["id"]]
-            g.add((n, RDF.type, BBQS["Publication"]))
-            self.add(n, "title", pub.get("title"))
-            self.add(n, "doi", pub.get("doi"))
-            self.add(n, "pmid", pub.get("pmid"))
-            self.add(n, "journal", pub.get("journal"))
-            self.add(n, "year", pub.get("year"), cast=None)
-        for cat in self.fetch("device_categories"):
-            n = BID["devicecat/" + cat["key"]]
-            g.add((n, RDF.type, BBQS["DeviceCategory"]))
-            self.add(n, "category_key", cat.get("key"))
-            self.add(n, "label", cat.get("label"))
-            for meas in cat.get("measures") or []:
-                self.add(n, "measures", meas)
-        for dm in self.fetch("device_models"):
-            n = BID["device/" + dm["id"]]
-            g.add((n, RDF.type, BBQS["Device"]))
-            self.add(n, "model_name", dm.get("model_name"))
-            if dm.get("device_class"):
-                g.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
-            self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
-
         out_path.parent.mkdir(parents=True, exist_ok=True)
         g.serialize(destination=str(out_path), format="turtle")
 
@@ -248,6 +292,9 @@ class BBQSKnowledgeGraph:
         print(f"Wrote {out_path}: {len(g)} triples")
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         print(f"ProjectRole edges: {roles}")
+        if skipped:
+            print("Skipped (deprecated/unknown resource_type, not noded): " +
+                  ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())))
         if dangling_species:
             print(f"\nUnresolved study_species (dangling -- a real #7 inconsistency): {len(dangling_species)}")
             for gn, name in dangling_species:
