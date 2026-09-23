@@ -1,0 +1,5 @@
+# RED (#1/#3): one node typed as two node classes -- a grants row that is also an investigator.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+bid:x a bbqs:Investigator , bbqs:Project .

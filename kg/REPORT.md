@@ -89,6 +89,14 @@ The exporter ran as the **anon** role, so RLS hid the `investigators` detail tab
 (role-column conflation) and **#12** (conflicting verified provenance) had no data to check. A
 full-access export run will exercise them.
 
+### F5 — OWL reasoning (HermiT via owlready2): exporter datatype drift + one bad URL
+
+The first reasoner pass found the anon export **inconsistent**. Cause: the exporter wrote URLs as plain
+strings where the schema declares `xsd:anyURI` (112 triples) — disjoint value spaces in OWL 2. The
+exporter now types every literal from the generated TBox. Re-typed, one genuine error remained: EMBER's
+`projects.website` holds prose ("Visit EMBER via the Brain-Behavior Data Archive portal"). Without it
+the graph is consistent. Also: `xsd:date` is not in the OWL 2 datatype map, so the reasoner relaxes it.
+
 ## Recommendations / next steps
 
 1. ~~Fold `species_aliases` into the exporter's resolver~~ **DONE** — collapsed F1 from 26 to 9.
@@ -98,4 +106,4 @@ full-access export run will exercise them.
 4. **`gen-shacl` / `gen-owl`** — generate the boilerplate shapes (cardinality/pattern/type) and the
    OWL TBox, turning catalog rows 1/2/3/6/8/10/11 from *planned* into enforceable.
 5. **Data fixes** surfaced here: normalize `co-investigator`; clean the non-species `study_species`
-   entries; investigate the 34th Project node.
+   entries; investigate the 34th Project node; replace EMBER's prose `website` with a URL (F5).

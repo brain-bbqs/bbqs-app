@@ -1,0 +1,47 @@
+# Hand-written OWL axioms the reasoner layers on top of the generated TBox (bbqs.owl.ttl).
+#
+# WHY HAND-WRITTEN: gen-owl drops LinkML `disjoint_with` (Phase 4 finding), and "every node class is
+# disjoint from every other" is not expressible in LinkML without an N×N `disjoint_with` list. So this
+# file is the OWL twin of shapes/consistency.shapes.ttl: the contradiction axioms a generator can't
+# produce. tests/guards/kg-owl-disjointness.test.mjs keeps it honest against the schema and exporter.
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+
+# Mirrors `disjoint_with` in bbqs.linkml.yaml (Person <-> Organization), which gen-owl did not emit.
+bbqs:Person owl:disjointWith bbqs:Organization .
+
+# Invariants #1 and #3: one node = one resource_type = one class. Every concrete node class is
+# pairwise disjoint from every other, so a node typed Investigator AND Project -- or a held_by that
+# points at a Project, making it an inferred Investigator -- is a logical contradiction.
+#
+# Deliberately NOT listed: subclasses of a listed class (Benchmark, Dandiset are Datasets -- listing
+# them would make them unsatisfiable), the abstract schema.org anchors, and the enum classes.
+[] a owl:AllDisjointClasses ;
+  owl:members (
+    bbqs:Investigator
+    bbqs:ResearchOrganization
+    bbqs:Consortium
+    bbqs:FundingAgency
+    bbqs:DeviceManufacturer
+    bbqs:WorkingGroup
+    bbqs:Project
+    bbqs:ProjectRole
+    bbqs:Publication
+    bbqs:Dataset
+    bbqs:SoftwareTool
+    bbqs:Tool
+    bbqs:Algorithm
+    bbqs:MLModel
+    bbqs:Protocol
+    bbqs:Announcement
+    bbqs:Job
+    bbqs:FundingOpportunity
+    bbqs:Event
+    bbqs:Species
+    bbqs:Device
+    bbqs:DeviceCategory
+    bbqs:ExperimentalData
+    bbqs:MarrModel
+    bbqs:ProvenanceRecord
+    bbqs:SourceClass
+  ) .

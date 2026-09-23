@@ -21,8 +21,8 @@ import sys
 import urllib.error
 import urllib.request
 
-from rdflib import Graph, Literal, Namespace
-from rdflib.namespace import RDF
+from rdflib import BNode, Graph, Literal, Namespace
+from rdflib.namespace import OWL, RDF, RDFS, XSD
 
 def _client_default(js_const):
     """Read a public fallback value from the app's supabase client (single source of truth).
@@ -77,9 +77,45 @@ def mechanism(grant_number):
     return m.group(1) if m else None
 
 
-def add(g, subj, pred, value, cast=str):
+def slot_datatypes(owl_path=os.path.join(os.path.dirname(__file__), "bbqs.owl.ttl")):
+    """slot local name -> the xsd datatype the generated OWL declares for it (allValuesFrom / range).
+
+    The schema, not this file, decides a literal's datatype. Before this, URLs went out as plain
+    strings where the TBox says xsd:anyURI and award_amount as xsd:integer where it says xsd:float --
+    disjoint value spaces in OWL 2, so the reasoner found the whole export inconsistent.
+    """
+    t = Graph().parse(owl_path, format="turtle")
+    out = {}
+    for r in t.subjects(OWL.onProperty, None):
+        dt = t.value(r, OWL.allValuesFrom)
+        if dt is not None and str(dt).startswith(str(XSD)):
+            out[str(t.value(r, OWL.onProperty)).split("#")[-1]] = dt
+    for p, dt in t.subject_objects(RDFS.range):
+        if not isinstance(dt, BNode) and str(dt).startswith(str(XSD)):
+            out[str(p).split("#")[-1]] = dt
+    return out
+
+
+DATATYPE = slot_datatypes()
+
+
+def typed(pred, value):
+    """A Literal carrying the schema's datatype for `pred` (plain xsd:string when it declares none)."""
+    dt = DATATYPE.get(pred)
+    if dt is None or dt == XSD.string:
+        return Literal(str(value))
+    if dt == XSD.float:
+        return Literal(float(value), datatype=XSD.float)
+    if dt == XSD.integer:
+        return Literal(int(value), datatype=XSD.integer)
+    if dt == XSD.boolean:
+        return Literal(bool(value), datatype=XSD.boolean)
+    return Literal(str(value), datatype=dt)
+
+
+def add(g, subj, pred, value):
     if value is not None and value != "":
-        g.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
+        g.add((subj, BBQS[pred], typed(pred, value)))
 
 
 def main(out_path):
@@ -112,8 +148,8 @@ def main(out_path):
         add(g, n, "abstract", gr.get("abstract"))
         add(g, n, "nih_link", gr.get("nih_link"))
         add(g, n, "reporter_project_num", gr.get("reporter_project_num"))
-        add(g, n, "award_amount", gr.get("award_amount"), cast=None)
-        add(g, n, "fiscal_year", gr.get("fiscal_year"), cast=None)
+        add(g, n, "award_amount", gr.get("award_amount"))
+        add(g, n, "fiscal_year", gr.get("fiscal_year"))
 
     # Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so that
     # projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
@@ -173,7 +209,7 @@ def main(out_path):
         add(g, n, "website", p.get("website"))
         add(g, n, "onboarding_status", p.get("onboarding_status"))
         if p.get("study_human") is not None:
-            g.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
+            add(g, n, "studies_human", bool(p["study_human"]))
         for kw in p.get("keywords") or []:
             add(g, n, "keywords", kw)
         for name in p.get("study_species") or []:
@@ -221,7 +257,7 @@ def main(out_path):
         add(g, n, "doi", pub.get("doi"))
         add(g, n, "pmid", pub.get("pmid"))
         add(g, n, "journal", pub.get("journal"))
-        add(g, n, "year", pub.get("year"), cast=None)
+        add(g, n, "year", pub.get("year"))
     for cat in fetch("device_categories"):
         n = BID["devicecat/" + cat["key"]]
         g.add((n, RDF.type, BBQS["DeviceCategory"]))
@@ -235,7 +271,7 @@ def main(out_path):
         add(g, n, "model_name", dm.get("model_name"))
         if dm.get("device_class"):
             g.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
-        add(g, n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
+        add(g, n, "sampling_rate_hz", dm.get("sampling_rate_hz"))
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     g.serialize(destination=out_path, format="turtle")

@@ -1,0 +1,6 @@
+# RED (Person disjointWith Organization, the LinkML axiom gen-owl dropped): an investigator that is
+# also a funding agency. Both are pairwise-disjoint node classes too; this pins the Agent split.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+bid:x a bbqs:Investigator , bbqs:FundingAgency .

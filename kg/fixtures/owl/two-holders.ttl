@@ -1,0 +1,8 @@
+# RED (#6, max 1 held_by + unique names): one ProjectRole held by two distinct investigators.
+# Without the UNA the reasoner would conclude inv-1 and inv-2 are the same person.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+bid:inv-1 a bbqs:Investigator . bid:inv-2 a bbqs:Investigator .
+bid:role-1 a bbqs:ProjectRole ; bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:inv-1 , bid:inv-2 .
