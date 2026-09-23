@@ -3,24 +3,24 @@
 
 `BBQSKnowledgeGraph` wraps the exporter (Supabase `resources` spine -> instance Turtle) and the
 SHACL validator (pyshacl) as methods of a single class. `export.py` and `validate.py` are now thin
-CLI wrappers over this class, so their documented commands keep working; `main.py` runs the two
+click CLIs over this class, so their documented commands keep working; `main.py` runs the two
 steps in sequence with one call.
 
     python kg/main.py [out.ttl]        # export, then validate the result
 Requires rdflib (already in kg/.venv from pyshacl).
 """
-import glob
 import json
 import os
 import re
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from rdflib import Graph, Literal, Namespace
 from rdflib.namespace import RDF
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = Namespace("https://brain-bbqs.org/id/")
 
@@ -36,7 +36,8 @@ TYPE_CLASS = {
 class BBQSKnowledgeGraph:
     """Exports the BBQS KG from Supabase and validates it against the SHACL consistency shapes."""
 
-    DEFAULT_EXPORT_PATH = os.path.join(HERE, "export", "bbqs.ttl")
+    DEFAULT_EXPORT_PATH = HERE / "export" / "bbqs.ttl"
+    DEFAULT_SHAPES_DIR = HERE / "shapes"
 
     def __init__(self, url=None, key=None):
         self.url = (url or os.environ.get("SUPABASE_URL") or self._client_default("VITE_SUPABASE_URL") or "").rstrip("/")
@@ -61,9 +62,9 @@ class BBQSKnowledgeGraph:
 
         Avoids duplicating the publishable anon key into this file; env vars still win.
         """
-        path = os.path.join(HERE, "..", "src", "integrations", "supabase", "client.ts")
+        path = HERE / ".." / "src" / "integrations" / "supabase" / "client.ts"
         try:
-            txt = open(path, encoding="utf8").read()
+            txt = path.read_text(encoding="utf8")
         except OSError:
             return None
         m = re.search(js_const + r'\s*\|\|\s*"([^"]+)"', txt)
@@ -94,16 +95,16 @@ class BBQSKnowledgeGraph:
 
     # ---- export ----------------------------------------------------------
 
-    def export(self, out_path=None):
+    def export(self, out_path: Path | str | None = None) -> Path:
         """Build the instance graph from Supabase and serialize it to out_path. Returns out_path."""
-        out_path = out_path or self.DEFAULT_EXPORT_PATH
+        out_path = Path(out_path) if out_path else self.DEFAULT_EXPORT_PATH
         self._export_spine()
         self._export_grants_and_projects()
         self._export_roles()
         self._export_non_spine_entities()
 
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        self.graph.serialize(destination=out_path, format="turtle")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        self.graph.serialize(destination=str(out_path), format="turtle")
         self._print_export_summary(out_path)
         return out_path
 
@@ -263,7 +264,7 @@ class BBQSKnowledgeGraph:
                 self.graph.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
             self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
 
-    def _print_export_summary(self, out_path):
+    def _print_export_summary(self, out_path: Path):
         counts = {}
         for _, _, o in self.graph.triples((None, RDF.type, None)):
             counts[o.split("#")[-1]] = counts.get(o.split("#")[-1], 0) + 1
@@ -278,7 +279,7 @@ class BBQSKnowledgeGraph:
     # ---- validate ----------------------------------------------------------
 
     @staticmethod
-    def validate(data_file, shape_files=None):
+    def validate(data_file: Path | str, shape_files: list[Path] | None = None):
         """Run SHACL consistency validation over an instance graph. Returns (conforms, report_text).
 
         If no shapes are given, every kg/shapes/*.ttl is used. Requires:  pip install pyshacl
@@ -289,12 +290,15 @@ class BBQSKnowledgeGraph:
             sys.exit("pyshacl is not installed. Run:  pip install pyshacl")
         import rdflib
 
-        shape_files = shape_files or sorted(glob.glob(os.path.join(HERE, "shapes", "*.ttl")))
+        data_file = Path(data_file)
+        shape_files = [Path(s) for s in shape_files] if shape_files else sorted(
+            BBQSKnowledgeGraph.DEFAULT_SHAPES_DIR.glob("*.ttl")
+        )
 
-        data = rdflib.Graph().parse(data_file, format="turtle")
+        data = rdflib.Graph().parse(str(data_file), format="turtle")
         shapes = rdflib.Graph()
         for s in shape_files:
-            shapes.parse(s, format="turtle")
+            shapes.parse(str(s), format="turtle")
 
         conforms, _report_graph, report_text = shacl_validate(
             data, shacl_graph=shapes, advanced=True, inference="none",
@@ -306,7 +310,7 @@ class BBQSKnowledgeGraph:
 
     # ---- pipeline ----------------------------------------------------------
 
-    def run(self, out_path=None, shape_files=None):
+    def run(self, out_path: Path | str | None = None, shape_files: list[Path] | None = None) -> bool:
         """Run the full pipeline in sequence: export from Supabase, then validate the result."""
         out_path = self.export(out_path)
         conforms, _report_text = self.validate(out_path, shape_files)

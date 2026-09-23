@@ -27,7 +27,7 @@ is the running status of the whole effort; the Status column is updated as each 
 | Path | What it is |
 |---|---|
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates OWL + SHACL + JSON-LD. |
-| `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter and the validator as methods (`export()`, `validate()`, `run()`). `export.py`/`validate.py`/`main.py` are thin CLIs over it. |
+| `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter and the validator as methods (`export()`, `validate()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, gitignored). |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
@@ -79,7 +79,7 @@ export exercises them). **partial** = one half in place — for #5 the
 
 ```bash
 python -m venv kg/.venv
-kg/.venv/Scripts/python -m pip install pyshacl        # Windows; use bin/ on macOS/Linux
+kg/.venv/Scripts/python -m pip install pyshacl click  # Windows; use bin/ on macOS/Linux
 kg/.venv/Scripts/python kg/validate.py kg/fixtures/contradictions.ttl   # -> conforms=False (every shape fires)
 kg/.venv/Scripts/python kg/validate.py kg/fixtures/clean.ttl            # -> conforms=True
 ```
