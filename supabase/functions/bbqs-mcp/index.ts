@@ -165,27 +165,42 @@ function buildServer(jwt: string, caller: Caller | null) {
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
-  // Register every tool through T: a thrown error becomes a returned isError result carrying the
-  // REAL message. Without it mcp-lite flattens a PostgREST error ("duplicate key", "malformed
-  // array") into a bare "Internal error", which sends the model into a blind, multi-call diagnostic
-  // spiral — the most expensive kind of round-trip.
-  const T = (name: string, def: { description: string; parameters: unknown; handler: (a: any) => Promise<unknown> }) =>
-    mcp.tool(name, {
-      description: def.description,
-      parameters: def.parameters as any,
-      handler: async (a: any) => {
-        try { return await def.handler(a); }
-        catch (e) {
-          return { content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }], isError: true };
-        }
-      },
-    });
-
   // Stamp authenticated writes as bbqs-mcp:<email> so the audit log shows the surface AND the user,
   // not the generic "authenticated-user". Reads carry it too (harmless — only writes are logged).
   const _clientTag = caller ? `bbqs-mcp:${caller.email}` : "bbqs-mcp";
   const restC = (path: string, init?: RequestInit) => rest(jwt, path, init, _clientTag);
   const rpcC = (fn: string, args: unknown) => rpc(jwt, fn, args, _clientTag);
+
+  const toolTier = (n: string): "public" | "member" | "curator" =>
+    CURATOR_TOOLS.has(n) ? "curator" : MEMBER_TOOLS.has(n) ? "member" : "public";
+
+  // Register every tool through T: a thrown error becomes a returned isError result carrying the
+  // REAL message. Without it mcp-lite flattens a PostgREST error ("duplicate key", "malformed
+  // array") into a bare "Internal error", which sends the model into a blind, multi-call diagnostic
+  // spiral — the most expensive kind of round-trip. T also logs every call (reads included) to
+  // mcp_usage_log via log_mcp_usage, for the admin usage panel — fired in finally and swallowed, so a
+  // logging failure never touches the tool result. It awaits (edge functions kill un-awaited work).
+  const T = (name: string, def: { description: string; parameters: unknown; handler: (a: any) => Promise<unknown> }) =>
+    mcp.tool(name, {
+      description: def.description,
+      parameters: def.parameters as any,
+      handler: async (a: any) => {
+        const t0 = Date.now();
+        let ok = true;
+        let errMsg: string | null = null;
+        try { return await def.handler(a); }
+        catch (e) {
+          ok = false; errMsg = e instanceof Error ? e.message : String(e);
+          return { content: [{ type: "text" as const, text: `Error: ${errMsg}` }], isError: true };
+        } finally {
+          try {
+            await rpcC("log_mcp_usage", {
+              _tool: name, _tier: toolTier(name), _ok: ok, _error: errMsg, _duration_ms: Date.now() - t0,
+            });
+          } catch { /* usage logging is best-effort */ }
+        }
+      },
+    });
 
   // ── PUBLIC — no account ──────────────────────────────────
   T("search_projects", {
