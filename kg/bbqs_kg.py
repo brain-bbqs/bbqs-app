@@ -50,21 +50,12 @@ class BBQSKnowledgeGraph:
         self.graph = Graph()
         self.graph.bind("bbqs", BBQS)
         self.graph.bind("bid", BID)
-        self.dangling_species = []
-        self.role_count = 0
-        self._grant_node = {}
-        self._gn_node = {}
-        self._inv_node = {}
 
     @staticmethod
     def _client_default(js_const):
-        """Read a public fallback value from the app's supabase client (single source of truth).
-
-        Avoids duplicating the publishable anon key into this file; env vars still win.
-        """
-        path = HERE / ".." / "src" / "integrations" / "supabase" / "client.ts"
+        """Read a public fallback value from the app's supabase client (single source of truth)."""
         try:
-            txt = path.read_text(encoding="utf8")
+            txt = (HERE / ".." / "src" / "integrations" / "supabase" / "client.ts").read_text(encoding="utf8")
         except OSError:
             return None
         m = re.search(js_const + r'\s*\|\|\s*"([^"]+)"', txt)
@@ -93,41 +84,30 @@ class BBQSKnowledgeGraph:
         if value is not None and value != "":
             self.graph.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
 
-    # ---- export ----------------------------------------------------------
-
     def export(self, out_path: Path | str | None = None) -> Path:
         """Build the instance graph from Supabase and serialize it to out_path. Returns out_path."""
         out_path = Path(out_path) if out_path else self.DEFAULT_EXPORT_PATH
-        self._export_spine()
-        self._export_grants_and_projects()
-        self._export_roles()
-        self._export_non_spine_entities()
+        g = self.graph
 
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        self.graph.serialize(destination=str(out_path), format="turtle")
-        self._print_export_summary(out_path)
-        return out_path
-
-    def _export_spine(self):
-        """Node spine: one node per resources row, typed by resource_type."""
+        # ---- 1. Node spine: one node per resources row, typed by resource_type ----
         for r in self.fetch("resources"):
             n = BID[r["id"]]
             cls = TYPE_CLASS.get(r["resource_type"])
             if cls:
-                self.graph.add((n, RDF.type, BBQS[cls]))
+                g.add((n, RDF.type, BBQS[cls]))
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
             self.add(n, "external_url", r.get("external_url"))
             if r.get("organization_id"):
-                self.graph.add((n, BBQS["part_of_org"], BID["org/" + r["organization_id"]]))
+                g.add((n, BBQS["part_of_org"], BID["org/" + r["organization_id"]]))
 
-    def _export_grants_and_projects(self):
-        """Project = grants (award) enriched by projects (science) on grant_number."""
+        # ---- 2. Project = grants (award) enriched by projects (science) on grant_number ----
+        grant_node, gn_node = {}, {}
         for gr in self.fetch("grants"):
             n = BID[gr["resource_id"]] if gr.get("resource_id") else BID["grant/" + gr["id"]]
-            self._grant_node[gr["id"]] = n
-            self._gn_node[gr["grant_number"]] = n
-            self.graph.add((n, RDF.type, BBQS["Project"]))
+            grant_node[gr["id"]] = n
+            gn_node[gr["grant_number"]] = n
+            g.add((n, RDF.type, BBQS["Project"]))
             self.add(n, "grant_number", gr.get("grant_number"))
             self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
             self.add(n, "title", gr.get("title"))
@@ -137,36 +117,14 @@ class BBQSKnowledgeGraph:
             self.add(n, "award_amount", gr.get("award_amount"), cast=None)
             self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
 
-        resolve_species = self._build_species_resolver()
-
-        for p in self.fetch("projects"):
-            n = self._gn_node.get(p["grant_number"])
-            if n is None:
-                continue
-            self.add(n, "website", p.get("website"))
-            self.add(n, "onboarding_status", p.get("onboarding_status"))
-            if p.get("study_human") is not None:
-                self.graph.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
-            for kw in p.get("keywords") or []:
-                self.add(n, "keywords", kw)
-            for name in p.get("study_species") or []:
-                self.add(n, "studies_species_name", name)  # the raw claim, verbatim
-                target = resolve_species(name)
-                if target is not None:
-                    self.graph.add((n, BBQS["studies_species"], target))
-                else:
-                    self.dangling_species.append((p["grant_number"], name))
-
-    def _build_species_resolver(self):
-        """Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so
-        that projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
-        """
+        # Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so
+        # that projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
         species_by_name = {}            # exact name/common_name (lower) -> IRI
         species_rows = []
         for sp in self.fetch("species"):
             n = BID["species/" + sp["id"]]
             species_rows.append((n, sp))
-            self.graph.add((n, RDF.type, BBQS["Species"]))
+            g.add((n, RDF.type, BBQS["Species"]))
             self.add(n, "name", sp.get("name"))
             self.add(n, "common_name", sp.get("common_name"))
             self.add(n, "taxonomy_class", sp.get("taxonomy_class"))
@@ -209,41 +167,58 @@ class BBQSKnowledgeGraph:
                 return iri_of_canon.get(c) or species_by_name.get(c)
             return None
 
-        return resolve_species
+        dangling_species = []
+        for p in self.fetch("projects"):
+            n = gn_node.get(p["grant_number"])
+            if n is None:
+                continue
+            self.add(n, "website", p.get("website"))
+            self.add(n, "onboarding_status", p.get("onboarding_status"))
+            if p.get("study_human") is not None:
+                g.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
+            for kw in p.get("keywords") or []:
+                self.add(n, "keywords", kw)
+            for name in p.get("study_species") or []:
+                self.add(n, "studies_species_name", name)  # the raw claim, verbatim
+                target = resolve_species(name)
+                if target is not None:
+                    g.add((n, BBQS["studies_species"], target))
+                else:
+                    dangling_species.append((p["grant_number"], name))
 
-    def _export_roles(self):
-        """Reified per-project role (grant_investigators)."""
         # investigators.id -> spine node IRI. The spine mints Investigator nodes at BID[resources.id],
         # but grant_investigators.investigator_id is investigators.id (a DIFFERENT key). Resolve
         # through this map so held_by points at the real node, never a dangling second IRI for the
         # same person. Under the anon role investigators is RLS-hidden (0 rows) -> map empty ->
         # held_by is omitted rather than dangling; it resolves in the full-access export (Phase 6).
+        inv_node = {}
         for inv in self.fetch("investigators", "id,resource_id"):
             if inv.get("resource_id"):
-                self._inv_node[inv["id"]] = BID[inv["resource_id"]]
+                inv_node[inv["id"]] = BID[inv["resource_id"]]
 
+        # ---- 3. Reified per-project role (grant_investigators) ----
+        roles = 0
         for gi in self.fetch("grant_investigators"):
             n = BID["role/" + gi["id"]]
-            self.graph.add((n, RDF.type, BBQS["ProjectRole"]))
+            g.add((n, RDF.type, BBQS["ProjectRole"]))
             self.add(n, "project_role", gi.get("role"))
             self.add(n, "role_source", gi.get("role_source"))
-            if gi.get("grant_id") and gi["grant_id"] in self._grant_node:
-                self.graph.add((n, BBQS["on_project"], self._grant_node[gi["grant_id"]]))
-            held = self._inv_node.get(gi.get("investigator_id"))
+            if gi.get("grant_id") and gi["grant_id"] in grant_node:
+                g.add((n, BBQS["on_project"], grant_node[gi["grant_id"]]))
+            held = inv_node.get(gi.get("investigator_id"))
             if held is not None:                          # omit rather than write a dangling edge
-                self.graph.add((n, BBQS["held_by"], held))
-            self.role_count += 1
+                g.add((n, BBQS["held_by"], held))
+            roles += 1
 
-    def _export_non_spine_entities(self):
-        """Entities minted from their own tables (not yet in the resources spine)."""
+        # ---- 4. Non-spine entities minted from their own tables ----
         for o in self.fetch("organizations"):
             n = BID["org/" + o["id"]]
-            self.graph.add((n, RDF.type, BBQS["ResearchOrganization"]))
+            g.add((n, RDF.type, BBQS["ResearchOrganization"]))
             self.add(n, "name", o.get("name"))
             self.add(n, "external_url", o.get("url"))
         for pub in self.fetch("publications"):
             n = BID["pub/" + pub["id"]]
-            self.graph.add((n, RDF.type, BBQS["Publication"]))
+            g.add((n, RDF.type, BBQS["Publication"]))
             self.add(n, "title", pub.get("title"))
             self.add(n, "doi", pub.get("doi"))
             self.add(n, "pmid", pub.get("pmid"))
@@ -251,32 +226,34 @@ class BBQSKnowledgeGraph:
             self.add(n, "year", pub.get("year"), cast=None)
         for cat in self.fetch("device_categories"):
             n = BID["devicecat/" + cat["key"]]
-            self.graph.add((n, RDF.type, BBQS["DeviceCategory"]))
+            g.add((n, RDF.type, BBQS["DeviceCategory"]))
             self.add(n, "category_key", cat.get("key"))
             self.add(n, "label", cat.get("label"))
             for meas in cat.get("measures") or []:
                 self.add(n, "measures", meas)
         for dm in self.fetch("device_models"):
             n = BID["device/" + dm["id"]]
-            self.graph.add((n, RDF.type, BBQS["Device"]))
+            g.add((n, RDF.type, BBQS["Device"]))
             self.add(n, "model_name", dm.get("model_name"))
             if dm.get("device_class"):
-                self.graph.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
+                g.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
             self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
 
-    def _print_export_summary(self, out_path: Path):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        g.serialize(destination=str(out_path), format="turtle")
+
         counts = {}
-        for _, _, o in self.graph.triples((None, RDF.type, None)):
+        for _, _, o in g.triples((None, RDF.type, None)):
             counts[o.split("#")[-1]] = counts.get(o.split("#")[-1], 0) + 1
-        print(f"Wrote {out_path}: {len(self.graph)} triples")
+        print(f"Wrote {out_path}: {len(g)} triples")
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
-        print(f"ProjectRole edges: {self.role_count}")
-        if self.dangling_species:
-            print(f"\nUnresolved study_species (dangling -- a real #7 inconsistency): {len(self.dangling_species)}")
-            for gn, name in self.dangling_species:
+        print(f"ProjectRole edges: {roles}")
+        if dangling_species:
+            print(f"\nUnresolved study_species (dangling -- a real #7 inconsistency): {len(dangling_species)}")
+            for gn, name in dangling_species:
                 print(f"  {gn}: {name!r} has no matching Species node")
 
-    # ---- validate ----------------------------------------------------------
+        return out_path
 
     @staticmethod
     def validate(data_file: Path | str, shape_files: list[Path] | None = None):
@@ -307,8 +284,6 @@ class BBQSKnowledgeGraph:
         print(f"conforms={conforms}  data={os.path.relpath(data_file, HERE)}  "
               f"shapes={len(shape_files)} file(s)")
         return conforms, report_text
-
-    # ---- pipeline ----------------------------------------------------------
 
     def run(self, out_path: Path | str | None = None, shape_files: list[Path] | None = None) -> bool:
         """Run the full pipeline in sequence: export from Supabase, then validate the result."""
