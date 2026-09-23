@@ -27,11 +27,13 @@ is the running status of the whole effort; the Status column is updated as each 
 | Path | What it is |
 |---|---|
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates OWL + SHACL + JSON-LD. |
-| `export.py` | Exporter: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, gitignored). |
+| `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter and the validator as methods (`export()`, `validate()`, `run()`). `export.py`/`validate.py`/`main.py` are thin CLIs over it. |
+| `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, gitignored). |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
-| `validate.py` | pyshacl runner: `python kg/validate.py <data.ttl> [shapes…]`. |
+| `validate.py` | pyshacl runner CLI: `python kg/validate.py <data.ttl> [shapes…]`. |
+| `main.py` | Runs the pipeline end-to-end in one call: export, then validate the result (`python kg/main.py [out.ttl]`). |
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 | `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
 | `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
@@ -102,6 +104,13 @@ PYTHONUTF8=1 kg/.venv/Scripts/gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen
 ```bash
 kg/.venv/Scripts/python kg/export.py            # -> kg/export/bbqs.ttl (+ dangling-species report)
 kg/.venv/Scripts/python kg/validate.py kg/export/bbqs.ttl kg/shapes/consistency.shapes.ttl
+```
+
+Or run both steps in sequence with one call, via the `BBQSKnowledgeGraph` object the two CLIs above
+share (`bbqs_kg.py`):
+
+```bash
+kg/.venv/Scripts/python kg/main.py              # export -> kg/export/bbqs.ttl, then validate it
 ```
 
 Anon by default (RLS-limited). For the full graph — including investigators-table detail and

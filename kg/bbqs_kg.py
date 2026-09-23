@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""BBQS knowledge graph pipeline as one object.
+
+`BBQSKnowledgeGraph` wraps the exporter (Supabase `resources` spine -> instance Turtle) and the
+SHACL validator (pyshacl) as methods of a single class. `export.py` and `validate.py` are now thin
+CLI wrappers over this class, so their documented commands keep working; `main.py` runs the two
+steps in sequence with one call.
+
+    python kg/main.py [out.ttl]        # export, then validate the result
+Requires rdflib (already in kg/.venv from pyshacl).
+"""
+import glob
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+
+from rdflib import Graph, Literal, Namespace
+from rdflib.namespace import RDF
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+BBQS = Namespace("https://brain-bbqs.org/schema#")
+BID = Namespace("https://brain-bbqs.org/id/")
+
+# resources.resource_type -> bbqs class local name.
+TYPE_CLASS = {
+    "investigator": "Investigator", "organization": "ResearchOrganization", "grant": "Project",
+    "publication": "Publication", "software": "SoftwareTool", "tool": "Tool", "dataset": "Dataset",
+    "protocol": "Protocol", "benchmark": "Benchmark", "ml_model": "MLModel", "job": "Job",
+    "announcement": "Announcement", "funding": "FundingOpportunity",
+}
+
+
+class BBQSKnowledgeGraph:
+    """Exports the BBQS KG from Supabase and validates it against the SHACL consistency shapes."""
+
+    DEFAULT_EXPORT_PATH = os.path.join(HERE, "export", "bbqs.ttl")
+
+    def __init__(self, url=None, key=None):
+        self.url = (url or os.environ.get("SUPABASE_URL") or self._client_default("VITE_SUPABASE_URL") or "").rstrip("/")
+        self.key = key or os.environ.get("SUPABASE_KEY") or self._client_default("VITE_SUPABASE_PUBLISHABLE_KEY") or ""
+        if not self.url or not self.key:
+            raise SystemExit(
+                "Set SUPABASE_URL and SUPABASE_KEY, or run from the repo so BBQSKnowledgeGraph can "
+                "read the public values from src/integrations/supabase/client.ts."
+            )
+        self.graph = Graph()
+        self.graph.bind("bbqs", BBQS)
+        self.graph.bind("bid", BID)
+        self.dangling_species = []
+        self.role_count = 0
+        self._grant_node = {}
+        self._gn_node = {}
+        self._inv_node = {}
+
+    @staticmethod
+    def _client_default(js_const):
+        """Read a public fallback value from the app's supabase client (single source of truth).
+
+        Avoids duplicating the publishable anon key into this file; env vars still win.
+        """
+        path = os.path.join(HERE, "..", "src", "integrations", "supabase", "client.ts")
+        try:
+            txt = open(path, encoding="utf8").read()
+        except OSError:
+            return None
+        m = re.search(js_const + r'\s*\|\|\s*"([^"]+)"', txt)
+        return m.group(1) if m else None
+
+    def fetch(self, table, select="*"):
+        """All rows of a table via PostgREST (tables here are < 1000 rows, so one request)."""
+        req = urllib.request.Request(
+            f"{self.url}/rest/v1/{table}?select={select}",
+            headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read() or "[]")
+        except urllib.error.HTTPError as e:
+            print(f"  ! {table}: HTTP {e.code} (RLS hidden or missing)", file=sys.stderr)
+            return []
+
+    @staticmethod
+    def mechanism(grant_number):
+        """NIH activity code (R61/U01/RF1/R34/…) parsed from the grant number."""
+        m = re.search(r"([A-Z]{1,3}\d{2})", grant_number or "")
+        return m.group(1) if m else None
+
+    def add(self, subj, pred, value, cast=str):
+        if value is not None and value != "":
+            self.graph.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
+
+    # ---- export ----------------------------------------------------------
+
+    def export(self, out_path=None):
+        """Build the instance graph from Supabase and serialize it to out_path. Returns out_path."""
+        out_path = out_path or self.DEFAULT_EXPORT_PATH
+        self._export_spine()
+        self._export_grants_and_projects()
+        self._export_roles()
+        self._export_non_spine_entities()
+
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        self.graph.serialize(destination=out_path, format="turtle")
+        self._print_export_summary(out_path)
+        return out_path
+
+    def _export_spine(self):
+        """Node spine: one node per resources row, typed by resource_type."""
+        for r in self.fetch("resources"):
+            n = BID[r["id"]]
+            cls = TYPE_CLASS.get(r["resource_type"])
+            if cls:
+                self.graph.add((n, RDF.type, BBQS[cls]))
+            self.add(n, "name", r.get("name"))
+            self.add(n, "description", r.get("description"))
+            self.add(n, "external_url", r.get("external_url"))
+            if r.get("organization_id"):
+                self.graph.add((n, BBQS["part_of_org"], BID["org/" + r["organization_id"]]))
+
+    def _export_grants_and_projects(self):
+        """Project = grants (award) enriched by projects (science) on grant_number."""
+        for gr in self.fetch("grants"):
+            n = BID[gr["resource_id"]] if gr.get("resource_id") else BID["grant/" + gr["id"]]
+            self._grant_node[gr["id"]] = n
+            self._gn_node[gr["grant_number"]] = n
+            self.graph.add((n, RDF.type, BBQS["Project"]))
+            self.add(n, "grant_number", gr.get("grant_number"))
+            self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
+            self.add(n, "title", gr.get("title"))
+            self.add(n, "abstract", gr.get("abstract"))
+            self.add(n, "nih_link", gr.get("nih_link"))
+            self.add(n, "reporter_project_num", gr.get("reporter_project_num"))
+            self.add(n, "award_amount", gr.get("award_amount"), cast=None)
+            self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
+
+        resolve_species = self._build_species_resolver()
+
+        for p in self.fetch("projects"):
+            n = self._gn_node.get(p["grant_number"])
+            if n is None:
+                continue
+            self.add(n, "website", p.get("website"))
+            self.add(n, "onboarding_status", p.get("onboarding_status"))
+            if p.get("study_human") is not None:
+                self.graph.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
+            for kw in p.get("keywords") or []:
+                self.add(n, "keywords", kw)
+            for name in p.get("study_species") or []:
+                self.add(n, "studies_species_name", name)  # the raw claim, verbatim
+                target = resolve_species(name)
+                if target is not None:
+                    self.graph.add((n, BBQS["studies_species"], target))
+                else:
+                    self.dangling_species.append((p["grant_number"], name))
+
+    def _build_species_resolver(self):
+        """Species nodes + a resolver that folds species_aliases (synonyms / scientific names) so
+        that projects.study_species[] free text ("Mus musculus", "Humans") maps to the right node.
+        """
+        species_by_name = {}            # exact name/common_name (lower) -> IRI
+        species_rows = []
+        for sp in self.fetch("species"):
+            n = BID["species/" + sp["id"]]
+            species_rows.append((n, sp))
+            self.graph.add((n, RDF.type, BBQS["Species"]))
+            self.add(n, "name", sp.get("name"))
+            self.add(n, "common_name", sp.get("common_name"))
+            self.add(n, "taxonomy_class", sp.get("taxonomy_class"))
+            for key in (sp.get("name"), sp.get("common_name")):
+                if key:
+                    species_by_name.setdefault(key.strip().lower(), n)
+
+        aliases = self.fetch("species_aliases")
+        canon_of = {}                    # any surface form (lower) -> canonical grouping key (lower)
+        for a in aliases:
+            canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
+            if not canon:
+                continue
+            for form in (a.get("alias"), a.get("canonical"), a.get("common_name")):
+                if form:
+                    canon_of[form.strip().lower()] = canon
+        iri_of_canon = {}                 # canonical key -> species IRI (via that species' own names)
+        for n, sp in species_rows:
+            for key in (sp.get("name"), sp.get("common_name")):
+                if key:
+                    c = canon_of.get(key.strip().lower())
+                    if c:
+                        iri_of_canon.setdefault(c, n)
+        # Emit each alias onto its species node so shape #7 verifies resolution from the graph itself.
+        for a in aliases:
+            canon = (a.get("canonical") or a.get("common_name") or a.get("alias") or "").strip().lower()
+            target = iri_of_canon.get(canon) or species_by_name.get(canon)
+            if target is None:
+                continue
+            for form in (a.get("alias"), a.get("canonical"), a.get("common_name")):
+                if form:
+                    self.add(target, "aliases", form)
+
+        def resolve_species(value):
+            v = str(value).strip().lower()
+            if v in species_by_name:
+                return species_by_name[v]
+            c = canon_of.get(v)
+            if c:
+                return iri_of_canon.get(c) or species_by_name.get(c)
+            return None
+
+        return resolve_species
+
+    def _export_roles(self):
+        """Reified per-project role (grant_investigators)."""
+        # investigators.id -> spine node IRI. The spine mints Investigator nodes at BID[resources.id],
+        # but grant_investigators.investigator_id is investigators.id (a DIFFERENT key). Resolve
+        # through this map so held_by points at the real node, never a dangling second IRI for the
+        # same person. Under the anon role investigators is RLS-hidden (0 rows) -> map empty ->
+        # held_by is omitted rather than dangling; it resolves in the full-access export (Phase 6).
+        for inv in self.fetch("investigators", "id,resource_id"):
+            if inv.get("resource_id"):
+                self._inv_node[inv["id"]] = BID[inv["resource_id"]]
+
+        for gi in self.fetch("grant_investigators"):
+            n = BID["role/" + gi["id"]]
+            self.graph.add((n, RDF.type, BBQS["ProjectRole"]))
+            self.add(n, "project_role", gi.get("role"))
+            self.add(n, "role_source", gi.get("role_source"))
+            if gi.get("grant_id") and gi["grant_id"] in self._grant_node:
+                self.graph.add((n, BBQS["on_project"], self._grant_node[gi["grant_id"]]))
+            held = self._inv_node.get(gi.get("investigator_id"))
+            if held is not None:                          # omit rather than write a dangling edge
+                self.graph.add((n, BBQS["held_by"], held))
+            self.role_count += 1
+
+    def _export_non_spine_entities(self):
+        """Entities minted from their own tables (not yet in the resources spine)."""
+        for o in self.fetch("organizations"):
+            n = BID["org/" + o["id"]]
+            self.graph.add((n, RDF.type, BBQS["ResearchOrganization"]))
+            self.add(n, "name", o.get("name"))
+            self.add(n, "external_url", o.get("url"))
+        for pub in self.fetch("publications"):
+            n = BID["pub/" + pub["id"]]
+            self.graph.add((n, RDF.type, BBQS["Publication"]))
+            self.add(n, "title", pub.get("title"))
+            self.add(n, "doi", pub.get("doi"))
+            self.add(n, "pmid", pub.get("pmid"))
+            self.add(n, "journal", pub.get("journal"))
+            self.add(n, "year", pub.get("year"), cast=None)
+        for cat in self.fetch("device_categories"):
+            n = BID["devicecat/" + cat["key"]]
+            self.graph.add((n, RDF.type, BBQS["DeviceCategory"]))
+            self.add(n, "category_key", cat.get("key"))
+            self.add(n, "label", cat.get("label"))
+            for meas in cat.get("measures") or []:
+                self.add(n, "measures", meas)
+        for dm in self.fetch("device_models"):
+            n = BID["device/" + dm["id"]]
+            self.graph.add((n, RDF.type, BBQS["Device"]))
+            self.add(n, "model_name", dm.get("model_name"))
+            if dm.get("device_class"):
+                self.graph.add((n, BBQS["device_category"], BID["devicecat/" + dm["device_class"]]))
+            self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
+
+    def _print_export_summary(self, out_path):
+        counts = {}
+        for _, _, o in self.graph.triples((None, RDF.type, None)):
+            counts[o.split("#")[-1]] = counts.get(o.split("#")[-1], 0) + 1
+        print(f"Wrote {out_path}: {len(self.graph)} triples")
+        print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+        print(f"ProjectRole edges: {self.role_count}")
+        if self.dangling_species:
+            print(f"\nUnresolved study_species (dangling -- a real #7 inconsistency): {len(self.dangling_species)}")
+            for gn, name in self.dangling_species:
+                print(f"  {gn}: {name!r} has no matching Species node")
+
+    # ---- validate ----------------------------------------------------------
+
+    @staticmethod
+    def validate(data_file, shape_files=None):
+        """Run SHACL consistency validation over an instance graph. Returns (conforms, report_text).
+
+        If no shapes are given, every kg/shapes/*.ttl is used. Requires:  pip install pyshacl
+        """
+        try:
+            from pyshacl import validate as shacl_validate
+        except ImportError:
+            sys.exit("pyshacl is not installed. Run:  pip install pyshacl")
+        import rdflib
+
+        shape_files = shape_files or sorted(glob.glob(os.path.join(HERE, "shapes", "*.ttl")))
+
+        data = rdflib.Graph().parse(data_file, format="turtle")
+        shapes = rdflib.Graph()
+        for s in shape_files:
+            shapes.parse(s, format="turtle")
+
+        conforms, _report_graph, report_text = shacl_validate(
+            data, shacl_graph=shapes, advanced=True, inference="none",
+        )
+        print(report_text)
+        print(f"conforms={conforms}  data={os.path.relpath(data_file, HERE)}  "
+              f"shapes={len(shape_files)} file(s)")
+        return conforms, report_text
+
+    # ---- pipeline ----------------------------------------------------------
+
+    def run(self, out_path=None, shape_files=None):
+        """Run the full pipeline in sequence: export from Supabase, then validate the result."""
+        out_path = self.export(out_path)
+        conforms, _report_text = self.validate(out_path, shape_files)
+        return conforms
