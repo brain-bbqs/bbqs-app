@@ -1,44 +1,31 @@
 #!/usr/bin/env python3
 """Run SHACL consistency validation over a BBQS KG instance graph.
 
+click CLI over `BBQSKnowledgeGraph.validate` (see bbqs_kg.py) — the validation logic itself lives
+on that class so it can run as one step of the `main.py` pipeline.
+
 Usage:
-    python kg/validate.py <data.ttl> [shapes.ttl ...]
+    python kg/validate.py DATA_FILE [SHAPE_FILES ...]
 
 If no shapes are given, every kg/shapes/*.ttl is used. Exit code is 0 when the graph is
-consistent (conforms), 1 when any shape fires. Requires:  pip install pyshacl
+consistent (conforms), 1 when any shape fires. Requires:  pip install pyshacl click
 """
-import glob
-import os
-import sys
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+import click
+
+from bbqs_kg import BBQSKnowledgeGraph
 
 
-def main(argv):
-    if len(argv) < 2:
-        sys.exit(__doc__)
-    try:
-        from pyshacl import validate
-    except ImportError:
-        sys.exit("pyshacl is not installed. Run:  pip install pyshacl")
-    import rdflib
-
-    data_file = argv[1]
-    shape_files = argv[2:] or sorted(glob.glob(os.path.join(HERE, "shapes", "*.ttl")))
-
-    data = rdflib.Graph().parse(data_file, format="turtle")
-    shapes = rdflib.Graph()
-    for s in shape_files:
-        shapes.parse(s, format="turtle")
-
-    conforms, _report_graph, report_text = validate(
-        data, shacl_graph=shapes, advanced=True, inference="none",
-    )
-    print(report_text)
-    print(f"conforms={conforms}  data={os.path.relpath(data_file, HERE)}  "
-          f"shapes={len(shape_files)} file(s)")
-    sys.exit(0 if conforms else 1)
+@click.command()
+@click.argument("data_file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("shape_files", type=click.Path(exists=True, dir_okay=False, path_type=Path), nargs=-1)
+@click.pass_context
+def main(ctx: click.Context, data_file: Path, shape_files: tuple[Path, ...]):
+    """Validate DATA_FILE against SHAPE_FILES (default: every kg/shapes/*.ttl)."""
+    conforms, _report_text = BBQSKnowledgeGraph.validate(data_file, list(shape_files) or None)
+    ctx.exit(0 if conforms else 1)
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()
