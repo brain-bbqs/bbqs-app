@@ -18,6 +18,13 @@ bid:00a0773c-3d61-4450-8256-ab7456c87953 a bbqs:Dataset ;
 bid:026f060a-5264-4ed0-89e7-d2cd2c436b38 a bbqs:Investigator ;
     bbqs:name "Shannon Gourley" .
 
+bid:0285843e-0628-489a-a676-27648d2350a7 a bbqs:Device ;
+    bbqs:device_category bid:361a786e-7850-418a-a76a-ea21fc656775 ;
+    bbqs:external_url "https://www.avisoft.com/" ;
+    bbqs:manufacturer bid:2911be71-0f8a-47d5-9b0b-df9c7e75ce2f ;
+    bbqs:model_name "Avisoft ultrasonic microphones" ;
+    bbqs:name "Avisoft ultrasonic microphones" .
+
 bid:02f970e3-bc54-4d97-b033-fe732d43fbb3 a bbqs:Investigator ;
     bbqs:name "Katalin Gothard" .
 
@@ -30,17 +37,36 @@ bid:0401c6a9-2be9-47e3-981a-72481bd46a08 a bbqs:Investigator ;
 bid:0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18 a bbqs:Investigator ;
     bbqs:name "Alireza Kazemi" .
 
+bid:0681de3a-08d8-4a60-88c1-65ef2a02a93f a bbqs:Investigator ;
+    bbqs:name "Gabriella Sahyoun" .
+
+bid:07448ab8-2717-4b6e-83e0-9abf492240e5 a bbqs:FundingOpportunity ;
+    bbqs:description "This NOFO is intended for investigators at resource-limited institutions to adopt and integrate BRAIN Initiative resources into their research. Supports two-way knowledge transfer between PI and BRAIN disseminator." ;
+    bbqs:external_url "https://grants.nih.gov/grants/guide/rfa-files/RFA-NS-25-016.html" ;
+    bbqs:name "BRAIN Initiative: Promoting Health for All Through BRAIN Technology Partnerships" .
+
 bid:081d2ddb-e2c8-4909-84c4-740582fd757c a bbqs:Investigator ;
     bbqs:name "Sima  Mofakham" .
 
 bid:0823bcd5-786e-4d68-91b0-95bdec0b5d37 a bbqs:Investigator ;
     bbqs:name "Jeff Munson" .
 
+bid:0885bc24-79d7-45c1-ad73-fd4301e68ff6 a bbqs:ResearchOrganization ;
+    bbqs:name "State University of New York at Stony Brook" .
+
 bid:09865181-38c6-44d9-aba4-68e373f0286d a bbqs:Investigator ;
     bbqs:name "Caleb Kemere" .
 
+bid:09e37e7e-a6a7-409a-b532-9f000647f007 a bbqs:FundingOpportunity ;
+    bbqs:description "Supports academic-industrial partnerships developing Software as a Medical Device (SaMD) multimodal AI clinical decision support tools combining medical imaging with other health data. 8 awards anticipated; foreign organizations eligible." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/d07ebcd7-96cf-40cb-8ae3-f401b6274080" ;
+    bbqs:name "PRIMED-AI: Data-to-Model Academic-Industrial Partnerships (D2M-AIP) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (UG3/UH3 Clinical Trial Optional)" .
+
 bid:0a076358-2298-4693-b3cf-d75114552163 a bbqs:Investigator ;
     bbqs:name "John  Rogers" .
+
+bid:0a39ab50-9241-4b17-b6d4-77d5ac81e519 a bbqs:Investigator ;
+    bbqs:name "Yankun Xu" .
 
 bid:0a91143c-35e4-4cf1-a1d5-301b6a8651ae a bbqs:MLModel ;
     bbqs:description "Centralized repository of pose estimation models and demos" ;
@@ -55,6 +81,14 @@ bid:0ab38ea2-777f-4cb2-af86-77491c07a3bb a bbqs:SoftwareTool ;
 bid:0b1dab3b-4478-4149-a41a-72cf69d47788 a bbqs:Investigator ;
     bbqs:name "Kristofer Bouchard" .
 
+bid:0c13ec6b-1864-453c-a447-cf938ec53940 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41104294/" ;
+    bbqs:journal "IEEE Sens Lett" ;
+    bbqs:name "A Wearable Sweat Rate Sensor with Adaptive Sweat Ion Concentration Calibration." ;
+    bbqs:pmid "41104294" ;
+    bbqs:title "A Wearable Sweat Rate Sensor with Adaptive Sweat Ion Concentration Calibration." ;
+    bbqs:year 2025 .
+
 bid:0c4561e1-221b-4444-ac15-6c2220beb292 a bbqs:Dataset ;
     bbqs:description "This dataset contains automated contributions of pose labels for subjects from random video frames." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000470" ;
@@ -65,8 +99,27 @@ bid:0c87346c-ae43-4e45-8708-682c41353bcc a bbqs:Dataset ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000001" ;
     bbqs:name "test" .
 
+bid:0cdfab9b-92fe-45c6-afbe-9f22d7eda7dd a bbqs:Announcement ;
+    bbqs:external_url "https://go.nih.gov/6sLn5QY" ;
+    bbqs:name "NIH Common Fund PRIMED-AI — five funding opportunities open" .
+
 bid:0da76ce9-654a-4940-a9c6-d0785167ebad a bbqs:Investigator ;
     bbqs:name "Amelia Johnson" .
+
+bid:0ded1b71-e572-475b-8457-bf370ed6335f a bbqs:Investigator ;
+    bbqs:name "Matt Levine" .
+
+bid:0e032f88-c50f-4527-9c40-68e9b782173d a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39680425/" ;
+    bbqs:journal "Elife" ;
+    bbqs:name "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:pmid "39680425" ;
+    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:year 2024 .
+
+bid:0f0ad5c2-496b-42a8-91b7-b798742bcdc3 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=15537186" ;
+    bbqs:name "Shreya  Saxena" .
 
 bid:0f3bb33c-e7ee-4013-af5d-894d1adfa0ee a bbqs:Investigator ;
     bbqs:name "Melissa Kline Struhl" .
@@ -74,31 +127,109 @@ bid:0f3bb33c-e7ee-4013-af5d-894d1adfa0ee a bbqs:Investigator ;
 bid:0f65886e-44cb-4a8b-88a2-ecb214b0ea99 a bbqs:Investigator ;
     bbqs:name "Yangjia Li" .
 
+bid:0f875168-9793-465b-9ab1-bf8f18492778 a bbqs:Announcement ;
+    bbqs:external_url "https://arxiv.org/abs/2601.19955" ;
+    bbqs:name "NSF NeuroAI and Beyond Workshop Report (Preprint)" .
+
 bid:0f8bad99-d648-46e7-97cc-a669746511ee a bbqs:Investigator ;
     bbqs:name "Michael Genecin" .
 
 bid:0fd7e9bf-a1c2-48ba-b235-75cee07f2fc2 a bbqs:Investigator ;
     bbqs:name "Joy Hirsch" .
 
+bid:10ceb449-38ab-4e52-9422-39722583f074 a bbqs:Species ;
+    bbqs:common_name "Acoel Flatworm" ;
+    bbqs:name "Acoel Flatworm" ;
+    bbqs:taxonomy_class "Acoela" .
+
+bid:12234308-3c6b-4d75-a135-f8fb127d4389 a bbqs:Job ;
+    bbqs:name "Postdoctoral position in statistical methods for behavioral analysis" .
+
+bid:12c95d56-76ab-4519-8bf9-e406bf79736d a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41256607/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "Distributed neural computation and the evolution of the first brains." ;
+    bbqs:pmid "41256607" ;
+    bbqs:title "Distributed neural computation and the evolution of the first brains." ;
+    bbqs:year 2025 .
+
+bid:130afdbe-9128-4afb-a7cd-f27967d52a7a a bbqs:Device ;
+    bbqs:device_category bid:31b21990-8007-45a0-86e0-d1e9e412d9a7 ;
+    bbqs:external_url "https://www.garmin.com/" ;
+    bbqs:manufacturer bid:1a3ec6ab-3abd-4da5-b938-e9818c52b95a ;
+    bbqs:model_name "Garmin GPS" ;
+    bbqs:name "Garmin GPS" .
+
 bid:13ccc90e-b105-48b2-8590-4804cd2b5f54 a bbqs:Investigator ;
     bbqs:name "Yi Zuo" .
+
+bid:1424d10f-795c-47e5-a6d7-d6705fad611a a bbqs:ResearchOrganization ;
+    bbqs:name "CALIFORNIA INSTITUTE OF TECHNOLOGY" .
+
+bid:154b96da-c04a-442c-868f-1586b692dc42 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39703614/" ;
+    bbqs:journal "Front Behav Neurosci" ;
+    bbqs:name "SARTAB, a scalable system for automated real-time behavior detection based on animal tracking and Region Of Interest analysis: validation on fish courtship behavior." ;
+    bbqs:pmid "39703614" ;
+    bbqs:title "SARTAB, a scalable system for automated real-time behavior detection based on animal tracking and Region Of Interest analysis: validation on fish courtship behavior." ;
+    bbqs:year 2024 .
+
+bid:156fb20f-5e40-4804-992d-dc353b5e99e4 a bbqs:Investigator ;
+    bbqs:name "Yisong Yue" .
 
 bid:164c219c-6bc5-4975-8815-2c2e0dd2f8a1 a bbqs:Investigator ;
     bbqs:name "Bijan  Pesaran" .
 
+bid:16d82048-d1f5-4b80-a6e0-2baf5c1bed4f a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=12197198" ;
+    bbqs:name "Pulkit  Grover" .
+
+bid:16f63350-9197-4e16-8a8c-0f67b2da18df a bbqs:Device ;
+    bbqs:device_category bid:e80e0495-82ff-4d51-995f-36e9349b40fb ;
+    bbqs:external_url "https://www.wildlifeacoustics.com/" ;
+    bbqs:manufacturer bid:ddff023c-f84e-41b2-aa9e-1e8ee0d743fd ;
+    bbqs:model_name "Wildlife Acoustics recorders" ;
+    bbqs:name "Wildlife Acoustics recorders" .
+
 bid:178d1833-2f0c-4a20-9f06-c3106f12b21c a bbqs:Investigator ;
     bbqs:name "Taqiya Ehsan" .
+
+bid:17b63cd3-e0b6-47c0-97ca-58ef6197e8e4 a bbqs:Investigator ;
+    bbqs:name "Omid Sharafi" .
+
+bid:180457cc-1c85-4ee9-a13c-7fc8023528c3 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF SOUTHERN CALIFORNIA" .
 
 bid:189027bf-98cc-4173-8571-06759988ff2b a bbqs:Investigator ;
     bbqs:name "Joseph Colonel" .
 
+bid:18d4c4a6-7d69-4425-8792-de1e60d0b35f a bbqs:DeviceCategory ;
+    bbqs:category_key "ecg_hr" ;
+    bbqs:description "Electrocardiography and heart-rate sensing." ;
+    bbqs:label "ECG / Heart Rate" ;
+    bbqs:measures "ECG waveform",
+        "HRV",
+        "heart rate" ;
+    bbqs:name "ECG / Heart Rate" .
+
 bid:1962a240-a592-484c-b812-122a5dad2951 a bbqs:Investigator ;
     bbqs:name "Tianqing Li" .
+
+bid:196ba606-dec6-4863-876e-907559234c80 a bbqs:Investigator ;
+    bbqs:name "Keyvan Ansarino" .
 
 bid:199d9cea-460f-4470-957d-c9f458c237f1 a bbqs:Dataset ;
     bbqs:description "Mice with implanted Neuropixels electrodes freely locomote in a semicircle apparatus in which 27 choice ports line the rounded rim of the arena. A trial start / reward port in the center of the flat part of the arena provides a liquid sugar water reward probabilistically based on the animals choice." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000532" ;
     bbqs:name "Mouse Open-Field Semicircle Foraging Task" .
+
+bid:1a33a814-fbd1-4acf-bc5d-f0077bc180d1 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=11483919" ;
+    bbqs:name "Gregory Darin Field" .
+
+bid:1a8f0486-7381-4156-824c-b2e9ff0dc817 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=79020074" ;
+    bbqs:name "Jane  Wang" .
 
 bid:1b1f912c-a054-4bd1-a6b8-748f902e53f4 a bbqs:Investigator ;
     bbqs:name "Meghan Cum" .
@@ -109,24 +240,77 @@ bid:1b3e8304-f2d6-4ed6-aa5c-7d49ca278344 a bbqs:Investigator ;
 bid:1b49aee4-301e-46c9-b22d-209481f68437 a bbqs:Investigator ;
     bbqs:name "Ashley Feinsinger" .
 
+bid:1b79d65a-57fd-455c-96e7-acc3b3eb6c01 a bbqs:Announcement ;
+    bbqs:external_url "https://www.nytimes.com/2026/07/28/science/costa-rica-monkeys-ai.html?unlocked_article_code=1.1VA.toSv.7Q3TKDdHKC0H&smid=url-share" ;
+    bbqs:name "In the news: AI is helping scientists eavesdrop on Costa Rica's monkeys" .
+
+bid:1c181fed-73e8-46be-8d27-198f64e936ea a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF MICHIGAN AT ANN ARBOR" .
+
 bid:1cabb668-d89d-4bbb-a9c2-ea79f7a93708 a bbqs:Dataset ;
     bbqs:description "A collection of video snippets from across the BBQS." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000474" ;
     bbqs:name "BBQS Snippets" .
 
+bid:1cf7c61c-a403-4eb5-8a84-07a1e2da8fb4 a bbqs:Announcement ;
+    bbqs:external_url "https://braininitiative.nih.gov/news-events/events/brain-neuroai-workshop" ;
+    bbqs:name "BRAIN NeuroAI Workshop Summary and Program Book Available" .
+
 bid:1cfe15ec-b6a7-4534-b69d-79bb63b341b6 a bbqs:Investigator ;
     bbqs:name "Weikang Shi" .
+
+bid:1d3b5b5b-7a52-4380-82f4-931b67831917 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=10450045" ;
+    bbqs:name "Flavio  Frohlich" .
+
+bid:1e23d697-bec8-48a1-ae97-96434e7343c2 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=1922654" ;
+    bbqs:name "Jack Grinband" .
 
 bid:1e988b46-bfe4-4e41-843e-b6b0ae88efcb a bbqs:Dataset ;
     bbqs:description "A collection of behavioral videos, transcoded into a common space for pose labeling and foundation model training." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000471" ;
     bbqs:name "Pozu: Transcoding" .
 
+bid:1ec93ddb-bb26-4062-9a18-1214bc458102 a bbqs:ResearchOrganization ;
+    bbqs:name "PENNSYLVANIA STATE UNIVERSITY" .
+
 bid:1ee83670-fadd-4744-91bd-17ca61944822 a bbqs:Investigator ;
     bbqs:name "Andrew MacAskill" .
 
 bid:1f6fa922-b662-4325-aac7-cb622ac10ef3 a bbqs:Investigator ;
     bbqs:name "Eric Yttri" .
+
+bid:1fb20b4f-fd8c-4e40-a4f4-daaa12bd738a a bbqs:Investigator ;
+    bbqs:name "TestUser Tier2" .
+
+bid:205009f7-ea15-4e13-9b73-292de432b467 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38746090/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "Mimicking opioid analgesia in cortical pain circuits." ;
+    bbqs:pmid "38746090" ;
+    bbqs:title "Mimicking opioid analgesia in cortical pain circuits." ;
+    bbqs:year 2025 .
+
+bid:208980e9-92b9-447e-a2ca-e83bf61db159 a bbqs:ResearchOrganization ;
+    bbqs:external_url "https://www.nih.gov" ;
+    bbqs:name "National Institutes of Health" .
+
+bid:20a8f7ad-ea28-4624-9cae-4c73d8e74549 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40527329/" ;
+    bbqs:journal "J Neural Eng" ;
+    bbqs:name "Prioritized learning of cross-population neural dynamics." ;
+    bbqs:pmid "40527329" ;
+    bbqs:title "Prioritized learning of cross-population neural dynamics." ;
+    bbqs:year 2025 .
+
+bid:20adc9fb-c389-48a7-85ec-931501f0ce13 a bbqs:FundingOpportunity ;
+    bbqs:description "Supports cutting-edge mathematics and basic science research that uses Empire AI's multinode GPU clusters and foundational machine learning models, in computational astrophysics, physics, biology, mathematics, neuroscience, or computational physical chemistry. Up to $6M total over two years (2027-06-01 to 2029-05-31), 6-12 awards. PI must be tenure-track/tenured at an Empire AI member institution (Columbia, Cornell, CUNY, SUNY, RPI, NYU, Rochester, RIT, Icahn/Mount Sinai); additional PIs may join by subcontract from outside institutions." ;
+    bbqs:external_url "https://www.simonsfoundation.org/grant/utilizing-the-full-power-of-empire-ai-request-for-applications/" ;
+    bbqs:name "Utilizing the Full Power of Empire AI — Request for Applications (Simons Foundation)" .
+
+bid:20d3bb9f-8cbe-45b8-974e-1c84e0d9631f a bbqs:Investigator ;
+    bbqs:name "Marta da Rocha Diogo" .
 
 bid:223a91b2-1ffb-49e6-9cd7-d97f6f2beece a bbqs:Investigator ;
     bbqs:name "Petar M Djuric" .
@@ -145,11 +329,32 @@ bid:24703152-c43b-4f4f-8d73-65f3ef490ff0 a bbqs:Investigator ;
 bid:24981995-2cd1-407a-9d2c-0f89f026edeb a bbqs:Investigator ;
     bbqs:name "Timothy Dunn" .
 
+bid:2538b9fd-01c4-453f-a20b-e7351cfa8c21 a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:c42dadeb-bf3c-44fa-baff-92adea2e0185 ;
+    bbqs:model_name "PPVT" ;
+    bbqs:name "PPVT" .
+
+bid:25a4f79c-6020-4074-b501-0114a205175f a bbqs:Investigator ;
+    bbqs:name "Thomas Heeps" .
+
 bid:25f1bccb-0c04-4e0e-8951-ac2620fb969c a bbqs:Investigator ;
     bbqs:name "Cody Baker" .
 
 bid:2634f607-be46-4d8d-baae-6ec0d66a5436 a bbqs:Investigator ;
     bbqs:name "Robert Froemke" .
+
+bid:276aa727-0539-4f2b-9fa0-c0b86a868876 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40832056/" ;
+    bbqs:journal "ArXiv" ;
+    bbqs:name "An Intelligent Infrastructure as a Foundation for Modern Science." ;
+    bbqs:pmid "40832056" ;
+    bbqs:title "An Intelligent Infrastructure as a Foundation for Modern Science." ;
+    bbqs:year 2025 .
+
+bid:27d7f30b-e152-4999-a63e-8dd4e800f3bc a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=11331514" ;
+    bbqs:name "Monika P. Jadi" .
 
 bid:28aec8d8-5202-4574-9a96-b01ddb53aeb4 a bbqs:Investigator ;
     bbqs:name "Nancy Padilla Coreano" .
@@ -157,10 +362,31 @@ bid:28aec8d8-5202-4574-9a96-b01ddb53aeb4 a bbqs:Investigator ;
 bid:2984e917-2448-4596-9648-b52dc92b2c5d a bbqs:Investigator ;
     bbqs:name "Mattson Ogg" .
 
+bid:29d3cb38-1cbb-43b7-baa6-f413d0a0bdad a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF PENNSYLVANIA" .
+
+bid:2a03a500-1fba-4367-85bb-25ce04eaba0e a bbqs:Investigator ;
+    bbqs:name "Latane Bullock" .
+
+bid:2a2ae141-5d5c-464a-809f-1e3a19a81293 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41571550/" ;
+    bbqs:journal "Trends Biotechnol" ;
+    bbqs:name "The FDA's plan to phase out animal testing." ;
+    bbqs:pmid "41571550" ;
+    bbqs:title "The FDA's plan to phase out animal testing." ;
+    bbqs:year 2026 .
+
 bid:2b9b6595-65f5-4f03-b4d4-d6725b6bb1c0 a bbqs:Dataset ;
     bbqs:description "For automatic testing of NeuroConv + NWB GUIDE upload. May be removed in the future as staging becomes more persistent." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000431" ;
     bbqs:name "TestNeuroConvUpload" .
+
+bid:2dd8fea9-363a-43da-8bd1-6ae4674c60b9 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=9643974" ;
+    bbqs:name "Daniel W Wesson" .
+
+bid:2eafb009-97ac-4492-97fe-b77490371b34 a bbqs:Investigator ;
+    bbqs:name "Nelleke van Wouwe" .
 
 bid:2f334517-3173-4654-987e-dc44e0e94eb2 a bbqs:Investigator ;
     bbqs:name "Eunyoung Kim" .
@@ -168,14 +394,45 @@ bid:2f334517-3173-4654-987e-dc44e0e94eb2 a bbqs:Investigator ;
 bid:2fb1cdc9-28b2-4709-adf4-c914a44e042d a bbqs:Investigator ;
     bbqs:name "William Nacci" .
 
+bid:2fc767cc-6f8c-4f93-8aaf-00d77c675a27 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40063703/" ;
+    bbqs:journal "ACS Nano" ;
+    bbqs:name "Interfacing with the Brain: How Nanotechnology Can Contribute." ;
+    bbqs:pmid "40063703" ;
+    bbqs:title "Interfacing with the Brain: How Nanotechnology Can Contribute." ;
+    bbqs:year 2025 .
+
 bid:2febecec-70dd-4db0-8bed-2060a1d13b5e a bbqs:Investigator ;
     bbqs:name "Brent Kious" .
 
 bid:307a2853-901d-4ce8-9894-a999868db705 a bbqs:Investigator ;
     bbqs:name "Yvonne Bennett" .
 
+bid:30ae82dc-0473-443d-96ae-8bbf8b0206cb a bbqs:Announcement ;
+    bbqs:external_url "mailto:listserv@list.nih.gov" ;
+    bbqs:name "BRAIN NeuroAI Community Updates Listserv Launched" .
+
+bid:311017ec-9209-4d63-95fb-1967bc8a81b7 a bbqs:Species ;
+    bbqs:aliases "Mustela putorius furo",
+        "domestic ferret",
+        "ferret",
+        "ferrets" ;
+    bbqs:common_name "Domestic Ferret" ;
+    bbqs:name "Domestic Ferret" ;
+    bbqs:taxonomy_class "Mammalia" .
+
+bid:315a0694-ce8d-4010-abca-5438e5f6b560 a bbqs:ResearchOrganization ;
+    bbqs:name "JOHNS HOPKINS UNIVERSITY" .
+
 bid:3161638e-fa1b-4af1-a998-a34139b2a0b1 a bbqs:Investigator ;
     bbqs:name "David Schneider" .
+
+bid:32937527-a5e9-4a99-84c0-719435f25f8b a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=6282327" ;
+    bbqs:name "Timothy P Roberts" .
+
+bid:32f14ee1-e0b4-4753-869a-f630f1786682 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF CALIFORNIA LOS ANGELES" .
 
 bid:335d4d23-a7b3-496d-a721-db2f6a68ce07 a bbqs:Investigator ;
     bbqs:name "Tim Roberts" .
@@ -184,6 +441,18 @@ bid:340ce805-e6f8-454a-bb4b-83ef53e0d444 a bbqs:SoftwareTool ;
     bbqs:description "Multi-animal pose tracking without markers" ;
     bbqs:external_url "https://sleap.ai/" ;
     bbqs:name "SLEAP" .
+
+bid:342800f7-b7b5-4b7e-9f41-d528b68d3c3d a bbqs:Device ;
+    bbqs:device_category bid:ac703a69-84bb-4157-b5c9-6d3f4e4d2c49 ;
+    bbqs:external_url "https://shimmersensing.com/" ;
+    bbqs:manufacturer bid:615d81a2-ce1b-4d1e-8f17-30d97dddb2a0 ;
+    bbqs:model_name "Shimmer3 GSR+" ;
+    bbqs:name "Shimmer3 GSR+" .
+
+bid:34318c67-9a08-4465-8859-5ded31edb62e a bbqs:Species ;
+    bbqs:common_name "Cricket" ;
+    bbqs:name "Cricket" ;
+    bbqs:taxonomy_class "Insecta" .
 
 bid:3516554a-8253-4773-af22-a89b3ccb3267 a bbqs:Investigator ;
     bbqs:name "Casey Harrison Halpern" .
@@ -195,12 +464,31 @@ bid:3533afc4-be44-460c-bada-ab578b028acb a bbqs:Announcement ;
 bid:353d2c1b-0f19-47a0-98be-6a721845c0c2 a bbqs:Investigator ;
     bbqs:name "Jennifer Wagner" .
 
+bid:3575b5d6-de13-43e9-9391-c5dc106f4dc3 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39602254/" ;
+    bbqs:journal "Proc Natl Acad Sci U S A" ;
+    bbqs:name "BCL2 regulates antibacterial autophagy in the intestinal epithelium." ;
+    bbqs:pmid "39602254" ;
+    bbqs:title "BCL2 regulates antibacterial autophagy in the intestinal epithelium." ;
+    bbqs:year 2024 .
+
 bid:3576ac45-d083-4c4c-84c0-04a44227dc2b a bbqs:Investigator ;
     bbqs:name "Yibei Chen" .
 
 bid:35e3244e-6533-49e7-b63a-3619d2cf18dc a bbqs:Job ;
     bbqs:description "Fully-funded postdoctoral position focused on theoretical understanding of distributed neural population dynamics. Join the Neural Systems and Machine Learning Lab at UC Berkeley and Lawrence Berkeley National Laboratory." ;
     bbqs:name "Theoretical Understanding of Distributed Neural Population Dynamics (Theory_PD)" .
+
+bid:36ba050d-e4f4-470c-a780-eddef3b4bab8 a bbqs:Investigator ;
+    bbqs:name "Farah Bader" .
+
+bid:36f00adf-1d84-4267-85c0-0af7379df8cc a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39500574/" ;
+    bbqs:journal "eNeuro" ;
+    bbqs:name "A Multiparadigm Approach to Characterize Dominance Behaviors in CD1 and C57BL6 Male Mice." ;
+    bbqs:pmid "39500574" ;
+    bbqs:title "A Multiparadigm Approach to Characterize Dominance Behaviors in CD1 and C57BL6 Male Mice." ;
+    bbqs:year 2024 .
 
 bid:37453416-6149-4fee-b9b9-a427b800ffe7 a bbqs:Investigator ;
     bbqs:name "Meaghan Perdue" .
@@ -215,11 +503,50 @@ bid:38f4034a-316a-4439-a0d7-161992a8aa67 a bbqs:Dataset ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000003" ;
     bbqs:name "Test DANDIset (Brock test)" .
 
+bid:38fab5c5-6eb6-4ba1-980a-78e5c2bf2312 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38014127/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "A behavioral roadmap for the development of agency in the rodent." ;
+    bbqs:pmid "38014127" ;
+    bbqs:title "A behavioral roadmap for the development of agency in the rodent." ;
+    bbqs:year 2024 .
+
 bid:397816f1-2188-4817-af29-e7aa82ef1afb a bbqs:Investigator ;
     bbqs:name "Dana Schloesser" .
 
+bid:39e960bb-6537-484d-94e9-62dde0ee3680 a bbqs:DeviceCategory ;
+    bbqs:category_key "meg_opm" ;
+    bbqs:description "Optically pumped magnetometer arrays for on-scalp magnetoencephalography." ;
+    bbqs:label "OPM-MEG" ;
+    bbqs:measures "Magnetic field",
+        "source-localized activity" ;
+    bbqs:name "OPM-MEG" .
+
+bid:3a906d0f-416c-4fda-bdf9-c9e42ca31ab8 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39242944/" ;
+    bbqs:journal "Nat Neurosci" ;
+    bbqs:name "Dissociative and prioritized modeling of behaviorally relevant neural dynamics using recurrent neural networks." ;
+    bbqs:pmid "39242944" ;
+    bbqs:title "Dissociative and prioritized modeling of behaviorally relevant neural dynamics using recurrent neural networks." ;
+    bbqs:year 2024 .
+
 bid:3afc2f32-f84c-4ca1-9fee-139597851004 a bbqs:Investigator ;
     bbqs:name "Emily Kuschner" .
+
+bid:3b549548-0ca5-4c7e-91ba-a6a1ed51705e a bbqs:Device ;
+    bbqs:device_category bid:851882bb-3321-45ed-af75-6ae08836c1fc ;
+    bbqs:external_url "https://www.emotibit.com/" ;
+    bbqs:manufacturer bid:31c5064c-5df0-4821-9ea7-d3807308ba18 ;
+    bbqs:model_name "EmotiBit" ;
+    bbqs:name "EmotiBit" .
+
+bid:3ba48c59-bb79-44ef-8569-ca644775d73a a bbqs:SoftwareTool ;
+    bbqs:description "Markerless pose estimation tool for neuroscience, published in Nature Methods (2024). Supports single-view and multi-view, single-animal pose estimation with a GUI for multi-view labeling. Developed by Liam Paninski's lab at Columbia University Zuckerman Institute, Center for Theoretical Neuroscience. 280+ GitHub stars." ;
+    bbqs:external_url "https://github.com/paninski-lab/lightning-pose" ;
+    bbqs:name "Lightning Pose" .
+
+bid:3be49154-45d9-45b4-9872-3271a67a5225 a bbqs:Investigator ;
+    bbqs:name "Pietro Perona" .
 
 bid:3be55dd2-fe02-418e-a97b-aa223e988663 a bbqs:Investigator ;
     bbqs:name "Stephanie Prince" .
@@ -230,8 +557,17 @@ bid:3cae416f-5424-49c3-b7c4-aedb7c53303f a bbqs:Investigator ;
 bid:3cc135af-1424-4cc9-b54b-978d039ad6d1 a bbqs:Investigator ;
     bbqs:name "Kari Johnson" .
 
+bid:3d7564b9-e839-4737-874a-2e3b5319e11a a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=6998694" ;
+    bbqs:name "Alik S. Widge" .
+
 bid:3d87d6b0-c802-4610-813b-86b94e3e76d6 a bbqs:Investigator ;
     bbqs:name "Muhammad Parvaz" .
+
+bid:3fb868da-b941-439e-a81e-927a543defd3 a bbqs:FundingOpportunity ;
+    bbqs:description "Supports proof-of-concept testing and development of new technologies and novel approaches for recording and modulation of neural cells and circuits, addressing major challenges in central nervous system research." ;
+    bbqs:external_url "https://grants.nih.gov/grants/guide/rfa-files/RFA-NS-25-018.html" ;
+    bbqs:name "BRAIN Initiative: New Technologies and Novel Approaches for Recording and Modulation in the Nervous System (R01 Clinical Trial Not Allowed)" .
 
 bid:4009a1f6-c173-495b-9725-bb51571a3cdf a bbqs:SoftwareTool ;
     bbqs:description "Markerless pose estimation of user-defined body parts across species" ;
@@ -255,12 +591,32 @@ bid:41b331ec-b7ab-400f-9899-6c314e9eea6e a bbqs:Dataset ;
 bid:41e042c3-81ad-486b-b933-bf77fcefd4f5 a bbqs:Investigator ;
     bbqs:name "Bartul Mimica" .
 
+bid:4284d761-dde2-4e72-8cb4-d3724f2d4b32 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIV OF MASSACHUSETTS MED SCH WORCESTER" .
+
+bid:429c73a9-8440-4f1f-a2f7-a8a1b75958a7 a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:541eb3ec-855c-427e-9d9d-816b3845b9cf ;
+    bbqs:model_name "Leiter-3" ;
+    bbqs:name "Leiter-3" .
+
 bid:42efe7fa-561b-4a00-af58-78b71f9d4b1a a bbqs:Announcement ;
     bbqs:description "A new website for BBQS (this) was born. 🎊" ;
     bbqs:name "New BBQS Website Launch" .
 
 bid:42fcde10-7fc8-4243-9c6f-845abf7d194c a bbqs:Investigator ;
     bbqs:name "Nicole Guittari" .
+
+bid:436525a6-acbf-4066-ac75-82845a8db8cc a bbqs:Species ;
+    bbqs:common_name "Fruit Fly" ;
+    bbqs:name "Fruit Fly" ;
+    bbqs:taxonomy_class "Insecta" .
+
+bid:43d7d5a8-8912-4a93-b571-f3c97f41bd9d a bbqs:Investigator ;
+    bbqs:name "Test User" .
+
+bid:4412f5e5-aba7-49fb-876c-618f59f9b226 a bbqs:Investigator ;
+    bbqs:name "Merav Sabri" .
 
 bid:444f664a-b7ee-4571-ad81-33bd93b03cca a bbqs:SoftwareTool ;
     bbqs:description "Markerless pose estimation tool for neuroscience, published in Nature Methods (2024). Supports single-view and multi-view, single-animal pose estimation with a GUI for multi-view labeling. Developed by Liam Paninski's lab at Columbia University Zuckerman Institute." ;
@@ -280,8 +636,44 @@ bid:46841d0e-4d55-4690-81f0-41c33f424bc8 a bbqs:Announcement ;
 bid:4722e0eb-8daf-4685-8da4-fd7bb284d377 a bbqs:Investigator ;
     bbqs:name "Satrajit Ghosh" .
 
+bid:4737d7d7-4bbe-4b72-b397-5f341a0dd5dd a bbqs:WorkingGroup ;
+    bbqs:name "WG-Standards" .
+
+bid:47485e5b-3455-44a3-a716-70069176b11f a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=10793375" ;
+    bbqs:name "Katherine  Nagel" .
+
+bid:47974228-8745-4b67-8857-4450426743a7 a bbqs:Device ;
+    bbqs:device_category bid:006caa68-8b24-474f-867f-82a6199a84b1 ;
+    bbqs:external_url "https://open-ephys.org/" ;
+    bbqs:manufacturer bid:2367da64-4eae-4655-a4dc-315ad12e3398 ;
+    bbqs:model_name "Open Ephys" ;
+    bbqs:name "Open Ephys" .
+
+bid:47cf050c-ab07-42fa-b251-d1fecc7ceb40 a bbqs:WorkingGroup ;
+    bbqs:name "WG-Analytics" .
+
+bid:4b31df5d-6d5c-49d5-9abd-ecc1cbafe965 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41536438/" ;
+    bbqs:journal "Adv Funct Mater" ;
+    bbqs:name "Delivery of Angiogenic Therapy from Flowable Hyaluronic Acid Porous Scaffolds Results in Functional Improvement without Anti-Inflammatory Agents." ;
+    bbqs:pmid "41536438" ;
+    bbqs:title "Delivery of Angiogenic Therapy from Flowable Hyaluronic Acid Porous Scaffolds Results in Functional Improvement without Anti-Inflammatory Agents." ;
+    bbqs:year 2025 .
+
 bid:4b90a4f4-0010-4b31-8adb-db169e15a70a a bbqs:Investigator ;
     bbqs:name "Sandy Hider" .
+
+bid:4be84d82-5396-4c3d-907f-8c6e10787cd3 a bbqs:WorkingGroup ;
+    bbqs:name "WG-ELSI" .
+
+bid:4cbadc61-5660-48d8-9b16-7a8749f0defe a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40761288/" ;
+    bbqs:journal "Front Epigenet Epigenom" ;
+    bbqs:name "HDAC3 regulates the diurnal rhythms of claudin expression and intestinal permeability." ;
+    bbqs:pmid "40761288" ;
+    bbqs:title "HDAC3 regulates the diurnal rhythms of claudin expression and intestinal permeability." ;
+    bbqs:year 2024 .
 
 bid:4cd9c282-4677-471a-81c0-aa97d94a687e a bbqs:Investigator ;
     bbqs:name "Adam Friedman" .
@@ -289,21 +681,81 @@ bid:4cd9c282-4677-471a-81c0-aa97d94a687e a bbqs:Investigator ;
 bid:4d4ad015-92f8-485e-9d4c-61dd5c18ac29 a bbqs:Investigator ;
     bbqs:name "Dayu  Lin" .
 
+bid:4d4eeeec-1126-4407-b7e9-80ad309522b4 a bbqs:DeviceCategory ;
+    bbqs:category_key "survey_task" ;
+    bbqs:description "Questionnaires, diaries, dial ratings, and computerized cognitive tasks." ;
+    bbqs:label "Surveys & Structured Tasks" ;
+    bbqs:measures "Item responses",
+        "ratings",
+        "reaction times" ;
+    bbqs:name "Surveys & Structured Tasks" .
+
+bid:4d59ea78-e15f-4f78-92d4-28f4041b297f a bbqs:Device ;
+    bbqs:device_category bid:e80e0495-82ff-4d51-995f-36e9349b40fb ;
+    bbqs:external_url "https://www.minidsp.com/products/usb-audio-interface/uma-16" ;
+    bbqs:manufacturer bid:8482b347-2401-49bb-99c6-19a26be255c7 ;
+    bbqs:model_name "miniDSP UMA-16" ;
+    bbqs:name "miniDSP UMA-16" .
+
+bid:4d8bb1b1-0cd6-4ca6-a5f7-7b0bc3ba537d a bbqs:Investigator ;
+    bbqs:name "Brian Leonard" .
+
+bid:4dc711e8-2a6e-458e-88cb-a5dcd9b8336e a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:a7b15b50-1f35-4e02-91d5-c28593457e3d ;
+    bbqs:model_name "SRS" ;
+    bbqs:name "SRS" .
+
 bid:4f18ae48-4099-486d-8e89-1a8a736e59e4 a bbqs:Investigator ;
     bbqs:name "anqi wu" .
+
+bid:507c97c9-3940-4476-af59-4736c645c519 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39730913/" ;
+    bbqs:journal "Nat Biomed Eng" ;
+    bbqs:name "Challenges and opportunities of acquiring cortical recordings for chronic adaptive deep brain stimulation." ;
+    bbqs:pmid "39730913" ;
+    bbqs:title "Challenges and opportunities of acquiring cortical recordings for chronic adaptive deep brain stimulation." ;
+    bbqs:year 2025 .
+
+bid:50808fc1-e0bd-44c6-a772-364f8a35a23e a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41040797/" ;
+    bbqs:journal "ArXiv" ;
+    bbqs:name "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:pmid "41040797" ;
+    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:year 2025 .
 
 bid:529a7b7d-e25c-4d71-b61a-05733ab55f08 a bbqs:SoftwareTool ;
     bbqs:description "Real-time multi-person 2D pose estimation (body, hands, face)" ;
     bbqs:external_url "https://github.com/CMU-Perceptual-Computing-Lab/openpose" ;
     bbqs:name "OpenPose" .
 
+bid:52bab585-b93b-4942-9dc4-6090d8a7d7e5 a bbqs:Investigator ;
+    bbqs:name "Jane Doe" .
+
+bid:52fcb5e7-1274-4621-b368-17f269eaec86 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIV OF NORTH CAROLINA CHAPEL HILL" .
+
 bid:5370de26-7bb9-4adb-8ba9-43d30ce5c78a a bbqs:SoftwareTool ;
     bbqs:description "Ultrasonic vocalization (USV) detection and analysis in rodents" ;
     bbqs:external_url "https://github.com/DrCoffey/DeepSqueak" ;
     bbqs:name "DeepSqueak" .
 
+bid:538a6b26-2685-4ea8-9f0d-91ae90693108 a bbqs:Investigator ;
+    bbqs:name "Hongli Wang" .
+
+bid:53f6094d-cb6e-4899-8b0d-d358b863fab9 a bbqs:Investigator ;
+    bbqs:name "Gabriella" .
+
 bid:54ef6069-cc01-4d5b-9aaa-8ef9e1505001 a bbqs:Investigator ;
     bbqs:name "Oliver Ruebel" .
+
+bid:55e0ecb2-5960-47a0-9fb6-6c2162bfe182 a bbqs:Device ;
+    bbqs:device_category bid:006caa68-8b24-474f-867f-82a6199a84b1 ;
+    bbqs:external_url "https://white-matter.com/" ;
+    bbqs:manufacturer bid:58e396e9-0430-4678-ab24-382bba814d8b ;
+    bbqs:model_name "White Matter e3 / eCube" ;
+    bbqs:name "White Matter e3 / eCube" .
 
 bid:57f1a4fe-523b-4963-b6e6-a38c7da47500 a bbqs:Investigator ;
     bbqs:name "Mauricio Rangel-Gomez" .
@@ -314,9 +766,38 @@ bid:5835b3d1-bdaf-4f30-a9e7-cf70d1861b61 a bbqs:Investigator ;
 bid:5899fd56-4c11-41a1-8b0a-4e1785820391 a bbqs:Investigator ;
     bbqs:name "Joseph Monaco" .
 
+bid:58c31e98-4899-43df-a516-2ee6781b289e a bbqs:Investigator ;
+    bbqs:name "Anibal Heinsfeld" .
+
+bid:5a9d5e58-b370-48ea-a189-a82e7c834708 a bbqs:Device ;
+    bbqs:device_category bid:60288cb2-b6fa-41ab-9312-3209dd2cd804 ;
+    bbqs:external_url "https://www.biomark.com/" ;
+    bbqs:manufacturer bid:562743b9-2c34-4049-806b-10e28796fdba ;
+    bbqs:model_name "Biomark PIT tags" ;
+    bbqs:name "Biomark PIT tags" .
+
+bid:5b057d86-6fdd-4b5e-b2ab-111360c5b537 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=7030030" ;
+    bbqs:name "KOSTAS  DANIILIDIS" .
+
+bid:5b794afd-cf08-4107-81c8-522a29714830 a bbqs:ResearchOrganization ;
+    bbqs:name "NEW YORK UNIVERSITY" .
+
 bid:5b87def1-786b-470f-879c-9089ebde049d a bbqs:Announcement ;
     bbqs:description "A 3-day Consortia-Wide Workshop will be held at MIT from July 15-17, 2025. Consortia members, please check your messages for signup information and further details." ;
     bbqs:name "Consortia-Wide Workshop at MIT" .
+
+bid:5bb15430-32e5-457f-b6ce-e4f3790687fa a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=16101509" ;
+    bbqs:name "Brett E Youngerman" .
+
+bid:5bc0db40-1943-44e6-814a-5e36ce3bf180 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41331138/" ;
+    bbqs:journal "Nat Methods" ;
+    bbqs:name "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:pmid "41331138" ;
+    bbqs:title "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:year 2026 .
 
 bid:5cac268b-ef4e-4b85-8a9b-9f968992dfe7 a bbqs:Investigator ;
     bbqs:name "Rahul Hingorani" .
@@ -325,6 +806,14 @@ bid:5d041fa1-d9fa-416b-a937-3844a9df5f0b a bbqs:Dataset ;
     bbqs:description "The ability to form episodic memories and later imagine them is integral to the human experience, influencing our recollection of the past and envisioning of the future. While rodent studies suggest the medial temporal lobe, especially the hippocampus, is involved in these functions, its role in human imagination remains uncertain. In human participants, imaginations can be explicitly instructed and reported. Here we investigate hippocampal theta oscillations during real-world and imagined navigation using motion capture and intracranial electroencephalographic recordings from individuals with chronically implanted medial temporal lobe electrodes. Our results revealed intermittent theta dynamics, particularly within the hippocampus, encoding spatial information and partitioning navigational routes into linear segments during real-world navigation. During imagined navigation, theta dynamics exhibited similar patterns despite the absence of external cues. A statistical model successfully reconstructed real-world and imagined positions, providing insights into the neural mechanisms underlying human navigation and imagination, with implications for understanding memory in real-world settings." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000479" ;
     bbqs:name "Human neural dynamics of real-world and imagined navigation" .
+
+bid:5d5d31be-c34b-4cf6-a08f-273856add625 a bbqs:DeviceCategory ;
+    bbqs:category_key "smartphone_camera" ;
+    bbqs:description "Consumer phone and tablet cameras used as field recording devices." ;
+    bbqs:label "Smartphone / Tablet Camera" ;
+    bbqs:measures "RGB video",
+        "selfie video" ;
+    bbqs:name "Smartphone / Tablet Camera" .
 
 bid:5ed180e1-004a-49d3-a05f-e8a4da27718f a bbqs:Investigator ;
     bbqs:name "Janine Simmons" .
@@ -338,20 +827,75 @@ bid:5f8ac3c4-a0fb-44d6-ae2d-b505816d4141 a bbqs:Investigator ;
 bid:5fd6169e-d169-41be-8cd0-e8a691f0b345 a bbqs:Investigator ;
     bbqs:name "Jennie Grammer" .
 
+bid:608bd920-0a69-4a7a-a0fe-0740195f0c64 a bbqs:Investigator ;
+    bbqs:name "Parastoo Azizeddin" .
+
 bid:60b6dd1c-dbb1-46e3-9a33-abc7aca65a8a a bbqs:Investigator ;
     bbqs:name "Dmitry Batenkov" .
+
+bid:6119344c-d2da-45d1-8d69-ea22d8859dd3 a bbqs:Investigator ;
+    bbqs:name "Joshua Wu" .
+
+bid:622f970b-e529-441d-b5f3-739025a38aa9 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF FLORIDA" .
 
 bid:623a564c-f5bf-4d95-a233-027850148145 a bbqs:Investigator ;
     bbqs:name "Caleb Scott-Joseph" .
 
+bid:62d4c224-70de-42ed-90d6-a7ac86823c0b a bbqs:DeviceCategory ;
+    bbqs:category_key "genomics" ;
+    bbqs:description "Sequencing, gene expression, and tissue-level measurement." ;
+    bbqs:label "Genomics & Tissue" ;
+    bbqs:measures "IEG expression",
+        "Transcript counts" ;
+    bbqs:name "Genomics & Tissue" .
+
+bid:6340c8ee-1d5b-45f0-87ff-c320a38df17d a bbqs:Investigator ;
+    bbqs:name "Kris Williams" .
+
 bid:63711ed4-4044-4b43-94c3-fee4d86d7b13 a bbqs:Investigator ;
     bbqs:name "Jeff Walker" .
+
+bid:639e73b5-6a6d-46f1-82a8-b466d7e3bdbb a bbqs:Investigator ;
+    bbqs:name "Olha Metenko" .
 
 bid:6450030e-c137-4842-8bae-8d6dd913c50b a bbqs:Investigator ;
     bbqs:name "Nithin Sugavanam" .
 
+bid:66955dda-ed5c-4e05-bfbb-5f9f203af4dd a bbqs:Device ;
+    bbqs:device_category bid:1f40721b-dadd-4141-8f9d-6661f4777718 ;
+    bbqs:external_url "https://mbraintrain.com/" ;
+    bbqs:manufacturer bid:9e769c4e-0958-4ccc-bb96-d714734fa461 ;
+    bbqs:model_name "mBrainTrain Smarting" ;
+    bbqs:name "mBrainTrain Smarting" .
+
+bid:67d25d9e-afa4-4571-aa3c-3c0d4aee3388 a bbqs:FundingOpportunity ;
+    bbqs:description "NIH Highlighted Topic encouraging research that advances the BRAIN Initiative data knowledgebase ecosystem and its integration with NeuroAI. No dedicated NOFO — apply through an appropriate NIH parent announcement or other broad opportunity." ;
+    bbqs:external_url "https://grants.nih.gov/funding/find-a-fit-for-your-research/highlighted-topics/18" ;
+    bbqs:name "BRAIN Initiative: Data Knowledgebase Ecosystem and NeuroAI Integration (NIH Highlighted Topic)" .
+
 bid:67f260ea-2946-4086-9111-c926fb4e6df7 a bbqs:Investigator ;
     bbqs:name "Adam Noah" .
+
+bid:68f78b1a-9b88-447f-9b1b-e68ac7affd42 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/37425712/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "CaBLAM! A high-contrast bioluminescent Ca[2+] indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:pmid "37425712" ;
+    bbqs:title "CaBLAM! A high-contrast bioluminescent Ca[2+] indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
+    bbqs:year 2025 .
+
+bid:68fe4ee2-5beb-4a6e-ac58-2d31ad350cfd a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=8630217" ;
+    bbqs:name "NANTHIA W SUTHANA" .
+
+bid:691a3644-7a61-4b35-9aa2-9753a810792b a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39634021/" ;
+    bbqs:journal "Immunometabolism (Cobham)" ;
+    bbqs:name "Evaluating diurnal rhythms of host responses to enteric norovirus infection in mouse models." ;
+    bbqs:pmid "39634021" ;
+    bbqs:title "Evaluating diurnal rhythms of host responses to enteric norovirus infection in mouse models." ;
+    bbqs:year 2024 .
 
 bid:693dd13f-6181-46e2-9d89-956c8fd3c78e a bbqs:SoftwareTool ;
     bbqs:description "Automated social behavior classification in mouse pairs" ;
@@ -364,16 +908,45 @@ bid:69f09b42-78f2-40f7-83d4-774738a4c974 a bbqs:Investigator ;
 bid:6a1a2d08-5aec-4450-a9db-8dad62b8f4c4 a bbqs:Investigator ;
     bbqs:name "Teneille Brown" .
 
+bid:6a224a59-b37c-40b2-a4ef-f43393d94357 a bbqs:ResearchOrganization ;
+    bbqs:name "RICE UNIVERSITY" .
+
+bid:6c4c36dd-6d17-47d9-8bff-c1cde1750dc7 a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:c42dadeb-bf3c-44fa-baff-92adea2e0185 ;
+    bbqs:model_name "BOT-3" ;
+    bbqs:name "BOT-3" .
+
 bid:6cddb30f-f477-4ed4-be06-30e6ed290ec1 a bbqs:Protocol ;
     bbqs:description "Multi-camera 3D pose estimation methodology" ;
     bbqs:external_url "https://www.nature.com/articles/s41596-019-0176-0" ;
     bbqs:name "DLC 3D Pose Protocol" .
 
+bid:6cedc563-ca67-467e-9c98-48b5b67123de a bbqs:Investigator ;
+    bbqs:name "Luke Shaw" .
+
 bid:6d29e182-e1cd-43d5-9f95-7cfef6ff9396 a bbqs:Investigator ;
     bbqs:name "Holly Moore" .
 
+bid:6efc2552-7cd7-4e53-bd2d-41fee6824cf7 a bbqs:ResearchOrganization ;
+    bbqs:name "NEW YORK UNIVERSITY SCHOOL OF MEDICINE" .
+
 bid:6f2586d0-5743-4ab9-83b6-915ffa98736a a bbqs:Investigator ;
     bbqs:name "Luis Garcia" .
+
+bid:6fe1f186-133e-4490-b50b-4e5d7d4c6347 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=9172467" ;
+    bbqs:name "David  Schoppik" .
+
+bid:700795ce-fd4c-49cc-b037-e9c244039e5e a bbqs:Device ;
+    bbqs:device_category bid:7e99c7ca-9c1d-4de5-b6b5-a6c96c5341af ;
+    bbqs:external_url "https://www.cosmed.com/" ;
+    bbqs:manufacturer bid:e038c24f-a4b4-4b18-af2a-a8f0ae2a21c7 ;
+    bbqs:model_name "COSMED K5" ;
+    bbqs:name "COSMED K5" .
+
+bid:70205506-97d5-4503-bc59-e9a25934e699 a bbqs:Investigator ;
+    bbqs:name "Varun Thvar" .
 
 bid:709c64f2-d02c-48f9-b286-b9222a106f27 a bbqs:Investigator ;
     bbqs:name "Patrick McGrath" .
@@ -381,6 +954,17 @@ bid:709c64f2-d02c-48f9-b286-b9222a106f27 a bbqs:Investigator ;
 bid:7117c8b9-6d2f-4737-9490-09934fd89aeb a bbqs:Job ;
     bbqs:description "Fully-funded postdoctoral position in organoid intelligence through control of neural population dynamics. Join the Neural Systems and Machine Learning Lab at UC Berkeley and Lawrence Berkeley National Laboratory." ;
     bbqs:name "Organoid Intelligence through Control of Neural Population Dynamics (FBC_PD)" .
+
+bid:71d734ad-e355-473d-aaf7-577be85186d5 a bbqs:Investigator ;
+    bbqs:name "Christina Hatch" .
+
+bid:71dda42b-ccf2-4447-b3f1-d25aa8f8b0bb a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41321375/" ;
+    bbqs:journal "Proc Mach Learn Res" ;
+    bbqs:name "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:pmid "41321375" ;
+    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
+    bbqs:year 2025 .
 
 bid:72c84eee-67e0-47db-9502-bb55558d9819 a bbqs:Dataset ;
     bbqs:description "This project contains synthetic data files which demonstrate the use of and support development of the NDX Wearables extension. Neurodata without borders (NWB), with its supporting suite of tools and online data archives, offers a promising medium for data sharing, but does not support wearables data. We describe and implement an NWB extension package that enables NWB to support a wide variety of data modalities recorded from wearable devices and handle multiple concurrent estimates of the same metric from multiple independent devices. This package, along with support from data sharing platforms, will enable better collaborations, more reproducible analysis, and the development of better foundational models of disorders. You will find the up to date v0.2 example in 'sub-synthetic-pre-release-0-2'." ;
@@ -390,11 +974,74 @@ bid:72c84eee-67e0-47db-9502-bb55558d9819 a bbqs:Dataset ;
 bid:732f511e-4b61-412b-b54d-9c8dbd93c273 a bbqs:Investigator ;
     bbqs:name "Tyler Albarran" .
 
+bid:7395b261-f13c-4d69-b455-6b58f52b0d5a a bbqs:Announcement ;
+    bbqs:external_url "https://braininitiative.nih.gov/sites/default/files/2025-11/BRAIN%20Research%20Roadmap%20Innovation%20Domains_508c.pdf" ;
+    bbqs:name "BRAIN Initiative Research Roadmap Reports Published" .
+
+bid:739c57c7-7580-45e4-b1fd-c4ed51529353 a bbqs:DeviceCategory ;
+    bbqs:category_key "biofluid" ;
+    bbqs:description "Wearable and assay-based biochemical measurement." ;
+    bbqs:label "Biofluid / Biochemical Sensing" ;
+    bbqs:measures "Cortisol",
+        "biomarker concentration" ;
+    bbqs:name "Biofluid / Biochemical Sensing" .
+
+bid:75313083-49bd-45dd-a4a2-fd5fc0bf8949 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=8849791" ;
+    bbqs:name "Jonathan E. Rubin" .
+
+bid:76a90dc5-13f0-4837-9acf-f00d5be08b90 a bbqs:DeviceCategory ;
+    bbqs:category_key "temperature" ;
+    bbqs:description "Core and skin temperature sensors." ;
+    bbqs:label "Body Temperature Sensing" ;
+    bbqs:measures "Core temperature",
+        "skin temperature" ;
+    bbqs:name "Body Temperature Sensing" .
+
+bid:77124e96-cb5e-403b-8ca4-d4fc15b6f95c a bbqs:DeviceCategory ;
+    bbqs:category_key "lidar_radar" ;
+    bbqs:description "Non-camera ranging sensors for privacy-preserving movement sensing." ;
+    bbqs:label "LiDAR / mmWave Radar" ;
+    bbqs:measures "Range",
+        "doppler",
+        "point cloud" ;
+    bbqs:name "LiDAR / mmWave Radar" .
+
+bid:773ddab2-ad45-41ac-8003-b80935d30c32 a bbqs:Device ;
+    bbqs:device_category bid:e9d52180-5701-46ba-b5dc-7fc6fa32233b ;
+    bbqs:external_url "https://www.medtronic.com/" ;
+    bbqs:manufacturer bid:ab859681-c7fc-40cf-8d61-51035f1d8605 ;
+    bbqs:model_name "Medtronic Percept" ;
+    bbqs:name "Medtronic Percept" .
+
+bid:7745a449-07ce-4762-988e-e355a72b0775 a bbqs:Investigator ;
+    bbqs:name "Arina Knowlton" .
+
+bid:7766280c-d6f3-4c55-8e7e-f9207dbc1d1f a bbqs:Announcement ;
+    bbqs:external_url "https://braininitiative.nih.gov/" ;
+    bbqs:name "BRAIN Conference 2026: Inventing the Future" .
+
 bid:77aecb31-a637-4d08-9a35-e72ea6a46fe5 a bbqs:Investigator ;
     bbqs:name "Cory Inman" .
 
 bid:783ff194-17e8-46d9-bd1f-57ca4070a90c a bbqs:Investigator ;
     bbqs:name "Grace Hwang" .
+
+bid:7848212f-5c1c-4170-bdad-44cc3273d0f1 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF MINNESOTA" .
+
+bid:7867bb2b-3001-431a-9a3b-0f5bd5ad64f2 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF ALABAMA AT BIRMINGHAM" .
+
+bid:790607e8-4030-4e55-83fb-8df121fbb7b7 a bbqs:Device ;
+    bbqs:device_category bid:0fad9963-1681-478c-881e-348e2736fafe ;
+    bbqs:external_url "https://www.med-associates.com/" ;
+    bbqs:manufacturer bid:765fd145-afc8-4101-92d5-33aff8c04fac ;
+    bbqs:model_name "Med Associates touchscreens" ;
+    bbqs:name "Med Associates touchscreens" .
+
+bid:7924e7d9-5b53-4525-95ef-3f5a6b9112a5 a bbqs:ResearchOrganization ;
+    bbqs:name "MASSACHUSETTS INSTITUTE OF TECHNOLOGY" .
 
 bid:79c7ff27-6bd7-4b92-b22c-9f4f80a507ab a bbqs:Investigator ;
     bbqs:description "NIH Program staff – BBQS consortium" ;
@@ -402,6 +1049,26 @@ bid:79c7ff27-6bd7-4b92-b22c-9f4f80a507ab a bbqs:Investigator ;
 
 bid:79d8d638-23c0-490f-8044-dbe06e0f63b5 a bbqs:Investigator ;
     bbqs:name "Kun Zhao" .
+
+bid:7a2ad901-f50d-40bc-a404-b4ef0c33944b a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=10362438" ;
+    bbqs:name "Nathan Christopher Shaner" .
+
+bid:7a5a1c11-f5f8-4643-b444-71228b1f298a a bbqs:Investigator ;
+    bbqs:name "Jeffery Walker" .
+
+bid:7b2f0bde-f010-4315-b856-c217e8ca7788 a bbqs:Species ;
+    bbqs:common_name "Cichlid Fish" ;
+    bbqs:name "Cichlid Fish" ;
+    bbqs:taxonomy_class "Actinopterygii" .
+
+bid:7d69f10e-ffa5-4d44-b92b-ffb24e71b969 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41093749/" ;
+    bbqs:journal "eNeuro" ;
+    bbqs:name "Prefrontal and Subcortical c-Fos Mapping of Reward Responses across Competitive and Social Contexts." ;
+    bbqs:pmid "41093749" ;
+    bbqs:title "Prefrontal and Subcortical c-Fos Mapping of Reward Responses across Competitive and Social Contexts." ;
+    bbqs:year 2025 .
 
 bid:7d9026cf-064c-4070-a81c-858dc1303c4a a bbqs:Dataset ;
     bbqs:description "Large-scale training data for quadruped pose models" ;
@@ -411,8 +1078,21 @@ bid:7d9026cf-064c-4070-a81c-858dc1303c4a a bbqs:Dataset ;
 bid:7db5db3c-9f1f-4e01-a942-e05c340cbd8e a bbqs:Investigator ;
     bbqs:name "Hongkun Zhu" .
 
+bid:7de07dc9-72c0-4900-be0d-c375d927a6b4 a bbqs:ResearchOrganization ;
+    bbqs:name "MICHIGAN STATE UNIVERSITY" .
+
 bid:7eb2abf1-f38f-4693-afb6-9313f96d2ff4 a bbqs:Investigator ;
     bbqs:name "Shuren Xia" .
+
+bid:7eb373e9-092d-418d-b3ff-4f7d8e4fb939 a bbqs:Device ;
+    bbqs:device_category bid:ffee4fa8-d435-43e4-8c3d-9c4570b54ab0 ;
+    bbqs:external_url "https://gopro.com/" ;
+    bbqs:manufacturer bid:56efc35e-a021-483f-b2b1-1dae1f893d18 ;
+    bbqs:model_name "GoPro HERO10" ;
+    bbqs:name "GoPro HERO10" .
+
+bid:7ef0ea15-6f36-4bca-8eee-626e9bf76254 a bbqs:Investigator ;
+    bbqs:name "Yvonne M Bennett" .
 
 bid:81d6f976-8ae2-4e38-853a-9e0fe8ac7839 a bbqs:Investigator ;
     bbqs:name "Emily Mackevicius" .
@@ -425,11 +1105,20 @@ bid:821b1f4e-5bdf-45be-8319-d10a2620fb1a a bbqs:Dataset ;
 bid:82e9264e-8bec-4d1e-ab39-9e42f8f5384d a bbqs:Investigator ;
     bbqs:name "Neha Thomas" .
 
+bid:82f53756-81ce-4348-a8bb-6bce2e685dee a bbqs:Investigator ;
+    bbqs:name "Talia V Roman Lopez" .
+
 bid:831a48e1-025d-499a-bf11-83d05285ed4b a bbqs:Investigator ;
     bbqs:name "Cristina Savin" .
 
+bid:83a4df24-ed1c-462a-bf74-36c68150c42c a bbqs:Investigator ;
+    bbqs:name "Yuan Luo" .
+
 bid:83d790af-315f-4f1f-8efc-3718fc0581d3 a bbqs:Investigator ;
     bbqs:name "Flavia  Vitale" .
+
+bid:83e96042-a116-4e27-ab65-787db78d29f2 a bbqs:Investigator ;
+    bbqs:name "Niegil Francis Muttath Joseph" .
 
 bid:83f2b36c-b0c8-4d4e-a1aa-08639a4068ae a bbqs:Benchmark ;
     bbqs:description "Comparative ranking of pose estimation methods" ;
@@ -452,23 +1141,68 @@ bid:858afe90-ab36-4d22-bfde-b4d7630a72ef a bbqs:Benchmark ;
 bid:85a49b85-44ff-4f85-a110-c3860bfe6747 a bbqs:Investigator ;
     bbqs:name "Annette Estes" .
 
+bid:85dba242-244b-4a63-b463-b9e6bf4d29e1 a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:a7b15b50-1f35-4e02-91d5-c28593457e3d ;
+    bbqs:model_name "ADOS" ;
+    bbqs:name "ADOS" .
+
 bid:864e9b52-4173-4b92-bd81-d0bc6a7fc3cb a bbqs:Investigator ;
     bbqs:name "Steve Chang" .
 
 bid:8694fef3-33b8-491f-a806-7d0c8b5a60bf a bbqs:Investigator ;
     bbqs:name "Wan Chen Lin" .
 
+bid:87b79b22-888b-40ac-bee6-32a62f07645f a bbqs:Investigator ;
+    bbqs:name "Yunsoo Kim" .
+
 bid:88203e28-70c5-4730-af2d-93d7f09b4250 a bbqs:Investigator ;
     bbqs:name "Alessandra DallaVecchia" .
+
+bid:88b4baf0-8e42-43e8-a689-3f5cd46138ee a bbqs:Device ;
+    bbqs:device_category bid:851882bb-3321-45ed-af75-6ae08836c1fc ;
+    bbqs:external_url "https://www.biopac.com/" ;
+    bbqs:manufacturer bid:34971c92-6e5a-4231-8d74-3759c2301d8b ;
+    bbqs:model_name "BIOPAC" ;
+    bbqs:name "BIOPAC" .
+
+bid:8ae4d852-9f43-4d4e-a7fb-6cef12ef9af8 a bbqs:DeviceCategory ;
+    bbqs:category_key "ppg" ;
+    bbqs:description "Optical blood-volume-pulse sensing." ;
+    bbqs:label "Photoplethysmography (PPG)" ;
+    bbqs:measures "BVP",
+        "SpO2",
+        "pulse rate" ;
+    bbqs:name "Photoplethysmography (PPG)" .
 
 bid:8b45a6d3-febb-4537-9786-69685e36aa6d a bbqs:Investigator ;
     bbqs:name "Lizzy Ankudowich" .
 
+bid:8b9d5dda-2b99-4e1c-ba27-968f74ef8b77 a bbqs:FundingOpportunity ;
+    bbqs:description "Develops and tests a \"playbook\" of standardized frameworks and protocols for building reliable, deployable multimodal AI clinical decision support tools that integrate clinical imaging with other health data. 5 awards anticipated, $2M total." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/5b0a5980-5b84-4cdf-9370-2a36c301760b" ;
+    bbqs:name "Development and Testing of a Multi-use Frameworks Playbook for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U01 Clinical Trial Not Allowed)" .
+
 bid:8c977c24-da2f-4866-b860-b71aa2540bd4 a bbqs:Investigator ;
     bbqs:name "Brendan Ito" .
 
+bid:8d1248d6-6ad4-449a-b268-69c17fb8e0bd a bbqs:Device ;
+    bbqs:device_category bid:851882bb-3321-45ed-af75-6ae08836c1fc ;
+    bbqs:external_url "https://www.empatica.com/embraceplus/" ;
+    bbqs:manufacturer bid:0f782852-6d9e-4d3b-8c38-6e0573400461 ;
+    bbqs:model_name "Empatica EmbracePlus" ;
+    bbqs:name "Empatica EmbracePlus" .
+
 bid:8d6214d3-a2d9-40c2-8cf6-f5e0d0e6afa9 a bbqs:Investigator ;
     bbqs:name "Sequioa Smith" .
+
+bid:8e40951f-ace0-4470-ab0f-3dd6bc366c8b a bbqs:Species ;
+    bbqs:common_name "Zebrafish" ;
+    bbqs:name "Zebrafish" ;
+    bbqs:taxonomy_class "Actinopterygii" .
+
+bid:8e52b630-7ecc-4336-9f31-d0b6a1c85100 a bbqs:Investigator ;
+    bbqs:name "Dominique Duncan" .
 
 bid:8e67d548-47b3-4b48-9a70-e5e22c56f062 a bbqs:Project ;
     bbqs:description """Summary:
@@ -479,6 +1213,15 @@ with file sizes in the megabytes rather than terabytes for both experimental scr
 key challenge for behavioral data is not size but""" ;
     bbqs:name "Psych-DS: A FAIR data standard for behavioral datasets" .
 
+bid:8f22c7e2-06f2-4c84-aa53-071dcce8f875 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF CALIFORNIA BERKELEY" .
+
+bid:8f429fce-6c38-4707-bd9c-30fd796e9137 a bbqs:Investigator ;
+    bbqs:name "Christina Liu" .
+
+bid:8f896b71-c64d-4041-9f33-f3477caf8b74 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF MEMPHIS" .
+
 bid:8fa8009e-d4af-4b39-b0e5-7efed3696a4c a bbqs:Investigator ;
     bbqs:name "Dimitris Samaras" .
 
@@ -488,6 +1231,19 @@ bid:9045540f-6ba2-4b95-bc69-98527f947a27 a bbqs:Investigator ;
 bid:9095f7a2-0d1a-4ac7-9cdd-12f28dbe42ea a bbqs:Investigator ;
     bbqs:name "Vivek Prakash" .
 
+bid:912f67fc-5862-47a2-b6f4-891fcd98f244 a bbqs:FundingOpportunity ;
+    bbqs:description "Accelerates the scientific impact of the BRAIN Initiative by supporting rapid, broad dissemination of validated technologies and resources to the neuroscience community — reagent distribution, user training, access to technology platforms and specialized facilities, and minor improvements to scale delivery." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/92fe438d-91dc-4ce2-9a45-edc615c4d0b6" ;
+    bbqs:name "BRAIN Initiative: Research Resource Grants for Technology Integration and Dissemination (U24 Clinical Trial Not Allowed)" .
+
+bid:91a308e7-a52f-4a5e-bce6-699f43554234 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38776923/" ;
+    bbqs:journal "Cell Chem Biol" ;
+    bbqs:name "Chemical interplay between gut microbiota and epigenetics: Implications in circadian biology." ;
+    bbqs:pmid "38776923" ;
+    bbqs:title "Chemical interplay between gut microbiota and epigenetics: Implications in circadian biology." ;
+    bbqs:year 2025 .
+
 bid:924e4ef8-ee41-480e-9d33-9807b471878d a bbqs:Investigator ;
     bbqs:name "Sara Sanchez-Alonso" .
 
@@ -496,21 +1252,82 @@ bid:92768805-b266-42bc-90a6-adb1029ebde2 a bbqs:SoftwareTool ;
     bbqs:external_url "https://anipose.readthedocs.io/" ;
     bbqs:name "Anipose" .
 
+bid:92f22292-007f-4091-83e9-10df11f14110 a bbqs:ResearchOrganization ;
+    bbqs:name "GEORGIA INSTITUTE OF TECHNOLOGY" .
+
 bid:93329bb6-37be-42e7-ab57-1fd03dde223b a bbqs:Dataset ;
     bbqs:description "This data contains synchronized respiration and behavioral data collected from male C57 mice during resident–intruder social-interaction sessions, including BLRI, RI1, and RI2 conditions. Data are represented in Neurodata Without Borders (NWB) format and include respiration time series, synchronized behavioral video, manual BORIS behavioral annotations, SLEAP pose-estimation coordinates, and associated SLEAP confidence scores. Video, respiration, behavioral annotations, and pose-estimation data are aligned using the shared Trodes acquisition clock. ECG data are not included." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000534" ;
     bbqs:name "Respiratory dynamics during resident–intruder social interactions in male mice" .
 
+bid:933edfb2-8cdf-4a82-a113-102e200d5619 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41292955/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "CapuchinAI 1.0: Development of a machine learning-based touchscreen paradigm to test cognition in wild capuchins." ;
+    bbqs:pmid "41292955" ;
+    bbqs:title "CapuchinAI 1.0: Development of a machine learning-based touchscreen paradigm to test cognition in wild capuchins." ;
+    bbqs:year 2025 .
+
 bid:93a3260d-e267-451b-9960-06cc9ae3a40c a bbqs:Investigator ;
     bbqs:name "Talmo Pereira" .
+
+bid:93b1ea26-0dae-458a-a946-13dca91b5382 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40988938/" ;
+    bbqs:journal "Nat Rev Bioeng" ;
+    bbqs:name "Brain-computer interfaces for neuropsychiatric disorders." ;
+    bbqs:pmid "40988938" ;
+    bbqs:title "Brain-computer interfaces for neuropsychiatric disorders." ;
+    bbqs:year 2024 .
+
+bid:93e8de08-1a43-4cbd-b120-7b9306a4a44b a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38979377/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "Distinct dopaminergic spike-timing-dependent plasticity rules are suited to different functional roles." ;
+    bbqs:pmid "38979377" ;
+    bbqs:title "Distinct dopaminergic spike-timing-dependent plasticity rules are suited to different functional roles." ;
+    bbqs:year 2025 .
+
+bid:93fa0810-51f4-4e71-badf-e5e8d3e40dc3 a bbqs:ResearchOrganization ;
+    bbqs:name "DUKE UNIVERSITY" .
+
+bid:9515d721-456a-45d1-885c-d97a482317f8 a bbqs:ResearchOrganization ;
+    bbqs:name "CEDARS-SINAI MEDICAL CENTER" .
+
+bid:95406597-a11e-4809-834d-8a6926c32164 a bbqs:Investigator ;
+    bbqs:name "Nima Dehghani" .
+
+bid:9552ba2e-28e2-4237-b865-ec747251a036 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39747223/" ;
+    bbqs:journal "Nat Commun" ;
+    bbqs:name "Dopaminergic signaling to ventral striatum neurons initiates sniffing behavior." ;
+    bbqs:pmid "39747223" ;
+    bbqs:title "Dopaminergic signaling to ventral striatum neurons initiates sniffing behavior." ;
+    bbqs:year 2025 .
 
 bid:95b1db49-e4dd-4bab-9bb1-21400d850386 a bbqs:Dataset ;
     bbqs:description "A collection of exemplary videos for use in the Encoding Helper tool." ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000527" ;
     bbqs:name "Encoding Helper Demos" .
 
+bid:961fb77d-16c1-4efd-9fc7-ac7bd552c983 a bbqs:Investigator ;
+    bbqs:name "Flavia Vitale" .
+
+bid:977712f0-0daf-4238-a693-42c96f0874a2 a bbqs:Investigator ;
+    bbqs:name "Ugne Klibaite" .
+
 bid:98076d7b-270f-4a2a-af91-53d1b7644c90 a bbqs:Investigator ;
     bbqs:name "Marc Schmidt" .
+
+bid:987e3cf1-5d05-4e16-8849-4b5899ac84dc a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38428520/" ;
+    bbqs:journal "Neuropsychologia" ;
+    bbqs:name "FMRI correlates of autobiographical memory: Comparing silent retrieval with narrated retrieval." ;
+    bbqs:pmid "38428520" ;
+    bbqs:title "FMRI correlates of autobiographical memory: Comparing silent retrieval with narrated retrieval." ;
+    bbqs:year 2024 .
+
+bid:99bc7f7b-2a3d-4e34-99f1-ec08e12133b2 a bbqs:ResearchOrganization ;
+    bbqs:name "HARVARD UNIVERSITY" .
 
 bid:99e94e46-f0af-4d3d-8ffd-ff522c4761db a bbqs:Investigator ;
     bbqs:name "Melissa  Kline Struhl" .
@@ -520,21 +1337,56 @@ bid:99f38f2a-e4e4-49f7-bd61-5d3ba17134cc a bbqs:Dataset ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000463" ;
     bbqs:name "Mouse food sniff" .
 
+bid:9a233497-f3cd-4888-b5b6-a83630e5f1ee a bbqs:Investigator ;
+    bbqs:name "Arish Alreja" .
+
 bid:9a8ccd3e-8d5a-4169-8ee9-6c64bc650803 a bbqs:MLModel ;
     bbqs:description "Dimensionality reduction revealing hidden structures in neural time series" ;
     bbqs:external_url "https://cebra.ai/" ;
     bbqs:name "CEBRA" .
+
+bid:9b5abbf9-7fe8-489b-9e27-fd2c4f7e5990 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40747296/" ;
+    bbqs:journal "Front Syst Biol" ;
+    bbqs:name "A microbiota-epigenetic circuit controls systematic circadian programs in the gut epithelium." ;
+    bbqs:pmid "40747296" ;
+    bbqs:title "A microbiota-epigenetic circuit controls systematic circadian programs in the gut epithelium." ;
+    bbqs:year 2023 .
 
 bid:9cac1ce6-16e0-400b-adda-ad5d2a8597a9 a bbqs:Dataset ;
     bbqs:description "This is an example of how SLEAP training data (flies13 from https://sleap.ai/datasets.html) can be converted and stored on EMBER-DANDI" ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000398" ;
     bbqs:name "SLEAP Training Data Example" .
 
+bid:9db8fc93-1890-4237-b758-d5f94c5e6306 a bbqs:FundingOpportunity ;
+    bbqs:description "Establishes a dedicated hub for comprehensive evaluation and characterization of AI-enabled, image-based multimodal CDS tools from the PRIMED-AI Consortium — verification, validation, interoperability, and uncertainty quantification. 1 award, $2.0M–$2.7M; foreign organizations ineligible." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/40ac94ea-e7b9-44af-9ae4-d3340c342757" ;
+    bbqs:name "Validation Center for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U54 Clinical Trials Not Allowed)" .
+
+bid:9e20b70e-9f64-4e32-bc64-18efbf8293bd a bbqs:DeviceCategory ;
+    bbqs:category_key "respiration" ;
+    bbqs:description "Breathing belts, thermistors, and airflow sensors." ;
+    bbqs:label "Respiration Sensing" ;
+    bbqs:measures "Respiration rate",
+        "airflow",
+        "nasal temperature" ;
+    bbqs:name "Respiration Sensing" .
+
+bid:9eb4af78-4485-4c7b-9179-76d079bde109 a bbqs:Investigator ;
+    bbqs:name "Ashlee Van't Veer" .
+
+bid:9f75488b-59d0-4d50-b7db-869f26066743 a bbqs:ResearchOrganization ;
+    bbqs:name "COLUMBIA UNIVERSITY HEALTH SCIENCES" .
+
 bid:9fb13eb4-a3bc-483a-9969-f3908d13143d a bbqs:Investigator ;
     bbqs:name "Aydin Tasevac" .
 
 bid:9fd2cbaa-449d-4c9d-bcbb-b627f245cbf3 a bbqs:Investigator ;
     bbqs:name "Claire Kendell" .
+
+bid:9fe36a51-d470-42f8-baa1-0c7aa68a9dea a bbqs:FundingOpportunity ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/ffe98704-96a8-4f41-a32b-49edd0409006" ;
+    bbqs:name "BRAIN Initiative: Integrative Team-Research BRAIN Circuits Program - iBCP (RM1 Clinical Trial Not Allowed)" .
 
 bid:a177387c-24d4-4e12-8f7d-76994130f853 a bbqs:Dataset ;
     bbqs:description "Videos from four cameras placed around a clear arena while a mouse freely behaves." ;
@@ -544,6 +1396,20 @@ bid:a177387c-24d4-4e12-8f7d-76994130f853 a bbqs:Dataset ;
 bid:a1b2c3d4-0002-4000-8000-000000000001 a bbqs:Investigator ;
     bbqs:description "PI for SeeMe consciousness detection project" ;
     bbqs:name "Sima Mofakham" .
+
+bid:a25d5bdb-97ea-4995-a9aa-fcb6059fcb1f a bbqs:Device ;
+    bbqs:device_category bid:dac56889-e81e-478e-827d-7f08bb15efd3 ;
+    bbqs:external_url "https://www.movella.com/products/motion-capture" ;
+    bbqs:manufacturer bid:247cc4da-1133-4307-97c9-8238c723dc67 ;
+    bbqs:model_name "Xsens" ;
+    bbqs:name "Xsens" .
+
+bid:a36c70d6-19a8-40b6-a8a1-7aaea7e5b918 a bbqs:Device ;
+    bbqs:device_category bid:46ca9982-9f32-4d56-84fc-95df94a69e7d ;
+    bbqs:external_url "https://natus.com/" ;
+    bbqs:manufacturer bid:90716be1-d61b-4641-ba7e-da9533d0dbeb ;
+    bbqs:model_name "Natus XLTek" ;
+    bbqs:name "Natus XLTek" .
 
 bid:a3de5020-ea6c-41c1-b397-3e0f6d43e98a a bbqs:Investigator ;
     bbqs:name "Mang Gao" .
@@ -557,11 +1423,65 @@ bid:a6f825d6-cb5c-4136-9208-eee059bf6f49 a bbqs:Investigator ;
 bid:a72c6169-713d-49ef-b9c2-4d9d05247473 a bbqs:Investigator ;
     bbqs:name "Nishant Rao" .
 
+bid:a7318228-623e-4f94-a7e6-5e3fed968e1a a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=9215633" ;
+    bbqs:name "Tekraj Chhetri" .
+
+bid:a79d14cd-ae0e-4bce-b09f-8d16e6e15f7f a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39345431/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "Vocal Call Locator Benchmark (VCL) for localizing rodent vocalizations from multi-channel audio." ;
+    bbqs:pmid "39345431" ;
+    bbqs:title "Vocal Call Locator Benchmark (VCL) for localizing rodent vocalizations from multi-channel audio." ;
+    bbqs:year 2024 .
+
+bid:a82b872c-fb47-43ba-9d01-258026913f06 a bbqs:Investigator ;
+    bbqs:name "Nick Jourjine" .
+
+bid:a8990457-e9da-49eb-9a0c-5b2af1a4ca61 a bbqs:FundingOpportunity ;
+    bbqs:external_url "https://www.nsf.gov/funding/opportunities/grfp-nsf-graduate-research-fellowship-program/nsf26-526/solicitation" ;
+    bbqs:name "NSF Graduate Research Fellowship Program (GRFP)" .
+
+bid:a991c266-2e08-46e8-b579-8d10341fc344 a bbqs:Device ;
+    bbqs:device_category bid:1eda4bd4-4446-40c3-8996-7400722b1560 ;
+    bbqs:external_url "https://delsys.com/trigno/" ;
+    bbqs:manufacturer bid:6b2192d5-d840-4f4b-be96-5cec4f2fe432 ;
+    bbqs:model_name "Delsys Trigno" ;
+    bbqs:name "Delsys Trigno" .
+
+bid:a9da991f-1bcd-4b6c-ab45-e67af7d3b755 a bbqs:Device ;
+    bbqs:device_category bid:1933d538-1acc-4a01-8691-9ecd2989d0e2 ;
+    bbqs:external_url "https://www.motekmedical.com/solution/caren/" ;
+    bbqs:manufacturer bid:d74d8fe3-4c71-481b-8a54-410c4e3574a9 ;
+    bbqs:model_name "Motek CAREN" ;
+    bbqs:name "Motek CAREN" .
+
+bid:aa69dcd5-bd16-40ef-909e-3f2985d66c65 a bbqs:Investigator ;
+    bbqs:name "Deepa Purushothaman" .
+
 bid:aa8884d6-2eae-451a-828a-92e4595c273e a bbqs:Investigator ;
     bbqs:name "Sara Goering" .
 
+bid:aa9445fe-736e-4a1e-b8a4-4b709c4a6603 a bbqs:Investigator ;
+    bbqs:name "Luke Bloy" .
+
+bid:ab492763-6805-4afd-bf3f-28eec5276d6d a bbqs:Device ;
+    bbqs:device_category bid:7d968a4f-f412-431e-a9d9-6ec963cb8677 ;
+    bbqs:external_url "https://pupil-labs.com/" ;
+    bbqs:manufacturer bid:9b910269-1934-4f7b-a4f7-9f375f401d8d ;
+    bbqs:model_name "Pupil Labs eye trackers" ;
+    bbqs:name "Pupil Labs eye trackers" .
+
 bid:ab51c79a-9096-4c6b-9724-ae605b7ffae2 a bbqs:Investigator ;
     bbqs:name "Ralph Peterson" .
+
+bid:ac01b838-9803-4a39-8adf-6b9ac9883535 a bbqs:FundingOpportunity ;
+    bbqs:description "Catalyzes translation of AI-enabled, image-centered multimodal clinical decision support tools from prototype training and testing toward real-world clinical application. 8 awards anticipated." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/360c4588-1512-4fa4-9b61-52a3f1d6c368" ;
+    bbqs:name "Model-to-Clinic (M2C) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (UG3/UH3 Clinical Trial Optional)" .
+
+bid:ace580b9-6f04-457f-aac0-3ac3a7243e3b a bbqs:Investigator ;
+    bbqs:name "Brandon Brooks-Patton" .
 
 bid:af52d4d6-a0e2-4a87-b747-6ede8ebf212f a bbqs:Investigator ;
     bbqs:name "Katherine Dokholyan" .
@@ -580,6 +1500,16 @@ bid:b0b69ef8-90b3-481a-b095-a01f1ddf4663 a bbqs:Investigator ;
 
 bid:b1b421fc-5477-4c2f-8968-ab757344ab2d a bbqs:Investigator ;
     bbqs:name "Anirvan Nandy" .
+
+bid:b26a04a7-e254-470c-9d43-1c618d60434e a bbqs:Device ;
+    bbqs:device_category bid:ffee4fa8-d435-43e4-8c3d-9c4570b54ab0 ;
+    bbqs:external_url "https://www.baslerweb.com/" ;
+    bbqs:manufacturer bid:3eaf894a-5a66-47be-b36f-ce28d5cd1e9c ;
+    bbqs:model_name "Basler cameras" ;
+    bbqs:name "Basler cameras" .
+
+bid:b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5 a bbqs:Investigator ;
+    bbqs:name "Markus Meister" .
 
 bid:b2c565ea-4b4a-4586-9543-e61df6570936 a bbqs:Investigator ;
     bbqs:name "Lauren Diaz" .
@@ -614,13 +1544,40 @@ bid:b5f65a35-ad99-4779-ab8c-2f211803ca2e a bbqs:Dataset ;
 bid:b723b975-9438-4c08-b9b9-404846e31272 a bbqs:Investigator ;
     bbqs:name "Karen David" .
 
+bid:b75b460e-560d-48d4-af7d-1152d34c1d79 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39282260/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:pmid "39282260" ;
+    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
+    bbqs:year 2024 .
+
+bid:b76af5cd-30c7-4f75-a127-d4e8a669cdd6 a bbqs:FundingOpportunity ;
+    bbqs:description "Coordination and support center for the PRIMED-AI Program, operating administration, evaluation, and outreach cores that collect, organize, and disseminate information about tools created across the consortium. 1 award, $575K–$750K." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/a975ac4b-ca02-4d2b-8dcd-c75493f04087" ;
+    bbqs:name "Logistics Center for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U24)" .
+
 bid:b7b55255-04e1-45e6-934e-af38990ff414 a bbqs:Investigator ;
     bbqs:name "Uros Topalovic" .
+
+bid:b91a5db1-9e21-4158-a14f-087f59f5bd8d a bbqs:Device ;
+    bbqs:device_category bid:ffee4fa8-d435-43e4-8c3d-9c4570b54ab0 ;
+    bbqs:external_url "https://www.obsbot.com/" ;
+    bbqs:manufacturer bid:188ce5e2-0a5f-4c69-a9ec-bf7b8b1ebbc4 ;
+    bbqs:model_name "OBSBOT cameras" ;
+    bbqs:name "OBSBOT cameras" .
 
 bid:b9f28848-dd76-4bf7-9fd6-a4d1509154eb a bbqs:Benchmark ;
     bbqs:description "Performance comparison for DLC-based approaches" ;
     bbqs:external_url "https://huggingface.co/spaces/DeepLabCut/Leaderboard" ;
     bbqs:name "DLC Leaderboard" .
+
+bid:ba876f06-02b2-4ca2-bbc0-2877890b6f6a a bbqs:Device ;
+    bbqs:device_category bid:1f40721b-dadd-4141-8f9d-6661f4777718 ;
+    bbqs:external_url "https://www.ant-neuro.com/" ;
+    bbqs:manufacturer bid:d5dd8903-0114-4511-a4ec-446ae9f657a8 ;
+    bbqs:model_name "ANT Neuro eego" ;
+    bbqs:name "ANT Neuro eego" .
 
 bid:bab963f7-54f8-4b01-a914-de675535b004 a bbqs:Investigator ;
     bbqs:name "Mara Baylis" .
@@ -630,6 +1587,14 @@ bid:bb9dc9ee-cda3-4d2a-a016-1a0aa705bdec a bbqs:SoftwareTool ;
     bbqs:external_url "https://github.com/annkennedy/bento" ;
     bbqs:name "BENTO" .
 
+bid:bcf4ee35-21a5-473e-a2f2-75fa77147072 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40166196/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "How the dynamic interplay of cortico-basal ganglia-thalamic pathways shapes the time course of deliberation and commitment." ;
+    bbqs:pmid "40166196" ;
+    bbqs:title "How the dynamic interplay of cortico-basal ganglia-thalamic pathways shapes the time course of deliberation and commitment." ;
+    bbqs:year 2025 .
+
 bid:be8d825d-140a-4d72-a39a-2534cf2b4145 a bbqs:Investigator ;
     bbqs:name "Dan Sanes" .
 
@@ -638,8 +1603,14 @@ bid:bea2a223-4980-44da-b8da-807ac4301bc6 a bbqs:SoftwareTool ;
     bbqs:external_url "https://open-ephys.org/" ;
     bbqs:name "Open Ephys" .
 
+bid:bef104b2-a9a9-41d3-a585-6575449c2966 a bbqs:Investigator ;
+    bbqs:name "Suliman Sharif (sulstice@standardseedcorp.com)" .
+
 bid:bf6867b2-09d3-4cc3-89ba-b931b646cd42 a bbqs:Investigator ;
     bbqs:name "Eva Dyer" .
+
+bid:c04b3bcd-d1db-4b3c-9dc6-a4c97039cad6 a bbqs:ResearchOrganization ;
+    bbqs:name "STATE UNIVERSITY NEW YORK STONY BROOK" .
 
 bid:c11ff83b-6ac9-4ebe-992b-f37c931e182b a bbqs:Investigator ;
     bbqs:name "Gordon Shepherd" .
@@ -650,13 +1621,58 @@ bid:c140b518-3ea9-4cad-a8b2-c7b30385589b a bbqs:Investigator ;
 bid:c2074402-c96d-40c5-8b3c-ad8a8fcf2031 a bbqs:Investigator ;
     bbqs:name "Eran Klein" .
 
+bid:c302f348-ef46-4a60-801c-55a7783ca421 a bbqs:Investigator ;
+    bbqs:name "Jacqueline Boccanfuso" .
+
+bid:c34d88e6-5348-4ef1-87ac-3b5d90417a1f a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38670278/" ;
+    bbqs:journal "Neurobiol Dis" ;
+    bbqs:name "Dopamine depletion weakens direct pathway modulation of SNr neurons." ;
+    bbqs:pmid "38670278" ;
+    bbqs:title "Dopamine depletion weakens direct pathway modulation of SNr neurons." ;
+    bbqs:year 2024 .
+
+bid:c352d902-bd16-447b-b0ca-4b23a59655f9 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/39536079/" ;
+    bbqs:journal "Proc Natl Acad Sci U S A" ;
+    bbqs:name "Arkypallidal neurons in the external globus pallidus can mediate inhibitory control by altering competition in the striatum." ;
+    bbqs:pmid "39536079" ;
+    bbqs:title "Arkypallidal neurons in the external globus pallidus can mediate inhibitory control by altering competition in the striatum." ;
+    bbqs:year 2024 .
+
+bid:c3604b73-537c-411b-b963-cd8df608f086 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=9361217" ;
+    bbqs:name "Bence P Olveczky" .
+
 bid:c3989bae-203d-43b6-8f09-90935634f1d2 a bbqs:Investigator ;
     bbqs:name "Karmiella Ferster" .
+
+bid:c3f26370-becc-4d39-af05-abeb0433bee9 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41122417/" ;
+    bbqs:journal "Adv Intell Syst" ;
+    bbqs:name "Printed Wearable Sweat Rate Sensor for Continuous <i>in-situ</i> Perspiration Measurement." ;
+    bbqs:pmid "41122417" ;
+    bbqs:title "Printed Wearable Sweat Rate Sensor for Continuous <i>in-situ</i> Perspiration Measurement." ;
+    bbqs:year 2025 .
 
 bid:c4b8f5ff-4ac3-4c1b-a978-bd7d1c2dbb86 a bbqs:Job ;
     bbqs:description "The Canada Impact+ Research Training Awards (CIRTA) is a targeted, one-time initiative to recruit international or returning Canadian doctoral students to Canada. Funded by CIHR, NSERC, and SSHRC. Award value: $40,000/year for 3 years (600 awards across Canada, 30 allocated to McGill). Priority areas include: Advanced digital technologies (AI, quantum, cybersecurity), Health/biotechnology, Clean technology, Environment/climate resilience, Food/water security, Democratic/community resilience, Manufacturing/advanced materials, and Defense/dual-use technologies. McGill Faculty members (supervisors) identify and nominate incoming doctoral students for Fall 2026." ;
     bbqs:external_url "https://www.mcgill.ca" ;
     bbqs:name "Canada Impact+ Doctoral Research Training Award ($40K/yr, 3 years)" .
+
+bid:c520d01a-3746-4f7d-baff-ad1dab70e1b3 a bbqs:Investigator ;
+    bbqs:name "Terry Jernigan" .
+
+bid:c6056429-1e03-4506-8484-5be9acff8170 a bbqs:Investigator ;
+    bbqs:name "Charles Mikell" .
+
+bid:c7423364-c703-42a4-bde0-cdad1bc6f896 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41048822/" ;
+    bbqs:journal "Proc IEEE Sens" ;
+    bbqs:name "Fully-Printed Sensor Based Extended Gate Field Effect Transistors for Wireless Monitoring of Potassium and Ammonium Ions." ;
+    bbqs:pmid "41048822" ;
+    bbqs:title "Fully-Printed Sensor Based Extended Gate Field Effect Transistors for Wireless Monitoring of Potassium and Ammonium Ions." ;
+    bbqs:year 2024 .
 
 bid:c7d588c7-1778-4d8c-b7f6-03d8060463fb a bbqs:SoftwareTool ;
     bbqs:description "Animal pose estimation from video" ;
@@ -668,11 +1684,33 @@ bid:c7ddfa55-b28b-4143-a94f-ebddaf38bd77 a bbqs:SoftwareTool ;
     bbqs:external_url "https://github.com/sgoldenlab/simba" ;
     bbqs:name "SimBA" .
 
+bid:c8a72b45-43f3-42d0-8cd6-aedc7f1242c0 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40582587/" ;
+    bbqs:journal "Math Biosci" ;
+    bbqs:name "GMFOLD: Subgraph matching for high-throughput DNA-aptamer secondary structure classification and machine learning interpretability." ;
+    bbqs:pmid "40582587" ;
+    bbqs:title "GMFOLD: Subgraph matching for high-throughput DNA-aptamer secondary structure classification and machine learning interpretability." ;
+    bbqs:year 2025 .
+
+bid:c96b95c1-3ba5-4da4-9683-d714b853e4d8 a bbqs:Investigator ;
+    bbqs:name "test-user-tier1" .
+
 bid:c9fb9f5b-29a9-4138-9434-894ab7b7a909 a bbqs:Investigator ;
     bbqs:name "Yaroslav Halchenko" .
 
+bid:ca41ad35-92a2-4391-95c3-0db49351b9a5 a bbqs:Job ;
+    bbqs:external_url "https://www.internationalbrainlab.com/opportunities#community-engineer ; https://www.internationalbrainlab.com/opportunities#neuroscience-engineer" ;
+    bbqs:name "Engineer/Data Science positions at International Brain Laboratory (IBL) " .
+
 bid:cbb1fcfa-0a1d-432d-a4bb-a325516b6594 a bbqs:Investigator ;
     bbqs:name "Tanya St. John" .
+
+bid:ce24eb59-9276-4e28-9d93-342515a4e970 a bbqs:Device ;
+    bbqs:device_category bid:7d968a4f-f412-431e-a9d9-6ec963cb8677 ;
+    bbqs:external_url "https://www.tobii.com/products/eye-trackers" ;
+    bbqs:manufacturer bid:79786801-1f05-4281-b4c3-9180854ee278 ;
+    bbqs:model_name "Tobii Pro" ;
+    bbqs:name "Tobii Pro" .
 
 bid:cf033709-106e-4288-a326-f7bb353ba0a4 a bbqs:Investigator ;
     bbqs:name "Abigayle Fogarty" .
@@ -685,8 +1723,30 @@ bid:d07c77d3-110d-43dd-bfe3-51535e38ae71 a bbqs:SoftwareTool ;
 bid:d0f582a1-20fd-43ca-a9f1-21bf0ee548c1 a bbqs:Investigator ;
     bbqs:name "Mengsen Zhang" .
 
+bid:d164ed89-3894-4cbc-a952-84e7161554d7 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40514388/" ;
+    bbqs:journal "Mol Psychiatry" ;
+    bbqs:name "Directing negative emotional states through parallel genetically-distinct basolateral amygdala pathways to ventral striatum subregions." ;
+    bbqs:pmid "40514388" ;
+    bbqs:title "Directing negative emotional states through parallel genetically-distinct basolateral amygdala pathways to ventral striatum subregions." ;
+    bbqs:year 2025 .
+
+bid:d17a5c60-e529-48ed-b4af-11976e4eb3fb a bbqs:ResearchOrganization ;
+    bbqs:name "DARTMOUTH COLLEGE" .
+
 bid:d25f9d24-5496-41a5-9a39-b686719d9eb7 a bbqs:Investigator ;
     bbqs:name "Lisa Blaskey" .
+
+bid:d2821755-977a-46a2-a089-169f6e66aeea a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF CALIFORNIA, SAN DIEGO" .
+
+bid:d2dadb0b-c44c-4e29-bc95-dce3ad1874ff a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41306626/" ;
+    bbqs:journal "Adv Neural Inf Process Syst" ;
+    bbqs:name "Spectral Learning of Shared Dynamics Between Generalized-Linear Processes." ;
+    bbqs:pmid "41306626" ;
+    bbqs:title "Spectral Learning of Shared Dynamics Between Generalized-Linear Processes." ;
+    bbqs:year 2024 .
 
 bid:d2f77d44-3a20-4759-be29-69403ae039ef a bbqs:Investigator ;
     bbqs:name "Brock Wester" .
@@ -694,10 +1754,22 @@ bid:d2f77d44-3a20-4759-be29-69403ae039ef a bbqs:Investigator ;
 bid:d303b6df-88e0-4e0d-88f6-46b3d45c1ea4 a bbqs:Investigator ;
     bbqs:name "Kailin Zhuang" .
 
+bid:d3423658-1147-421f-a6f8-f31067133351 a bbqs:FundingOpportunity ;
+    bbqs:description "Supports development of innovative theories, models, and methods as analytical tools to advance a quantitative and predictive understanding of brain function across multiple scales, with priority on novel capabilities for analyzing complex BRAIN Initiative datasets (physiological, anatomical, connectivity, and behavioral)." ;
+    bbqs:external_url "https://grants.nih.gov/grants/guide/rfa-files/RFA-DA-27-004.html" ;
+    bbqs:name "BRAIN Initiative: Theories, Models and Methods for Analysis of Complex Data from the Brain (R01 Clinical Trial Not Allowed)" .
+
 bid:d38cd5f0-0429-4fc0-a9e3-06039719e581 a bbqs:SoftwareTool ;
     bbqs:description "Facial behavior analysis: landmarks, head pose, gaze, action units" ;
     bbqs:external_url "https://github.com/TadasBaltrusaitis/OpenFace" ;
     bbqs:name "OpenFace" .
+
+bid:d3a36c76-22a9-4762-8ce6-a53725475669 a bbqs:Device ;
+    bbqs:device_category bid:f328ad53-2dd2-490f-adf1-40e9cd85b5bd ;
+    bbqs:external_url "https://www.neuropixels.org/" ;
+    bbqs:manufacturer bid:9bd0353c-a176-48d7-9f2c-59375ae7819b ;
+    bbqs:model_name "Neuropixels" ;
+    bbqs:name "Neuropixels" .
 
 bid:d3b32f3b-0a12-4eec-b49e-b9274f934b5a a bbqs:Investigator ;
     bbqs:name "Kate MacDuffie" .
@@ -710,8 +1782,51 @@ bid:d49fe87c-2047-4788-8247-2130a5e0d931 a bbqs:Dataset ;
     bbqs:external_url "https://huggingface.co/datasets/DeepLabCut/SuperAnimal-TopViewMouse-5K" ;
     bbqs:name "SuperAnimal-TopViewMouse-5K" .
 
+bid:d59fccae-d62c-44f8-9b6d-bf9ab2721553 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38486714/" ;
+    bbqs:journal "J Neurosci Methods" ;
+    bbqs:name "Introducing the STReaC (Spike Train Response Classification) toolbox." ;
+    bbqs:pmid "38486714" ;
+    bbqs:title "Introducing the STReaC (Spike Train Response Classification) toolbox." ;
+    bbqs:year 2024 .
+
 bid:d69b71df-b5e8-490c-8df0-5a7883fac0d5 a bbqs:Investigator ;
     bbqs:name "Maryam Shanechi" .
+
+bid:d8cef433-7209-4e63-bdd5-a3f52bd9dd89 a bbqs:DeviceCategory ;
+    bbqs:category_key "neural_imaging" ;
+    bbqs:description "Optical and volumetric imaging of neural activity." ;
+    bbqs:label "Neural Imaging" ;
+    bbqs:measures "BOLD",
+        "Fluorescence",
+        "bioluminescence" ;
+    bbqs:name "Neural Imaging" .
+
+bid:da6f9584-5487-4fe8-a9ed-462fface8db2 a bbqs:ResearchOrganization ;
+    bbqs:name "UTAH STATE HIGHER EDUCATION SYSTEM--UNIVERSITY OF UTAH" .
+
+bid:db663fc5-af00-457b-beb7-f9ee831eef71 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=14227655" ;
+    bbqs:name "Mansi  Srivastava" .
+
+bid:db72ef76-b8e2-4d0e-85da-c8d475d70628 a bbqs:ResearchOrganization ;
+    bbqs:name "SEATTLE CHILDREN'S HOSPITAL" .
+
+bid:dbdb11c4-5082-4c5f-b50b-0046aaa0f8d9 a bbqs:ResearchOrganization ;
+    bbqs:name "ICAHN SCHOOL OF MEDICINE AT MOUNT SINAI" .
+
+bid:dc09061c-41ce-4e6e-bfe9-5e4805b4356c a bbqs:Investigator ;
+    bbqs:name "Avniel Ghuman" .
+
+bid:dd96356c-60d7-4a65-9be7-7a622de4287d a bbqs:Investigator ;
+    bbqs:name "Rishi Suresh" .
+
+bid:dda87113-f453-47bd-8c34-14855db21e4a a bbqs:Device ;
+    bbqs:device_category bid:dac56889-e81e-478e-827d-7f08bb15efd3 ;
+    bbqs:external_url "https://optitrack.com/" ;
+    bbqs:manufacturer bid:560d0a58-2a10-439c-b397-4eecb30a2388 ;
+    bbqs:model_name "OptiTrack" ;
+    bbqs:name "OptiTrack" .
 
 bid:ddf3df70-64df-4112-822c-1ebf2bb895e0 a bbqs:Investigator ;
     bbqs:name "Thore Bergman" .
@@ -727,235 +1842,16 @@ bid:de5929a1-5c9a-4f4f-8d0f-4cc0d040160f a bbqs:Investigator ;
 bid:def6d629-21cc-431c-8cab-0327f97ee138 a bbqs:Investigator ;
     bbqs:name "Vincent Gracco" .
 
-<https://brain-bbqs.org/id/device/0365a41e-5473-40a8-84eb-7a72d1153b5e> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/microphone> ;
-    bbqs:model_name "Wildlife Acoustics recorders" .
+bid:dfbc5c5d-f4a9-4b08-8454-321df0c98e18 a bbqs:Investigator ;
+    bbqs:name "Darrell De Freitas" .
 
-<https://brain-bbqs.org/id/device/08c92e11-77f4-4cbe-9525-52ae735fd600> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "PPVT" .
+bid:e0042c46-59de-40f6-b53d-8e565cc27a45 a bbqs:FundingOpportunity ;
+    bbqs:description "Solicits teams of 3-6 PDs/PIs to understand how the nervous system gives rise to mental experience and behavior, integrating circuit, in vivo recordings, and behavioral analyses." ;
+    bbqs:external_url "https://simpler.grants.gov/opportunity/ffe98704-96a8-4f41-a32b-49edd0409006" ;
+    bbqs:name "BRAIN Initiative: Integrative Team-Research BRAIN Circuits Program - iTeamBCP (RM1) [forecast — superseded by RFA-NS-27-002]" .
 
-<https://brain-bbqs.org/id/device/0ba203a4-6bf1-4c24-bac2-199efe30380f> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/neurostimulation> ;
-    bbqs:model_name "NeuroPace RNS System" .
-
-<https://brain-bbqs.org/id/device/0e969767-9311-4449-be6b-8f22c771c367> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/microphone> ;
-    bbqs:model_name "miniDSP UMA-16" .
-
-<https://brain-bbqs.org/id/device/18a8a976-0981-4251-b777-706f5f9f935c> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/video_camera> ;
-    bbqs:model_name "OBSBOT cameras" .
-
-<https://brain-bbqs.org/id/device/191f7779-059c-43de-8974-7d3f7c9c3d5a> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/wearable_multimodal> ;
-    bbqs:model_name "EmotiBit" .
-
-<https://brain-bbqs.org/id/device/1bb87555-022e-4011-80cd-c894684db2f7> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "ADOS" .
-
-<https://brain-bbqs.org/id/device/1e080f80-adcb-4717-9530-58a2a02a35e8> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/video_camera> ;
-    bbqs:model_name "Basler cameras" .
-
-<https://brain-bbqs.org/id/device/201e2575-3bae-4a86-ba58-c61f98dfa601> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/eye_tracker> ;
-    bbqs:model_name "Pupil Labs eye trackers" .
-
-<https://brain-bbqs.org/id/device/2e31e6a4-c4d6-4b2a-8f11-e369bf61532e> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/ieeg> ;
-    bbqs:model_name "Natus XLTek" .
-
-<https://brain-bbqs.org/id/device/3d1c4558-c4fb-47fe-829c-2824becadb37> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/neurostimulation> ;
-    bbqs:model_name "Medtronic Percept" .
-
-<https://brain-bbqs.org/id/device/45222db9-aa4e-41a5-b869-67b3351c8c66> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/motion_capture> ;
-    bbqs:model_name "OptiTrack" .
-
-<https://brain-bbqs.org/id/device/4fef23aa-38f6-4def-aec4-1311fa6cfd2c> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/wearable_multimodal> ;
-    bbqs:model_name "BIOPAC" .
-
-<https://brain-bbqs.org/id/device/5d19dcbf-c7f5-4c03-a3bd-3c2c71739572> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/behavioral_apparatus> ;
-    bbqs:model_name "Med Associates touchscreens" .
-
-<https://brain-bbqs.org/id/device/5d6f3632-dc74-4a11-822d-8ad8b6a27793> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/eeg> ;
-    bbqs:model_name "ANT Neuro eego" .
-
-<https://brain-bbqs.org/id/device/6132f91f-6e96-42da-8131-595e72efaa35> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "SCQ" .
-
-<https://brain-bbqs.org/id/device/616f5f93-d2da-43eb-a085-f9f3ec1c3c1a> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/gps> ;
-    bbqs:model_name "Garmin GPS" .
-
-<https://brain-bbqs.org/id/device/663410dd-3087-4484-a093-0c7d67641d06> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/eeg> ;
-    bbqs:model_name "mBrainTrain Smarting" .
-
-<https://brain-bbqs.org/id/device/7270f457-bec1-4f74-800e-209a3ad946f5> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/wearable_multimodal> ;
-    bbqs:model_name "Empatica EmbracePlus" .
-
-<https://brain-bbqs.org/id/device/7a12895d-c916-4492-95fa-0671d0c09fca> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "Leiter-3" .
-
-<https://brain-bbqs.org/id/device/88a2d791-5246-42a7-8aee-b56d7344fcd8> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/eye_tracker> ;
-    bbqs:model_name "Tobii Pro" .
-
-<https://brain-bbqs.org/id/device/895e945f-b829-4615-9a2b-9de0ac7014e7> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/video_camera> ;
-    bbqs:model_name "GoPro HERO10" .
-
-<https://brain-bbqs.org/id/device/8dd55094-87d9-4952-976d-422b890b2fed> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/vr_environment> ;
-    bbqs:model_name "Motek CAREN" .
-
-<https://brain-bbqs.org/id/device/91340894-0f37-425b-82fe-588eef56bedc> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/rfid> ;
-    bbqs:model_name "Biomark PIT tags" .
-
-<https://brain-bbqs.org/id/device/9418d879-705b-4f22-a783-01e7d0f77b4f> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/ultrasonic_microphone> ;
-    bbqs:model_name "Avisoft ultrasonic microphones" .
-
-<https://brain-bbqs.org/id/device/ad3176f1-015e-4449-b849-1e3ffd427adc> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/wireless_ephys> ;
-    bbqs:model_name "White Matter e3 / eCube" .
-
-<https://brain-bbqs.org/id/device/b772f24f-a284-4a59-8ce1-83a8605af325> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/eda> ;
-    bbqs:model_name "Shimmer3 GSR+" .
-
-<https://brain-bbqs.org/id/device/b9ea3f84-cc2b-4a30-a03d-a1b6806f076a> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/metabolic> ;
-    bbqs:model_name "COSMED K5" .
-
-<https://brain-bbqs.org/id/device/cc721a77-ed87-4e78-8ef0-c1da07276769> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/thermal_camera> ;
-    bbqs:model_name "FLIR / Teledyne cameras" .
-
-<https://brain-bbqs.org/id/device/cf3c9b69-5afc-40e5-8a67-39fae3ab9709> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/motion_capture> ;
-    bbqs:model_name "Xsens" .
-
-<https://brain-bbqs.org/id/device/de095b85-03d8-48ce-ad20-2162fcc72f6e> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "SRS" .
-
-<https://brain-bbqs.org/id/device/de238f93-67a3-4338-b345-0bfa0a26cd53> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/ephys_probe> ;
-    bbqs:model_name "Neuropixels" .
-
-<https://brain-bbqs.org/id/device/eddac664-a931-428e-bf42-dcf2e314869e> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/emg> ;
-    bbqs:model_name "Delsys Trigno" .
-
-<https://brain-bbqs.org/id/device/f59a183f-6934-43d7-8c9f-cef88a27ef6f> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/clinical_assessment> ;
-    bbqs:model_name "BOT-3" .
-
-<https://brain-bbqs.org/id/device/fc32f838-5c7e-48f8-9466-1120f17cab5b> a bbqs:Device ;
-    bbqs:device_category <https://brain-bbqs.org/id/devicecat/wireless_ephys> ;
-    bbqs:model_name "Open Ephys" .
-
-<https://brain-bbqs.org/id/devicecat/biofluid> a bbqs:DeviceCategory ;
-    bbqs:category_key "biofluid" ;
-    bbqs:label "Biofluid / Biochemical Sensing" ;
-    bbqs:measures "Cortisol",
-        "biomarker concentration" .
-
-<https://brain-bbqs.org/id/devicecat/depth_camera> a bbqs:DeviceCategory ;
-    bbqs:category_key "depth_camera" ;
-    bbqs:label "Depth / 3D Camera" ;
-    bbqs:measures "3D point cloud",
-        "Depth map" .
-
-<https://brain-bbqs.org/id/devicecat/ecg_hr> a bbqs:DeviceCategory ;
-    bbqs:category_key "ecg_hr" ;
-    bbqs:label "ECG / Heart Rate" ;
-    bbqs:measures "ECG waveform",
-        "HRV",
-        "heart rate" .
-
-<https://brain-bbqs.org/id/devicecat/genomics> a bbqs:DeviceCategory ;
-    bbqs:category_key "genomics" ;
-    bbqs:label "Genomics & Tissue" ;
-    bbqs:measures "IEG expression",
-        "Transcript counts" .
-
-<https://brain-bbqs.org/id/devicecat/imu> a bbqs:DeviceCategory ;
-    bbqs:category_key "imu" ;
-    bbqs:label "IMU / Accelerometry" ;
-    bbqs:measures "Acceleration",
-        "angular velocity",
-        "orientation" .
-
-<https://brain-bbqs.org/id/devicecat/infrared_camera> a bbqs:DeviceCategory ;
-    bbqs:category_key "infrared_camera" ;
-    bbqs:label "Infrared Camera" ;
-    bbqs:measures "IR video" .
-
-<https://brain-bbqs.org/id/devicecat/lidar_radar> a bbqs:DeviceCategory ;
-    bbqs:category_key "lidar_radar" ;
-    bbqs:label "LiDAR / mmWave Radar" ;
-    bbqs:measures "Range",
-        "doppler",
-        "point cloud" .
-
-<https://brain-bbqs.org/id/devicecat/meg_opm> a bbqs:DeviceCategory ;
-    bbqs:category_key "meg_opm" ;
-    bbqs:label "OPM-MEG" ;
-    bbqs:measures "Magnetic field",
-        "source-localized activity" .
-
-<https://brain-bbqs.org/id/devicecat/neural_imaging> a bbqs:DeviceCategory ;
-    bbqs:category_key "neural_imaging" ;
-    bbqs:label "Neural Imaging" ;
-    bbqs:measures "BOLD",
-        "Fluorescence",
-        "bioluminescence" .
-
-<https://brain-bbqs.org/id/devicecat/ppg> a bbqs:DeviceCategory ;
-    bbqs:category_key "ppg" ;
-    bbqs:label "Photoplethysmography (PPG)" ;
-    bbqs:measures "BVP",
-        "SpO2",
-        "pulse rate" .
-
-<https://brain-bbqs.org/id/devicecat/respiration> a bbqs:DeviceCategory ;
-    bbqs:category_key "respiration" ;
-    bbqs:label "Respiration Sensing" ;
-    bbqs:measures "Respiration rate",
-        "airflow",
-        "nasal temperature" .
-
-<https://brain-bbqs.org/id/devicecat/smartphone_camera> a bbqs:DeviceCategory ;
-    bbqs:category_key "smartphone_camera" ;
-    bbqs:label "Smartphone / Tablet Camera" ;
-    bbqs:measures "RGB video",
-        "selfie video" .
-
-<https://brain-bbqs.org/id/devicecat/survey_task> a bbqs:DeviceCategory ;
-    bbqs:category_key "survey_task" ;
-    bbqs:label "Surveys & Structured Tasks" ;
-    bbqs:measures "Item responses",
-        "ratings",
-        "reaction times" .
-
-<https://brain-bbqs.org/id/devicecat/temperature> a bbqs:DeviceCategory ;
-    bbqs:category_key "temperature" ;
-    bbqs:label "Body Temperature Sensing" ;
-    bbqs:measures "Core temperature",
-        "skin temperature" .
+bid:e0179c68-8fe6-48ca-9140-84a567b5f661 a bbqs:Investigator ;
+    bbqs:name "Firooz Aflatouni" .
 
 bid:e03557cc-99aa-4b15-8786-bde9a5253fd1 a bbqs:Investigator ;
     bbqs:name "Suliman Sharif" .
@@ -968,6 +1864,39 @@ bid:e058af74-abc7-453f-8aa6-93cd056c50e3 a bbqs:Investigator ;
 
 bid:e0d25d6e-4879-436d-980f-e690e3e5a937 a bbqs:Investigator ;
     bbqs:name "Álvaro Vega Hidalgo" .
+
+bid:e0e97a3f-d239-4739-a9d8-6a2af1c6a838 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38196745/" ;
+    bbqs:journal "ArXiv" ;
+    bbqs:name "Rethinking the external globus pallidus and information flow in cortico-basal ganglia-thalamic circuits." ;
+    bbqs:pmid "38196745" ;
+    bbqs:title "Rethinking the external globus pallidus and information flow in cortico-basal ganglia-thalamic circuits." ;
+    bbqs:year 2023 .
+
+bid:e1424ffb-1cc6-4d9a-932e-464c967a68f9 a bbqs:Investigator ;
+    bbqs:name "Jeffrey Walker" .
+
+bid:e1fcac8e-1f50-4dc8-8f14-f0ee62614861 a bbqs:Investigator ;
+    bbqs:name "Ueli Rutishauser" .
+
+bid:e2c21bfc-1707-4f6d-aa18-c6db03f53c2d a bbqs:DeviceCategory ;
+    bbqs:category_key "imu" ;
+    bbqs:description "Inertial measurement units, accelerometers, and gyroscopes." ;
+    bbqs:label "IMU / Accelerometry" ;
+    bbqs:measures "Acceleration",
+        "angular velocity",
+        "orientation" ;
+    bbqs:name "IMU / Accelerometry" .
+
+bid:e3335c53-2c38-444e-aff5-43a4268c97bf a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=10062621" ;
+    bbqs:name "Vijay  Balasubramanian" .
+
+bid:e46a4832-3f63-49d7-acad-8567ed641589 a bbqs:ResearchOrganization ;
+    bbqs:name "UNIVERSITY OF PITTSBURGH AT PITTSBURGH" .
+
+bid:e5044d9f-fe07-4a69-a9c3-7aecc245b941 a bbqs:ResearchOrganization ;
+    bbqs:name "YALE UNIVERSITY" .
 
 bid:e5bdf58e-a1ff-4f5f-aa6d-667de414e16e a bbqs:Investigator ;
     bbqs:name "Satrajit Sujit Ghosh" .
@@ -1002,8 +1931,27 @@ bid:e6fb5750-5310-4d85-8beb-4cc8addbd988 a bbqs:Investigator ;
 bid:e729b65b-8a22-4dc9-9d4d-d525f33f778f a bbqs:Investigator ;
     bbqs:name "Lensky Augustin" .
 
+bid:e7f5f7e5-8074-41a9-b866-bfd7112d37c2 a bbqs:Investigator ;
+    bbqs:name "Chaoyi Zhang" .
+
 bid:e8c0da8f-2dbb-442f-9831-4271dda9dda9 a bbqs:Investigator ;
     bbqs:name "Amrita Nair" .
+
+bid:e96d4fb7-c4d6-4776-b39c-dfb97dc12f41 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41040807/" ;
+    bbqs:journal "ArXiv" ;
+    bbqs:name "BRAID: Input-driven nonlinear dynamical modeling of neural-behavioral data." ;
+    bbqs:pmid "41040807" ;
+    bbqs:title "BRAID: Input-driven nonlinear dynamical modeling of neural-behavioral data." ;
+    bbqs:year 2025 .
+
+bid:e9749351-6773-473d-8fd0-ec88e5a8ba07 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/41393219/" ;
+    bbqs:journal "Device" ;
+    bbqs:name "Wearable organic-electrochemical-transistor-based lithium sensor for precision mental health." ;
+    bbqs:pmid "41393219" ;
+    bbqs:title "Wearable organic-electrochemical-transistor-based lithium sensor for precision mental health." ;
+    bbqs:year 2025 .
 
 bid:ea29a939-e638-4a3c-8d28-1edda890490a a bbqs:Investigator ;
     bbqs:name "Mauricio Vallejo Martelo" .
@@ -1014,8 +1962,33 @@ bid:ea2dc7bf-af90-460d-9823-45e9407b6bb8 a bbqs:Investigator ;
 bid:eaa38acf-84a1-44ce-a1c6-eda307583731 a bbqs:Investigator ;
     bbqs:name "Joost Wagenaar" .
 
+bid:eac8b2aa-4353-4d9a-af21-601294a8ef4a a bbqs:Event ;
+    bbqs:description "Annual BBQS consortium workshop, MIT, Cambridge MA" ;
+    bbqs:name "BBQS MIT Workshop 2026" .
+
+bid:eb63ab45-d094-4b5f-99a8-3fe0cb8529eb a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/38826315/" ;
+    bbqs:journal "bioRxiv" ;
+    bbqs:name "How cortico-basal ganglia-thalamic subnetworks can shift decision policies to maximize reward rate." ;
+    bbqs:pmid "38826315" ;
+    bbqs:title "How cortico-basal ganglia-thalamic subnetworks can shift decision policies to maximize reward rate." ;
+    bbqs:year 2025 .
+
+bid:ebbb8fee-72ed-4cb0-9d25-94e670379f08 a bbqs:Investigator ;
+    bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=12046106" ;
+    bbqs:name "Zheng  Kuang" .
+
+bid:ec6cb02d-5d60-4e1b-bfa8-e7ce7f857f90 a bbqs:Investigator ;
+    bbqs:name "Tim Brown" .
+
 bid:ee077b61-eb2c-4cd9-b587-a46418c45265 a bbqs:Investigator ;
     bbqs:name "Jorge Ortiz" .
+
+bid:ef820011-b44d-40f5-a4ab-2069fa9805df a bbqs:ResearchOrganization ;
+    bbqs:name "NORTHWESTERN UNIVERSITY AT CHICAGO" .
+
+bid:eff6d625-81ad-4a38-9f8e-93a2ae06c7af a bbqs:Investigator ;
+    bbqs:name "Nicole Tregoning" .
 
 bid:f088160e-1dea-4cb9-b73f-1c30d0e40053 a bbqs:Investigator ;
     bbqs:name "Fang Yu Chang" .
@@ -1023,8 +1996,20 @@ bid:f088160e-1dea-4cb9-b73f-1c30d0e40053 a bbqs:Investigator ;
 bid:f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14 a bbqs:Investigator ;
     bbqs:name "John Welsh" .
 
+bid:f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0 a bbqs:Investigator ;
+    bbqs:name "Sofia Juliani" .
+
 bid:f2372c9c-91ac-449f-8ae8-182327e93a85 a bbqs:Investigator ;
     bbqs:name "Alex Williams" .
+
+bid:f28a2f16-5259-4e2f-9c8e-a5d11d2b5c5f a bbqs:ResearchOrganization ;
+    bbqs:name "CHILDREN'S HOSP OF PHILADELPHIA" .
+
+bid:f33c9c03-f685-4166-b0bf-9ce704b5fa78 a bbqs:Investigator ;
+    bbqs:name "Tristan Daniel" .
+
+bid:f340cdf9-cdfc-43f4-b18b-4d9fbebac604 a bbqs:WorkingGroup ;
+    bbqs:name "WG-Devices" .
 
 bid:f34a38e7-364a-4091-8436-a8c52b684cc2 a bbqs:Investigator ;
     bbqs:name "Cheryl Corcoran" .
@@ -1035,16 +2020,65 @@ bid:f3f570c9-991c-4a67-a40a-5f0903f91762 a bbqs:Investigator ;
 bid:f4d7cfd7-30aa-4f19-8601-f85f9689884a a bbqs:Investigator ;
     bbqs:name "Joseph S Neimat" .
 
+bid:f55eaf7c-d38c-46a6-a6ce-1d78c826ff59 a bbqs:DeviceCategory ;
+    bbqs:category_key "depth_camera" ;
+    bbqs:description "Depth-sensing and multi-view camera rigs producing 3D geometry." ;
+    bbqs:label "Depth / 3D Camera" ;
+    bbqs:measures "3D point cloud",
+        "Depth map" ;
+    bbqs:name "Depth / 3D Camera" .
+
+bid:f5c11310-96a7-43c3-9d34-dc134237ed45 a bbqs:DeviceCategory ;
+    bbqs:category_key "infrared_camera" ;
+    bbqs:description "Near-infrared / IR cameras for low-light and night-time behavioural recording." ;
+    bbqs:label "Infrared Camera" ;
+    bbqs:measures "IR video" ;
+    bbqs:name "Infrared Camera" .
+
 bid:f6fd8ef2-e06f-4f72-bfc9-4464947fc0b9 a bbqs:Investigator ;
     bbqs:name "Taylor Wise" .
+
+bid:f77c0d96-5deb-4d90-bc8e-7acb14863595 a bbqs:Device ;
+    bbqs:device_category bid:829b9463-611f-45d6-bd24-262a5410c325 ;
+    bbqs:manufacturer bid:a7b15b50-1f35-4e02-91d5-c28593457e3d ;
+    bbqs:model_name "SCQ" ;
+    bbqs:name "SCQ" .
+
+bid:f8ca9029-6e50-43a2-802d-e61784795036 a bbqs:Device ;
+    bbqs:device_category bid:e9d52180-5701-46ba-b5dc-7fc6fa32233b ;
+    bbqs:external_url "https://www.neuropace.com/" ;
+    bbqs:manufacturer bid:bc8054b3-253f-4b13-a281-841deb7598e8 ;
+    bbqs:model_name "NeuroPace RNS System" ;
+    bbqs:name "NeuroPace RNS System" .
+
+bid:f9cc96dd-52b0-41bc-b687-47a1e4df3e2c a bbqs:Investigator ;
+    bbqs:name "Dorota Jarecka" .
 
 bid:f9d3a756-c9ad-4abb-89ae-c55756d4e662 a bbqs:Dataset ;
     bbqs:description "task aggregate one " ;
     bbqs:external_url "https://dandi.emberarchive.org/dandiset/000542" ;
     bbqs:name "aggregate-task-one" .
 
+bid:fa14bcd8-d960-44b1-874c-49e040b64e61 a bbqs:Publication ;
+    bbqs:external_url "https://pubmed.ncbi.nlm.nih.gov/40043703/" ;
+    bbqs:journal "Cell" ;
+    bbqs:name "Mapping the landscape of social behavior." ;
+    bbqs:pmid "40043703" ;
+    bbqs:title "Mapping the landscape of social behavior." ;
+    bbqs:year 2025 .
+
 bid:fa291a57-48b1-4ad1-87da-4a04a01787e8 a bbqs:Investigator ;
     bbqs:name "Shelly Flagel" .
+
+bid:fb3cf5ef-e850-44d2-887c-0d0ef608f48c a bbqs:ResearchOrganization ;
+    bbqs:name "CARNEGIE-MELLON UNIVERSITY" .
+
+bid:fbbd19db-7e98-42cd-a230-510ddff40cef a bbqs:Device ;
+    bbqs:device_category bid:0e76fcd9-9746-4456-a344-50f817379dcf ;
+    bbqs:external_url "https://www.flir.com/" ;
+    bbqs:manufacturer bid:d68a81db-70f9-4ea5-95af-3f1f83a46771 ;
+    bbqs:model_name "FLIR / Teledyne cameras" ;
+    bbqs:name "FLIR / Teledyne cameras" .
 
 bid:fd89f05c-a37e-4d93-80fc-47dfc8aa3931 a bbqs:Investigator ;
     bbqs:name "Michael Tadross" .
@@ -1058,387 +2092,8 @@ bid:fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26 a bbqs:Investigator ;
 bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
     bbqs:name "Tucker Lancaster" .
 
-<https://brain-bbqs.org/id/org/00e61ed0-1e2b-4334-b345-6915f4f77b76> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF CALIFORNIA, SAN DIEGO" .
-
-<https://brain-bbqs.org/id/org/05093dd7-76d5-41a7-a678-9bad50304285> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF MINNESOTA" .
-
-<https://brain-bbqs.org/id/org/0c0fdb42-ae07-49a3-8bc6-7cb4d5bae64f> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF FLORIDA" .
-
-<https://brain-bbqs.org/id/org/1c53a8a8-3cbb-4a32-9158-2b07e0d07bc7> a bbqs:ResearchOrganization ;
-    bbqs:name "CHILDREN'S HOSP OF PHILADELPHIA" .
-
-<https://brain-bbqs.org/id/org/27ff7329-eb35-4f33-b645-cb174f181f79> a bbqs:ResearchOrganization ;
-    bbqs:name "MASSACHUSETTS INSTITUTE OF TECHNOLOGY" .
-
-<https://brain-bbqs.org/id/org/3507ce41-101a-4355-8e52-5d81be529b1f> a bbqs:ResearchOrganization ;
-    bbqs:name "ICAHN SCHOOL OF MEDICINE AT MOUNT SINAI" .
-
-<https://brain-bbqs.org/id/org/366b90a3-fc10-4fb9-a310-359eb7314f5f> a bbqs:ResearchOrganization ;
-    bbqs:name "DARTMOUTH COLLEGE" .
-
-<https://brain-bbqs.org/id/org/3799574f-88f3-48ca-8d5f-4a958a3a71e1> a bbqs:ResearchOrganization ;
-    bbqs:name "NORTHWESTERN UNIVERSITY AT CHICAGO" .
-
-<https://brain-bbqs.org/id/org/3b18a233-3a4e-4460-8111-a75f12a311f3> a bbqs:ResearchOrganization ;
-    bbqs:name "RICE UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/409a4944-d388-4055-bcc5-2adff111af5a> a bbqs:ResearchOrganization ;
-    bbqs:name "GEORGIA INSTITUTE OF TECHNOLOGY" .
-
-<https://brain-bbqs.org/id/org/44264dd6-997f-4d90-9d47-19fe98eb660d> a bbqs:ResearchOrganization ;
-    bbqs:name "CALIFORNIA INSTITUTE OF TECHNOLOGY" .
-
-<https://brain-bbqs.org/id/org/5baf0121-f373-4f2b-82a1-b0542006e7c0> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF PENNSYLVANIA" .
-
-<https://brain-bbqs.org/id/org/6046ecc4-3750-4f87-b498-ff2059054691> a bbqs:ResearchOrganization ;
-    bbqs:name "HARVARD UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/73bc00d3-cf54-4fc4-9c8b-3881c0750029> a bbqs:ResearchOrganization ;
-    bbqs:name "CARNEGIE-MELLON UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/7925ff3b-fad9-4658-93d8-d07dcf8bd54f> a bbqs:ResearchOrganization ;
-    bbqs:name "MICHIGAN STATE UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/7c652dd6-43fe-4119-85cf-b2d97b17eac5> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF PITTSBURGH AT PITTSBURGH" .
-
-<https://brain-bbqs.org/id/org/89d5fdad-c675-4cb3-ab9c-ba5e10d196a0> a bbqs:ResearchOrganization ;
-    bbqs:name "NEW YORK UNIVERSITY SCHOOL OF MEDICINE" .
-
-<https://brain-bbqs.org/id/org/8ce00825-84e4-43c5-8775-12d50558dfa7> a bbqs:ResearchOrganization ;
-    bbqs:name "JOHNS HOPKINS UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/9ca8b1b0-6c1d-4f27-ac46-664685ebb136> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIV OF MASSACHUSETTS MED SCH WORCESTER" .
-
-<https://brain-bbqs.org/id/org/a1b2c3d4-0001-4000-8000-000000000001> a bbqs:ResearchOrganization ;
-    bbqs:name "State University of New York at Stony Brook" .
-
-<https://brain-bbqs.org/id/org/ae02b333-f088-412a-bcf4-f7f468ebfcd1> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF MICHIGAN AT ANN ARBOR" .
-
-<https://brain-bbqs.org/id/org/b06776b3-5e7b-445c-88f1-43dddfd811bd> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF CALIFORNIA LOS ANGELES" .
-
-<https://brain-bbqs.org/id/org/b281ce24-1b40-4cf7-80cf-f98366f169b9> a bbqs:ResearchOrganization ;
-    bbqs:name "SEATTLE CHILDREN'S HOSPITAL" .
-
-<https://brain-bbqs.org/id/org/b97d5476-32cc-49eb-97f5-7401bf0530c4> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF SOUTHERN CALIFORNIA" .
-
-<https://brain-bbqs.org/id/org/c67bce10-f8eb-450d-8dd0-af25b81fb715> a bbqs:ResearchOrganization ;
-    bbqs:name "PENNSYLVANIA STATE UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/c8f5b657-7447-4136-8b28-b0ad60cf6f31> a bbqs:ResearchOrganization ;
-    bbqs:name "NEW YORK UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/d025806b-594d-4864-95d0-1d498caf2c3d> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIV OF NORTH CAROLINA CHAPEL HILL" .
-
-<https://brain-bbqs.org/id/org/d0834b7c-cc90-45c0-9733-e0a110731245> a bbqs:ResearchOrganization ;
-    bbqs:name "UTAH STATE HIGHER EDUCATION SYSTEM--UNIVERSITY OF UTAH" .
-
-<https://brain-bbqs.org/id/org/dac52a02-b3a4-4f6f-b2d3-244386b34f99> a bbqs:ResearchOrganization ;
-    bbqs:name "YALE UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/e0dde0bb-52bd-4da3-9322-b55d77e11283> a bbqs:ResearchOrganization ;
-    bbqs:external_url "https://www.nih.gov" ;
-    bbqs:name "National Institutes of Health" .
-
-<https://brain-bbqs.org/id/org/e2fc54b5-fd28-48d3-a4da-5b9c05d4fd8a> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF MEMPHIS" .
-
-<https://brain-bbqs.org/id/org/ea8a78fe-e978-4d83-b2fc-31a1ac5bf164> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF ALABAMA AT BIRMINGHAM" .
-
-<https://brain-bbqs.org/id/org/f18b9b73-09b5-4a24-96d0-970115411cb2> a bbqs:ResearchOrganization ;
-    bbqs:name "CEDARS-SINAI MEDICAL CENTER" .
-
-<https://brain-bbqs.org/id/org/fa374a43-5e7f-4a3d-ae92-93c79fec4217> a bbqs:ResearchOrganization ;
-    bbqs:name "UNIVERSITY OF CALIFORNIA BERKELEY" .
-
-<https://brain-bbqs.org/id/org/fa5ee596-c8c4-4b93-b311-b680a2de9f03> a bbqs:ResearchOrganization ;
-    bbqs:name "STATE UNIVERSITY NEW YORK STONY BROOK" .
-
-<https://brain-bbqs.org/id/org/fbb9db19-0aab-4b25-9365-df7153e89ce6> a bbqs:ResearchOrganization ;
-    bbqs:name "DUKE UNIVERSITY" .
-
-<https://brain-bbqs.org/id/org/fc77d584-013d-4364-ad5a-be814903822b> a bbqs:ResearchOrganization ;
-    bbqs:name "COLUMBIA UNIVERSITY HEALTH SCIENCES" .
-
-<https://brain-bbqs.org/id/pub/039879ce-4ce7-400c-a0de-1c31c2e55d15> a bbqs:Publication ;
-    bbqs:journal "Mol Psychiatry" ;
-    bbqs:pmid "40514388" ;
-    bbqs:title "Directing negative emotional states through parallel genetically-distinct basolateral amygdala pathways to ventral striatum subregions." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/050150c7-98b6-4514-8186-541a2999f7d9> a bbqs:Publication ;
-    bbqs:journal "ArXiv" ;
-    bbqs:pmid "38196745" ;
-    bbqs:title "Rethinking the external globus pallidus and information flow in cortico-basal ganglia-thalamic circuits." ;
-    bbqs:year 2023 .
-
-<https://brain-bbqs.org/id/pub/0541daa7-93d6-40d2-a2fe-db781238ac69> a bbqs:Publication ;
-    bbqs:journal "Neurobiol Dis" ;
-    bbqs:pmid "38670278" ;
-    bbqs:title "Dopamine depletion weakens direct pathway modulation of SNr neurons." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/12e91326-158d-4b16-acb2-143e06c21732> a bbqs:Publication ;
-    bbqs:journal "Adv Funct Mater" ;
-    bbqs:pmid "41536438" ;
-    bbqs:title "Delivery of Angiogenic Therapy from Flowable Hyaluronic Acid Porous Scaffolds Results in Functional Improvement without Anti-Inflammatory Agents." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/261076a5-3865-41cb-8af2-4c6ee4f5fcd4> a bbqs:Publication ;
-    bbqs:journal "eNeuro" ;
-    bbqs:pmid "41093749" ;
-    bbqs:title "Prefrontal and Subcortical c-Fos Mapping of Reward Responses across Competitive and Social Contexts." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/2a411993-c47e-4970-b503-3cbd9db30be1> a bbqs:Publication ;
-    bbqs:journal "Front Epigenet Epigenom" ;
-    bbqs:pmid "40761288" ;
-    bbqs:title "HDAC3 regulates the diurnal rhythms of claudin expression and intestinal permeability." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/32af80b7-6293-4834-a3b2-d44f37b073db> a bbqs:Publication ;
-    bbqs:journal "ArXiv" ;
-    bbqs:pmid "40832056" ;
-    bbqs:title "An Intelligent Infrastructure as a Foundation for Modern Science." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/34f1b5d7-0c09-4ad2-810f-9ffb8646fb4e> a bbqs:Publication ;
-    bbqs:journal "Nat Methods" ;
-    bbqs:pmid "41331138" ;
-    bbqs:title "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
-    bbqs:year 2026 .
-
-<https://brain-bbqs.org/id/pub/351e498b-96c1-4e96-afab-613f06478901> a bbqs:Publication ;
-    bbqs:journal "Proc Natl Acad Sci U S A" ;
-    bbqs:pmid "39536079" ;
-    bbqs:title "Arkypallidal neurons in the external globus pallidus can mediate inhibitory control by altering competition in the striatum." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/3aca132d-0da2-4b7c-8a01-14a437e79f5c> a bbqs:Publication ;
-    bbqs:journal "Adv Intell Syst" ;
-    bbqs:pmid "41122417" ;
-    bbqs:title "Printed Wearable Sweat Rate Sensor for Continuous <i>in-situ</i> Perspiration Measurement." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/40d66e6d-08ed-441b-b36a-daf4f39ccd45> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "38014127" ;
-    bbqs:title "A behavioral roadmap for the development of agency in the rodent." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/415e7465-0260-40c1-961a-724b791e21f1> a bbqs:Publication ;
-    bbqs:journal "Proc Natl Acad Sci U S A" ;
-    bbqs:pmid "39602254" ;
-    bbqs:title "BCL2 regulates antibacterial autophagy in the intestinal epithelium." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/4403c245-5e22-43bd-8908-ff2a1cd3a55f> a bbqs:Publication ;
-    bbqs:journal "ACS Nano" ;
-    bbqs:pmid "40063703" ;
-    bbqs:title "Interfacing with the Brain: How Nanotechnology Can Contribute." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/44306c0b-8707-400a-9049-f89f5ac1682a> a bbqs:Publication ;
-    bbqs:journal "J Neurosci Methods" ;
-    bbqs:pmid "38486714" ;
-    bbqs:title "Introducing the STReaC (Spike Train Response Classification) toolbox." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/45d3b5ea-9439-4cf8-aed4-f07072e08abc> a bbqs:Publication ;
-    bbqs:journal "IEEE Sens Lett" ;
-    bbqs:pmid "41104294" ;
-    bbqs:title "A Wearable Sweat Rate Sensor with Adaptive Sweat Ion Concentration Calibration." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/4f5e0d72-9165-4663-8f47-e8ef152c60e3> a bbqs:Publication ;
-    bbqs:journal "Neuropsychologia" ;
-    bbqs:pmid "38428520" ;
-    bbqs:title "FMRI correlates of autobiographical memory: Comparing silent retrieval with narrated retrieval." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/5b5d1166-b2a5-4f67-be77-e61cc1cd989e> a bbqs:Publication ;
-    bbqs:journal "Adv Neural Inf Process Syst" ;
-    bbqs:pmid "41306626" ;
-    bbqs:title "Spectral Learning of Shared Dynamics Between Generalized-Linear Processes." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/5eb7a7ed-1e4b-4621-a5ea-cabc130a8ec0> a bbqs:Publication ;
-    bbqs:journal "Cell" ;
-    bbqs:pmid "40043703" ;
-    bbqs:title "Mapping the landscape of social behavior." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/6bd8067b-a6cb-4b78-9750-57b6230291bb> a bbqs:Publication ;
-    bbqs:journal "ArXiv" ;
-    bbqs:pmid "41040797" ;
-    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/6fb73bfd-21d3-484e-a8a6-237568fa20c4> a bbqs:Publication ;
-    bbqs:journal "Cell Chem Biol" ;
-    bbqs:pmid "38776923" ;
-    bbqs:title "Chemical interplay between gut microbiota and epigenetics: Implications in circadian biology." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/7947fadd-f16f-48cc-9fdc-6fdda8b5501f> a bbqs:Publication ;
-    bbqs:journal "Immunometabolism (Cobham)" ;
-    bbqs:pmid "39634021" ;
-    bbqs:title "Evaluating diurnal rhythms of host responses to enteric norovirus infection in mouse models." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/7ac42f55-136d-40f0-b8e6-c73b2bcf56f1> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "38979377" ;
-    bbqs:title "Distinct dopaminergic spike-timing-dependent plasticity rules are suited to different functional roles." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/8201e8df-6e23-4af5-987a-f233402fcd5a> a bbqs:Publication ;
-    bbqs:journal "J Neural Eng" ;
-    bbqs:pmid "40527329" ;
-    bbqs:title "Prioritized learning of cross-population neural dynamics." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/85f2a750-95a9-4a6b-8acd-16b4d96f3ae6> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "41292955" ;
-    bbqs:title "CapuchinAI 1.0: Development of a machine learning-based touchscreen paradigm to test cognition in wild capuchins." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/93bc17c5-e6f4-4a28-b86b-328a7158183b> a bbqs:Publication ;
-    bbqs:journal "Nat Commun" ;
-    bbqs:pmid "39747223" ;
-    bbqs:title "Dopaminergic signaling to ventral striatum neurons initiates sniffing behavior." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/977f9130-9cc2-4328-b441-c4a8f3bb91d3> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "39345431" ;
-    bbqs:title "Vocal Call Locator Benchmark (VCL) for localizing rodent vocalizations from multi-channel audio." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/a3f1cd6f-c76f-423c-87ff-4932c8bb4d57> a bbqs:Publication ;
-    bbqs:journal "Elife" ;
-    bbqs:pmid "39680425" ;
-    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/a7f6f9bf-0d89-4862-b8d1-1b3d7663924d> a bbqs:Publication ;
-    bbqs:journal "Device" ;
-    bbqs:pmid "41393219" ;
-    bbqs:title "Wearable organic-electrochemical-transistor-based lithium sensor for precision mental health." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/a8446c7f-0802-4859-8726-a989967dae4c> a bbqs:Publication ;
-    bbqs:journal "Math Biosci" ;
-    bbqs:pmid "40582587" ;
-    bbqs:title "GMFOLD: Subgraph matching for high-throughput DNA-aptamer secondary structure classification and machine learning interpretability." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/aa381ac5-fd51-4a3e-a6aa-63d2f31a5dc8> a bbqs:Publication ;
-    bbqs:journal "ArXiv" ;
-    bbqs:pmid "41040807" ;
-    bbqs:title "BRAID: Input-driven nonlinear dynamical modeling of neural-behavioral data." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/b7300c7a-c456-4f34-9198-b8af65617157> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "39282260" ;
-    bbqs:title "Unsupervised discovery of family specific vocal usage in the Mongolian gerbil." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/b9eade70-cfdd-4e64-93de-d3388fa35978> a bbqs:Publication ;
-    bbqs:journal "Trends Biotechnol" ;
-    bbqs:pmid "41571550" ;
-    bbqs:title "The FDA's plan to phase out animal testing." ;
-    bbqs:year 2026 .
-
-<https://brain-bbqs.org/id/pub/be8e03cb-7db3-4489-83ab-8c2cd21de222> a bbqs:Publication ;
-    bbqs:journal "eNeuro" ;
-    bbqs:pmid "39500574" ;
-    bbqs:title "A Multiparadigm Approach to Characterize Dominance Behaviors in CD1 and C57BL6 Male Mice." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/c0dee7de-b557-4f51-a36d-15e401a54581> a bbqs:Publication ;
-    bbqs:journal "Nat Neurosci" ;
-    bbqs:pmid "39242944" ;
-    bbqs:title "Dissociative and prioritized modeling of behaviorally relevant neural dynamics using recurrent neural networks." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/d44b52ce-0bf4-43c3-85c9-77c087aa105d> a bbqs:Publication ;
-    bbqs:journal "Proc Mach Learn Res" ;
-    bbqs:pmid "41321375" ;
-    bbqs:title "Dynamical Modeling of Behaviorally Relevant Spatiotemporal Patterns in Neural Imaging Data." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/e070b984-f08b-4dd0-b3c8-4f876cb3bb07> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "38746090" ;
-    bbqs:title "Mimicking opioid analgesia in cortical pain circuits." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/e0ad7bf8-09ca-4f37-8598-d3a4ae4f72de> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "37425712" ;
-    bbqs:title "CaBLAM! A high-contrast bioluminescent Ca[2+] indicator derived from an engineered Oplophorus gracilirostris luciferase." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/e3f14972-0600-48a7-b036-21e1b3de7ace> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "40166196" ;
-    bbqs:title "How the dynamic interplay of cortico-basal ganglia-thalamic pathways shapes the time course of deliberation and commitment." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/e4828aea-1261-4797-9247-b3af877ed799> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "41256607" ;
-    bbqs:title "Distributed neural computation and the evolution of the first brains." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/ef5f9a9f-055b-4053-918e-d8e2fde0551e> a bbqs:Publication ;
-    bbqs:journal "bioRxiv" ;
-    bbqs:pmid "38826315" ;
-    bbqs:title "How cortico-basal ganglia-thalamic subnetworks can shift decision policies to maximize reward rate." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/ef9f5b70-0d1f-4a66-8664-c8684eaca089> a bbqs:Publication ;
-    bbqs:journal "Nat Biomed Eng" ;
-    bbqs:pmid "39730913" ;
-    bbqs:title "Challenges and opportunities of acquiring cortical recordings for chronic adaptive deep brain stimulation." ;
-    bbqs:year 2025 .
-
-<https://brain-bbqs.org/id/pub/f711388b-a2d2-4057-b92b-9ddc0201483a> a bbqs:Publication ;
-    bbqs:journal "Front Behav Neurosci" ;
-    bbqs:pmid "39703614" ;
-    bbqs:title "SARTAB, a scalable system for automated real-time behavior detection based on animal tracking and Region Of Interest analysis: validation on fish courtship behavior." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/fd2c0202-1121-41d7-8cd8-4736491feb45> a bbqs:Publication ;
-    bbqs:journal "Proc IEEE Sens" ;
-    bbqs:pmid "41048822" ;
-    bbqs:title "Fully-Printed Sensor Based Extended Gate Field Effect Transistors for Wireless Monitoring of Potassium and Ammonium Ions." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/fe08bcd1-d224-43e8-9eba-70bc3afc2bdf> a bbqs:Publication ;
-    bbqs:journal "Nat Rev Bioeng" ;
-    bbqs:pmid "40988938" ;
-    bbqs:title "Brain-computer interfaces for neuropsychiatric disorders." ;
-    bbqs:year 2024 .
-
-<https://brain-bbqs.org/id/pub/fe90b0f8-84b3-4b76-a868-d6810130ebf9> a bbqs:Publication ;
-    bbqs:journal "Front Syst Biol" ;
-    bbqs:pmid "40747296" ;
-    bbqs:title "A microbiota-epigenetic circuit controls systematic circadian programs in the gut epithelium." ;
-    bbqs:year 2023 .
+bid:ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980 a bbqs:Investigator ;
+    bbqs:name "Dan Waxman" .
 
 <https://brain-bbqs.org/id/role/02220da7-1bf8-49e9-8ff0-ed008ea8d03e> a bbqs:ProjectRole ;
     bbqs:on_project bid:f294b0d9-175a-47c7-854c-d4d750009812 ;
@@ -1956,7 +2611,7 @@ bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
     bbqs:role_source "curator" .
 
 <https://brain-bbqs.org/id/role/eedb7237-95d4-4633-8431-0a94da8db187> a bbqs:ProjectRole ;
-    bbqs:on_project <https://brain-bbqs.org/id/grant/2ee5cfeb-b5f9-47d3-a01a-03b56b7f3514> ;
+    bbqs:on_project bid:8facb614-80ac-4873-8619-b37c2ad0ed62 ;
     bbqs:project_role "contact_pi" ;
     bbqs:role_source "funder_notice" .
 
@@ -1995,39 +2650,69 @@ bid:feeae3ca-856c-462b-8b35-0fe35e294242 a bbqs:Investigator ;
     bbqs:project_role "contact_pi" ;
     bbqs:role_source "curator" .
 
-<https://brain-bbqs.org/id/species/45489142-c8c8-4ab9-9a20-bb541c17a8d9> a bbqs:Species ;
-    bbqs:common_name "Cichlid Fish" ;
-    bbqs:name "Cichlid" ;
-    bbqs:taxonomy_class "Actinopterygii" .
+bid:0e76fcd9-9746-4456-a344-50f817379dcf a bbqs:DeviceCategory ;
+    bbqs:category_key "thermal_camera" ;
+    bbqs:description "Long-wave infrared cameras measuring surface temperature." ;
+    bbqs:label "Thermal Camera" ;
+    bbqs:measures "Surface temperature",
+        "thermal video" ;
+    bbqs:name "Thermal Camera" .
 
-<https://brain-bbqs.org/id/species/4f4bf742-4f60-4850-9495-3b81c08c7b35> a bbqs:Species ;
-    bbqs:common_name "Zebrafish" ;
-    bbqs:name "Zebrafish" ;
-    bbqs:taxonomy_class "Actinopterygii" .
+bid:0f782852-6d9e-4d3b-8c38-6e0573400461 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.empatica.com/embraceplus/" ;
+    bbqs:homepage_url "https://www.empatica.com/embraceplus/" ;
+    bbqs:name "Empatica Inc." .
 
-<https://brain-bbqs.org/id/species/69d5150b-d82f-4e41-8411-bd7aef8175d8> a bbqs:Species ;
-    bbqs:common_name "Fruit Fly" ;
-    bbqs:name "Drosophila" ;
-    bbqs:taxonomy_class "Insecta" .
+bid:0fad9963-1681-478c-881e-348e2736fafe a bbqs:DeviceCategory ;
+    bbqs:category_key "behavioral_apparatus" ;
+    bbqs:description "Operant boxes, arenas, treadmills, and task hardware." ;
+    bbqs:label "Behavioral Apparatus" ;
+    bbqs:measures "Trial events",
+        "latencies",
+        "responses" ;
+    bbqs:name "Behavioral Apparatus" .
 
-<https://brain-bbqs.org/id/species/88f275de-bdc6-40b0-9db7-dd1385ffef96> a bbqs:Species ;
-    bbqs:common_name "Acoel Flatworm" ;
-    bbqs:name "Acoel Worm" ;
-    bbqs:taxonomy_class "Acoela" .
+bid:188ce5e2-0a5f-4c69-a9ec-bf7b8b1ebbc4 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.obsbot.com/" ;
+    bbqs:homepage_url "https://www.obsbot.com/" ;
+    bbqs:name "OBSBOT (Remo Tech)" .
 
-<https://brain-bbqs.org/id/species/be4986ab-ad5b-484a-8348-470194c17247> a bbqs:Species ;
-    bbqs:aliases "Mustela putorius furo",
-        "domestic ferret",
-        "ferret",
-        "ferrets" ;
-    bbqs:common_name "Domestic Ferret" ;
-    bbqs:name "Ferret" ;
-    bbqs:taxonomy_class "Mammalia" .
+bid:1933d538-1acc-4a01-8691-9ecd2989d0e2 a bbqs:DeviceCategory ;
+    bbqs:category_key "vr_environment" ;
+    bbqs:description "Immersive virtual and augmented reality systems and platforms." ;
+    bbqs:label "VR / AR Environment" ;
+    bbqs:measures "Head pose",
+        "controller input",
+        "scene events" ;
+    bbqs:name "VR / AR Environment" .
 
-<https://brain-bbqs.org/id/species/e8fd4683-6a50-4854-8301-2afc817680f4> a bbqs:Species ;
-    bbqs:common_name "Cricket" ;
-    bbqs:name "Cricket" ;
-    bbqs:taxonomy_class "Insecta" .
+bid:1a3ec6ab-3abd-4da5-b938-e9818c52b95a a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.garmin.com/" ;
+    bbqs:homepage_url "https://www.garmin.com/" ;
+    bbqs:name "Garmin Ltd." .
+
+bid:1eda4bd4-4446-40c3-8996-7400722b1560 a bbqs:DeviceCategory ;
+    bbqs:category_key "emg" ;
+    bbqs:description "Surface and intramuscular electromyography systems." ;
+    bbqs:label "EMG" ;
+    bbqs:measures "EMG envelope",
+        "Muscle activation" ;
+    bbqs:name "EMG" .
+
+bid:2367da64-4eae-4655-a4dc-315ad12e3398 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://open-ephys.org/" ;
+    bbqs:homepage_url "https://open-ephys.org/" ;
+    bbqs:name "Open Ephys" .
+
+bid:247cc4da-1133-4307-97c9-8238c723dc67 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.movella.com/products/motion-capture" ;
+    bbqs:homepage_url "https://www.movella.com/products/motion-capture" ;
+    bbqs:name "Movella (formerly Xsens)" .
+
+bid:2911be71-0f8a-47d5-9b0b-df9c7e75ce2f a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.avisoft.com/" ;
+    bbqs:homepage_url "https://www.avisoft.com/" ;
+    bbqs:name "Avisoft Bioacoustics" .
 
 bid:2db5ee93-296a-446a-a3e6-59fd3d28c4a6 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2073,6 +2758,20 @@ in general.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Freely moving animals" ;
     bbqs:title "Multimodal behavioral analysis of oromanual food-handling in freely moving animals" .
+
+bid:31b21990-8007-45a0-86e0-d1e9e412d9a7 a bbqs:DeviceCategory ;
+    bbqs:category_key "gps" ;
+    bbqs:description "Satellite positioning receivers and geolocation loggers." ;
+    bbqs:label "GPS / Geolocation" ;
+    bbqs:measures "Latitude/longitude",
+        "altitude",
+        "speed" ;
+    bbqs:name "GPS / Geolocation" .
+
+bid:31c5064c-5df0-4821-9ea7-d3807308ba18 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.emotibit.com/" ;
+    bbqs:homepage_url "https://www.emotibit.com/" ;
+    bbqs:name "Connected Future Labs" .
 
 bid:3352859e-5677-46dd-89d6-17c898b6f097 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -2122,9 +2821,22 @@ autobiographical memory formation, and synchronize this data with direct neural 
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135109-03" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans (Epilepsy Patients)" ;
     bbqs:title "Capturing Autobiographical memory formation in People moving Through real-world spaces Using synchronized wearables and intracranial Recordings of EEG" .
+
+bid:34971c92-6e5a-4231-8d74-3759c2301d8b a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.biopac.com/" ;
+    bbqs:homepage_url "https://www.biopac.com/" ;
+    bbqs:name "BIOPAC Systems, Inc." .
+
+bid:361a786e-7850-418a-a76a-ea21fc656775 a bbqs:DeviceCategory ;
+    bbqs:category_key "ultrasonic_microphone" ;
+    bbqs:description "Recording hardware for ultrasonic vocalizations above the human hearing range." ;
+    bbqs:label "Ultrasonic Microphone" ;
+    bbqs:measures "USV spectrograms",
+        "Ultrasonic audio" ;
+    bbqs:name "Ultrasonic Microphone" .
 
 bid:38289d36-f3a6-43e1-955b-db1d3d400cb2 a bbqs:Project ;
     bbqs:abstract """Summary
@@ -2171,7 +2883,7 @@ tool for facilitating social interaction.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138705-02" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Neural and Behavioral Correlates of Live Face-to-Face Interactions" .
 
@@ -2205,9 +2917,109 @@ complex collective behaviors in a large-brained highly social animal model.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059514-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> ;
+    bbqs:studies_species bid:ec95cd91-709c-41ac-8bfb-bfdf3e2ea89c ;
     bbqs:studies_species_name "Ovis aries" ;
     bbqs:title "Towards High-Resolution Neuro-Behavioral Quantification of Sheep in the Field to Study Complex Social Behaviors" .
+
+bid:3eaf894a-5a66-47be-b36f-ce28d5cd1e9c a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.baslerweb.com/" ;
+    bbqs:homepage_url "https://www.baslerweb.com/" ;
+    bbqs:name "Basler AG" .
+
+bid:46ca9982-9f32-4d56-84fc-95df94a69e7d a bbqs:DeviceCategory ;
+    bbqs:category_key "ieeg" ;
+    bbqs:description "Invasive recording from ECoG grids, sEEG depth electrodes, and single units." ;
+    bbqs:label "Intracranial EEG" ;
+    bbqs:measures "ECoG",
+        "LFP",
+        "single-unit spikes" ;
+    bbqs:name "Intracranial EEG" .
+
+bid:491ac537-b3f6-45b9-93f3-1249fd809ebc a bbqs:Species ;
+    bbqs:aliases "Cebus imitator",
+        "cebus imitator",
+        "white-faced capuchin" ;
+    bbqs:common_name "White-faced Capuchin" ;
+    bbqs:name "White-faced Capuchin" ;
+    bbqs:taxonomy_class "Mammalia" .
+
+bid:541eb3ec-855c-427e-9d9d-816b3845b9cf a bbqs:DeviceManufacturer ;
+    bbqs:name "Stoelting" .
+
+bid:560d0a58-2a10-439c-b397-4eecb30a2388 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://optitrack.com/" ;
+    bbqs:homepage_url "https://optitrack.com/" ;
+    bbqs:name "NaturalPoint, Inc." .
+
+bid:562743b9-2c34-4049-806b-10e28796fdba a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.biomark.com/" ;
+    bbqs:homepage_url "https://www.biomark.com/" ;
+    bbqs:name "Biomark, Inc." .
+
+bid:56efc35e-a021-483f-b2b1-1dae1f893d18 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://gopro.com/" ;
+    bbqs:homepage_url "https://gopro.com/" ;
+    bbqs:name "GoPro, Inc." .
+
+bid:58e396e9-0430-4678-ab24-382bba814d8b a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://white-matter.com/" ;
+    bbqs:homepage_url "https://white-matter.com/" ;
+    bbqs:name "White Matter LLC" .
+
+bid:5a248695-86a9-44ac-b923-a3050572afba a bbqs:Species ;
+    bbqs:aliases "Norway rat",
+        "Rattus norvegicus",
+        "rat",
+        "rattus norvegicus" ;
+    bbqs:common_name "Brown Rat" ;
+    bbqs:name "Brown Rat" ;
+    bbqs:taxonomy_class "Mammalia" .
+
+bid:60288cb2-b6fa-41ab-9312-3209dd2cd804 a bbqs:DeviceCategory ;
+    bbqs:category_key "rfid" ;
+    bbqs:description "Radio-frequency and passive integrated transponder identity tags." ;
+    bbqs:label "RFID / PIT Tags" ;
+    bbqs:measures "Individual ID",
+        "antenna crossings",
+        "timestamps" ;
+    bbqs:name "RFID / PIT Tags" .
+
+bid:615d81a2-ce1b-4d1e-8f17-30d97dddb2a0 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://shimmersensing.com/" ;
+    bbqs:homepage_url "https://shimmersensing.com/" ;
+    bbqs:name "Shimmer Research" .
+
+bid:6b2192d5-d840-4f4b-be96-5cec4f2fe432 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://delsys.com/trigno/" ;
+    bbqs:homepage_url "https://delsys.com/trigno/" ;
+    bbqs:name "Delsys Inc." .
+
+bid:765fd145-afc8-4101-92d5-33aff8c04fac a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.med-associates.com/" ;
+    bbqs:homepage_url "https://www.med-associates.com/" ;
+    bbqs:name "Med Associates Inc." .
+
+bid:77f3b242-4db9-4080-843c-d868a6d4f465 a bbqs:Species ;
+    bbqs:aliases "Molothrus ater",
+        "brown-headed cowbird",
+        "molothrus ater" ;
+    bbqs:common_name "Brown-headed Cowbird" ;
+    bbqs:name "Brown-headed Cowbird" ;
+    bbqs:taxonomy_class "Aves" .
+
+bid:79786801-1f05-4281-b4c3-9180854ee278 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.tobii.com/products/eye-trackers" ;
+    bbqs:homepage_url "https://www.tobii.com/products/eye-trackers" ;
+    bbqs:name "Tobii AB" .
+
+bid:7e99c7ca-9c1d-4de5-b6b5-a6c96c5341af a bbqs:DeviceCategory ;
+    bbqs:category_key "metabolic" ;
+    bbqs:description "Indirect calorimetry and energy-expenditure systems." ;
+    bbqs:label "Metabolic Measurement" ;
+    bbqs:measures "VCO2",
+        "VO2",
+        "energy expenditure" ;
+    bbqs:name "Metabolic Measurement" .
 
 bid:80db3a04-a9ad-486d-abf1-4b20f8370ff9 a bbqs:Project ;
     bbqs:abstract """Project Summary/Abstract
@@ -2241,9 +3053,98 @@ freely moving human behavior in naturalistic and ecologically valid environments
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "7R61MH135106-03" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Synchronized neuronal and peripheral biomarker recordings in freely moving humans" .
+
+bid:8482b347-2401-49bb-99c6-19a26be255c7 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.minidsp.com/products/usb-audio-interface/uma-16" ;
+    bbqs:homepage_url "https://www.minidsp.com/products/usb-audio-interface/uma-16" ;
+    bbqs:name "miniDSP" .
+
+bid:8facb614-80ac-4873-8619-b37c2ad0ed62 a bbqs:Project ;
+    bbqs:abstract """Project Summary/Abstract
+Post-traumatic stress disorder (PTSD) is marked by emotional dysregulation, hyperarousal, and intrusive
+autobiographical memories, yet current tools lack the ability to objectively monitor these symptoms in real time,
+especially outside clinical settings. This project will develop a self-powered smart contact lens (SCL) platform
+that integrates high-speed pupillometry with battery-free biosensing of tear film neurochemicals including cortisol,
+serotonin, and neuropeptide Y to assess emotional and autonomic states during naturalistic experiences. The
+lens will communicate wirelessly with custom smart glasses that power the system, record synchronized audio
+and video, and trigger intracranial EEG (iEEG) recordings via a wearable electromagnet cap. We will deploy the
+system in ambulatory participants with existing iEEG recording devices implanted in the amygdala and
+hippocampus, both in lab and at home, to characterize the correspondence between peripheral biosignals and
+neural activity during emotionally salient experiences. By enabling mobile, multimodal tracking of emotional
+arousal and stress in real-world contexts, this platform offers transformative potential for understanding and
+treating PTSD and related affective disorders.""" ;
+    bbqs:award_amount 1368212 ;
+    bbqs:description """Project Summary/Abstract
+Post-traumatic stress disorder (PTSD) is marked by emotional dysregulation, hyperarousal, and intrusive
+autobiographical memories, yet current tools lack the ability to objectively monitor these symptoms in real time,
+especially outside clinical settings. This project will develop a self-powered smart contact lens (SCL) platform
+that integrates high-speed pupillometry with battery-free biosensing of tear film neurochemicals including cortisol,
+serotonin, and neuropeptide Y to assess emotional and autonomic states during naturalistic experiences. The
+lens will communicate wirelessly with custom smart glasses that power the system, record synchronized audio
+and video, and trigger intracranial EEG (iEEG) recordings via a wearable electromagnet cap. We will deploy the
+system in ambulatory participants with existing iEEG recording devices implanted in the amygdala and
+hippocampus, both in lab and at home, to characterize the correspondence between peripheral biosignals and
+neural activity during emotionally salient experiences. By enabling mobile, multimodal tracking of emotional
+arousal and stress in real-world contexts, this platform offers transformative potential for understanding and
+treating PTSD and related affective disorders.""" ;
+    bbqs:fiscal_year 2026 ;
+    bbqs:grant_number "U01MH143789" ;
+    bbqs:mechanism "U01" ;
+    bbqs:name "A smart lens platform for real-world event capture and synchronized deep brain dynamics" ;
+    bbqs:onboarding_status "not_started" ;
+    bbqs:reporter_project_num "1U01MH143789-01" ;
+    bbqs:studies_human true ;
+    bbqs:title "A smart lens platform for real-world event capture and synchronized deep brain dynamics" .
+
+bid:90716be1-d61b-4641-ba7e-da9533d0dbeb a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://natus.com/" ;
+    bbqs:homepage_url "https://natus.com/" ;
+    bbqs:name "Natus Medical Incorporated" .
+
+bid:9b910269-1934-4f7b-a4f7-9f375f401d8d a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://pupil-labs.com/" ;
+    bbqs:homepage_url "https://pupil-labs.com/" ;
+    bbqs:name "Pupil Labs GmbH" .
+
+bid:9bd0353c-a176-48d7-9f2c-59375ae7819b a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.neuropixels.org/" ;
+    bbqs:homepage_url "https://www.neuropixels.org/" ;
+    bbqs:name "IMEC (distributed via Neuropixels consortium)" .
+
+bid:9e769c4e-0958-4ccc-bb96-d714734fa461 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://mbraintrain.com/" ;
+    bbqs:homepage_url "https://mbraintrain.com/" ;
+    bbqs:name "mBrainTrain" .
+
+bid:ab859681-c7fc-40cf-8d61-51035f1d8605 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.medtronic.com/" ;
+    bbqs:homepage_url "https://www.medtronic.com/" ;
+    bbqs:name "Medtronic plc" .
+
+bid:ac703a69-84bb-4157-b5c9-6d3f4e4d2c49 a bbqs:DeviceCategory ;
+    bbqs:category_key "eda" ;
+    bbqs:description "Skin conductance / galvanic skin response sensing." ;
+    bbqs:label "Electrodermal Activity" ;
+    bbqs:measures "Skin conductance level",
+        "phasic responses" ;
+    bbqs:name "Electrodermal Activity" .
+
+bid:bc8054b3-253f-4b13-a281-841deb7598e8 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.neuropace.com/" ;
+    bbqs:homepage_url "https://www.neuropace.com/" ;
+    bbqs:name "NeuroPace, Inc." .
+
+bid:bef479f9-d7a4-472b-8ff7-eb0b098beb7c a bbqs:Species ;
+    bbqs:aliases "Callithrix jacchus",
+        "common marmoset",
+        "marmoset",
+        "marmosets" ;
+    bbqs:common_name "Common Marmoset" ;
+    bbqs:name "Common Marmoset" ;
+    bbqs:taxonomy_class "Mammalia" .
 
 bid:ca25b66c-c03f-4d7e-90e8-93bc12fafeb1 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2290,146 +3191,78 @@ general principles of behavioral control, particularly via distributed computati
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA061984-02" ;
     bbqs:studies_human false ;
+    bbqs:studies_species bid:d6fbdcc7-30d7-48ba-9c46-b70e227c59cf ;
     bbqs:studies_species_name "Hofstenia miamia" ;
     bbqs:title "Quantifying organism-environment interactions in a new model system for neuroscience" .
 
-<https://brain-bbqs.org/id/devicecat/behavioral_apparatus> a bbqs:DeviceCategory ;
-    bbqs:category_key "behavioral_apparatus" ;
-    bbqs:label "Behavioral Apparatus" ;
-    bbqs:measures "Trial events",
-        "latencies",
-        "responses" .
+bid:d5dd8903-0114-4511-a4ec-446ae9f657a8 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.ant-neuro.com/" ;
+    bbqs:homepage_url "https://www.ant-neuro.com/" ;
+    bbqs:name "ANT Neuro" .
 
-<https://brain-bbqs.org/id/devicecat/eda> a bbqs:DeviceCategory ;
-    bbqs:category_key "eda" ;
-    bbqs:label "Electrodermal Activity" ;
-    bbqs:measures "Skin conductance level",
-        "phasic responses" .
+bid:d68a81db-70f9-4ea5-95af-3f1f83a46771 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.flir.com/" ;
+    bbqs:homepage_url "https://www.flir.com/" ;
+    bbqs:name "Teledyne FLIR" .
 
-<https://brain-bbqs.org/id/devicecat/emg> a bbqs:DeviceCategory ;
-    bbqs:category_key "emg" ;
-    bbqs:label "EMG" ;
-    bbqs:measures "EMG envelope",
-        "Muscle activation" .
+bid:d6fbdcc7-30d7-48ba-9c46-b70e227c59cf a bbqs:Species ;
+    bbqs:aliases "Hofstenia miamia",
+        "hofstenia miamia",
+        "panther worm" ;
+    bbqs:common_name "panther worm" ;
+    bbqs:description "Panther worm (acoel); studied in R34DA061984" ;
+    bbqs:name "Hofstenia miamia" ;
+    bbqs:taxonomy_class "Acoela" .
 
-<https://brain-bbqs.org/id/devicecat/ephys_probe> a bbqs:DeviceCategory ;
-    bbqs:category_key "ephys_probe" ;
-    bbqs:label "Electrophysiology Probe" ;
-    bbqs:measures "LFP",
-        "Spikes",
-        "multi-unit activity" .
+bid:d74d8fe3-4c71-481b-8a54-410c4e3574a9 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.motekmedical.com/solution/caren/" ;
+    bbqs:homepage_url "https://www.motekmedical.com/solution/caren/" ;
+    bbqs:name "Motek Medical" .
 
-<https://brain-bbqs.org/id/devicecat/gps> a bbqs:DeviceCategory ;
-    bbqs:category_key "gps" ;
-    bbqs:label "GPS / Geolocation" ;
-    bbqs:measures "Latitude/longitude",
-        "altitude",
-        "speed" .
+bid:ddff023c-f84e-41b2-aa9e-1e8ee0d743fd a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.wildlifeacoustics.com/" ;
+    bbqs:homepage_url "https://www.wildlifeacoustics.com/" ;
+    bbqs:name "Wildlife Acoustics, Inc." .
 
-<https://brain-bbqs.org/id/devicecat/ieeg> a bbqs:DeviceCategory ;
-    bbqs:category_key "ieeg" ;
-    bbqs:label "Intracranial EEG" ;
-    bbqs:measures "ECoG",
-        "LFP",
-        "single-unit spikes" .
+bid:e038c24f-a4b4-4b18-af2a-a8f0ae2a21c7 a bbqs:DeviceManufacturer ;
+    bbqs:external_url "https://www.cosmed.com/" ;
+    bbqs:homepage_url "https://www.cosmed.com/" ;
+    bbqs:name "COSMED" .
 
-<https://brain-bbqs.org/id/devicecat/metabolic> a bbqs:DeviceCategory ;
-    bbqs:category_key "metabolic" ;
-    bbqs:label "Metabolic Measurement" ;
-    bbqs:measures "VCO2",
-        "VO2",
-        "energy expenditure" .
-
-<https://brain-bbqs.org/id/devicecat/rfid> a bbqs:DeviceCategory ;
-    bbqs:category_key "rfid" ;
-    bbqs:label "RFID / PIT Tags" ;
-    bbqs:measures "Individual ID",
-        "antenna crossings",
-        "timestamps" .
-
-<https://brain-bbqs.org/id/devicecat/thermal_camera> a bbqs:DeviceCategory ;
-    bbqs:category_key "thermal_camera" ;
-    bbqs:label "Thermal Camera" ;
-    bbqs:measures "Surface temperature",
-        "thermal video" .
-
-<https://brain-bbqs.org/id/devicecat/ultrasonic_microphone> a bbqs:DeviceCategory ;
-    bbqs:category_key "ultrasonic_microphone" ;
-    bbqs:label "Ultrasonic Microphone" ;
-    bbqs:measures "USV spectrograms",
-        "Ultrasonic audio" .
-
-<https://brain-bbqs.org/id/devicecat/vr_environment> a bbqs:DeviceCategory ;
-    bbqs:category_key "vr_environment" ;
-    bbqs:label "VR / AR Environment" ;
-    bbqs:measures "Head pose",
-        "controller input",
-        "scene events" .
-
-<https://brain-bbqs.org/id/grant/2ee5cfeb-b5f9-47d3-a01a-03b56b7f3514> a bbqs:Project ;
-    bbqs:abstract """Project Summary/Abstract
-Post-traumatic stress disorder (PTSD) is marked by emotional dysregulation, hyperarousal, and intrusive
-autobiographical memories, yet current tools lack the ability to objectively monitor these symptoms in real time,
-especially outside clinical settings. This project will develop a self-powered smart contact lens (SCL) platform
-that integrates high-speed pupillometry with battery-free biosensing of tear film neurochemicals including cortisol,
-serotonin, and neuropeptide Y to assess emotional and autonomic states during naturalistic experiences. The
-lens will communicate wirelessly with custom smart glasses that power the system, record synchronized audio
-and video, and trigger intracranial EEG (iEEG) recordings via a wearable electromagnet cap. We will deploy the
-system in ambulatory participants with existing iEEG recording devices implanted in the amygdala and
-hippocampus, both in lab and at home, to characterize the correspondence between peripheral biosignals and
-neural activity during emotionally salient experiences. By enabling mobile, multimodal tracking of emotional
-arousal and stress in real-world contexts, this platform offers transformative potential for understanding and
-treating PTSD and related affective disorders.""" ;
-    bbqs:award_amount 1368212 ;
-    bbqs:fiscal_year 2026 ;
-    bbqs:grant_number "U01MH143789" ;
-    bbqs:mechanism "U01" ;
-    bbqs:onboarding_status "not_started" ;
-    bbqs:reporter_project_num "1U01MH143789-01" ;
-    bbqs:studies_human true ;
-    bbqs:title "A smart lens platform for real-world event capture and synchronized deep brain dynamics" .
-
-<https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> a bbqs:Species ;
-    bbqs:aliases "Molothrus ater",
-        "brown-headed cowbird",
-        "molothrus ater" ;
-    bbqs:common_name "Brown-headed Cowbird" ;
-    bbqs:name "Cowbird" ;
-    bbqs:taxonomy_class "Aves" .
-
-<https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> a bbqs:Species ;
-    bbqs:aliases "Cebus imitator",
-        "cebus imitator",
-        "white-faced capuchin" ;
-    bbqs:common_name "White-faced Capuchin" ;
-    bbqs:name "Capuchin Monkey" ;
-    bbqs:taxonomy_class "Mammalia" .
-
-<https://brain-bbqs.org/id/species/bf32509c-9d8f-402e-9dc5-704a495c401c> a bbqs:Species ;
+bid:ec95cd91-709c-41ac-8bfb-bfdf3e2ea89c a bbqs:Species ;
     bbqs:aliases "Ovis aries",
         "domestic sheep",
         "ovis aries" ;
     bbqs:common_name "Domestic Sheep" ;
-    bbqs:name "Sheep" ;
+    bbqs:name "Domestic Sheep" ;
     bbqs:taxonomy_class "Mammalia" .
 
-<https://brain-bbqs.org/id/species/ef37411f-12de-410e-b100-7251dc530cbf> a bbqs:Species ;
-    bbqs:aliases "Norway rat",
-        "Rattus norvegicus",
-        "rat",
-        "rattus norvegicus" ;
-    bbqs:common_name "Brown Rat" ;
-    bbqs:name "Rat" ;
-    bbqs:taxonomy_class "Mammalia" .
+bid:f328ad53-2dd2-490f-adf1-40e9cd85b5bd a bbqs:DeviceCategory ;
+    bbqs:category_key "ephys_probe" ;
+    bbqs:description "High-density silicon probes and electrode arrays for extracellular recording." ;
+    bbqs:label "Electrophysiology Probe" ;
+    bbqs:measures "LFP",
+        "Spikes",
+        "multi-unit activity" ;
+    bbqs:name "Electrophysiology Probe" .
 
-<https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> a bbqs:Species ;
-    bbqs:aliases "Callithrix jacchus",
-        "common marmoset",
-        "marmoset",
-        "marmosets" ;
-    bbqs:common_name "Common Marmoset" ;
-    bbqs:name "Marmoset" ;
-    bbqs:taxonomy_class "Mammalia" .
+bid:006caa68-8b24-474f-867f-82a6199a84b1 a bbqs:DeviceCategory ;
+    bbqs:category_key "wireless_ephys" ;
+    bbqs:description "Untethered neural acquisition systems and telemetry headstages." ;
+    bbqs:label "Wireless Electrophysiology" ;
+    bbqs:measures "LFP",
+        "Spikes",
+        "synchronized video" ;
+    bbqs:name "Wireless Electrophysiology" .
+
+bid:1f40721b-dadd-4141-8f9d-6661f4777718 a bbqs:DeviceCategory ;
+    bbqs:category_key "eeg" ;
+    bbqs:description "Non-invasive scalp electroencephalography amplifiers and caps." ;
+    bbqs:label "Scalp EEG" ;
+    bbqs:measures "EEG voltage",
+        "event-related potentials",
+        "spectral power" ;
+    bbqs:name "Scalp EEG" .
 
 bid:3a4fb38d-dc54-4d06-a1cf-a5a959d3321b a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2477,7 +3310,7 @@ unique brain-behavior insights into human emotion functioning applicable to broa
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135407-03" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Novel multimodal neural, physiological, and behavioral sensing and machine learning for mental states" .
 
@@ -2523,9 +3356,28 @@ intellectual development in children with neurodevelopmental disorders.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135114-02" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans (Pediatric)" ;
     bbqs:title "Integrated movement tracking for pediatric OPM-MEG studies of intellectual disability" .
+
+bid:7d968a4f-f412-431e-a9d9-6ec963cb8677 a bbqs:DeviceCategory ;
+    bbqs:category_key "eye_tracker" ;
+    bbqs:description "Wearable and remote gaze tracking systems." ;
+    bbqs:label "Eye Tracker" ;
+    bbqs:measures "Gaze position",
+        "fixations",
+        "pupil diameter",
+        "saccades" ;
+    bbqs:name "Eye Tracker" .
+
+bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 a bbqs:Species ;
+    bbqs:aliases "Meriones unguiculatus",
+        "Mongolian gerbil",
+        "gerbil",
+        "meriones unguiculatus" ;
+    bbqs:common_name "Mongolian Gerbil" ;
+    bbqs:name "Mongolian Gerbil" ;
+    bbqs:taxonomy_class "Mammalia" .
 
 bid:adc6c1dd-57a9-49bb-a57d-521fd1208a76 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2570,51 +3422,21 @@ significant step towards bridging the gap between basic neuroscience research an
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138966-02" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "A naturalistic multimodal platform for capturing brain-body interactions in people during physical effort-based decision making" .
 
-<https://brain-bbqs.org/id/devicecat/eeg> a bbqs:DeviceCategory ;
-    bbqs:category_key "eeg" ;
-    bbqs:label "Scalp EEG" ;
-    bbqs:measures "EEG voltage",
-        "event-related potentials",
-        "spectral power" .
+bid:c42dadeb-bf3c-44fa-baff-92adea2e0185 a bbqs:DeviceManufacturer ;
+    bbqs:name "Pearson" .
 
-<https://brain-bbqs.org/id/devicecat/eye_tracker> a bbqs:DeviceCategory ;
-    bbqs:category_key "eye_tracker" ;
-    bbqs:label "Eye Tracker" ;
-    bbqs:measures "Gaze position",
-        "fixations",
-        "pupil diameter",
-        "saccades" .
-
-<https://brain-bbqs.org/id/devicecat/microphone> a bbqs:DeviceCategory ;
-    bbqs:category_key "microphone" ;
-    bbqs:label "Microphone / Audio Recorder" ;
-    bbqs:measures "Audio waveform",
-        "sound pressure level" .
-
-<https://brain-bbqs.org/id/devicecat/motion_capture> a bbqs:DeviceCategory ;
+bid:dac56889-e81e-478e-827d-7f08bb15efd3 a bbqs:DeviceCategory ;
     bbqs:category_key "motion_capture" ;
+    bbqs:description "Marker-based and inertial motion capture systems." ;
     bbqs:label "Motion Capture" ;
     bbqs:measures "3D marker positions",
         "joint angles",
-        "segment kinematics" .
-
-<https://brain-bbqs.org/id/devicecat/neurostimulation> a bbqs:DeviceCategory ;
-    bbqs:category_key "neurostimulation" ;
-    bbqs:label "Neurostimulation / DBS" ;
-    bbqs:measures "LFP",
-        "event markers",
-        "stimulation parameters" .
-
-<https://brain-bbqs.org/id/devicecat/wireless_ephys> a bbqs:DeviceCategory ;
-    bbqs:category_key "wireless_ephys" ;
-    bbqs:label "Wireless Electrophysiology" ;
-    bbqs:measures "LFP",
-        "Spikes",
-        "synchronized video" .
+        "segment kinematics" ;
+    bbqs:name "Motion Capture" .
 
 bid:e5bb6e4f-d3cf-44d4-ac1a-59f76724c0d2 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -2649,14 +3471,22 @@ way for a large-scale R01.""" ;
     bbqs:studies_species_name "Social species with male displays" ;
     bbqs:title "A modeling framework and arena for measuring contextual influences of behavior" .
 
-<https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> a bbqs:Species ;
-    bbqs:aliases "Meriones unguiculatus",
-        "Mongolian gerbil",
-        "gerbil",
-        "meriones unguiculatus" ;
-    bbqs:common_name "Mongolian Gerbil" ;
-    bbqs:name "Gerbil" ;
-    bbqs:taxonomy_class "Mammalia" .
+bid:e80e0495-82ff-4d51-995f-36e9349b40fb a bbqs:DeviceCategory ;
+    bbqs:category_key "microphone" ;
+    bbqs:description "Audible-range microphones, arrays, and field recorders." ;
+    bbqs:label "Microphone / Audio Recorder" ;
+    bbqs:measures "Audio waveform",
+        "sound pressure level" ;
+    bbqs:name "Microphone / Audio Recorder" .
+
+bid:e9d52180-5701-46ba-b5dc-7fc6fa32233b a bbqs:DeviceCategory ;
+    bbqs:category_key "neurostimulation" ;
+    bbqs:description "Implanted stimulation systems with chronic sensing capability." ;
+    bbqs:label "Neurostimulation / DBS" ;
+    bbqs:measures "LFP",
+        "event markers",
+        "stimulation parameters" ;
+    bbqs:name "Neurostimulation / DBS" .
 
 bid:1573f2f2-dfe7-476f-ba44-55011c0f5d1b a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY/ABSTRACT
@@ -2702,7 +3532,7 @@ to inform translational science and ultimately enhance our understanding of huma
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA061925-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/8997dbdc-905c-42c0-b080-075e2a6a42ae> ;
+    bbqs:studies_species bid:491ac537-b3f6-45b9-93f3-1249fd809ebc ;
     bbqs:studies_species_name "Cebus imitator" ;
     bbqs:title "Building an “AI Forest” to identify the social and environmental factors underlying complex behavioral traits in wild primates." .
 
@@ -2749,7 +3579,7 @@ unprecedented resolution.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059718-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
+    bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
     bbqs:studies_species_name "Mouse" ;
     bbqs:title "Harnessing biological rhythms for a resilient social motif generator" .
 
@@ -2793,7 +3623,7 @@ auditory/behavioral covariates (encoding models).""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059513-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> ;
+    bbqs:studies_species bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 ;
     bbqs:studies_species_name "Gerbil" ;
     bbqs:title "Computational attribution and fusion of vocalizations, social behavior, and neural recordings in a naturalistic environment" .
 
@@ -2829,11 +3659,21 @@ quantitative descriptions of animal behavior.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059506-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47>,
-        <https://brain-bbqs.org/id/species/ef37411f-12de-410e-b100-7251dc530cbf> ;
+    bbqs:studies_species bid:5a248695-86a9-44ac-b923-a3050572afba,
+        bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
     bbqs:studies_species_name "Mouse",
         "Rat" ;
     bbqs:title "High-resolution 3D tracking of social behaviors for deep phenotypic analysis" .
+
+bid:851882bb-3321-45ed-af75-6ae08836c1fc a bbqs:DeviceCategory ;
+    bbqs:category_key "wearable_multimodal" ;
+    bbqs:description "Wrist- and body-worn devices combining several physiological sensors." ;
+    bbqs:label "Multimodal Wearable" ;
+    bbqs:measures "EDA",
+        "PPG",
+        "accelerometry",
+        "temperature" ;
+    bbqs:name "Multimodal Wearable" .
 
 bid:a1b2c3d4-0004-4000-8000-000000000001 a bbqs:Project ;
     bbqs:abstract """SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection
@@ -2869,9 +3709,12 @@ to develop future neuromodulatory therapeutic approaches to facilitate the retur
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1R61MH138612-01" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection of consciousness" .
+
+bid:a7b15b50-1f35-4e02-91d5-c28593457e3d a bbqs:DeviceManufacturer ;
+    bbqs:name "Western Psychological Services" .
 
 bid:b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY/ABSTRACT
@@ -2912,23 +3755,9 @@ streaming delays. We will also develop computational frameworks for analyses of 
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059716-02" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Interpersonal behavioral synchrony in virtual and in-person dyadic conversation" .
-
-<https://brain-bbqs.org/id/devicecat/video_camera> a bbqs:DeviceCategory ;
-    bbqs:category_key "video_camera" ;
-    bbqs:label "Video Camera" ;
-    bbqs:measures "RGB video",
-        "frame timestamps" .
-
-<https://brain-bbqs.org/id/devicecat/wearable_multimodal> a bbqs:DeviceCategory ;
-    bbqs:category_key "wearable_multimodal" ;
-    bbqs:label "Multimodal Wearable" ;
-    bbqs:measures "EDA",
-        "PPG",
-        "accelerometry",
-        "temperature" .
 
 bid:df28e74c-eeb6-40e2-a5e4-a9220ad7c540 a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -3003,6 +3832,14 @@ To study these important epidemiological and biological questions in a controlle
     bbqs:studies_species_name "Developmental Models" ;
     bbqs:title "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development" .
 
+bid:ffee4fa8-d435-43e4-8c3d-9c4570b54ab0 a bbqs:DeviceCategory ;
+    bbqs:category_key "video_camera" ;
+    bbqs:description "Standard or high-speed cameras recording visible-light behavioural video." ;
+    bbqs:label "Video Camera" ;
+    bbqs:measures "RGB video",
+        "frame timestamps" ;
+    bbqs:name "Video Camera" .
+
 bid:071aa27a-456a-4eb1-abd2-35d9f0eceaf7 a bbqs:Project ;
     bbqs:abstract """Project Summary/Abstract
 Naturalistic contexts provide the opportunity to study the brain and behavior in response to the ethological
@@ -3045,7 +3882,7 @@ Aim 1 – as well as to explore the potential to address targeted research quest
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059509-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
+    bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
     bbqs:studies_species_name "Mouse" ;
     bbqs:title "Behavioral quantification through active learning and multidimensional physiological monitoring" .
 
@@ -3135,7 +3972,7 @@ subjects.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH135405-03" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Developing the Context-Aware Multimodal Ecological Research and Assessment (CAMERA) Platform for Continuous Measurement and Prediction of Anxiety and Memory State" .
 
@@ -3175,6 +4012,16 @@ collaborative team to pursue this work.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species_name "Genetic Species" ;
     bbqs:title "Transformative Optical Imaging of Brain & Behavior in Navigating Genetic Species" .
+
+bid:9f227f88-53ba-4c7c-91e7-334641e4b759 a bbqs:Species ;
+    bbqs:aliases "Mus musculus",
+        "house mouse",
+        "mice",
+        "mouse",
+        "mus musculus" ;
+    bbqs:common_name "House Mouse" ;
+    bbqs:name "House Mouse" ;
+    bbqs:taxonomy_class "Mammalia" .
 
 bid:a98fe953-d2ad-4770-8c8c-1759f8500c4a a bbqs:Project ;
     bbqs:abstract """PROJECT SUMMARY
@@ -3226,7 +4073,7 @@ during sound-driven social interactions.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063581-01" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/a9c80e66-9f96-4280-bb83-b5eaae9fcd05> ;
+    bbqs:studies_species bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 ;
     bbqs:studies_species_name "Meriones unguiculatus" ;
     bbqs:title "Computational Analyses of Family Auditory Communication: Linking Behavior, Vocalization, and Neural Dynamics" .
 
@@ -3280,7 +4127,7 @@ individual brain states and hormone systems on survival strategies.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063565-01" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> ;
+    bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
     bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "Neurobehavioral Mechanisms of Social Behavior and Familial Structure" .
 
@@ -3399,19 +4246,9 @@ activity.""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R34DA059507-02" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/097895bd-76d2-483c-8d37-6dcc2d8676b5> ;
+    bbqs:studies_species bid:77f3b242-4db9-4080-843c-d868a6d4f465 ;
     bbqs:studies_species_name "Molothrus ater" ;
     bbqs:title "Development of a \"smart aviary\" to probe neural dynamics of complex social behaviors in a gregarious songbird" .
-
-<https://brain-bbqs.org/id/species/06c950be-1765-45e8-b5c0-a9c7bb85ee47> a bbqs:Species ;
-    bbqs:aliases "Mus musculus",
-        "house mouse",
-        "mice",
-        "mouse",
-        "mus musculus" ;
-    bbqs:common_name "House Mouse" ;
-    bbqs:name "Mouse" ;
-    bbqs:taxonomy_class "Mammalia" .
 
 bid:797fd7cf-49dc-40a2-811d-aeec94460ead a bbqs:Project ;
     bbqs:abstract """Summary/Abstract
@@ -3460,7 +4297,7 @@ world. For example, the response of the brain to """ ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1R61MH138967-01" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Human" ;
     bbqs:title "A Day in the Life of the Human Brain: Investigating the Dynamic Interrelationship Between Brain, Cognition, Behavior, and Physiology" .
 
@@ -3561,15 +4398,17 @@ of determining sources of inattention on individual basis, thus allowing for mor
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "5R61MH138713-02" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Humans" ;
     bbqs:title "Combining neural oscillations, physiology and privacy-preserving LiDAR/millimeter wave sensing technology to track attention states in natural contexts" .
 
-<https://brain-bbqs.org/id/devicecat/clinical_assessment> a bbqs:DeviceCategory ;
+bid:829b9463-611f-45d6-bd24-262a5410c325 a bbqs:DeviceCategory ;
     bbqs:category_key "clinical_assessment" ;
+    bbqs:description "Standardized clinical and psychometric instruments." ;
     bbqs:label "Clinical Assessment Instrument" ;
     bbqs:measures "Scaled scores",
-        "subscale scores" .
+        "subscale scores" ;
+    bbqs:name "Clinical Assessment Instrument" .
 
 bid:8095d361-d12f-4015-86e7-67fced46f2e9 a bbqs:Project ;
     bbqs:abstract """Project Summary
@@ -3608,7 +4447,7 @@ electroencephalographic (iEEG) recordings from DBS""" ;
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01MH144347-01" ;
     bbqs:studies_human true ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> ;
+    bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
     bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SMART-DBS: A Symptom-Manipulating, Adaptive and Responsive Therapy for continuous brain-behavioral recording and stimulation" .
 
@@ -3656,7 +4495,7 @@ understanding of primate social interactions to date, along with novel generativ
     bbqs:onboarding_status "not_started" ;
     bbqs:reporter_project_num "1U01DA063534-01" ;
     bbqs:studies_human false ;
-    bbqs:studies_species <https://brain-bbqs.org/id/species/f95cc1a2-5f0f-451e-8425-95171a7666d2> ;
+    bbqs:studies_species bid:bef479f9-d7a4-472b-8ff7-eb0b098beb7c ;
     bbqs:studies_species_name "Marmosets" ;
     bbqs:title "Toward comprehensive models of naturalistic cooperation and competition in primates" .
 
@@ -3711,7 +4550,7 @@ and behavior, which in turn could advance neuroscience and our understanding of 
     bbqs:studies_species_name "All Species" ;
     bbqs:title "BBQS AI Resource and Data Coordinating Center (BARD.CC)" .
 
-<https://brain-bbqs.org/id/species/bdf65179-e17c-4a35-b348-bd1013ce3dcb> a bbqs:Species ;
+bid:63464d21-4ef2-4405-a192-4b60e344ff40 a bbqs:Species ;
     bbqs:aliases "Homo sapiens",
         "homo sapiens",
         "human",

@@ -6,8 +6,8 @@ per-project detail is out of scope for now.
 
 ## Build phases
 
-**Where we are: Phase 4 (generate OWL/SHACL) done — Phase 5 (backfill migration) next.** This table
-is the running status of the whole effort; the Status column is updated as each phase lands.
+**Where we are: Phase 5 (backfill + spine-first exporter) in progress.** This table is the running
+status of the whole effort; the Status column is updated as each phase lands.
 
 | # | Phase | Step | Status |
 |---|---|---|---|
@@ -16,7 +16,7 @@ is the running status of the whole effort; the Status column is updated as each 
 | 2 | Consistency invariants — the 13-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (5 shapes + 1 guard live) |
 | 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (2,476 triples; 9 dangling) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done** (`bbqs.owl.ttl` 3,165 triples; `bbqs.shapes.gen.ttl` 22 NodeShapes; `disjoint_with` → `owl:disjointWith` didn't emit — deferred to Phase 6) |
-| 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | planned |
+| 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
 | 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | planned |
 | 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
@@ -122,6 +122,6 @@ Anon by default (RLS-limited). For the full graph — including investigators-ta
 
 ## Not yet built
 
-- **Full-access export**: run with a key that can read investigators/field_provenance/working groups; promote `working_groups[]` and map `field_provenance` → PROV.
-- **Backfill migration**: add `resource_type` values + `resource_id` for species / devices / manufacturers / working groups / funding / events (also: orgs and publications aren't in the spine at all).
-- **OWL reasoning layer** (see above).
+- **Phase 5 cleanup**: remove the orphan `resources` rows the backfill left (~14 `investigator` + 1 `grant` that point at no table row); add an insert trigger so new rows get a `resource_id` automatically; and once `types.ts` is regenerated, promote the 6 backfilled `resource_type` values from PROPOSED → shipped in the LinkML (the parity guard will flag it).
+- **Full-access export**: run with a key that can read investigators / field_provenance / working-group detail; map `field_provenance` → PROV (needed by shapes 5 and 12).
+- **OWL reasoning layer** (see above) — includes the `owl:disjointWith` axioms gen-owl didn't emit.
