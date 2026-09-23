@@ -123,3 +123,132 @@ bbqs:ConflictingVerifiedProvenanceShape
       }
     """ ;
   ] .
+
+# ── Invariant #14 — one ORCID, one Investigator node ──────────────────────────
+# An ORCID iD identifies a person, not a row. Two Investigator nodes carrying the same
+# bbqs:orcid are the same person recorded twice -- a merge candidate, never two people.
+# No targets yet: the anon export doesn't emit `orcid` (full-access export required).
+bbqs:OrcidUniquePerPersonShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Investigator ;
+  sh:sparql [
+    sh:message "Two Investigator nodes share one orcid -- merge candidate, not two people (#14)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?other WHERE {
+        $this bbqs:orcid ?o .
+        ?other bbqs:orcid ?o .
+        FILTER(?other != $this)
+        FILTER(STR($this) < STR(?other))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #15 — one email (primary or secondary), one Investigator node ───
+# investigators.email and investigators.secondary_emails are two slots on ONE row, but the
+# same address must not appear as the primary email of one node and the secondary email of
+# another -- that's the lyc5332@psu.edu failure: a second identity for a person already known
+# by a different address. No targets yet: `email`/`secondary_emails` are PII, restricted from
+# the anon export.
+bbqs:EmailUniquePerPersonShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Investigator ;
+  sh:sparql [
+    sh:message "Two Investigator nodes share one email across primary/secondary slots -- merge candidate (#15)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?other WHERE {
+        { $this bbqs:email ?e } UNION { $this bbqs:secondary_emails ?e } .
+        { ?other bbqs:email ?e } UNION { ?other bbqs:secondary_emails ?e } .
+        FILTER(?other != $this)
+        FILTER(STR($this) < STR(?other))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #16 — one role per person per grant ─────────────────────────────
+# A person may hold different roles across different grants (per-edge role is fine), but two
+# ProjectRole edges for the SAME held_by + on_project pair asserting different project_role
+# values is a contradiction about a single fact: this person's standing on this one grant.
+bbqs:OneRolePerPersonPerGrantShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ProjectRole ;
+  sh:sparql [
+    sh:message "Two ProjectRole edges disagree on the role for the same person on the same grant (#16)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?other WHERE {
+        $this  bbqs:held_by ?p ; bbqs:on_project ?g ; bbqs:project_role ?r1 .
+        ?other bbqs:held_by ?p ; bbqs:on_project ?g ; bbqs:project_role ?r2 .
+        FILTER(?other != $this)
+        FILTER(?r1 != ?r2)
+        FILTER(STR($this) < STR(?other))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #17 — author_orcids resolves to an Investigator node ────────────
+# publications.authors is deliberately NOT an FK (free-text byline); author_orcids is where a
+# real identity claim can be checked. An ORCID here with no matching bbqs:orcid on any
+# Investigator is incomplete identity resolution -- grade it, don't silently drop it (mirrors
+# the #7 species-resolution shape). No targets yet: the exporter doesn't emit author_orcids
+# for Publication nodes yet.
+bbqs:AuthorOrcidResolvesShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Publication ;
+  sh:sparql [
+    sh:message "author_orcids has an ORCID with no matching Investigator node -- dangling author identity (#17)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?orcid WHERE {
+        $this bbqs:author_orcids ?orcid .
+        FILTER NOT EXISTS { ?inv a bbqs:Investigator ; bbqs:orcid ?orcid }
+      }
+    """ ;
+  ] .
+
+# ── Invariant #18 — a grade-1 claim cannot be overwritten by a grade-3 claim ──
+# SourceClass.grade ranks reliability (1 = manual/curator, 3 = harvested). field_provenance is
+# append-only (X. Full Data Provenance), so a harvested (grade 3) record disagreeing with an
+# existing curated (grade 1) record for the same (table,column,id) is the harvester trying to
+# overwrite a human -- flag the curated record, never let the harvested value win silently.
+bbqs:GradedProvenancePrecedenceShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ProvenanceRecord ;
+  sh:sparql [
+    sh:message "a grade-3 (harvested) record disagrees with a grade-1 (curator) record for the same field (#18)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?other WHERE {
+        $this  bbqs:prov_entity_table ?t ; bbqs:prov_entity_column ?c ; bbqs:prov_entity_id ?i ;
+               bbqs:prov_value_text ?v1 ; bbqs:prov_source_class ?sc1 .
+        ?sc1   bbqs:grade 1 .
+        ?other bbqs:prov_entity_table ?t ; bbqs:prov_entity_column ?c ; bbqs:prov_entity_id ?i ;
+               bbqs:prov_value_text ?v2 ; bbqs:prov_source_class ?sc2 .
+        ?sc2   bbqs:grade 3 .
+        FILTER(?v1 != ?v2)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #19 — a node cannot exist with zero provenance claims ───────────
+# Every row came from somewhere; "unknown" is a value, not an absence. Scoped to bbqs:Project
+# for now (extend sh:targetClass as other classes get full-access-export coverage). Matches a
+# node to its ProvenanceRecords by the shared spine id -- the last path segment of the node's
+# IRI vs prov_entity_id. CAUTION: this assumes prov_entity_id is keyed in the SAME id space as
+# the node's own resources.id; where a table's provenance rows are keyed by a different table's
+# id (the exact investigators.id vs resources.id split behind the held_by bug above), this will
+# need the same kind of id-mapping the exporter uses for held_by, not a raw string match.
+bbqs:NodeHasProvenanceShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:sparql [
+    sh:message "This node has zero ProvenanceRecord claims (#19)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this WHERE {
+        BIND(STRAFTER(STR($this), "https://brain-bbqs.org/id/") AS ?localId)
+        FILTER NOT EXISTS { ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId }
+      }
+    """ ;
+  ] .

@@ -35,3 +35,47 @@ bid:prov-b a bbqs:ProvenanceRecord ;
 bid:role-dangling a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:ghost-investigator .
+
+# #14 — two Investigator nodes share one ORCID (merge candidate)
+bid:inv-dup-a a bbqs:Investigator ;
+  bbqs:name "Alex Kim" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1111-2222> .
+bid:inv-dup-b a bbqs:Investigator ;
+  bbqs:name "A. Kim" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1111-2222> .
+
+# #15 — one email split across two "different" people (the lyc5332@psu.edu class of bug)
+bid:inv-email-a a bbqs:Investigator ;
+  bbqs:name "Lin Chen" ;
+  bbqs:email "lyc5332@psu.edu" .
+bid:inv-email-b a bbqs:Investigator ;
+  bbqs:name "L. Chen (duplicate record)" ;
+  bbqs:secondary_emails "lyc5332@psu.edu" .
+
+# #16 — role-1 (above) already asserts held_by inv-1 / on_project proj-1 / role
+# "Principal Investigator"; a second edge for the SAME pair with a DIFFERENT role is a
+# contradiction about this person's one role on this one grant.
+bid:role-16 a bbqs:ProjectRole ;
+  bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:inv-1 ;
+  bbqs:on_project bid:proj-1 .
+
+# #17 — a publication's author_orcids has no matching Investigator node
+bid:pub-1 a bbqs:Publication ;
+  bbqs:title "A BBQS paper" ;
+  bbqs:author_orcids <https://orcid.org/0000-0002-9999-0000> .
+
+# #18 — a grade-3 (harvested) record disagrees with a grade-1 (curator) record
+bid:sc-grade1 a bbqs:SourceClass ; bbqs:grade 1 ; bbqs:is_verified true .
+bid:sc-grade3 a bbqs:SourceClass ; bbqs:grade 3 ; bbqs:is_verified false .
+bid:prov-c a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "investigators" ; bbqs:prov_entity_column "institution" ; bbqs:prov_entity_id "inv-9" ;
+  bbqs:prov_value_text "MIT" ; bbqs:prov_source_class bid:sc-grade1 .
+bid:prov-d a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "investigators" ; bbqs:prov_entity_column "institution" ; bbqs:prov_entity_id "inv-9" ;
+  bbqs:prov_value_text "MIT (Broad Institute)" ; bbqs:prov_source_class bid:sc-grade3 .
+
+# #19 — a Project node with zero provenance claims
+bid:proj-no-prov a bbqs:Project ;
+  bbqs:name "Orphan project" ;
+  bbqs:grant_number "1U01MH000000-01" .
