@@ -8,8 +8,8 @@ We can now **generate** a BBQS knowledge graph from the live database and **vali
 internally consistent. The first run produced a ~2,476-triple graph; the 2026-09-23 run produced
 **3,105**. Folding `species_aliases` into the resolver cut unresolved `study_species` from 26 to **9** —
 the genuine data-quality cases (non-species text like `"All Species"`, plus one real species with no
-`species` row). That row has since been added (`migration:add_hofstenia_species`), so the next run is
-**expected** to show **8**; that is not yet verified by an export. The role-vocabulary and grant-mechanism
+`species` row). That row has since been added (`migration:add_hofstenia_species`), and a re-export
+**confirmed 8**: R34DA061984 now resolves. The role-vocabulary and grant-mechanism
 checks pass cleanly — after the run corrected a schema error in our own role vocabulary.
 
 The goal of this effort is **consistency, not completeness**: we validate that parts of the graph do
@@ -47,7 +47,8 @@ ResearchOrganization 74, Device 35, Project 34, DeviceCategory 34, Dataset 24, S
 Species 14, FundingOpportunity 14, Announcement 12, Job 6, MLModel 3, Benchmark 3, Protocol 1.
 ProjectRole edges: 111. Unresolved `study_species`: **9** (see F1).
 
-Species 14 predates the Hofstenia row; the next run should show Species 15 and 8 unresolved.
+Species 14 predates the Hofstenia row. A re-export after adding it **confirmed 8 unresolved**: every
+remaining value is one of the eight in F1 below, and R34DA061984 no longer appears.
 
 ## First run — the graph
 
@@ -72,7 +73,7 @@ The 9 that remained at the 2026-09-23 run, and what each needs:
 
 | Grant | `study_species` value | Status | Needs |
 |---|---|---|---|
-| R34DA061984 | `Hofstenia miamia` | **fixed in data** — the alias existed but there was no `species` row; the panther worm row was added (audit actor `migration:add_hofstenia_species`) | a re-export to confirm it resolves (expected, not verified) |
+| R34DA061984 | `Hofstenia miamia` | **fixed in data** — the alias existed but there was no `species` row; the panther worm row was added (audit actor `migration:add_hofstenia_species`) | nothing — **verified**: resolves on re-export |
 | R34DA059723 | `Freely moving animals` | candidate *Mus musculus* (strong) | a curator to confirm |
 | R34DA062119 | `Developmental Models` | candidate *Mus musculus* (strong) | a curator to confirm |
 | R34DA059512 | `Rodents` | candidate *Mus musculus* (strong) | a curator to confirm |
@@ -83,7 +84,7 @@ The 9 that remained at the 2026-09-23 run, and what each needs:
 | U24DA064429 (BARD.CC) | `All Species` | infrastructure award (renumbered from U24MH136628, #385) | nothing — no species by design |
 
 Candidates live in `species_candidates` and are confirmed with `confirm_species_candidate`, which
-records the curator as the source. Expected trajectory: **9 → 8** (Hofstenia) **→ 4** (after the four
+records the curator as the source. Trajectory: **9 → 8** (Hofstenia — verified) **→ 4** (after the four
 strong confirmations: the two choices + the two infrastructure awards remain) **→ 2** (once the
 project teams choose). The last 2 are correct data that #7 still flags, because `species_aliases`
 marks `All Species` as a placeholder but the exporter does not read `kind` yet.
