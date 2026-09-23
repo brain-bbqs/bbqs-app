@@ -1,13 +1,15 @@
 # BBQS Knowledge Graph — Consistency Report
 
-**Date:** 2026-09-21 · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
+**Date:** 2026-09-21 (counts refreshed 2026-09-23) · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
 
 ## Executive summary
 
 We can now **generate** a BBQS knowledge graph from the live database and **validate** that it is
-internally consistent. The first run produced a ~2,476-triple graph. Folding `species_aliases` into the resolver cut
-unresolved `study_species` from 26 to **9** — the genuine data-quality cases (non-species text like
-`"All Species"`, plus one real species missing an alias). The role-vocabulary and grant-mechanism
+internally consistent. The first run produced a ~2,476-triple graph; the 2026-09-23 run produced
+**3,105**. Folding `species_aliases` into the resolver cut unresolved `study_species` from 26 to **9** —
+the genuine data-quality cases (non-species text like `"All Species"`, plus one real species with no
+`species` row). That row has since been added (`migration:add_hofstenia_species`), so the next run is
+**expected** to show **8**; that is not yet verified by an export. The role-vocabulary and grant-mechanism
 checks pass cleanly — after the run corrected a schema error in our own role vocabulary.
 
 The goal of this effort is **consistency, not completeness**: we validate that parts of the graph do
@@ -38,6 +40,15 @@ The full invariant catalog and how to run everything are in [README.md](README.m
 - **`tests/guards/kg-resource-type-parity.test.mjs`** — a zero-dep guard that ties the schema's
   node vocabulary to the live Postgres enum (`npm run test:guards`).
 
+## Latest run — 2026-09-23
+
+**3,105 triples.** Node counts: Investigator 263, ProjectRole 111, Publication 90,
+ResearchOrganization 74, Device 35, Project 34, DeviceCategory 34, Dataset 24, SoftwareTool 19,
+Species 14, FundingOpportunity 14, Announcement 12, Job 6, MLModel 3, Benchmark 3, Protocol 1.
+ProjectRole edges: 111. Unresolved `study_species`: **9** (see F1).
+
+Species 14 predates the Hofstenia row; the next run should show Species 15 and 8 unresolved.
+
 ## First run — the graph
 
 ~2,476 triples. Node counts: Project 34, ProjectRole 111, Investigator 177, Publication 45,
@@ -57,13 +68,25 @@ The exporter now folds `species_aliases` (32 rows) into its resolver and emits e
 Species node, so scientific names and plurals resolve — cutting the dangling set **from 26 to 9**.
 Shape #7 verifies resolution from the graph itself (name / common_name / alias match).
 
-The 9 that remain are genuine:
+The 9 that remained at the 2026-09-23 run, and what each needs:
 
-- **Missing an alias** (a real species): `Hofstenia miamia` → should map to the *Acoel Worm* node.
-  Fix = add the `species_aliases` row.
-- **Not a species** (data entered in the wrong place): `All Species` (×2), `Rodents`,
-  `Interacting Animals`, `Freely moving animals`, `Genetic Species`, `Developmental Models`,
-  `Social species with male displays`.
+| Grant | `study_species` value | Status | Needs |
+|---|---|---|---|
+| R34DA061984 | `Hofstenia miamia` | **fixed in data** — the alias existed but there was no `species` row; the panther worm row was added (audit actor `migration:add_hofstenia_species`) | a re-export to confirm it resolves (expected, not verified) |
+| R34DA059723 | `Freely moving animals` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA062119 | `Developmental Models` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA059512 | `Rodents` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA061924 | `Interacting Animals` | candidate *Mustela putorius furo* (strong) | a curator to confirm |
+| R34DA059500 | `Genetic Species` | flies **and** fish, neither named to species (`needs_choice`) | the project team to say which |
+| R34DA059510 | `Social species with male displays` | Lake Malawi cichlids — a family of hundreds of species (`needs_choice`) | the project team to say which |
+| R24MH136632 (EMBER) | `All Species` | infrastructure award | nothing — no species by design |
+| U24DA064429 (BARD.CC) | `All Species` | infrastructure award (renumbered from U24MH136628, #385) | nothing — no species by design |
+
+Candidates live in `species_candidates` and are confirmed with `confirm_species_candidate`, which
+records the curator as the source. Expected trajectory: **9 → 8** (Hofstenia) **→ 4** (after the four
+strong confirmations: the two choices + the two infrastructure awards remain) **→ 2** (once the
+project teams choose). The last 2 are correct data that #7 still flags, because `species_aliases`
+marks `All Species` as a placeholder but the exporter does not read `kind` yet.
 
 ### F2 — role vocabulary was mis-modelled; one real normalization gap
 
@@ -97,5 +120,6 @@ full-access export run will exercise them.
    working groups, funding, events, organizations and publications are first-class spine nodes.
 4. **`gen-shacl` / `gen-owl`** — generate the boilerplate shapes (cardinality/pattern/type) and the
    OWL TBox, turning catalog rows 1/2/3/6/8/10/11 from *planned* into enforceable.
-5. **Data fixes** surfaced here: normalize `co-investigator`; clean the non-species `study_species`
-   entries; investigate the 34th Project node.
+5. **Data fixes** surfaced here: normalize `co-investigator`; confirm the four strong species
+   candidates and get the two `needs_choice` answers from the project teams (F1); investigate the
+   34th Project node.
