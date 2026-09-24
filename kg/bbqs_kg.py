@@ -302,6 +302,149 @@ class BBQSKnowledgeGraph:
 
         return out_path
 
+    # ---- explorer (globe -> US map -> graph panel) ----------------------------------------------
+
+    def export_explorer_json(self, out_path: Path | str | None = None) -> Path:
+        """Turn the instance graph built by export() into bbqs_explorer.json for kg/explorer/index.html.
+
+        Walks self.graph (run export() first) into {nodes, edges, orgs, unplaced_orgs,
+        unplaced_projects}. Edges are tagged "asserted" (already a triple, e.g. on_project) or
+        "derived" (computed here, e.g. project<->organization via NIH RePORTER, or project<->project
+        affinity from shared species/keywords) -- rendered differently so nobody mistakes a computed
+        tie for a triple that's actually in the exported graph. Returns out_path.
+        """
+        from explorer_geocode import geocode
+
+        out_path = Path(out_path) if out_path else HERE / "explorer" / "bbqs_explorer.json"
+        g = self.graph
+
+        nodes = {}
+        for s, p, o in g:
+            nodes.setdefault(str(s), {"id": str(s), "type": None, "name": None, "props": {}, "triples": []})
+        for s, p, o in g.triples((None, RDF.type, None)):
+            nodes[str(s)]["type"] = str(o).rsplit("#", 1)[-1]
+
+        orgs_by_name = {}
+        for s, p, o in g:
+            if p == RDF.type:
+                continue
+            node = nodes[str(s)]
+            local = str(p).rsplit("#", 1)[-1]
+            if isinstance(o, Literal):
+                node["props"].setdefault(local, []).append(o.toPython())
+                node["triples"].append([local, o.toPython()])
+                if local == "name":
+                    node["name"] = o.toPython()
+                    if node["type"] == "ResearchOrganization":
+                        orgs_by_name[str(o)] = str(s)
+            else:
+                node["triples"].append([local, str(o)])
+
+        edges = []
+        asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
+                                "device_category", "manufacturer"}
+        for s, p, o in g:
+            local = str(p).rsplit("#", 1)[-1]
+            if local in asserted_predicates and not isinstance(o, Literal):
+                edges.append({"source": str(s), "target": str(o), "type": local, "class": "asserted"})
+
+        # ---- derived: project -> organization, via NIH RePORTER (reporter_project_num) ----
+        unplaced_projects = []
+        projects = [(nid, n) for nid, n in nodes.items() if n["type"] == "Project"]
+        for pid, pnode in projects:
+            rpn = (pnode["props"].get("reporter_project_num") or [None])[0]
+            gnum = (pnode["props"].get("grant_number") or [None])[0]
+            org_name = self._lookup_reporter_org(rpn) if rpn else None
+            if org_name and org_name in orgs_by_name:
+                edges.append({"source": pid, "target": orgs_by_name[org_name], "type": "awarded_to", "class": "derived"})
+            else:
+                unplaced_projects.append({"grant_number": gnum, "reporter_project_num": rpn,
+                                           "reason": "no reporter_project_num" if not rpn else
+                                                     "RePORTER org not in graph"})
+
+        # ---- derived: project <-> project affinity, via shared species / shared keywords ----
+        species_of = {nid: set(n["props"].get("studies_species_name") or []) for nid, n in projects}
+        keywords_of = {nid: set(n["props"].get("keywords") or []) for nid, n in projects}
+        seen = set()
+        for i, (pid_a, _) in enumerate(projects):
+            for pid_b, _ in projects[i + 1:]:
+                pair = (pid_a, pid_b)
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                shared_species = species_of[pid_a] & species_of[pid_b]
+                if shared_species:
+                    edges.append({"source": pid_a, "target": pid_b, "type": "species_affinity",
+                                  "class": "derived", "weight": len(shared_species)})
+                shared_kw = keywords_of[pid_a] & keywords_of[pid_b]
+                if len(shared_kw) >= 2:            # floor so this doesn't turn into a hairball
+                    edges.append({"source": pid_a, "target": pid_b, "type": "keyword_affinity",
+                                  "class": "derived", "weight": len(shared_kw)})
+
+        # ---- orgs + geocoding ----
+        org_rows, unplaced_orgs = [], []
+        for name, nid in orgs_by_name.items():
+            coords = geocode(name)
+            if coords:
+                org_rows.append({"id": nid, "name": name, "lat": coords[0], "lng": coords[1]})
+            else:
+                unplaced_orgs.append(name)
+
+        # `props` was only ever an internal index (species/keyword affinity, RePORTER lookup inputs
+        # above) -- every value in it is already in `triples`, so shipping both would double the
+        # literal payload for nothing. Drop it right before serializing.
+        shipped_nodes = [{k: v for k, v in n.items() if k != "props"} for n in nodes.values()]
+
+        payload = {
+            "nodes": shipped_nodes,
+            "edges": edges,
+            "orgs": org_rows,
+            "unplaced_orgs": sorted(unplaced_orgs),
+            "unplaced_projects": unplaced_projects,
+        }
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf8")
+
+        print(f"Wrote {out_path}: {len(nodes)} nodes, {len(edges)} edges "
+              f"({sum(1 for e in edges if e['class'] == 'derived')} derived)")
+        print(f"Orgs geocoded: {len(org_rows)}, unplaced: {len(unplaced_orgs)}")
+        if unplaced_projects:
+            print(f"Projects without a resolved organization: {len(unplaced_projects)}")
+        return out_path
+
+    _reporter_org_cache: dict = {}
+
+    @classmethod
+    def _lookup_reporter_org(cls, reporter_project_num: str):
+        """Awardee org name for a project, from NIH RePORTER's public API (no key required).
+
+        One-time, offline lookup at explorer-build time -- the awardee organization is not in
+        bbqs.ttl or any Supabase table this exporter reads, so this is the only place it exists.
+        Cached per process; returns None on any network/parse failure (caller reports it as
+        unplaced rather than guessing).
+        """
+        if reporter_project_num in cls._reporter_org_cache:
+            return cls._reporter_org_cache[reporter_project_num]
+        org_name = None
+        try:
+            body = json.dumps({
+                "criteria": {"project_nums": [reporter_project_num]},
+                "include_fields": ["OrganizationName"],
+                "limit": 1,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.reporter.nih.gov/v2/projects/search",
+                data=body, headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as r:
+                results = json.loads(r.read() or "{}").get("results") or []
+            if results:
+                org_name = (results[0].get("organization") or {}).get("org_name")
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError) as e:
+            print(f"  ! RePORTER lookup failed for {reporter_project_num}: {e}", file=sys.stderr)
+        cls._reporter_org_cache[reporter_project_num] = org_name
+        return org_name
+
     @staticmethod
     def validate(data_file: Path | str, shape_files: list[Path] | None = None):
         """Run SHACL consistency validation over an instance graph. Returns (conforms, report_text).

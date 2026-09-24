@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BBQS Explorer</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #121a2b; --border: #22314d; --text: #e7ecf5; --muted: #8ea0c0;
+    --accent: #5ab0ff; --asserted: #5ab0ff; --derived: #ffb84d; --org: #ff6b8b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; }
+  header .stat { color: var(--muted); font-size: 12px; }
+  #layout {
+    display: grid; grid-template-columns: 1fr 1fr 360px; gap: 1px;
+    background: var(--border); height: calc(100vh - 42px);
+  }
+  .view { background: var(--bg); position: relative; overflow: hidden; }
+  .view h2 {
+    position: absolute; top: 8px; left: 12px; margin: 0; font-size: 12px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .04em; z-index: 2;
+  }
+  svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg:active { cursor: grabbing; }
+  .sphere { fill: #16213a; }
+  .graticule { fill: none; stroke: #223252; stroke-width: .5; }
+  .land { fill: #1b2a44; stroke: #2c3f63; stroke-width: .4; }
+  .org-dot { fill: var(--org); stroke: #200; stroke-width: .5; cursor: pointer; }
+  .org-dot.selected { fill: #fff; stroke: var(--org); stroke-width: 2; }
+  .org-dot:hover { fill: #fff; }
+  #panel { display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+  #search-box {
+    padding: 10px; border-bottom: 1px solid var(--border); flex: 0 0 auto;
+  }
+  #search-box input {
+    width: 100%; padding: 6px 8px; background: #0e1626; border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; font-size: 12px;
+  }
+  #search-results {
+    max-height: 140px; overflow-y: auto; margin-top: 6px;
+  }
+  #search-results div {
+    padding: 4px 6px; cursor: pointer; border-radius: 3px; font-size: 12px;
+  }
+  #search-results div:hover { background: #1a2b47; }
+  #detail { flex: 1 1 auto; overflow-y: auto; padding: 12px; }
+  #detail .empty { color: var(--muted); }
+  #detail h3 { margin: 0 0 2px; font-size: 14px; }
+  #detail .type-badge {
+    display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px;
+    margin-bottom: 8px;
+  }
+  #mini-graph { width: 100%; height: 160px; border: 1px solid var(--border); border-radius: 4px; margin: 8px 0; }
+  .edge-list, .triple-list { list-style: none; margin: 4px 0 12px; padding: 0; }
+  .edge-list li, .triple-list li {
+    padding: 4px 6px; border-bottom: 1px solid #1a2540; font-size: 12px; display: flex; gap: 6px;
+  }
+  .edge-list li:hover { background: #1a2b47; cursor: pointer; }
+  .pred { color: var(--muted); flex: 0 0 auto; white-space: nowrap; }
+  .val { word-break: break-word; }
+  .tag { font-size: 10px; border-radius: 3px; padding: 0 4px; flex: 0 0 auto; }
+  .tag.asserted { background: rgba(90,176,255,.18); color: var(--asserted); }
+  .tag.derived { background: rgba(255,184,77,.18); color: var(--derived); }
+  #gaps { border-top: 1px solid var(--border); padding: 10px; flex: 0 0 auto; max-height: 30%; overflow-y: auto; }
+  #gaps h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  #gaps details { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  #gaps summary { cursor: pointer; color: var(--text); }
+  .legend { position: absolute; bottom: 8px; left: 12px; font-size: 11px; color: var(--muted); z-index: 2; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BBQS Explorer</h1>
+  <span class="stat" id="stat-summary">loading bbqs_explorer.json…</span>
+</header>
+<div id="layout">
+  <div class="view" id="globe-view">
+    <h2>Globe</h2>
+    <svg id="globe"></svg>
+    <div class="legend"><span><i style="background:var(--org)"></i>organization</span></div>
+  </div>
+  <div class="view" id="map-view">
+    <h2>United States</h2>
+    <svg id="usmap"></svg>
+  </div>
+  <div id="panel">
+    <div id="search-box">
+      <input id="search" type="text" placeholder="Search investigators, projects, organizations…" autocomplete="off">
+      <div id="search-results"></div>
+    </div>
+    <div id="detail"><p class="empty">Click an organization on the globe or map, or search above, to inspect a node and its relationships.</p></div>
+    <div id="gaps"></div>
+  </div>
+</div>
+<script>
+const DATA_URL = "bbqs_explorer.json";
+const state = { data: null, selectedId: null, rotation: [96, -20], nodesById: new Map(), edgesByNode: new Map() };
+
+function typeLabel(t) { return t || "Unknown"; }
+
+function shortId(iri) {
+  const parts = String(iri).split("/");
+  return parts[parts.length - 1];
+}
+
+function nodeLabel(n) {
+  if (!n) return "(unknown)";
+  return n.name || typeLabel(n.type) + " " + shortId(n.id).slice(0, 8);
+}
+
+async function boot() {
+  const res = await fetch(DATA_URL);
+  if (!res.ok) {
+    document.getElementById("stat-summary").textContent =
+      "Could not load " + DATA_URL + " — run: python kg/explorer.py";
+    return;
+  }
+  const data = await res.json();
+  state.data = data;
+  for (const n of data.nodes) state.nodesById.set(n.id, n);
+  for (const e of data.edges) {
+    if (!state.edgesByNode.has(e.source)) state.edgesByNode.set(e.source, []);
+    if (!state.edgesByNode.has(e.target)) state.edgesByNode.set(e.target, []);
+    state.edgesByNode.get(e.source).push(e);
+    state.edgesByNode.get(e.target).push(e);
+  }
+
+  const asserted = data.edges.filter(e => e.class === "asserted").length;
+  const derived = data.edges.length - asserted;
+  document.getElementById("stat-summary").textContent =
+    `${data.nodes.length} nodes · ${asserted} asserted edges · ${derived} derived edges · ` +
+    `${data.orgs.length} orgs placed (${data.unplaced_orgs.length} unplaced)`;
+
+  renderGaps(data);
+  setupSearch(data);
+  drawGlobe(data);
+  drawUSMap(data);
+  renderDetail(null);
+}
+
+// ---- Globe (orthographic, draggable) ----------------------------------------------------------
+function drawGlobe(data) {
+  const svg = d3.select("#globe");
+  const width = svg.node().clientWidth, height = svg.node().clientHeight;
+  const projection = d3.geoOrthographic()
+    .scale(Math.min(width, height) / 2.3)
+    .translate([width / 2, height / 2])
+    .rotate(state.rotation)
+    .clipAngle(90);
+  const path = d3.geoPath(projection);
+
+  svg.append("circle")
+    .attr("class", "sphere")
+    .attr("cx", width / 2).attr("cy", height / 2).attr("r", projection.scale());
+
+  const graticule = d3.geoGraticule10();
+  const gratPath = svg.append("path").attr("class", "graticule").datum(graticule).attr("d", path);
+
+  let landPath = null;
+  const dots = svg.append("g").attr("class", "org-dots");
+
+  function placeDots() {
+    const points = dots.selectAll("circle").data(data.orgs, d => d.id);
+    points.join("circle")
+      .attr("class", "org-dot")
+      .classed("selected", d => d.id === state.selectedId)
+      .attr("r", 4)
+      .attr("transform", d => {
+        const p = projection([d.lng, d.lat]);
+        const visible = d3.geoDistance([d.lng, d.lat], [-projection.rotate()[0], -projection.rotate()[1]]) < Math.PI / 2;
+        return p ? `translate(${p[0]},${p[1]}) scale(${visible ? 1 : 0})` : "translate(-100,-100)";
+      })
+      .on("click", (_, d) => selectOrg(d));
+  }
+
+  fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json")
+    .then(r => r.json())
+    .then(world => {
+      const land = topojson.feature(world, world.objects.land);
+      landPath = svg.insert("path", ".org-dots")
+        .attr("class", "land").datum(land).attr("d", path);
+      redraw();
+    })
+    .catch(() => { /* offline fallback: sphere + graticule only, orgs still plot */ });
+
+  function redraw() {
+    gratPath.attr("d", path);
+    if (landPath) landPath.attr("d", path);
+    placeDots();
+  }
+
+  placeDots();
+
+  let lastPos = null;
+  svg.call(d3.drag()
+    .on("start", (ev) => { lastPos = [ev.x, ev.y]; })
+    .on("drag", (ev) => {
+      const dx = ev.x - lastPos[0], dy = ev.y - lastPos[1];
+      const r = projection.rotate();
+      const next = [r[0] + dx / 4, Math.max(-90, Math.min(90, r[1] - dy / 4))];
+      projection.rotate(next);
+      state.rotation = next;
+      lastPos = [ev.x, ev.y];
+      redraw();
+    }));
+
+  state.focusGlobe = (org) => {
+    projection.rotate([-org.lng, -org.lat]);
+    state.rotation = projection.rotate();
+    redraw();
+  };
+}
+
+// ---- US map (albersUsa, click to select) -------------------------------------------------------
+function drawUSMap(data) {
+  const svg = d3.select("#usmap");
+  const width = svg.node().clientWidth, height = svg.node().clientHeight;
+  const projection = d3.geoAlbersUsa().translate([width / 2, height / 2]).scale(width * 1.1);
+  const path = d3.geoPath(projection);
+  const g = svg.append("g");
+
+  fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
+    .then(r => r.json())
+    .then(us => {
+      const states = topojson.feature(us, us.objects.states);
+      g.selectAll("path").data(states.features).join("path")
+        .attr("class", "land").attr("d", path);
+      placeDots();
+    })
+    .catch(() => placeDots());
+
+  const dots = svg.append("g").attr("class", "org-dots");
+
+  function placeDots() {
+    dots.selectAll("circle").data(data.orgs, d => d.id).join("circle")
+      .attr("class", "org-dot")
+      .classed("selected", d => d.id === state.selectedId)
+      .attr("r", 4)
+      .attr("transform", d => {
+        const p = projection([d.lng, d.lat]);
+        return p ? `translate(${p[0]},${p[1]})` : "translate(-100,-100)";
+      })
+      .on("click", (_, d) => selectOrg(d));
+  }
+  placeDots();
+
+  state.refreshUSMap = () => {
+    dots.selectAll("circle").classed("selected", d => d.id === state.selectedId);
+  };
+}
+
+function selectOrg(org) {
+  state.selectedId = org.id;
+  if (state.focusGlobe) state.focusGlobe(org);
+  if (state.refreshUSMap) state.refreshUSMap();
+  renderDetail(org.id);
+}
+
+// ---- Search -------------------------------------------------------------------------------------
+function setupSearch(data) {
+  const input = document.getElementById("search");
+  const results = document.getElementById("search-results");
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    results.innerHTML = "";
+    if (!q) return;
+    const hits = data.nodes
+      .filter(n => nodeLabel(n).toLowerCase().includes(q))
+      .slice(0, 25);
+    for (const n of hits) {
+      const row = document.createElement("div");
+      row.textContent = `${nodeLabel(n)}  ·  ${typeLabel(n.type)}`;
+      row.onclick = () => selectNode(n.id);
+      results.appendChild(row);
+    }
+  });
+}
+
+function selectNode(id) {
+  state.selectedId = id;
+  if (state.refreshUSMap) state.refreshUSMap();
+  const n = state.nodesById.get(id);
+  if (n && n.type === "ResearchOrganization") {
+    const org = state.data.orgs.find(o => o.id === id);
+    if (org && state.focusGlobe) state.focusGlobe(org);
+  }
+  renderDetail(id);
+}
+
+// ---- Detail panel: raw triples + mini relationship graph -----------------------------------------
+function renderDetail(id) {
+  const el = document.getElementById("detail");
+  if (!id) { el.innerHTML = '<p class="empty">Click an organization on the globe or map, or search above, to inspect a node and its relationships.</p>'; return; }
+  const n = state.nodesById.get(id);
+  if (!n) { el.innerHTML = '<p class="empty">Node not found.</p>'; return; }
+
+  el.innerHTML = "";
+  const h3 = document.createElement("h3"); h3.textContent = nodeLabel(n); el.appendChild(h3);
+  const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = typeLabel(n.type);
+  el.appendChild(badge);
+
+  const svgHolder = document.createElement("svg"); svgHolder.id = "mini-graph"; el.appendChild(svgHolder);
+  drawMiniGraph(id, svgHolder);
+
+  const edges = state.edgesByNode.get(id) || [];
+  if (edges.length) {
+    const h4 = document.createElement("div"); h4.textContent = "Relationships"; h4.style.cssText = "font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:6px;";
+    el.appendChild(h4);
+    const ul = document.createElement("ul"); ul.className = "edge-list";
+    for (const e of edges) {
+      const otherId = e.source === id ? e.target : e.source;
+      const other = state.nodesById.get(otherId);
+      const li = document.createElement("li");
+      const dir = e.source === id ? "→" : "←";
+      li.innerHTML = `<span class="pred">${e.type} ${dir}</span><span class="val">${nodeLabel(other)}</span>` +
+        `<span class="tag ${e.class}">${e.class}</span>`;
+      li.onclick = () => selectNode(otherId);
+      ul.appendChild(li);
+    }
+    el.appendChild(ul);
+  }
+
+  const h5 = document.createElement("div"); h5.textContent = "Raw triples (provenance)"; h5.style.cssText = "font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:6px;";
+  el.appendChild(h5);
+  const tl = document.createElement("ul"); tl.className = "triple-list";
+  for (const [pred, val] of n.triples) {
+    const li = document.createElement("li");
+    const display = typeof val === "string" && val.startsWith("http") ? shortId(val) : String(val);
+    li.innerHTML = `<span class="pred">${pred}</span><span class="val">${display}</span>`;
+    if (typeof val === "string" && state.nodesById.has(val)) li.onclick = () => selectNode(val);
+    tl.appendChild(li);
+  }
+  el.appendChild(tl);
+}
+
+function drawMiniGraph(id, svgEl) {
+  const svg = d3.select(svgEl);
+  const width = svgEl.clientWidth || 320, height = 160;
+  const center = state.nodesById.get(id);
+  const edges = (state.edgesByNode.get(id) || []).slice(0, 20);
+  const neighborIds = new Set(edges.map(e => e.source === id ? e.target : e.source));
+  const graphNodes = [{ id, center: true }, ...[...neighborIds].map(nid => ({ id: nid }))];
+  const graphLinks = edges.map(e => ({ source: e.source, target: e.target, type: e.type, class: e.class }));
+
+  const sim = d3.forceSimulation(graphNodes)
+    .force("link", d3.forceLink(graphLinks).id(d => d.id).distance(60))
+    .force("charge", d3.forceManyBody().strength(-120))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .stop();
+  for (let i = 0; i < 150; i++) sim.tick();
+
+  svg.append("g").selectAll("line").data(graphLinks).join("line")
+    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+    .attr("stroke", d => d.class === "derived" ? "var(--derived)" : "var(--asserted)")
+    .attr("stroke-dasharray", d => d.class === "derived" ? "3,2" : null)
+    .attr("stroke-width", 1.2).attr("opacity", .8);
+
+  const nodeSel = svg.append("g").selectAll("circle").data(graphNodes).join("circle")
+    .attr("cx", d => d.x).attr("cy", d => d.y)
+    .attr("r", d => d.center ? 7 : 4)
+    .attr("fill", d => d.center ? "#fff" : "var(--accent)")
+    .attr("stroke", "#000").attr("stroke-width", .5)
+    .style("cursor", d => d.center ? "default" : "pointer")
+    .on("click", (_, d) => { if (!d.center) selectNode(d.id); });
+
+  nodeSel.append("title").text(d => nodeLabel(state.nodesById.get(d.id)));
+}
+
+// ---- Gaps sidebar: unplaced orgs / projects, shown not hidden -------------------------------------
+function renderGaps(data) {
+  const el = document.getElementById("gaps");
+  el.innerHTML = "";
+  if (data.unplaced_orgs.length) {
+    const h = document.createElement("h4"); h.textContent = `Unplaced organizations (${data.unplaced_orgs.length})`; el.appendChild(h);
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>No coordinate in the curated geocode table</summary>` +
+      data.unplaced_orgs.map(n => `<div>${n}</div>`).join("");
+    el.appendChild(d);
+  }
+  if (data.unplaced_projects.length) {
+    const h = document.createElement("h4"); h.textContent = `Projects without a resolved organization (${data.unplaced_projects.length})`; el.appendChild(h);
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>NIH RePORTER lookup did not resolve</summary>` +
+      data.unplaced_projects.map(p => `<div>${p.grant_number || "?"} — ${p.reason}</div>`).join("");
+    el.appendChild(d);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

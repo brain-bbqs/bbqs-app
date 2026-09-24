@@ -50,6 +50,9 @@ status of the whole effort; the Status column is updated as each phase lands.
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 | `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
 | `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
+| `explorer.py` | Builds `bbqs_explorer.json` for `explorer/index.html`: `BBQSKnowledgeGraph.export_explorer_json()` CLI. |
+| `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views (see "BBQS Explorer" below). |
+| `explorer/index.html` | **BBQS Explorer** — single-file D3 v7 app: draggable globe → US map → triple/relationship panel. No build step. |
 
 ## The three validation layers
 
@@ -142,6 +145,70 @@ kg/.venv/Scripts/python kg/main.py              # export -> kg/export/bbqs.ttl, 
 
 Anon by default (RLS-limited). For the full graph — including investigators-table detail and
 `field_provenance` (needed by shapes 5 and 12) — set `SUPABASE_KEY` to a stronger key first.
+
+## Use `BBQSKnowledgeGraph` directly
+
+`export.py`/`validate.py`/`main.py` are CLIs over one object — `bbqs_kg.py`'s `BBQSKnowledgeGraph`.
+Import it directly to call `export()`/`validate()` from other Python code (a notebook, another
+script, a CI job) instead of shelling out:
+
+```python
+import sys
+sys.path.insert(0, "kg")          # or run from inside kg/, or add kg/ to PYTHONPATH
+from bbqs_kg import BBQSKnowledgeGraph
+
+kg = BBQSKnowledgeGraph()                  # reads SUPABASE_URL/SUPABASE_KEY from the environment,
+                                            # falling back to the anon values in
+                                            # src/integrations/supabase/client.ts
+out_path = kg.export("kg/export/bbqs.ttl")           # -> Path; builds kg.graph (an rdflib.Graph)
+conforms, report = BBQSKnowledgeGraph.validate(out_path)   # validate() is a staticmethod
+
+# or both steps in one call:
+conforms = kg.run("kg/export/bbqs.ttl")    # export() then validate(); returns the bool
+```
+
+Pass `BBQSKnowledgeGraph(url=..., key=...)` to point at a different Supabase project or use a
+stronger key (e.g. the full-access export) without touching the environment.
+
+## BBQS Explorer
+
+A single lightweight `explorer/index.html` (D3 v7 from CDN, no build step) with three linked views:
+draggable globe → US site map → triple/relationship panel. It reads `bbqs_explorer.json`, built by
+`BBQSKnowledgeGraph.export_explorer_json()` — a method on the same object as `export()`/`validate()`,
+not a separate one-off script.
+
+Two gaps in the instance data matter for a map, and the exporter closes both **explicitly** rather
+than pretending the edges are there:
+
+- **No coordinates.** `ResearchOrganization` nodes carry a name only. `explorer_geocode.py` is a
+  curated, hand-maintained `org name -> (lat, lng)` table (city-level, not a runtime geocoding API or
+  key — these are well-known US institutions, so a static lookup is lighter and more reliable). Any
+  org not in the table lands in `unplaced_orgs` in the JSON and in the Explorer's sidebar, never
+  silently dropped.
+- **No project↔organization edge.** `part_of_org`/`held_by` are asserted in the LinkML schema but
+  absent from every export so far (`grep -c bbqs:part_of_org kg/export/bbqs.ttl` is `0`), and
+  `grants`/`projects` don't carry an organization column either — the awardee institution isn't
+  anywhere in bbqs.ttl or the Supabase tables this exporter reads. The only place it exists is NIH
+  RePORTER's public API, keyed by `reporter_project_num`, so `export_explorer_json()` looks it up
+  there once per project (no key needed) and tags the result a **derived** edge (`awarded_to`,
+  rendered dashed in the UI) — never mixed with an asserted triple. A project whose RePORTER lookup
+  fails (no `reporter_project_num`, network error, no match) lands in `unplaced_projects`, visible in
+  the sidebar with why.
+- **Project↔project affinity** is derived the same explicit way, from what projects already share in
+  the graph: a `species_affinity` edge when two projects resolve to the same `studies_species` node,
+  and a `keyword_affinity` edge when two projects' `keywords` overlap by 2 or more (a floor so 34
+  projects don't turn into a hairball).
+
+Build it:
+
+```bash
+kg/.venv/Scripts/python kg/explorer.py                              # export -> kg/explorer/bbqs_explorer.json
+kg/.venv/Scripts/python kg/explorer.py --from-ttl kg/export/bbqs.ttl # reuse an existing export instead
+```
+
+Then serve `kg/explorer/` and open it (`python -m http.server` from that directory, not a `file://`
+open, so the page's `fetch("bbqs_explorer.json")` works). `bbqs_explorer.json` is committed, same as
+`export/bbqs.ttl`, so the page works out of the box; regenerate it whenever `export/bbqs.ttl` changes.
 
 ## Not yet built
 
