@@ -13,32 +13,27 @@ the genuine data-quality cases (non-species text like `"All Species"`, plus one 
 checks pass cleanly — after the run corrected a schema error in our own role vocabulary.
 
 The goal of this effort is **consistency, not completeness**: we validate that parts of the graph do
-not contradict each other. Missing detail (a project with no devices, a dataset with no methods) is
-*out of scope* — that is a gap, not a contradiction.
+not contradict each other. Missing detail (a project with no devices) is *out of scope* — a gap, not
+a contradiction.
 
 ## Approach
 
 | Concern | Decision |
 |---|---|
-| Schema logic | OWL, authored in LinkML (`kg/bbqs.linkml.yaml`) |
+| Schema logic | OWL, authored in LinkML (`kg/bbqs.linkml.yaml`) → `gen-owl` / `gen-shacl` |
 | Validation | SHACL first (pyshacl); OWL reasoner (robot/HermiT) later |
 | Node spine | Supabase `resources` table — one row = one IRI, `resource_type` = rdf:type |
-| Instances | `kg/export.py` walks the spine + typed tables → instance TTL |
+| Instances | `kg/bbqs_kg.py` (`BBQSKnowledgeGraph.export`) walks the spine → instance TTL |
 | Consistency checks | three layers: Node guards (schema↔DB drift), SHACL shapes (structural + contradiction), OWL reasoning (deferred) |
 
-The full invariant catalog and how to run everything are in [README.md](README.md).
+The full 19-row invariant catalogue and how to run everything are in [README.md](README.md).
 
-## What was built
+## Latest run — 2026-09-23 (anon, spine-first)
 
-- **`kg/bbqs.linkml.yaml`** — 31-class schema rebuilt from the real Supabase schema. One `Project`
-  node carries the NIH award as attributes ("Grant" is only NIH terminology). Aligned to
-  schema.org + PROV-O + NCBITaxon + Bioschemas/Croissant; neuroscience/Marr layer stubbed.
-- **`kg/export.py`** — exporter over the `resources` spine (joins grants ⋈ projects, reifies
-  `grant_investigators` as `ProjectRole`, mints non-spine entities).
-- **`kg/shapes/consistency.shapes.ttl`** — the contradiction shapes (SHACL/SPARQL).
-- **`kg/fixtures/`** + **`kg/validate.py`** — a RED/GREEN fixture pair proving the shapes bite.
-- **`tests/guards/kg-resource-type-parity.test.mjs`** — a zero-dep guard that ties the schema's
-  node vocabulary to the live Postgres enum (`npm run test:guards`).
+**3,044 triples**, one node per entity. Node counts: Investigator 263, ProjectRole 111,
+Publication 45, ResearchOrganization 37, Device 35, DeviceCategory 34, DeviceManufacturer 32,
+Project 34, Dataset 24, SoftwareTool 19, FundingOpportunity 14, Species 15, Announcement 12,
+Job 6, Benchmark 3, MLModel 3, Protocol 1, Event 1, WorkingGroup 4.
 
 ## Latest run — 2026-09-23
 
@@ -92,26 +87,23 @@ marks `All Species` as a placeholder but the exporter does not read `kind` yet.
 ### F2 — role vocabulary was mis-modelled; one real normalization gap
 
 The schema's `project_role_enum` was wrong (invented hyphenated tokens). The live
-`grant_investigators.role` vocabulary is: `contact_pi, co_pi, mpi, trainee, postdoc,
-graduate_student, research_staff` — **underscore-separated** — plus the single **hyphenated**
-`co-investigator`. The schema/shape are now grounded in these real values, so #4 passes. The
-lone hyphenated `co-investigator` is a genuine normalization inconsistency worth a data fix.
-(`role_source` is one of `reporter`, `curator`, `funder_notice`.)
+`grant_investigators.role` vocabulary is `contact_pi, co_pi, mpi, trainee, postdoc, graduate_student,
+research_staff` — **underscore-separated** — plus the single **hyphenated** `co-investigator`, a
+genuine normalization inconsistency worth a data fix. (`role_source` ∈ `reporter, curator, funder_notice`.)
 
-### F3 — node-spine gaps
+### F3 — node-spine gaps (resolved by the Phase-5 backfill)
 
-- **34 Project nodes from 33 grants** — one grant is not single-sourced to its spine node
-  (a duplicate-node risk; invariant #2). Worth tracing.
-- **Organizations (37) and Publications (45) are not in the `resources` spine at all** — they exist
-  only in their own tables. The backfill migration should bring them (and species/devices/working
-  groups/funding/events) into the spine.
+The original run found species/devices/orgs/pubs living only in their own tables. The #386 backfill
+brought all of them into the `resources` spine (with `resource_id`), and the exporter now spine-sources
+every entity — so the earlier org/pub double-node and the `project` double-node are gone. **Remaining:**
+a few orphan `resources` rows the backfill left (~14 `investigator` + 1 `grant` pointing at no table
+row) still need cleanup, and an insert trigger should auto-link new rows.
 
 ### F4 — coverage limits of this run
 
-The exporter ran as the **anon** role, so RLS hid the `investigators` detail table,
-`field_provenance`, `source_classes`, and working groups. Consequently invariant **#5**
-(role-column conflation) and **#12** (conflicting verified provenance) had no data to check. A
-full-access export run will exercise them.
+The exporter ran as **anon**, so RLS hid the `investigators` detail table, `field_provenance`,
+`source_classes`, and working-group detail. Invariants **#5, #12, #14, #15, #17, #18, #19** therefore
+had no data to check; a full-access export (Phase 6) exercises them.
 
 ## Recommendations / next steps
 
