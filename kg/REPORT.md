@@ -1,93 +1,90 @@
 # BBQS Knowledge Graph — Consistency Report
 
-**Date:** 2026-09-21 · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
+**Date:** 2026-09-21 (counts refreshed 2026-09-23) · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
 
 ## Executive summary
 
-We can now **generate** a BBQS knowledge graph from the live database and **validate** that it is
-internally consistent. The first run produced a ~2,476-triple graph. Folding `species_aliases` into the resolver cut
-unresolved `study_species` from 26 to **9** — the genuine data-quality cases (non-species text like
-`"All Species"`, plus one real species missing an alias). The role-vocabulary and grant-mechanism
-checks pass cleanly — after the run corrected a schema error in our own role vocabulary.
+We can **generate** a BBQS knowledge graph from the live database and **validate** that no part
+contradicts another. After the Phase-5 backfill (every entity is now in the `resources` spine) and
+the spine-first exporter, the anon run produces a **3,044-triple graph, one node per entity**, and it
+validates to **6 unresolved `study_species`** (invariant #7) — all genuine curation items. Folding
+`species_aliases` (synonyms/scientific names) and routing "no species by design" values (infrastructure
+awards' `All Species`) to `study_scope` cut the original 26 dangling values to those 6. The
+role-vocabulary (#4) and grant-mechanism (#9) checks conform.
 
 The goal of this effort is **consistency, not completeness**: we validate that parts of the graph do
-not contradict each other. Missing detail (a project with no devices, a dataset with no methods) is
-*out of scope* — that is a gap, not a contradiction.
+not contradict each other. Missing detail (a project with no devices) is *out of scope* — a gap, not
+a contradiction.
 
 ## Approach
 
 | Concern | Decision |
 |---|---|
-| Schema logic | OWL, authored in LinkML (`kg/bbqs.linkml.yaml`) |
+| Schema logic | OWL, authored in LinkML (`kg/bbqs.linkml.yaml`) → `gen-owl` / `gen-shacl` |
 | Validation | SHACL first (pyshacl); OWL reasoner (robot/HermiT) later |
 | Node spine | Supabase `resources` table — one row = one IRI, `resource_type` = rdf:type |
-| Instances | `kg/export.py` walks the spine + typed tables → instance TTL |
+| Instances | `kg/bbqs_kg.py` (`BBQSKnowledgeGraph.export`) walks the spine → instance TTL |
 | Consistency checks | three layers: Node guards (schema↔DB drift), SHACL shapes (structural + contradiction), OWL reasoning (deferred) |
 
-The full invariant catalog and how to run everything are in [README.md](README.md).
+The full 19-row invariant catalogue and how to run everything are in [README.md](README.md).
 
-## What was built
+## Latest run — 2026-09-23 (anon, spine-first)
 
-- **`kg/bbqs.linkml.yaml`** — 31-class schema rebuilt from the real Supabase schema. One `Project`
-  node carries the NIH award as attributes ("Grant" is only NIH terminology). Aligned to
-  schema.org + PROV-O + NCBITaxon + Bioschemas/Croissant; neuroscience/Marr layer stubbed.
-- **`kg/export.py`** — exporter over the `resources` spine (joins grants ⋈ projects, reifies
-  `grant_investigators` as `ProjectRole`, mints non-spine entities).
-- **`kg/shapes/consistency.shapes.ttl`** — the contradiction shapes (SHACL/SPARQL).
-- **`kg/fixtures/`** + **`kg/validate.py`** — a RED/GREEN fixture pair proving the shapes bite.
-- **`tests/guards/kg-resource-type-parity.test.mjs`** — a zero-dep guard that ties the schema's
-  node vocabulary to the live Postgres enum (`npm run test:guards`).
+**3,044 triples**, one node per entity. Node counts: Investigator 263, ProjectRole 111,
+Publication 45, ResearchOrganization 37, Device 35, DeviceCategory 34, DeviceManufacturer 32,
+Project 34, Dataset 24, SoftwareTool 19, FundingOpportunity 14, Species 15, Announcement 12,
+Job 6, Benchmark 3, MLModel 3, Protocol 1, Event 1, WorkingGroup 4.
 
-## First run — the graph
-
-~2,476 triples. Node counts: Project 34, ProjectRole 111, Investigator 177, Publication 45,
-ResearchOrganization 37, Device 35, DeviceCategory 34, Dataset 24, SoftwareTool 18, Species 14,
-Announcement 5, Job 4, MLModel 3, Benchmark 3, Protocol 1.
-
-Validated against the consistency shapes: **`Conforms: False`, 9 violations — all invariant #7**
-(dangling `study_species`, after alias resolution). Invariants #4 (canonical role token) and #9
-(mechanism↔grant_number) **conform**. #5 and #12 have no targets in this run (see *Coverage limits*).
+Validated against the consistency shapes: **`Conforms: False`, 6 violations — all invariant #7**.
+#4 and #9 conform; `held_by` is omitted under anon (its referential shape passes); #5/#12/#14–#19
+have no anon targets (PII / `field_provenance` are RLS-hidden, and #19 is guarded to stay dormant
+while the provenance layer is absent).
 
 ## Findings
 
 ### F1 — `study_species` values that do not resolve to a Species node (invariant #7)
 
-`projects.study_species[]` is free text; the `species` table holds 14 canonical common-name entries.
-The exporter now folds `species_aliases` (32 rows) into its resolver and emits each alias onto its
-Species node, so scientific names and plurals resolve — cutting the dangling set **from 26 to 9**.
-Shape #7 verifies resolution from the graph itself (name / common_name / alias match).
+`projects.study_species[]` is free text; the `species` table holds canonical common-name entries. The
+exporter folds `species_aliases` (synonyms/scientific names) and routes "no species by design" markers
+to `study_scope`. That leaves **6** genuine cases — all needing people, not code:
 
-The 9 that remain are genuine:
+| Grant | `study_species` value | Status | Needs |
+|---|---|---|---|
+| R34DA061984 | `Hofstenia miamia` | **fixed** — panther-worm `species` row added (`migration:add_hofstenia_species`) | nothing (resolves) |
+| R34DA059723 | `Freely moving animals` | candidate *Mus musculus* (strong) | curator confirm |
+| R34DA062119 | `Developmental Models` | candidate *Mus musculus* (strong) | curator confirm |
+| R34DA059512 | `Rodents` | candidate *Mus musculus* (strong) | curator confirm |
+| R34DA061924 | `Interacting Animals` | candidate *Mustela putorius furo* (strong) | curator confirm |
+| R34DA059500 | `Genetic Species` | flies **and** fish, neither named (`needs_choice`) | project team |
+| R34DA059510 | `Social species with male displays` | Lake Malawi cichlids — hundreds (`needs_choice`) | project team |
+| R24MH136632 (EMBER) | `All Species` | infrastructure award — no species by design | nothing (→ `study_scope`, not flagged) |
+| U24DA064429 (BARD.CC) | `All Species` | infrastructure award (renumbered from U24MH136628, #385) | nothing (→ `study_scope`, not flagged) |
 
-- **Missing an alias** (a real species): `Hofstenia miamia` → should map to the *Acoel Worm* node.
-  Fix = add the `species_aliases` row.
-- **Not a species** (data entered in the wrong place): `All Species` (×2), `Rodents`,
-  `Interacting Animals`, `Freely moving animals`, `Genetic Species`, `Developmental Models`,
-  `Social species with male displays`.
+Candidates live in `species_candidates` (see the migration) and a curator confirms one with
+`confirm_species_candidate`, recording it in their name. Trajectory: **6 → 2** (after the four strong
+confirmations) **→ 0** (once the two project teams choose). The two `All Species` are already off the
+#7 list via `study_scope`.
 
 ### F2 — role vocabulary was mis-modelled; one real normalization gap
 
 The schema's `project_role_enum` was wrong (invented hyphenated tokens). The live
-`grant_investigators.role` vocabulary is: `contact_pi, co_pi, mpi, trainee, postdoc,
-graduate_student, research_staff` — **underscore-separated** — plus the single **hyphenated**
-`co-investigator`. The schema/shape are now grounded in these real values, so #4 passes. The
-lone hyphenated `co-investigator` is a genuine normalization inconsistency worth a data fix.
-(`role_source` is one of `reporter`, `curator`, `funder_notice`.)
+`grant_investigators.role` vocabulary is `contact_pi, co_pi, mpi, trainee, postdoc, graduate_student,
+research_staff` — **underscore-separated** — plus the single **hyphenated** `co-investigator`, a
+genuine normalization inconsistency worth a data fix. (`role_source` ∈ `reporter, curator, funder_notice`.)
 
-### F3 — node-spine gaps
+### F3 — node-spine gaps (resolved by the Phase-5 backfill)
 
-- **34 Project nodes from 33 grants** — one grant is not single-sourced to its spine node
-  (a duplicate-node risk; invariant #2). Worth tracing.
-- **Organizations (37) and Publications (45) are not in the `resources` spine at all** — they exist
-  only in their own tables. The backfill migration should bring them (and species/devices/working
-  groups/funding/events) into the spine.
+The original run found species/devices/orgs/pubs living only in their own tables. The #386 backfill
+brought all of them into the `resources` spine (with `resource_id`), and the exporter now spine-sources
+every entity — so the earlier org/pub double-node and the `project` double-node are gone. **Remaining:**
+a few orphan `resources` rows the backfill left (~14 `investigator` + 1 `grant` pointing at no table
+row) still need cleanup, and an insert trigger should auto-link new rows.
 
 ### F4 — coverage limits of this run
 
-The exporter ran as the **anon** role, so RLS hid the `investigators` detail table,
-`field_provenance`, `source_classes`, and working groups. Consequently invariant **#5**
-(role-column conflation) and **#12** (conflicting verified provenance) had no data to check. A
-full-access export run will exercise them.
+The exporter ran as **anon**, so RLS hid the `investigators` detail table, `field_provenance`,
+`source_classes`, and working-group detail. Invariants **#5, #12, #14, #15, #17, #18, #19** therefore
+had no data to check; a full-access export (Phase 6) exercises them.
 
 ### F5 — OWL reasoning (HermiT via owlready2): exporter datatype drift + one bad URL
 
@@ -99,11 +96,8 @@ the graph is consistent. Also: `xsd:date` is not in the OWL 2 datatype map, so t
 
 ## Recommendations / next steps
 
-1. ~~Fold `species_aliases` into the exporter's resolver~~ **DONE** — collapsed F1 from 26 to 9.
-2. **Full-access export run** — light up invariants #5 and #12 against real data.
-3. **Backfill migration** — extend `resource_type` and add `resource_id` so species, devices,
-   working groups, funding, events, organizations and publications are first-class spine nodes.
-4. **`gen-shacl` / `gen-owl`** — generate the boilerplate shapes (cardinality/pattern/type) and the
-   OWL TBox, turning catalog rows 1/2/3/6/8/10/11 from *planned* into enforceable.
-5. **Data fixes** surfaced here: normalize `co-investigator`; clean the non-species `study_species`
-   entries; investigate the 34th Project node; replace EMBER's prose `website` with a URL (F5).
+1. ~~Fold `species_aliases` into the resolver~~ / ~~route "no species by design" to `study_scope`~~ **DONE** — F1 is 6.
+2. **Confirm the four strong species candidates** and get the two `needs_choice` answers from the project teams (F1) → #7 to 0.
+3. **Orphan cleanup + insert trigger** (F3), and promote the 6 backfilled `resource_type` values PROPOSED → shipped in the LinkML once `types.ts` regenerates.
+4. **Full-access export run** (Phase 6) — light up #5/#12/#14/#15/#17/#18/#19 against real data; add the OWL reasoner for the `disjoint_with` axioms gen-owl didn't emit.
+5. **Data fixes:** normalize `co-investigator`; investigate the 34th Project (orphan grant resource).

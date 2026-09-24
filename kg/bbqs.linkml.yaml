@@ -199,6 +199,7 @@ classes:
       - keywords
       - studies_species      # study_species[] → Species (resolved)
       - studies_species_name # study_species[] raw claim, verbatim
+      - study_scope          # study_species[] value that names no species by design
       - studies_human
       - metadata_completeness
       - onboarding_status
@@ -493,6 +494,7 @@ slots:
   keywords:    { slot_uri: schema:keywords, multivalued: true }
   studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes (resolved)." }
   studies_species_name: { multivalued: true, description: "Raw study_species[] free-text claim, verbatim. Must resolve to a Species via studies_species (#7)." }
+  study_scope: { multivalued: true, description: "A study_species[] value that names no species by design (e.g. 'All Species' for infrastructure awards). Recorded as scope, not a species claim, so #7 does not flag it." }
   studies_human: { range: boolean }
   metadata_completeness: { range: float }
   onboarding_status: { description: "Project's onboarding/setup progress in the consortium intake workflow." }
