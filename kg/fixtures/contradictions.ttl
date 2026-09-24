@@ -52,7 +52,9 @@ bid:inv-email-b a bbqs:Investigator ;
   bbqs:name "L. Chen (duplicate record)" ;
   bbqs:secondary_emails "lyc5332@psu.edu" .
 
-# #16 — a second edge for the SAME held_by+on_project pair with a DIFFERENT role
+# #16 — role-1 (above) already asserts held_by inv-1 / on_project proj-1 / role
+# "Principal Investigator"; a second edge for the SAME pair with a DIFFERENT role is a
+# contradiction about this person's one role on this one grant.
 bid:role-16 a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-1 ;

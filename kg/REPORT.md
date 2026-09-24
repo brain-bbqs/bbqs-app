@@ -4,13 +4,13 @@
 
 ## Executive summary
 
-We can **generate** a BBQS knowledge graph from the live database and **validate** that no part
-contradicts another. After the Phase-5 backfill (every entity is now in the `resources` spine) and
-the spine-first exporter, the anon run produces a **3,044-triple graph, one node per entity**, and it
-validates to **6 unresolved `study_species`** (invariant #7) — all genuine curation items. Folding
-`species_aliases` (synonyms/scientific names) and routing "no species by design" values (infrastructure
-awards' `All Species`) to `study_scope` cut the original 26 dangling values to those 6. The
-role-vocabulary (#4) and grant-mechanism (#9) checks conform.
+We can now **generate** a BBQS knowledge graph from the live database and **validate** that it is
+internally consistent. The first run produced a ~2,476-triple graph; the 2026-09-23 run produced
+**3,105**. Folding `species_aliases` into the resolver cut unresolved `study_species` from 26 to **9** —
+the genuine data-quality cases (non-species text like `"All Species"`, plus one real species with no
+`species` row). That row has since been added (`migration:add_hofstenia_species`), and a re-export
+**confirmed 8**: R34DA061984 now resolves. The role-vocabulary and grant-mechanism
+checks pass cleanly — after the run corrected a schema error in our own role vocabulary.
 
 The goal of this effort is **consistency, not completeness**: we validate that parts of the graph do
 not contradict each other. Missing detail (a project with no devices) is *out of scope* — a gap, not
@@ -35,35 +35,54 @@ Publication 45, ResearchOrganization 37, Device 35, DeviceCategory 34, DeviceMan
 Project 34, Dataset 24, SoftwareTool 19, FundingOpportunity 14, Species 15, Announcement 12,
 Job 6, Benchmark 3, MLModel 3, Protocol 1, Event 1, WorkingGroup 4.
 
-Validated against the consistency shapes: **`Conforms: False`, 6 violations — all invariant #7**.
-#4 and #9 conform; `held_by` is omitted under anon (its referential shape passes); #5/#12/#14–#19
-have no anon targets (PII / `field_provenance` are RLS-hidden, and #19 is guarded to stay dormant
-while the provenance layer is absent).
+## Latest run — 2026-09-23
+
+**3,105 triples.** Node counts: Investigator 263, ProjectRole 111, Publication 90,
+ResearchOrganization 74, Device 35, Project 34, DeviceCategory 34, Dataset 24, SoftwareTool 19,
+Species 14, FundingOpportunity 14, Announcement 12, Job 6, MLModel 3, Benchmark 3, Protocol 1.
+ProjectRole edges: 111. Unresolved `study_species`: **9** (see F1).
+
+Species 14 predates the Hofstenia row. A re-export after adding it **confirmed 8 unresolved**: every
+remaining value is one of the eight in F1 below, and R34DA061984 no longer appears.
+
+## First run — the graph
+
+~2,476 triples. Node counts: Project 34, ProjectRole 111, Investigator 177, Publication 45,
+ResearchOrganization 37, Device 35, DeviceCategory 34, Dataset 24, SoftwareTool 18, Species 14,
+Announcement 5, Job 4, MLModel 3, Benchmark 3, Protocol 1.
+
+Validated against the consistency shapes: **`Conforms: False`, 9 violations — all invariant #7**
+(dangling `study_species`, after alias resolution). Invariants #4 (canonical role token) and #9
+(mechanism↔grant_number) **conform**. #5 and #12 have no targets in this run (see *Coverage limits*).
 
 ## Findings
 
 ### F1 — `study_species` values that do not resolve to a Species node (invariant #7)
 
-`projects.study_species[]` is free text; the `species` table holds canonical common-name entries. The
-exporter folds `species_aliases` (synonyms/scientific names) and routes "no species by design" markers
-to `study_scope`. That leaves **6** genuine cases — all needing people, not code:
+`projects.study_species[]` is free text; the `species` table holds 14 canonical common-name entries.
+The exporter now folds `species_aliases` (32 rows) into its resolver and emits each alias onto its
+Species node, so scientific names and plurals resolve — cutting the dangling set **from 26 to 9**.
+Shape #7 verifies resolution from the graph itself (name / common_name / alias match).
+
+The 9 that remained at the 2026-09-23 run, and what each needs:
 
 | Grant | `study_species` value | Status | Needs |
 |---|---|---|---|
-| R34DA061984 | `Hofstenia miamia` | **fixed** — panther-worm `species` row added (`migration:add_hofstenia_species`) | nothing (resolves) |
-| R34DA059723 | `Freely moving animals` | candidate *Mus musculus* (strong) | curator confirm |
-| R34DA062119 | `Developmental Models` | candidate *Mus musculus* (strong) | curator confirm |
-| R34DA059512 | `Rodents` | candidate *Mus musculus* (strong) | curator confirm |
-| R34DA061924 | `Interacting Animals` | candidate *Mustela putorius furo* (strong) | curator confirm |
-| R34DA059500 | `Genetic Species` | flies **and** fish, neither named (`needs_choice`) | project team |
-| R34DA059510 | `Social species with male displays` | Lake Malawi cichlids — hundreds (`needs_choice`) | project team |
-| R24MH136632 (EMBER) | `All Species` | infrastructure award — no species by design | nothing (→ `study_scope`, not flagged) |
-| U24DA064429 (BARD.CC) | `All Species` | infrastructure award (renumbered from U24MH136628, #385) | nothing (→ `study_scope`, not flagged) |
+| R34DA061984 | `Hofstenia miamia` | **fixed in data** — the alias existed but there was no `species` row; the panther worm row was added (audit actor `migration:add_hofstenia_species`) | nothing — **verified**: resolves on re-export |
+| R34DA059723 | `Freely moving animals` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA062119 | `Developmental Models` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA059512 | `Rodents` | candidate *Mus musculus* (strong) | a curator to confirm |
+| R34DA061924 | `Interacting Animals` | candidate *Mustela putorius furo* (strong) | a curator to confirm |
+| R34DA059500 | `Genetic Species` | flies **and** fish, neither named to species (`needs_choice`) | the project team to say which |
+| R34DA059510 | `Social species with male displays` | Lake Malawi cichlids — a family of hundreds of species (`needs_choice`) | the project team to say which |
+| R24MH136632 (EMBER) | `All Species` | infrastructure award | nothing — no species by design |
+| U24DA064429 (BARD.CC) | `All Species` | infrastructure award (renumbered from U24MH136628, #385) | nothing — no species by design |
 
-Candidates live in `species_candidates` (see the migration) and a curator confirms one with
-`confirm_species_candidate`, recording it in their name. Trajectory: **6 → 2** (after the four strong
-confirmations) **→ 0** (once the two project teams choose). The two `All Species` are already off the
-#7 list via `study_scope`.
+Candidates live in `species_candidates` and are confirmed with `confirm_species_candidate`, which
+records the curator as the source. Trajectory: **9 → 8** (Hofstenia — verified) **→ 4** (after the four
+strong confirmations: the two choices + the two infrastructure awards remain) **→ 2** (once the
+project teams choose). The last 2 are correct data that #7 still flags, because `species_aliases`
+marks `All Species` as a placeholder but the exporter does not read `kind` yet.
 
 ### F2 — role vocabulary was mis-modelled; one real normalization gap
 
@@ -88,8 +107,12 @@ had no data to check; a full-access export (Phase 6) exercises them.
 
 ## Recommendations / next steps
 
-1. ~~Fold `species_aliases` into the resolver~~ / ~~route "no species by design" to `study_scope`~~ **DONE** — F1 is 6.
-2. **Confirm the four strong species candidates** and get the two `needs_choice` answers from the project teams (F1) → #7 to 0.
-3. **Orphan cleanup + insert trigger** (F3), and promote the 6 backfilled `resource_type` values PROPOSED → shipped in the LinkML once `types.ts` regenerates.
-4. **Full-access export run** (Phase 6) — light up #5/#12/#14/#15/#17/#18/#19 against real data; add the OWL reasoner for the `disjoint_with` axioms gen-owl didn't emit.
-5. **Data fixes:** normalize `co-investigator`; investigate the 34th Project (orphan grant resource).
+1. ~~Fold `species_aliases` into the exporter's resolver~~ **DONE** — collapsed F1 from 26 to 9.
+2. **Full-access export run** — light up invariants #5 and #12 against real data.
+3. **Backfill migration** — extend `resource_type` and add `resource_id` so species, devices,
+   working groups, funding, events, organizations and publications are first-class spine nodes.
+4. **`gen-shacl` / `gen-owl`** — generate the boilerplate shapes (cardinality/pattern/type) and the
+   OWL TBox, turning catalog rows 1/2/3/6/8/10/11 from *planned* into enforceable.
+5. **Data fixes** surfaced here: normalize `co-investigator`; confirm the four strong species
+   candidates and get the two `needs_choice` answers from the project teams (F1); investigate the
+   34th Project node.

@@ -13,8 +13,8 @@ status of the whole effort; the Status column is updated as each phase lands.
 |---|---|---|---|
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
 | 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
-| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (12 shapes + 1 guard live) |
-| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (3,044 triples; 6 dangling after aliases + study_scope) |
+| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (11 shapes + 1 guard live) |
+| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (3,105 triples on 2026-09-23; 8 dangling after the Hofstenia row, verified) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done** (`bbqs.owl.ttl` 3,165 triples; `bbqs.shapes.gen.ttl` 22 NodeShapes; `disjoint_with` → `owl:disjointWith` didn't emit — deferred to Phase 6) |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
@@ -79,28 +79,31 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 11 | Numeric/temporal sanity: amount >= 0, budget_floor <= ceiling, open <= expiration | expiration date before open date | SHACL SPARQL | planned |
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
-| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL | **live** (no targets — anon omits `orcid`) |
-| 15 | One email (primary or secondary) → one Investigator node | same address as one node's `email` and another's `secondary_emails` (the `lyc5332@psu.edu` failure) | SHACL SPARQL | **live** (no targets — PII, restricted from anon) |
-| 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` assert different `project_role` | SHACL SPARQL | **live** (conforms on anon — `held_by` omitted) |
+| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL | **live** (no targets — anon export omits `orcid`) |
+| 15 | One email (primary or secondary) → one Investigator node | same address as one node's `email` and another's `secondary_emails` (the `lyc5332@psu.edu` failure) | SHACL SPARQL | **live** (no targets — `email`/`secondary_emails` are PII, restricted from anon export) |
+| 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` pair assert different `project_role` values | SHACL SPARQL | **live** |
 | 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL | **live** (no targets — exporter doesn't emit `author_orcids` yet) |
-| 18 | A grade-1 (curator) claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
-| 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; guarded dormant when the whole provenance layer is RLS-hidden, so no false-fire on anon) |
+| 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
+| 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
 
 **live** = enforced now: 4/5/6(held_by)/7/9/12/14/15/16/17/18/19 in `shapes/consistency.shapes.ttl`,
-13 in `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4/9/16 conform,
-7 fires 6×, `held_by` is omitted (its shape passes; it fired on 111 pre-fix roles), and
-5/12/14/15/17/18/19 have no targets — investigators-detail, `field_provenance`, `orcid`,
-`secondary_emails`, and `author_orcids` are either RLS-hidden from anon or not yet emitted, and #19 is
-guarded to stay dormant while the whole provenance layer is absent (a full-access export exercises them
-all). **partial** = one half in place — for #5 the
+13 in `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4 and 9
+conform, 7 fires 9×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and
+5/12/14/15/17/18/19 have no targets (investigators-detail, `field_provenance`, `orcid`,
+`secondary_emails`, and `author_orcids` are either RLS-hidden from anon or not yet emitted by the
+exporter — a full-access export, plus wiring `author_orcids` into the exporter, exercises them). 16
+conforms on the current export (no two `ProjectRole` edges yet share a `held_by`+`on_project`
+pair). **partial** = one half in place — for #5 the
 `consortium_role` conflation shape exists, but the exporter's roster-only generation rule is pending.
 **planned** = arrives with the `gen-shacl` boilerplate shapes, the full-access export, or the OWL layer.
 
-Rows 14–19 came from an external review (via Lovable) against #386; three overlapping proposals were
-folded into existing rows instead of duplicated (canonical role token → #4; working-group canonical
-labels → #8; `Grant.funder` typed `FundingAgency` → a gen-shacl range constraint), and four were
-deferred because the schema doesn't model the fields yet (org-name variants and device categories
-need their `resource_id` backfill; grant/publication date-sanity needs date slots that don't exist).
+Rows 14–19 were proposed from an external review (via Lovable) against issue #386; three
+overlapping proposals were folded into existing rows instead of duplicated (`roleOnProject`
+canonical-token → row 4; working-group canonical labels → row 8; `Grant.funder` typed
+`FundingAgency` → already a `gen-shacl` range constraint), and four more were deferred because the
+schema doesn't model the fields yet (org name variants and device categories need their
+`resource_id` backfill first; grant/publication date-sanity needs `Project.start_date`/`end_date`
+and a `Consortium.founding_date` slot that don't exist yet).
 
 ## Run the consistency harness
 

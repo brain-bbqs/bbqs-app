@@ -125,8 +125,9 @@ bbqs:ConflictingVerifiedProvenanceShape
   ] .
 
 # ── Invariant #14 — one ORCID, one Investigator node ──────────────────────────
-# An ORCID iD identifies a person, not a row. Two Investigator nodes carrying the same bbqs:orcid
-# are the same person recorded twice -- a merge candidate. No targets on anon (orcid not emitted).
+# An ORCID iD identifies a person, not a row. Two Investigator nodes carrying the same
+# bbqs:orcid are the same person recorded twice -- a merge candidate, never two people.
+# No targets yet: the anon export doesn't emit `orcid` (full-access export required).
 bbqs:OrcidUniquePerPersonShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Investigator ;
@@ -144,8 +145,11 @@ bbqs:OrcidUniquePerPersonShape
   ] .
 
 # ── Invariant #15 — one email (primary or secondary), one Investigator node ───
-# The same address must not be one node's primary email and another's secondary -- the
-# lyc5332@psu.edu failure. No targets on anon (email/secondary_emails are PII, restricted).
+# investigators.email and investigators.secondary_emails are two slots on ONE row, but the
+# same address must not appear as the primary email of one node and the secondary email of
+# another -- that's the lyc5332@psu.edu failure: a second identity for a person already known
+# by a different address. No targets yet: `email`/`secondary_emails` are PII, restricted from
+# the anon export.
 bbqs:EmailUniquePerPersonShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Investigator ;
@@ -164,8 +168,8 @@ bbqs:EmailUniquePerPersonShape
 
 # ── Invariant #16 — one role per person per grant ─────────────────────────────
 # A person may hold different roles across different grants (per-edge role is fine), but two
-# ProjectRole edges for the SAME held_by + on_project pair with different project_role values is a
-# contradiction about this person's one standing on this one grant.
+# ProjectRole edges for the SAME held_by + on_project pair asserting different project_role
+# values is a contradiction about a single fact: this person's standing on this one grant.
 bbqs:OneRolePerPersonPerGrantShape
   a sh:NodeShape ;
   sh:targetClass bbqs:ProjectRole ;
@@ -184,9 +188,11 @@ bbqs:OneRolePerPersonPerGrantShape
   ] .
 
 # ── Invariant #17 — author_orcids resolves to an Investigator node ────────────
-# publications.authors is deliberately free-text; author_orcids is where an identity claim can be
-# checked. An ORCID here with no matching bbqs:orcid on any Investigator is incomplete identity
-# resolution (mirrors #7). No targets yet: the exporter doesn't emit author_orcids.
+# publications.authors is deliberately NOT an FK (free-text byline); author_orcids is where a
+# real identity claim can be checked. An ORCID here with no matching bbqs:orcid on any
+# Investigator is incomplete identity resolution -- grade it, don't silently drop it (mirrors
+# the #7 species-resolution shape). No targets yet: the exporter doesn't emit author_orcids
+# for Publication nodes yet.
 bbqs:AuthorOrcidResolvesShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Publication ;
@@ -203,8 +209,9 @@ bbqs:AuthorOrcidResolvesShape
 
 # ── Invariant #18 — a grade-1 claim cannot be overwritten by a grade-3 claim ──
 # SourceClass.grade ranks reliability (1 = manual/curator, 3 = harvested). field_provenance is
-# append-only, so a harvested (grade 3) record disagreeing with a curated (grade 1) record for the
-# same (table,column,id) is the harvester overwriting a human. No targets on anon (no ProvenanceRecords).
+# append-only (X. Full Data Provenance), so a harvested (grade 3) record disagreeing with an
+# existing curated (grade 1) record for the same (table,column,id) is the harvester trying to
+# overwrite a human -- flag the curated record, never let the harvested value win silently.
 bbqs:GradedProvenancePrecedenceShape
   a sh:NodeShape ;
   sh:targetClass bbqs:ProvenanceRecord ;
@@ -225,13 +232,13 @@ bbqs:GradedProvenancePrecedenceShape
   ] .
 
 # ── Invariant #19 — a node cannot exist with zero provenance claims ───────────
-# Every row came from somewhere; "unknown" is a value, not an absence. Scoped to bbqs:Project.
-# GUARD: only active once the provenance layer is present in the graph -- on the anon export
-# field_provenance is RLS-hidden (no ProvenanceRecords at all), and absence-of-the-whole-layer is
-# not the same as a node missing its own claim, so the FILTER EXISTS keeps #19 dormant there rather
-# than false-flagging every Project. Matches a node to its records by the spine id (last IRI segment
-# vs prov_entity_id); needs the held_by-style id-mapping where a table's provenance is keyed by a
-# different id space.
+# Every row came from somewhere; "unknown" is a value, not an absence. Scoped to bbqs:Project
+# for now (extend sh:targetClass as other classes get full-access-export coverage). Matches a
+# node to its ProvenanceRecords by the shared spine id -- the last path segment of the node's
+# IRI vs prov_entity_id. CAUTION: this assumes prov_entity_id is keyed in the SAME id space as
+# the node's own resources.id; where a table's provenance rows are keyed by a different table's
+# id (the exact investigators.id vs resources.id split behind the held_by bug above), this will
+# need the same kind of id-mapping the exporter uses for held_by, not a raw string match.
 bbqs:NodeHasProvenanceShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Project ;
@@ -240,7 +247,6 @@ bbqs:NodeHasProvenanceShape
     sh:prefixes bbqs:prefixes ;
     sh:select """
       SELECT $this WHERE {
-        FILTER EXISTS { ?anyprov a bbqs:ProvenanceRecord }
         BIND(STRAFTER(STR($this), "https://brain-bbqs.org/id/") AS ?localId)
         FILTER NOT EXISTS { ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId }
       }
