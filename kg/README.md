@@ -44,7 +44,7 @@ status of the whole effort; the Status column is updated as each phase lands.
 ## The three validation layers
 
 1. **Guards (Node, runnable now, zero-dep)** — schema↔DB drift, e.g. `tests/guards/kg-resource-type-parity.test.mjs` ties this schema's `resource_type_enum` to the live Postgres enum. Runs under `npm run test:guards`.
-2. **SHACL (pyshacl)** — structural + contradiction checks over an instance graph. The interesting shapes live in `shapes/`; the boilerplate node/cardinality/pattern shapes come from `gen-shacl` (see below).
+2. **SHACL (pyshacl)** — structural + contradiction checks over an instance graph. The interesting shapes live in `shapes/`; the boilerplate node/cardinality/pattern shapes come from `bbqs.shapes.gen.ttl` (generated from `bbqs.linkml.yaml` via LinkML's `gen-shacl`).
 3. **OWL reasoning (deferred)** — pure-logic contradictions (disjoint classes, functional properties) via a DL reasoner (robot/HermiT). Needs Java; added after the SHACL layer is green.
 
 ## Consistency-invariant catalog
@@ -76,30 +76,6 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
 
-## Run the consistency harness
-
-```bash
-python -m venv kg/.venv
-kg/.venv/Scripts/python -m pip install pyshacl click  # Windows; use bin/ on macOS/Linux
-kg/.venv/Scripts/python kg/validate.py kg/fixtures/contradictions.ttl   # -> conforms=False (every shape fires)
-kg/.venv/Scripts/python kg/validate.py kg/fixtures/clean.ttl            # -> conforms=True
-```
-
-## Generate OWL + boilerplate SHACL from the schema
-
-Done — `bbqs.owl.ttl` and `bbqs.shapes.gen.ttl` are committed. To regenerate after editing the schema
-(Windows needs `PYTHONUTF8=1`, and the generators write to stdout — `-o` is ignored):
-
-```bash
-kg/.venv/Scripts/python -m pip install linkml
-PYTHONUTF8=1 kg/.venv/Scripts/gen-owl   kg/bbqs.linkml.yaml > kg/bbqs.owl.ttl
-PYTHONUTF8=1 kg/.venv/Scripts/gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen.ttl
-```
-
-`gen-shacl` gives the boilerplate node/cardinality/`sh:pattern` shapes (run alongside
-`shapes/consistency.shapes.ttl`); `gen-owl` gives the TBox for the Phase 6 reasoner. Note:
-`disjoint_with` did not translate to `owl:disjointWith` — deferred to Phase 6.
-
 ## Run the whole pipeline
 
 One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command: exports from Supabase, validates the
@@ -107,6 +83,8 @@ result against the SHACL shapes, and builds the BBQS Explorer JSON (`explorer/in
 draggable globe → US map → triple/relationship panel), in that order.
 
 ```bash
+python -m venv kg/.venv
+kg/.venv/Scripts/python -m pip install pyshacl click  # Windows; use bin/ on macOS/Linux
 kg/.venv/Scripts/python kg/main.py
 ```
 
@@ -122,7 +100,9 @@ BBQSKnowledgeGraph().run()   # export() -> validate() -> export_explorer_json(),
 Anon by default (RLS-limited). Pass `BBQSKnowledgeGraph(url=..., key=...)`, or set `SUPABASE_KEY` to
 a stronger key, for the full graph — including investigators-table detail and `field_provenance`
 (needed by shapes 5 and 12). `export.py`/`validate.py`/`explorer.py` remain as individual CLIs over
-the same object for running one step at a time.
+the same object for running one step at a time; `python kg/validate.py kg/fixtures/clean.ttl` (and
+`kg/fixtures/contradictions.ttl`, which should fire every shape) proves the shapes themselves are
+correct without a live Supabase export.
 
 ## Not yet built
 
