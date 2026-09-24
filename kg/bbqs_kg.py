@@ -475,8 +475,16 @@ class BBQSKnowledgeGraph:
               f"shapes={len(shape_files)} file(s)")
         return conforms, report_text
 
-    def run(self, out_path: Path | str | None = None, shape_files: list[Path] | None = None) -> bool:
-        """Run the full pipeline in sequence: export from Supabase, then validate the result."""
+    def run(
+        self,
+        out_path: Path | str | None = None,
+        shape_files: list[Path] | None = None,
+        explorer_path: Path | str | None = None,
+    ) -> bool:
+        """Run the whole pipeline in sequence, one call: export from Supabase, validate the result,
+        then build the BBQS Explorer JSON from the same graph. Returns the validator's conforms bool.
+        """
         out_path = self.export(out_path)
         conforms, _report_text = self.validate(out_path, shape_files)
+        self.export_explorer_json(explorer_path)
         return conforms
