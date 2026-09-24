@@ -50,12 +50,27 @@ status of the whole effort; the Status column is updated as each phase lands.
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 | `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
 | `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
+| `owl/disjointness.ttl` | Hand-written OWL axioms gen-owl can't produce: every node class pairwise disjoint (#1/#3) + the dropped `Person ⊥ Organization`. Kept honest by `tests/guards/kg-owl-disjointness.test.mjs`. |
+| `reason.py` | OWL consistency runner (owlready2 → HermiT): `python kg/reason.py <data.ttl>`; `--expect-inconsistent` for RED fixtures. |
+| `fixtures/owl/` | One contradiction per file — each must reason INCONSISTENT. |
 
 ## The three validation layers
 
 1. **Guards (Node, runnable now, zero-dep)** — schema↔DB drift, e.g. `tests/guards/kg-resource-type-parity.test.mjs` ties this schema's `resource_type_enum` to the live Postgres enum. Runs under `npm run test:guards`.
 2. **SHACL (pyshacl)** — structural + contradiction checks over an instance graph. The interesting shapes live in `shapes/`; the boilerplate node/cardinality/pattern shapes come from `gen-shacl` (see below).
-3. **OWL reasoning (deferred)** — pure-logic contradictions (disjoint classes, functional properties) via a DL reasoner (robot/HermiT). Needs Java; added after the SHACL layer is green.
+3. **OWL reasoning (`reason.py`)** — pure-logic contradictions via the HermiT DL reasoner, driven from
+   Python by **owlready2** (which bundles the HermiT jar; needs Java on PATH — no separate robot
+   install). OWL is the *logic* of the schema: SHACL checks what a node *has*; the reasoner checks
+   what the graph *entails* and whether those entailments contradict. Example: a `held_by` edge
+   pointing at a Project. SHACL sees "target isn't typed Investigator"; OWL infers the target *is* an
+   Investigator (the range) *and* a Project, which are disjoint → inconsistent. Result is one bit per
+   graph (consistent or not) — HermiT gives no justification, so on failure `reason.py` prints a
+   heuristic list of likely culprits.
+
+   Two things differ from plain OWL semantics, both deliberate: the data individuals are declared
+   `owl:AllDifferent` (OWL has no unique-name assumption, so two `held_by` values on a max-1 slot would
+   be *merged*, not flagged — our spine guarantees one IRI per entity), and `xsd:date` is relaxed to
+   `rdfs:Literal` (it isn't in the OWL 2 datatype map; HermiT rejects it).
 
 ## Consistency-invariant catalog
 
@@ -125,6 +140,27 @@ PYTHONUTF8=1 kg/.venv/Scripts/gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen
 `gen-shacl` gives the boilerplate node/cardinality/`sh:pattern` shapes (run alongside
 `shapes/consistency.shapes.ttl`); `gen-owl` gives the TBox for the Phase 6 reasoner. Note:
 `disjoint_with` did not translate to `owl:disjointWith` — deferred to Phase 6.
+
+## Run the OWL reasoner
+
+```bash
+kg/.venv/Scripts/python -m pip install owlready2        # + Java 8+ on PATH
+kg/.venv/Scripts/python kg/reason.py --expect-inconsistent kg/fixtures/owl/*.ttl   # -> 5x INCONSISTENT
+kg/.venv/Scripts/python kg/reason.py kg/fixtures/clean.ttl                          # -> consistent
+kg/.venv/Scripts/python kg/reason.py kg/export/bbqs.ttl
+```
+
+`fixtures/contradictions.ttl` reasons *consistent* — expected: its violations (free-text role token,
+mechanism mismatch, conflicting provenance) are SHACL's job, not logic contradictions.
+
+First run on the anon export (2,365 triples) found:
+- **Datatype drift in the exporter** — URLs emitted as plain strings where the schema says
+  `xsd:anyURI` (112 triples); disjoint value spaces in OWL 2, so the whole graph was inconsistent.
+  Fixed: `export.py` now takes every literal's datatype from `bbqs.owl.ttl`. (`award_amount` as
+  integer vs float also drifted, but HermiT accepts it; fixed by the same change.)
+- **A real data error** — EMBER's `projects.website` is the prose "Visit EMBER via the
+  Brain-Behavior Data Archive portal", not a URL. Needs a data fix.
+- With both corrected, the graph is **consistent** (≈3.5 s).
 
 ## Run the exporter
 

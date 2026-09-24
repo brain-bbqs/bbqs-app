@@ -86,6 +86,14 @@ The exporter ran as **anon**, so RLS hid the `investigators` detail table, `fiel
 `source_classes`, and working-group detail. Invariants **#5, #12, #14, #15, #17, #18, #19** therefore
 had no data to check; a full-access export (Phase 6) exercises them.
 
+### F5 — OWL reasoning (HermiT via owlready2): exporter datatype drift + one bad URL
+
+The first reasoner pass found the anon export **inconsistent**. Cause: the exporter wrote URLs as plain
+strings where the schema declares `xsd:anyURI` (112 triples) — disjoint value spaces in OWL 2. The
+exporter now types every literal from the generated TBox. Re-typed, one genuine error remained: EMBER's
+`projects.website` holds prose ("Visit EMBER via the Brain-Behavior Data Archive portal"). Without it
+the graph is consistent. Also: `xsd:date` is not in the OWL 2 datatype map, so the reasoner relaxes it.
+
 ## Recommendations / next steps
 
 1. ~~Fold `species_aliases` into the resolver~~ / ~~route "no species by design" to `study_scope`~~ **DONE** — F1 is 6.

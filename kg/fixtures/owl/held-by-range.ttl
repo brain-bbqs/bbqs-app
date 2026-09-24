@@ -1,0 +1,9 @@
+# RED (#6, inference-only): held_by points at a Project. Nothing is asserted twice -- the range of
+# held_by makes bid:proj-1 an Investigator, and Investigator is disjoint with Project. SHACL's
+# referential shape sees "not typed Investigator"; OWL sees a contradiction.
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+bid:proj-1 a bbqs:Project ; bbqs:grant_number "1U01MH135430-01" .
+bid:role-1 a bbqs:ProjectRole ; bbqs:project_role "contact_pi" ;
+  bbqs:held_by bid:proj-1 ; bbqs:on_project bid:proj-1 .

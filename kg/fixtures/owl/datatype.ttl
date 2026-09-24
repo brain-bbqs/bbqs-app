@@ -1,0 +1,6 @@
+# RED (datatype): a URL slot emitted as a plain string where the schema says xsd:anyURI. In OWL 2
+# xsd:string and xsd:anyURI have disjoint value spaces, so this is a contradiction -- and it is exactly
+# what the pre-fix exporter emitted on every external_url / nih_link / website (112 triples).
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid:  <https://brain-bbqs.org/id/> .
+bid:proj-1 a bbqs:Project ; bbqs:nih_link "https://reporter.nih.gov/project-details/11000000" .
