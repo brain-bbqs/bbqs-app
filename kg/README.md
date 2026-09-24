@@ -22,19 +22,6 @@ status of the whole effort; the Status column is updated as each phase lands.
 | 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
 | 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
 
-### Why each phase
-
-- **0 — Foundations.** Locked the goal (*consistency, not enrichment*), and the four choices everything else depends on: LinkML as the single source of truth, the `resources` table as the node spine, SHACL-first validation, and `Project`=`Grant` as one node. *Why:* a KG drifts without one rule for identity, typing, and schema; deciding these up front keeps every later phase mechanical, and the consistency-not-completeness framing bounds the scope to contradictions we can actually detect.
-- **1 — Schema authored.** Wrote `bbqs.linkml.yaml` with one class per real entity, grounded in the actual Supabase columns; the Marr/causal layer is stubbed. *Why:* LinkML is the one artifact that generates OWL + SHACL + JSON-LD, so we author once instead of hand-syncing three formats. Grounding in real columns means the schema describes what exists; stubbing Marr avoids modeling a layer that isn't ready.
-- **2 — Consistency invariants.** The 19-row catalogue of what must not contradict, RED/GREEN fixtures, and a zero-dep schema↔DB drift guard. *Why:* "consistent" is meaningless without a written list of the specific contradictions we reject; proving each shape RED first means a green result actually means something; the guard catches enum drift in CI before it reaches the graph.
-- **3 — Exporter (A).** Walk the spine → instance TTL (grants⋈projects, reified `ProjectRole`, `species_aliases` resolver, `field_provenance`→PROV). *Why:* you cannot validate a graph you haven't generated — this is the "generate" half. Running it on real data immediately surfaced real bugs (9 dangling species; the `held_by` two-keys identity error), which is the entire point.
-- **4 — Generate OWL + boilerplate SHACL (B).** `gen-owl` → the TBox; `gen-shacl` → node/cardinality/pattern shapes. *Why:* the hand-written shapes cover only cross-field contradictions; the mechanical structural checks should be *generated* from the schema so they can never drift from it, and the OWL TBox is the input the Phase 6 reasoner needs.
-- **5 — Backfill migration (C).** Extend `resource_type` + add `resource_id` so species/devices/working-groups/funding/events/orgs/pubs enter the spine. *Why:* the spine is only a real spine if every entity is in it. Today several live only in satellite tables, forcing the exporter to mint IRIs two ways — the migration makes identity single-sourced, which is what makes "one IRI per entity" enforceable.
-- **6 — Full-access export + OWL reasoning.** Re-run the exporter with a key that can read RLS-hidden tables, then add a DL reasoner. *Why:* the anon export can't see investigators-detail / `field_provenance`, so shapes #5/#12 have no data; full access exercises them. OWL reasoning catches logical contradictions (disjointness, functional properties) SHACL only approximates — and closes the `disjoint_with` gap Phase 4 surfaced.
-- **7 — CI gate (D).** Run the harness in CI (fixtures now, exported graph later). *Why:* a consistency check that isn't automated rots; a gate makes a schema or graph regression fail loudly, matching the repo's guard culture.
-- **8 — Publish `/schema` + retire old surfaces (E).** Regenerate the browsable schema tree from the LinkML and retire the hand-maintained `/schema` + `/data-model` pages. *Why:* those old pages are forks of the schema that drift; regenerating from the master gives one source. `/schema` is admin-gated + WIP-bannered meanwhile so we don't publish a half-migrated schema.
-- **9 — Spec artifacts (F).** `spec.md`/`plan.md`/`tasks.md`/`qa-itinerary.md` in `../bbqs-agent/specs/`. *Why:* the Constitution requires changes here to leave spec artifacts there, capturing the reasoning as durable spec rather than only commit messages — the exact gap that let issue #283 happen.
-
 ## Layout
 
 | Path | What it is |
@@ -46,12 +33,12 @@ status of the whole effort; the Status column is updated as each phase lands.
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner CLI: `python kg/validate.py <data.ttl> [shapes…]`. |
-| `main.py` | Runs the pipeline end-to-end in one call: export, then validate the result (`python kg/main.py [out.ttl]`). |
+| `main.py` | Runs the whole pipeline in one call: export, validate, then build the Explorer JSON (`python kg/main.py`). |
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
 | `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
 | `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
 | `explorer.py` | Builds `bbqs_explorer.json` for `explorer/index.html`: `BBQSKnowledgeGraph.export_explorer_json()` CLI. |
-| `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views (see "BBQS Explorer" below). |
+| `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views. |
 | `explorer/index.html` | **BBQS Explorer** — single-file D3 v7 app: draggable globe → US map → triple/relationship panel. No build step. |
 
 ## The three validation layers
@@ -89,25 +76,6 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
 
-**live** = enforced now: 4/5/6(held_by)/7/9/12/14/15/16/17/18/19 in `shapes/consistency.shapes.ttl`,
-13 in `../tests/guards/kg-resource-type-parity.test.mjs`. On the current anon export, 4 and 9
-conform, 7 fires 9×, `held_by` is omitted (so its shape passes; it fired on 111 pre-fix roles), and
-5/12/14/15/17/18/19 have no targets (investigators-detail, `field_provenance`, `orcid`,
-`secondary_emails`, and `author_orcids` are either RLS-hidden from anon or not yet emitted by the
-exporter — a full-access export, plus wiring `author_orcids` into the exporter, exercises them). 16
-conforms on the current export (no two `ProjectRole` edges yet share a `held_by`+`on_project`
-pair). **partial** = one half in place — for #5 the
-`consortium_role` conflation shape exists, but the exporter's roster-only generation rule is pending.
-**planned** = arrives with the `gen-shacl` boilerplate shapes, the full-access export, or the OWL layer.
-
-Rows 14–19 were proposed from an external review (via Lovable) against issue #386; three
-overlapping proposals were folded into existing rows instead of duplicated (`roleOnProject`
-canonical-token → row 4; working-group canonical labels → row 8; `Grant.funder` typed
-`FundingAgency` → already a `gen-shacl` range constraint), and four more were deferred because the
-schema doesn't model the fields yet (org name variants and device categories need their
-`resource_id` backfill first; grant/publication date-sanity needs `Project.start_date`/`end_date`
-and a `Consortium.founding_date` slot that don't exist yet).
-
 ## Run the consistency harness
 
 ```bash
@@ -132,86 +100,29 @@ PYTHONUTF8=1 kg/.venv/Scripts/gen-shacl kg/bbqs.linkml.yaml > kg/bbqs.shapes.gen
 `shapes/consistency.shapes.ttl`); `gen-owl` gives the TBox for the Phase 6 reasoner. Note:
 `disjoint_with` did not translate to `owl:disjointWith` — deferred to Phase 6.
 
-## Run the exporter
+## Run the whole pipeline
+
+One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command: exports from Supabase, validates the
+result against the SHACL shapes, and builds the BBQS Explorer JSON (`explorer/index.html`'s
+draggable globe → US map → triple/relationship panel), in that order.
 
 ```bash
-kg/.venv/Scripts/python kg/export.py            # -> kg/export/bbqs.ttl (+ dangling-species report)
-kg/.venv/Scripts/python kg/validate.py kg/export/bbqs.ttl kg/shapes/consistency.shapes.ttl
+kg/.venv/Scripts/python kg/main.py
 ```
 
-Or run both steps in sequence with one call, via the `BBQSKnowledgeGraph` object the two CLIs above
-share (`bbqs_kg.py`):
-
-```bash
-kg/.venv/Scripts/python kg/main.py              # export -> kg/export/bbqs.ttl, then validate it
-```
-
-Anon by default (RLS-limited). For the full graph — including investigators-table detail and
-`field_provenance` (needed by shapes 5 and 12) — set `SUPABASE_KEY` to a stronger key first.
-
-## Use `BBQSKnowledgeGraph` directly
-
-`export.py`/`validate.py`/`main.py` are CLIs over one object — `bbqs_kg.py`'s `BBQSKnowledgeGraph`.
-Import it directly to call `export()`/`validate()` from other Python code (a notebook, another
-script, a CI job) instead of shelling out:
+That writes `kg/export/bbqs.ttl`, prints the SHACL validation report, and writes
+`kg/explorer/bbqs_explorer.json` — then serve `kg/explorer/` (`python -m http.server` from that
+directory, not a `file://` open) to browse it. Same thing from Python:
 
 ```python
-import sys
-sys.path.insert(0, "kg")          # or run from inside kg/, or add kg/ to PYTHONPATH
 from bbqs_kg import BBQSKnowledgeGraph
-
-kg = BBQSKnowledgeGraph()                  # reads SUPABASE_URL/SUPABASE_KEY from the environment,
-                                            # falling back to the anon values in
-                                            # src/integrations/supabase/client.ts
-out_path = kg.export("kg/export/bbqs.ttl")           # -> Path; builds kg.graph (an rdflib.Graph)
-conforms, report = BBQSKnowledgeGraph.validate(out_path)   # validate() is a staticmethod
-
-# or both steps in one call:
-conforms = kg.run("kg/export/bbqs.ttl")    # export() then validate(); returns the bool
+BBQSKnowledgeGraph().run()   # export() -> validate() -> export_explorer_json(), returns conforms
 ```
 
-Pass `BBQSKnowledgeGraph(url=..., key=...)` to point at a different Supabase project or use a
-stronger key (e.g. the full-access export) without touching the environment.
-
-## BBQS Explorer
-
-A single lightweight `explorer/index.html` (D3 v7 from CDN, no build step) with three linked views:
-draggable globe → US site map → triple/relationship panel. It reads `bbqs_explorer.json`, built by
-`BBQSKnowledgeGraph.export_explorer_json()` — a method on the same object as `export()`/`validate()`,
-not a separate one-off script.
-
-Two gaps in the instance data matter for a map, and the exporter closes both **explicitly** rather
-than pretending the edges are there:
-
-- **No coordinates.** `ResearchOrganization` nodes carry a name only. `explorer_geocode.py` is a
-  curated, hand-maintained `org name -> (lat, lng)` table (city-level, not a runtime geocoding API or
-  key — these are well-known US institutions, so a static lookup is lighter and more reliable). Any
-  org not in the table lands in `unplaced_orgs` in the JSON and in the Explorer's sidebar, never
-  silently dropped.
-- **No project↔organization edge.** `part_of_org`/`held_by` are asserted in the LinkML schema but
-  absent from every export so far (`grep -c bbqs:part_of_org kg/export/bbqs.ttl` is `0`), and
-  `grants`/`projects` don't carry an organization column either — the awardee institution isn't
-  anywhere in bbqs.ttl or the Supabase tables this exporter reads. The only place it exists is NIH
-  RePORTER's public API, keyed by `reporter_project_num`, so `export_explorer_json()` looks it up
-  there once per project (no key needed) and tags the result a **derived** edge (`awarded_to`,
-  rendered dashed in the UI) — never mixed with an asserted triple. A project whose RePORTER lookup
-  fails (no `reporter_project_num`, network error, no match) lands in `unplaced_projects`, visible in
-  the sidebar with why.
-- **Project↔project affinity** is derived the same explicit way, from what projects already share in
-  the graph: a `species_affinity` edge when two projects resolve to the same `studies_species` node,
-  and a `keyword_affinity` edge when two projects' `keywords` overlap by 2 or more (a floor so 34
-  projects don't turn into a hairball).
-
-Build it:
-
-```bash
-kg/.venv/Scripts/python kg/explorer.py                              # export -> kg/explorer/bbqs_explorer.json
-kg/.venv/Scripts/python kg/explorer.py --from-ttl kg/export/bbqs.ttl # reuse an existing export instead
-```
-
-Then serve `kg/explorer/` and open it (`python -m http.server` from that directory, not a `file://`
-open, so the page's `fetch("bbqs_explorer.json")` works). `bbqs_explorer.json` is committed, same as
-`export/bbqs.ttl`, so the page works out of the box; regenerate it whenever `export/bbqs.ttl` changes.
+Anon by default (RLS-limited). Pass `BBQSKnowledgeGraph(url=..., key=...)`, or set `SUPABASE_KEY` to
+a stronger key, for the full graph — including investigators-table detail and `field_provenance`
+(needed by shapes 5 and 12). `export.py`/`validate.py`/`explorer.py` remain as individual CLIs over
+the same object for running one step at a time.
 
 ## Not yet built
 
