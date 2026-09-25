@@ -1,0 +1,48 @@
+name: KG consistency (SHACL fixtures)
+
+# Phase 7 CI gate (kg/README.md "Build phases", row 7 — was "planned"): proves the SHACL shapes in
+# kg/shapes/ actually fire, using the RED/GREEN fixture pair kg/fixtures/contradictions.ttl and
+# kg/fixtures/clean.ttl. No Supabase secrets needed, so it runs on every PR that touches kg/.
+# Gating on a live export (kg/export/bbqs.ttl) is the next step -- see kg/README.md "Not yet built".
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "kg/**"
+      - ".github/workflows/kg-consistency.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "kg/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kg-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pyshacl + click
+        run: pip install pyshacl click
+
+      - name: RED fixture -- every shape must fire (validate.py exits 1)
+        run: |
+          set +e
+          python kg/validate.py kg/fixtures/contradictions.ttl
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "::error::kg/fixtures/contradictions.ttl should fail every shape (exit 1) but validate.py exited $code -- a shape stopped firing on its own RED case."
+            exit 1
+          fi
+
+      - name: GREEN fixture -- must conform (validate.py exits 0)
+        run: python kg/validate.py kg/fixtures/clean.ttl
