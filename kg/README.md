@@ -4,6 +4,8 @@ RDF/OWL knowledge graph of the BBQS consortium. **Current goal: generate a *cons
 validate that no part contradicts another** — not enrichment. Consistency ≠ completeness; missing
 per-project detail is out of scope for now.
 
+https://bbq-globe-explorer.lovable.app/
+
 ## Run the whole pipeline
 
 One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command, four steps in order:
