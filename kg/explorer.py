@@ -29,7 +29,7 @@ from bbqs_kg import BBQSKnowledgeGraph
     help="Reuse an already-exported Turtle file instead of pulling from Supabase again.",
 )
 def main(out_path: Path | None, from_ttl: Path | None):
-    """Build the BBQS Explorer JSON at OUT_PATH (default: kg/export/bbqs_explorer.json)."""
+    """Build the BBQS Explorer JSON at OUT_PATH (default: kg/explorer/bbqs_explorer.json)."""
     kg = BBQSKnowledgeGraph()
     if from_ttl:
         kg.graph.parse(str(from_ttl), format="turtle")

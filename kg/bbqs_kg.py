@@ -18,12 +18,13 @@ import json
 import os
 import re
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 from rdflib import Graph, Literal, Namespace
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, XSD
 
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
@@ -88,9 +89,10 @@ class BBQSKnowledgeGraph:
         m = re.search(r"([A-Z]{1,3}\d{2})", grant_number or "")
         return m.group(1) if m else None
 
-    def add(self, subj, pred, value, cast=str):
+    def add(self, subj, pred, value, cast=str, datatype=None):
         if value is not None and value != "":
-            self.graph.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
+            v = cast(value) if cast else value
+            self.graph.add((subj, BBQS[pred], Literal(v, datatype=datatype) if datatype else Literal(v)))
 
     def export(self, out_path: Path | str | None = None) -> Path:
         """Build the instance graph from Supabase and serialize it to out_path. Returns out_path.
@@ -122,7 +124,7 @@ class BBQSKnowledgeGraph:
             g.add((n, RDF.type, BBQS[cls]))
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
-            self.add(n, "external_url", r.get("external_url"))
+            self.add(n, "external_url", r.get("external_url"), datatype=XSD.anyURI)
             if r.get("organization_id") and r["organization_id"] in org_node:
                 g.add((n, BBQS["part_of_org"], org_node[r["organization_id"]]))
 
@@ -139,7 +141,7 @@ class BBQSKnowledgeGraph:
             self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
             self.add(n, "title", gr.get("title"))
             self.add(n, "abstract", gr.get("abstract"))
-            self.add(n, "nih_link", gr.get("nih_link"))
+            self.add(n, "nih_link", gr.get("nih_link"), datatype=XSD.anyURI)
             self.add(n, "reporter_project_num", gr.get("reporter_project_num"))
             self.add(n, "award_amount", gr.get("award_amount"), cast=None)
             self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
@@ -205,7 +207,7 @@ class BBQSKnowledgeGraph:
             n = gn_node.get(p["grant_number"])
             if n is None:
                 continue
-            self.add(n, "website", p.get("website"))
+            self.add(n, "website", p.get("website"), datatype=XSD.anyURI)
             self.add(n, "onboarding_status", p.get("onboarding_status"))
             if p.get("study_human") is not None:
                 g.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
@@ -249,7 +251,7 @@ class BBQSKnowledgeGraph:
             if not rid:
                 continue
             n = BID[rid]
-            self.add(n, "homepage_url", man.get("homepage_url"))
+            self.add(n, "homepage_url", man.get("homepage_url"), datatype=XSD.anyURI)
             for al in man.get("aliases") or []:
                 self.add(n, "aliases", al)
 
@@ -259,7 +261,7 @@ class BBQSKnowledgeGraph:
                 continue
             n = BID[rid]
             self.add(n, "title", pub.get("title"))
-            self.add(n, "doi", pub.get("doi"))
+            self.add(n, "doi", pub.get("doi"), datatype=XSD.anyURI)
             self.add(n, "pmid", pub.get("pmid"))
             self.add(n, "journal", pub.get("journal"))
             self.add(n, "year", pub.get("year"), cast=None)
@@ -475,16 +477,75 @@ class BBQSKnowledgeGraph:
               f"shapes={len(shape_files)} file(s)")
         return conforms, report_text
 
+    @staticmethod
+    def reason(data_file: Path | str | None = None, owl_file: Path | str | None = None):
+        """Run a DL reasoner (HermiT, via owlready2) over the OWL TBox + the exported instance
+        graph -- pure-logic contradictions (disjoint classes, cardinality/range violations) that
+        SHACL's open-world shape checks can't catch. Returns (consistent, report).
+
+        Requires:  pip install owlready2  (needs a Java runtime; HermiT ships inside the package,
+        no separate download). HermiT only supports the OWL2 datatype map, so `xsd:date` range
+        restrictions are stripped from the TBox before reasoning (reasoner input only -- the
+        committed bbqs.owl.ttl is untouched).
+        """
+        try:
+            import owlready2
+        except ImportError:
+            sys.exit("owlready2 is not installed. Run:  pip install owlready2")
+
+        data_file = Path(data_file) if data_file else BBQSKnowledgeGraph.DEFAULT_EXPORT_PATH
+        owl_file = Path(owl_file) if owl_file else HERE / "bbqs.owl.ttl"
+
+        merged = Graph()
+        merged.parse(str(owl_file), format="turtle")
+        for t in list(merged.triples((None, None, XSD.date))):
+            merged.remove(t)
+        merged.parse(str(data_file), format="turtle")
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".nt", delete=False) as tmp:
+                tmp_path = tmp.name
+            merged.serialize(destination=tmp_path, format="nt", encoding="utf-8")
+
+            world = owlready2.World()
+            onto = world.get_ontology(f"file://{tmp_path}").load()
+            try:
+                with onto:
+                    owlready2.sync_reasoner(world, debug=0)
+                consistent = True
+                report = "Consistent: no logical contradiction found."
+            except owlready2.OwlReadyInconsistentOntologyError:
+                consistent = False
+                report = ("Inconsistent: the TBox + instance graph together violate a logical "
+                           "constraint (disjointness, cardinality, or range).")
+            except owlready2.OwlReadyJavaError as e:
+                consistent = False
+                report = f"Reasoner error, likely malformed instance data (e.g. a non-URI value in an anyURI-typed field): {e}"
+        finally:
+            if tmp_path:
+                os.unlink(tmp_path)
+
+        print(report)
+        print(f"consistent={consistent}  data={os.path.relpath(data_file, HERE)}  "
+              f"owl={os.path.relpath(owl_file, HERE)}")
+        return consistent, report
+
     def run(
         self,
         out_path: Path | str | None = None,
         shape_files: list[Path] | None = None,
         explorer_path: Path | str | None = None,
+        owl_file: Path | str | None = None,
     ) -> bool:
-        """Run the whole pipeline in sequence, one call: export from Supabase, validate the result,
-        then build the BBQS Explorer JSON from the same graph. Returns the validator's conforms bool.
+        """Run the whole pipeline in sequence, one call: export from Supabase, validate the result
+        against the SHACL shapes, check it for logical contradictions with the OWL reasoner, then
+        build the BBQS Explorer JSON -- all from the same graph. Returns the validator's conforms
+        bool (the OWL reasoner's consistency result is printed but doesn't gate the return value,
+        since bbqs.owl.ttl's disjointness axioms are still pending -- see kg/README.md).
         """
         out_path = self.export(out_path)
         conforms, _report_text = self.validate(out_path, shape_files)
+        self.reason(out_path, owl_file)
         self.export_explorer_json(explorer_path)
         return conforms
