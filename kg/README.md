@@ -34,7 +34,8 @@ a stronger key, for the full graph — including investigators-table detail and 
 (needed by shapes 5 and 12). `export.py`/`validate.py`/`reason.py`/`explorer.py` remain as
 individual CLIs over the same object for running one step at a time; `python kg/validate.py
 kg/fixtures/clean.ttl` (and `kg/fixtures/contradictions.ttl`, which should fire every shape) proves
-the SHACL shapes themselves are correct without a live Supabase export.
+the SHACL shapes themselves are correct without a live Supabase export — this pair is also the CI
+gate (`.github/workflows/kg-consistency.yml`, runs on every PR touching `kg/`, no secrets needed).
 
 `reason()`'s result is printed but doesn't gate the pipeline's exit code yet: `bbqs.owl.ttl` doesn't
 have `owl:disjointWith` axioms yet (`gen-owl` didn't emit them — a known LinkML-generator gap), so
@@ -105,3 +106,4 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 - **Full-access export**: run with a key that can read investigators / field_provenance / working-group detail; map `field_provenance` → PROV (needed by shapes 5 and 12).
 - **`owl:disjointWith` axioms**: `gen-owl` doesn't emit them from the LinkML `disjoint_with` slot yet, so `reason()` has no class-level contradictions to catch today — only the datatype ones (see above). Fixing this is what makes invariant #3 in the catalog above (and half of #1) go from planned to live.
 - **The two malformed-URI values `reason()` found** (`Job.external_url`, `Announcement.website` — see above): a Supabase data fix, not an exporter change.
+- **CI gate on the live export**: `.github/workflows/kg-consistency.yml` currently gates only the RED/GREEN fixtures (no Supabase secrets needed). Gating a real `export()` run in CI needs a service-role `SUPABASE_KEY` as a repo secret.
