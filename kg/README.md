@@ -4,38 +4,61 @@ RDF/OWL knowledge graph of the BBQS consortium. **Current goal: generate a *cons
 validate that no part contradicts another** — not enrichment. Consistency ≠ completeness; missing
 per-project detail is out of scope for now.
 
-## Build phases
+## Run the whole pipeline
 
-**Where we are: Phase 5 (backfill + spine-first exporter) in progress.** This table is the running
-status of the whole effort; the Status column is updated as each phase lands.
+One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command, four steps in order:
 
-| # | Phase | Step | Status |
-|---|---|---|---|
-| 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
-| 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
-| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (11 shapes + 1 guard live) |
-| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done** (3,105 triples on 2026-09-23; 8 dangling after the Hofstenia row, verified) |
-| 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done** (`bbqs.owl.ttl` 3,165 triples; `bbqs.shapes.gen.ttl` 22 NodeShapes; `disjoint_with` → `owl:disjointWith` didn't emit — deferred to Phase 6) |
-| 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
-| 6 | Full-access export + OWL reasoning — light up shapes #5/#12; robot/HermiT consistency pass | — | planned |
-| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | planned |
-| 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
-| 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
+1. **`export()`** — pull from Supabase into instance Turtle (`kg/export/bbqs.ttl`).
+2. **`validate()`** — check that export against the SHACL consistency shapes.
+3. **`reason()`** — check the export + the OWL TBox (`bbqs.owl.ttl`) for logical contradictions
+   with a DL reasoner (HermiT, via `owlready2`) — disjointness, cardinality, and range violations
+   SHACL's shape checks can't catch.
+4. **`export_explorer_json()`** — build the BBQS Explorer JSON (`explorer/index.html`'s draggable
+   globe → US map → triple/relationship panel) from the same graph.
+
+```bash
+python -m venv kg/.venv
+kg/.venv/Scripts/python -m pip install pyshacl owlready2 click  # Windows; use bin/ on macOS/Linux
+kg/.venv/Scripts/python kg/main.py
+```
+
+Same thing from Python:
+
+```python
+from bbqs_kg import BBQSKnowledgeGraph
+BBQSKnowledgeGraph().run()   # export() -> validate() -> reason() -> export_explorer_json()
+```
+
+Anon by default (RLS-limited). Pass `BBQSKnowledgeGraph(url=..., key=...)`, or set `SUPABASE_KEY` to
+a stronger key, for the full graph — including investigators-table detail and `field_provenance`
+(needed by shapes 5 and 12). `export.py`/`validate.py`/`reason.py`/`explorer.py` remain as
+individual CLIs over the same object for running one step at a time; `python kg/validate.py
+kg/fixtures/clean.ttl` (and `kg/fixtures/contradictions.ttl`, which should fire every shape) proves
+the SHACL shapes themselves are correct without a live Supabase export.
+
+`reason()`'s result is printed but doesn't gate the pipeline's exit code yet: `bbqs.owl.ttl` doesn't
+have `owl:disjointWith` axioms yet (`gen-owl` didn't emit them — a known LinkML-generator gap), so
+there's nothing for the reasoner to catch at the *class* level today. It already catches real
+*datatype* problems, though — running it against the current `kg/export/bbqs.ttl` finds two
+`xsd:anyURI`-typed fields holding something other than a URI (one `Job.external_url` with two links
+concatenated with `" ; "`, one `Announcement.website` holding a sentence instead of a link). Those
+are real Supabase data-entry mistakes for someone to fix upstream, not exporter bugs.
 
 ## Layout
 
 | Path | What it is |
 |---|---|
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates OWL + SHACL + JSON-LD. |
-| `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter and the validator as methods (`export()`, `validate()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
+| `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, gitignored). |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner CLI: `python kg/validate.py <data.ttl> [shapes…]`. |
-| `main.py` | Runs the whole pipeline in one call: export, validate, then build the Explorer JSON (`python kg/main.py`). |
+| `reason.py` | HermiT (via `owlready2`) DL-reasoner CLI: `python kg/reason.py [data.ttl] [--owl bbqs.owl.ttl]`. |
+| `main.py` | Runs the whole pipeline in one call: export, validate, reason, then build the Explorer JSON (`python kg/main.py`). |
 | `examples/project-to-triples.md` | Worked example: one project's triples mapped to the spine's identity / type / attachment. |
-| `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox for the Phase 6 reasoner. |
+| `bbqs.owl.ttl` | Generated OWL (`gen-owl`) — the TBox `reason()` checks the export against. |
 | `bbqs.shapes.gen.ttl` | Generated boilerplate SHACL (`gen-shacl`) — node/cardinality/pattern shapes. |
 | `explorer.py` | Builds `bbqs_explorer.json` for `explorer/index.html`: `BBQSKnowledgeGraph.export_explorer_json()` CLI. |
 | `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views. |
@@ -45,7 +68,7 @@ status of the whole effort; the Status column is updated as each phase lands.
 
 1. **Guards (Node, runnable now, zero-dep)** — schema↔DB drift, e.g. `tests/guards/kg-resource-type-parity.test.mjs` ties this schema's `resource_type_enum` to the live Postgres enum. Runs under `npm run test:guards`.
 2. **SHACL (pyshacl)** — structural + contradiction checks over an instance graph. The interesting shapes live in `shapes/`; the boilerplate node/cardinality/pattern shapes come from `bbqs.shapes.gen.ttl` (generated from `bbqs.linkml.yaml` via LinkML's `gen-shacl`).
-3. **OWL reasoning (deferred)** — pure-logic contradictions (disjoint classes, functional properties) via a DL reasoner (robot/HermiT). Needs Java; added after the SHACL layer is green.
+3. **OWL reasoning (`reason()`, live)** — a DL reasoner (HermiT, via `owlready2`; needs Java, bundled with the package, no separate download) checks pure-logic contradictions: disjoint classes, cardinality, and datatype/range violations SHACL's shape checks can't catch. Runs today; catches real datatype mismatches already (see "Run the whole pipeline" above). Class-level disjointness checking is still a no-op until `bbqs.owl.ttl` gets `owl:disjointWith` axioms (tracked in "Not yet built").
 
 ## Consistency-invariant catalog
 
@@ -76,36 +99,9 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
 
-## Run the whole pipeline
-
-One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command: exports from Supabase, validates the
-result against the SHACL shapes, and builds the BBQS Explorer JSON (`explorer/index.html`'s
-draggable globe → US map → triple/relationship panel), in that order.
-
-```bash
-python -m venv kg/.venv
-kg/.venv/Scripts/python -m pip install pyshacl click  # Windows; use bin/ on macOS/Linux
-kg/.venv/Scripts/python kg/main.py
-```
-
-That writes `kg/export/bbqs.ttl`, prints the SHACL validation report, and writes
-`kg/explorer/bbqs_explorer.json` — then serve `kg/explorer/` (`python -m http.server` from that
-directory, not a `file://` open) to browse it. Same thing from Python:
-
-```python
-from bbqs_kg import BBQSKnowledgeGraph
-BBQSKnowledgeGraph().run()   # export() -> validate() -> export_explorer_json(), returns conforms
-```
-
-Anon by default (RLS-limited). Pass `BBQSKnowledgeGraph(url=..., key=...)`, or set `SUPABASE_KEY` to
-a stronger key, for the full graph — including investigators-table detail and `field_provenance`
-(needed by shapes 5 and 12). `export.py`/`validate.py`/`explorer.py` remain as individual CLIs over
-the same object for running one step at a time; `python kg/validate.py kg/fixtures/clean.ttl` (and
-`kg/fixtures/contradictions.ttl`, which should fire every shape) proves the shapes themselves are
-correct without a live Supabase export.
-
 ## Not yet built
 
 - **Phase 5 cleanup**: remove the orphan `resources` rows the backfill left (~14 `investigator` + 1 `grant` that point at no table row); add an insert trigger so new rows get a `resource_id` automatically; and once `types.ts` is regenerated, promote the 6 backfilled `resource_type` values from PROPOSED → shipped in the LinkML (the parity guard will flag it).
 - **Full-access export**: run with a key that can read investigators / field_provenance / working-group detail; map `field_provenance` → PROV (needed by shapes 5 and 12).
-- **OWL reasoning layer** (see above) — includes the `owl:disjointWith` axioms gen-owl didn't emit.
+- **`owl:disjointWith` axioms**: `gen-owl` doesn't emit them from the LinkML `disjoint_with` slot yet, so `reason()` has no class-level contradictions to catch today — only the datatype ones (see above). Fixing this is what makes invariant #3 in the catalog above (and half of #1) go from planned to live.
+- **The two malformed-URI values `reason()` found** (`Job.external_url`, `Announcement.website` — see above): a Supabase data fix, not an exporter change.
