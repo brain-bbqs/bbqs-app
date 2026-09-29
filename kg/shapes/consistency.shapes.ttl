@@ -239,6 +239,9 @@ bbqs:GradedProvenancePrecedenceShape
 # the node's own resources.id; where a table's provenance rows are keyed by a different table's
 # id (the exact investigators.id vs resources.id split behind the held_by bug above), this will
 # need the same kind of id-mapping the exporter uses for held_by, not a raw string match.
+# GUARD: the FILTER EXISTS keeps #19 dormant when the graph has no ProvenanceRecords at all (the
+# anon export -- field_provenance is RLS-hidden). A missing layer is not a node missing its claim;
+# without the guard every Project false-fires.
 bbqs:NodeHasProvenanceShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Project ;
@@ -247,6 +250,7 @@ bbqs:NodeHasProvenanceShape
     sh:prefixes bbqs:prefixes ;
     sh:select """
       SELECT $this WHERE {
+        FILTER EXISTS { ?anyprov a bbqs:ProvenanceRecord }
         BIND(STRAFTER(STR($this), "https://brain-bbqs.org/id/") AS ?localId)
         FILTER NOT EXISTS { ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId }
       }
