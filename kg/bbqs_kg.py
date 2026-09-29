@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from rdflib import Graph, Literal, Namespace
+from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 
 HERE = Path(__file__).resolve().parent
@@ -360,12 +360,17 @@ class BBQSKnowledgeGraph:
             if org_name and org_name in orgs_by_name:
                 edges.append({"source": pid, "target": orgs_by_name[org_name], "type": "awarded_to", "class": "derived"})
             else:
+                reason = ("no reporter_project_num" if not rpn else
+                          "RePORTER returned no organization" if not org_name else
+                          f"RePORTER org {org_name!r} not in graph")
                 unplaced_projects.append({"grant_number": gnum, "reporter_project_num": rpn,
-                                           "reason": "no reporter_project_num" if not rpn else
-                                                     "RePORTER org not in graph"})
+                                           "reason": reason})
 
         # ---- derived: project <-> project affinity, via shared species / shared keywords ----
-        species_of = {nid: set(n["props"].get("studies_species_name") or []) for nid, n in projects}
+        # Resolved Species IRIs, not the raw study_species strings: "Mus musculus" and "House Mouse"
+        # are one species, and a study_scope value like "All Species" is no species at all.
+        species_of = {nid: {str(o) for o in g.objects(URIRef(nid), BBQS.studies_species)}
+                      for nid, _n in projects}
         keywords_of = {nid: set(n["props"].get("keywords") or []) for nid, n in projects}
         seen = set()
         for i, (pid_a, _) in enumerate(projects):
@@ -431,7 +436,7 @@ class BBQSKnowledgeGraph:
         try:
             body = json.dumps({
                 "criteria": {"project_nums": [reporter_project_num]},
-                "include_fields": ["OrganizationName"],
+                "include_fields": ["Organization"],  # "OrganizationName" is not a field: returns {}
                 "limit": 1,
             }).encode()
             req = urllib.request.Request(
@@ -480,11 +485,16 @@ class BBQSKnowledgeGraph:
     @staticmethod
     def reason(data_file: Path | str | None = None, owl_file: Path | str | None = None):
         """Run a DL reasoner (HermiT, via owlready2) over the OWL TBox + the exported instance
-        graph -- pure-logic contradictions (disjoint classes, cardinality/range violations) that
-        SHACL's open-world shape checks can't catch. Returns (consistent, report).
+        graph. Returns (consistent, report): True / False, or None when the reasoner could not
+        decide (a Java error is not a finding about the graph).
 
-        Requires:  pip install owlready2  (needs a Java runtime; HermiT ships inside the package,
-        no separate download). HermiT only supports the OWL2 datatype map, so `xsd:date` range
+        What it can catch: disjoint classes (once owl:disjointWith is emitted) and literals outside
+        their datatype. It cannot catch a violated max-cardinality between IRIs or a range
+        mismatch: OWL has no unique-name assumption and is open-world, so it infers sameAs / a
+        type instead of reporting a contradiction. Those stay SHACL's job.
+
+        Requires:  pip install owlready2, plus a Java runtime installed separately (only the
+        HermiT jar ships inside the package). HermiT only supports the OWL2 datatype map, so `xsd:date` range
         restrictions are stripped from the TBox before reasoning (reasoner input only -- the
         committed bbqs.owl.ttl is untouched).
         """
@@ -518,10 +528,11 @@ class BBQSKnowledgeGraph:
             except owlready2.OwlReadyInconsistentOntologyError:
                 consistent = False
                 report = ("Inconsistent: the TBox + instance graph together violate a logical "
-                           "constraint (disjointness, cardinality, or range).")
+                           "constraint (disjointness or a literal outside its datatype).")
             except owlready2.OwlReadyJavaError as e:
-                consistent = False
-                report = f"Reasoner error, likely malformed instance data (e.g. a non-URI value in an anyURI-typed field): {e}"
+                consistent = None
+                report = ("Reasoner error -- no consistency verdict. Often malformed instance data "
+                          f"(e.g. a non-URI value in an anyURI-typed field): {e}")
         finally:
             if tmp_path:
                 os.unlink(tmp_path)

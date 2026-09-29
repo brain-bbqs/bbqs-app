@@ -7,7 +7,8 @@ click CLI over `BBQSKnowledgeGraph.reason` (see bbqs_kg.py) -- pure-logic contra
     python kg/reason.py                                    # kg/export/bbqs.ttl + kg/bbqs.owl.ttl
     python kg/reason.py path/to/data.ttl --owl path/to.owl.ttl
 
-Exit code is 0 when consistent, 1 when the reasoner finds a contradiction (matching validate.py).
+Exit code is 0 when consistent, 1 when the reasoner finds a contradiction (matching validate.py),
+2 when the reasoner errors out and gives no verdict.
 Requires:  pip install owlready2  (needs a Java runtime; HermiT ships inside the package).
 """
 from pathlib import Path
@@ -34,7 +35,7 @@ from bbqs_kg import BBQSKnowledgeGraph
 def main(ctx: click.Context, data_file: Path | None, owl_file: Path | None):
     """Check DATA_FILE (default: kg/export/bbqs.ttl) for logical contradictions against OWL_FILE."""
     consistent, _report = BBQSKnowledgeGraph.reason(data_file, owl_file)
-    ctx.exit(0 if consistent else 1)
+    ctx.exit(2 if consistent is None else 0 if consistent else 1)
 
 
 if __name__ == "__main__":
