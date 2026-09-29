@@ -1,0 +1,466 @@
+<title>BBQS Graph Inspector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a summary strip on top, then tabs; the Entities tab is facets | card list | detail pane. */
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --sunk: #eceff3; --line: #d9dee5;
+    --fg: #16202b; --muted: #5a6677; --accent: #1d5fa8; --accent-soft: #e3edf8;
+    --ok: #1d7a4e; --ok-soft: #e2f3ea; --warn: #9a5b00; --warn-soft: #fbefd9;
+    --bad: #b3261e; --bad-soft: #fbe5e3; --na: #6b7280; --na-soft: #eceef1;
+    --c-people: #7a4fb5; --c-org: #a1557a; --c-project: #1d5fa8; --c-species: #2f7d5b;
+    --c-product: #a8620f; --c-announce: #5a6d1f; --c-prov: #4b5563;
+    --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #182029; --sunk: #0d1218; --line: #2a3542;
+    --fg: #e4e9f0; --muted: #98a4b4; --accent: #6aa6ea; --accent-soft: #1b2c42;
+    --ok: #5cc28e; --ok-soft: #15301f; --warn: #e2a84b; --warn-soft: #33260f;
+    --bad: #f07a70; --bad-soft: #3a1a18; --na: #9aa3af; --na-soft: #222a33;
+    --c-people: #b596e3; --c-org: #d88fb2; --c-project: #6aa6ea; --c-species: #6cc79c;
+    --c-product: #e3a255; --c-announce: #b3c56a; --c-prov: #a3acb9;
+    color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #11161d; --surface: #182029; --sunk: #0d1218; --line: #2a3542;
+    --fg: #e4e9f0; --muted: #98a4b4; --accent: #6aa6ea; --accent-soft: #1b2c42;
+    --ok: #5cc28e; --ok-soft: #15301f; --warn: #e2a84b; --warn-soft: #33260f;
+    --bad: #f07a70; --bad-soft: #3a1a18; --na: #9aa3af; --na-soft: #222a33;
+    --c-people: #b596e3; --c-org: #d88fb2; --c-project: #6aa6ea; --c-species: #6cc79c;
+    --c-product: #e3a255; --c-announce: #b3c56a; --c-prov: #a3acb9;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font: 14px/1.5 var(--f-body); margin: 0; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 18px; }
+  h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 26px; letter-spacing: .005em; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 15px; }
+  .mono, code, pre { font-family: var(--f-mono); font-size: 12.5px; }
+  .muted { color: var(--muted); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; }
+  header.top p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .src { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; }
+  .tile b { font: 600 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 12px; color: var(--muted); }
+  .tile.bad b { color: var(--bad); } .tile.warn b { color: var(--warn); } .tile.ok b { color: var(--ok); }
+
+  nav.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav.tabs button { background: none; border: 0; padding: 8px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-weight: 500; }
+  nav.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+  nav.tabs .n { font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.na { background: var(--na-soft); color: var(--na); }
+  .pill.cls { background: transparent; border-color: currentColor; }
+  .swatch { width: 8px; height: 8px; border-radius: 2px; background: currentColor; display: inline-block; flex: none; }
+
+  /* Entities */
+  .ent { display: grid; grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+  .facets { display: grid; gap: 16px; position: sticky; top: env(safe-area-inset-top, 0px); }
+  .facets fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 2px; }
+  .facets legend { font: 600 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; padding: 0; }
+  .facets label { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+  .facets label:hover { background: var(--sunk); }
+  .facets label .c { margin-left: auto; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .facets input[type="checkbox"] { margin: 0; accent-color: var(--accent); }
+  .search { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); font: inherit; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 12.5px; text-align: left; }
+
+  .list { display: grid; gap: 6px; min-width: 0; }
+  .list .meta { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; cursor: pointer; text-align: left; width: 100%; }
+  .card:hover { border-color: var(--muted); }
+  .card[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  .card .lbl { font-weight: 500; overflow-wrap: anywhere; }
+  .card .sub { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+  .card .deg { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; align-self: center; }
+  .more { justify-self: start; }
+
+  .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 14px; min-width: 0; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); overflow: auto; }
+  .detail .iri { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .detail .iri code { overflow-wrap: anywhere; color: var(--muted); }
+  .detail section { display: grid; gap: 6px; }
+  .detail section > h3 { font: 600 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); gap: 4px 14px; margin: 0; }
+  .kv dt { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .edge { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .edge .p { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .viol { border-left: 3px solid var(--bad); background: var(--bad-soft); padding: 6px 10px; border-radius: 0 4px 4px 0; display: grid; gap: 2px; }
+  .viol b { font-family: var(--f-mono); font-size: 12px; font-weight: 500; color: var(--bad); }
+  pre.ttl { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 10px; margin: 0; overflow-x: auto; white-space: pre; line-height: 1.45; }
+  .empty { color: var(--muted); font-style: italic; }
+  .note { font-size: 12.5px; color: var(--muted); }
+  .copy { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 1px 8px; font-size: 12px; cursor: pointer; }
+
+  /* Tables */
+  .tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 11px/1.3 var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--sunk); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; }
+  .bar { height: 6px; background: var(--sunk); border-radius: 3px; overflow: hidden; min-width: 80px; }
+  .bar i { display: block; height: 100%; background: var(--bad); }
+
+  /* Questions */
+  .qgroup { display: grid; gap: 8px; }
+  .qgroup > h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-family: var(--f-body); }
+  details.q { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+  details.q > summary { list-style: none; cursor: pointer; padding: 10px 12px; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; }
+  details.q > summary::-webkit-details-marker { display: none; }
+  details.q > summary .id { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  details.q > summary .right { display: flex; gap: 8px; align-items: center; }
+  details.q > summary .rc { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+  details.q[open] > summary { border-bottom: 1px solid var(--line); }
+  details.q .body { padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  details.q pre { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 10px; margin: 0; overflow-x: auto; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: 12.5px; }
+  .filters button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+  .panel { display: grid; gap: 8px; min-width: 0; }
+
+  @media (max-width: 1100px) {
+    .ent { grid-template-columns: 200px minmax(0, 1fr); }
+    .detail { grid-column: 1 / -1; position: static; max-height: none; }
+  }
+  @media (max-width: 720px) {
+    .ent { grid-template-columns: minmax(0, 1fr); }
+    .facets { position: static; }
+    details.q > summary { grid-template-columns: 44px minmax(0, 1fr); }
+    details.q > summary .right { grid-column: 2; }
+  }
+  @media (prefers-reduced-motion: no-preference) { .card, nav.tabs button { transition: border-color .12s, color .12s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div style="display:grid;gap:4px">
+      <h1>BBQS Graph Inspector</h1>
+      <p>Every node in the exported BBQS knowledge graph, with the structural, competency and consistency checks that <span class="mono">kg/quality.py</span> ran on it.</p>
+    </div>
+    <div class="src" id="src"></div>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <main id="view"></main>
+</div>
+
+<script>
+const REPORT = /*__REPORT__*/null;
+
+const AREA = {
+  Investigator: "people", ProjectRole: "people", WorkingGroup: "people",
+  ResearchOrganization: "org", DeviceManufacturer: "org",
+  Project: "project", Species: "species",
+  Publication: "product", Dataset: "product", SoftwareTool: "product", Tool: "product", MLModel: "product",
+  Benchmark: "product", Protocol: "product", Device: "product", DeviceCategory: "product",
+  Announcement: "announce", Job: "announce", FundingOpportunity: "announce", Event: "announce",
+  ProvenanceRecord: "prov", SourceClass: "prov",
+};
+const AREA_NAME = { people: "People & roles", org: "Organizations", project: "Projects", species: "Species",
+  product: "Products", announce: "Announcements", prov: "Provenance", other: "Other" };
+const FLAG = {
+  isolated: { cls: "warn", text: "isolated", tip: "No link to or from any other node" },
+  dangling: { cls: "bad", text: "dangling link", tip: "Points at an IRI that has no node" },
+  violation: { cls: "bad", text: "violation", tip: "A consistency shape fired on this node" },
+};
+const STATUS = {
+  answered: { cls: "ok", text: "answered", tip: "Returned rows" },
+  empty: { cls: "bad", text: "empty", tip: "Answerable on this export, but returned nothing: the exporter doesn't emit the link" },
+  "n/a": { cls: "na", text: "n/a on anon", tip: "Needs a full-access export; the source rows are hidden from anon" },
+  unmodeled: { cls: "warn", text: "unmodeled", tip: "Uses a term the schema doesn't declare" },
+};
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const areaOf = c => AREA[c] || "other";
+const colorOf = c => `var(--c-${areaOf(c)}, var(--muted))`;
+const shortId = iri => iri.replace("https://brain-bbqs.org/id/", "bid:");
+const fmt = n => Number(n).toLocaleString("en-US");
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("bbqs-inspector:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("bbqs-inspector:" + k, JSON.stringify(v)); } catch {} },
+};
+
+function noData() {
+  $("#view").innerHTML = `<p class="empty">No report embedded. Run <code>python kg/quality.py</code> to build this page.</p>`;
+}
+if (!REPORT) { noData(); throw new Error("no report"); }
+
+const S = REPORT.structure;
+const ENT = REPORT.entities;
+const BY_ID = new Map(ENT.map(e => [e.id, e]));
+const CLASSES = Object.keys(S.per_class).sort((a, b) =>
+  Object.keys(AREA_NAME).indexOf(areaOf(a)) - Object.keys(AREA_NAME).indexOf(areaOf(b)) || a.localeCompare(b));
+const shapeViol = {};
+for (const e of ENT) for (const v of e.violations) shapeViol[v.shape] = (shapeViol[v.shape] || 0) + 1;
+
+$("#src").textContent = `${REPORT.data_file} · ${REPORT.access} export`;
+
+// ---- summary tiles -----------------------------------------------------------------------------
+(function tiles() {
+  const cq = REPORT.competency, answered = cq.filter(q => q.status === "answered").length;
+  const ex = REPORT.shapes.filter(s => s.exercised).length;
+  const isoPct = Math.round(100 * S.isolated / S.nodes);
+  const t = [
+    [fmt(S.triples), "triples", ""],
+    [fmt(S.nodes), "nodes", ""],
+    [fmt(S.edges), "links between nodes", ""],
+    [`${fmt(S.isolated)}`, `isolated nodes (${isoPct}%)`, isoPct > 25 ? "bad" : isoPct > 5 ? "warn" : "ok"],
+    [fmt(S.components), `connected pieces · largest ${fmt(S.largest_component)}`, S.components > 20 ? "warn" : "ok"],
+    [`${answered}/${cq.length}`, "questions answered", answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
+    [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
+    [fmt(REPORT.violation_count), "consistency violations", REPORT.violation_count ? "bad" : "ok"],
+  ];
+  $("#tiles").innerHTML = t.map(([b, s, c]) => `<div class="tile ${c}"><b>${b}</b><span>${esc(s)}</span></div>`).join("");
+})();
+
+// ---- tabs --------------------------------------------------------------------------------------
+const TABS = [
+  ["entities", "Entities", ENT.length],
+  ["questions", "Questions", REPORT.competency.length],
+  ["shapes", "Shapes", REPORT.shapes.length],
+  ["structure", "Structure", CLASSES.length],
+];
+let tab = (location.hash.slice(1) && TABS.some(t => t[0] === location.hash.slice(1))) ? location.hash.slice(1) : store.get("tab", "entities");
+function renderTabs() {
+  $("#tabs").innerHTML = TABS.map(([k, n, c]) =>
+    `<button role="tab" id="tab-${k}" aria-selected="${k === tab}" data-tab="${k}">${n}<span class="n">${c}</span></button>`).join("");
+}
+$("#tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-tab]"); if (!b) return;
+  tab = b.dataset.tab; store.set("tab", tab); render();
+});
+
+// ---- entities ----------------------------------------------------------------------------------
+const PAGE = 120;
+const st = { q: "", classes: new Set(store.get("classes", [])), flags: new Set(store.get("flags", [])), sel: null, limit: PAGE };
+
+function matches(e) {
+  if (st.classes.size && !st.classes.has(e.class)) return false;
+  for (const f of st.flags) {
+    if (f === "linked" ? e.degree === 0 : !e.flags.includes(f)) return false;
+  }
+  if (st.q) {
+    const q = st.q.toLowerCase();
+    const hay = (e.label + " " + e.id + " " + Object.values(e.facts).flat().join(" ")).toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+function cardHTML(e) {
+  const flags = e.flags.map(f => `<span class="pill ${FLAG[f].cls}" title="${FLAG[f].tip}">${FLAG[f].text}</span>`).join("");
+  return `<button class="card" data-id="${esc(e.id)}" aria-current="${st.sel === e.id}">
+    <span class="lbl">${esc(e.label)}</span>
+    <span class="deg" title="links to and from other nodes">${e.degree} link${e.degree === 1 ? "" : "s"}</span>
+    <span class="sub"><span class="pill cls" style="color:${colorOf(e.class)}"><i class="swatch"></i>${esc(e.class)}</span>${flags}</span>
+  </button>`;
+}
+
+function refLink(iri) {
+  const t = BY_ID.get(iri);
+  if (!t) return `<code class="mono">${esc(shortId(iri))}</code>`;
+  return `<button class="linkbtn" data-go="${esc(iri)}">${esc(t.label)}</button> <span class="pill cls" style="color:${colorOf(t.class)}">${esc(t.class)}</span>`;
+}
+
+function turtle(e) {
+  const lines = [`${shortId(e.id)} a bbqs:${e.class}`];
+  for (const [p, vs] of Object.entries(e.facts)) for (const v of vs) lines.push(`    bbqs:${p} ${JSON.stringify(v)}`);
+  for (const l of e.out) lines.push(`    bbqs:${l.predicate} ${shortId(l.target)}`);
+  for (const d of e.dangling) lines.push(`    bbqs:${d.predicate} ${shortId(d.target)}   # no such node`);
+  return lines.join(" ;\n") + " .";
+}
+
+function detailHTML(e) {
+  if (!e) return `<div class="detail"><p class="empty">Select an entity to see its facts, its links in both directions, and any check that fired on it.</p></div>`;
+  const facts = Object.entries(e.facts);
+  const why = e.flags.includes("isolated")
+    ? `<p class="note">Nothing links to or from this node. Its class has ${S.per_class[e.class].isolated} of ${S.per_class[e.class].nodes} nodes isolated, so the cause is usually an edge the exporter doesn't write yet, not this record.</p>` : "";
+  return `<div class="detail" aria-live="polite">
+    <div style="display:grid;gap:6px">
+      <span class="pill cls" style="color:${colorOf(e.class)};justify-self:start"><i class="swatch"></i>${esc(e.class)}</span>
+      <h2>${esc(e.label)}</h2>
+      <div class="iri"><code>${esc(e.id)}</code><button class="copy" data-copy="${esc(e.id)}">Copy IRI</button></div>
+      ${e.flags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${e.flags.map(f => `<span class="pill ${FLAG[f].cls}">${FLAG[f].text}</span>`).join("")}</div>` : ""}
+      ${why}
+    </div>
+    ${e.violations.length ? `<section><h3>Consistency violations</h3>${e.violations.map(v =>
+      `<div class="viol"><b>${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
+    <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
+      `<dt>${esc(p)}</dt><dd>${vs.map(v => /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v)).join("<br>")}</dd>`).join("")}</dl>` : `<p class="empty">No literal facts.</p>`}</section>
+    <section><h3>Links out · ${e.out.length}</h3>${e.out.length ? e.out.map(l => `<div class="edge"><span class="p">${esc(l.predicate)} →</span>${refLink(l.target)}</div>`).join("") : `<p class="empty">None.</p>`}</section>
+    <section><h3>Links in · ${e.in.length}</h3>${e.in.length ? e.in.slice(0, 60).map(l => `<div class="edge">${refLink(l.source)}<span class="p">→ ${esc(l.predicate)}</span></div>`).join("") + (e.in.length > 60 ? `<p class="note">and ${e.in.length - 60} more</p>` : "") : `<p class="empty">None.</p>`}</section>
+    ${e.dangling.length ? `<section><h3>Dangling links</h3>${e.dangling.map(d => `<div class="edge"><span class="p">${esc(d.predicate)} →</span><code>${esc(shortId(d.target))}</code><span class="pill bad">no node</span></div>`).join("")}</section>` : ""}
+    <section><h3>As Turtle</h3><pre class="ttl">${esc(turtle(e))}</pre></section>
+  </div>`;
+}
+
+function renderEntities() {
+  const counts = {}; for (const e of ENT) counts[e.class] = (counts[e.class] || 0) + 1;
+  const fcount = f => ENT.filter(e => f === "linked" ? e.degree > 0 : e.flags.includes(f)).length;
+  const hits = ENT.filter(matches);
+  if (!st.sel || !BY_ID.has(st.sel)) st.sel = (hits.find(e => e.violations.length) || hits[0] || {}).id || null;
+  let lastArea = null;
+  const classRows = CLASSES.map(c => {
+    const a = areaOf(c), head = a !== lastArea ? `<span class="muted" style="font-size:11.5px;margin-top:6px">${AREA_NAME[a]}</span>` : "";
+    lastArea = a;
+    return `${head}<label><input type="checkbox" data-class="${c}" ${st.classes.has(c) ? "checked" : ""}><i class="swatch" style="color:${colorOf(c)}"></i>${c}<span class="c">${counts[c] || 0}</span></label>`;
+  }).join("");
+  const flagRows = [["violation", "Has a violation"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"]]
+    .map(([f, t]) => `<label><input type="checkbox" data-flag="${f}" ${st.flags.has(f) ? "checked" : ""}>${t}<span class="c">${fcount(f)}</span></label>`).join("");
+  $("#view").innerHTML = `<div class="ent">
+    <aside class="facets">
+      <input class="search" id="q" type="search" placeholder="Search names, IRIs, values" value="${esc(st.q)}" aria-label="Search entities">
+      <fieldset><legend>Checks</legend>${flagRows}</fieldset>
+      <fieldset><legend>Class</legend>${classRows}</fieldset>
+      <button class="linkbtn" id="clear">Clear filters</button>
+    </aside>
+    <div class="list">
+      <div class="meta"><span>${fmt(hits.length)} of ${fmt(ENT.length)} entities</span><span>sorted by class, then name</span></div>
+      ${hits.slice(0, st.limit).map(cardHTML).join("") || `<p class="empty">No entity matches these filters.</p>`}
+      ${hits.length > st.limit ? `<button class="copy more" id="more">Show ${Math.min(PAGE, hits.length - st.limit)} more</button>` : ""}
+    </div>
+    ${detailHTML(BY_ID.get(st.sel))}
+  </div>`;
+}
+
+$("#view").addEventListener("input", e => {
+  if (e.target.id === "q") {
+    st.q = e.target.value; st.limit = PAGE;
+    const pos = e.target.selectionStart; renderEntities();
+    const q = $("#q"); q.focus(); q.setSelectionRange(pos, pos);
+  }
+});
+$("#view").addEventListener("change", e => {
+  const c = e.target.dataset.class, f = e.target.dataset.flag;
+  if (c) { e.target.checked ? st.classes.add(c) : st.classes.delete(c); store.set("classes", [...st.classes]); }
+  if (f) { e.target.checked ? st.flags.add(f) : st.flags.delete(f); store.set("flags", [...st.flags]); }
+  if (c || f) { st.limit = PAGE; renderEntities(); }
+});
+$("#view").addEventListener("click", e => {
+  const card = e.target.closest(".card[data-id]");
+  const go = e.target.closest("[data-go]");
+  const copy = e.target.closest("[data-copy]");
+  if (copy) {
+    const text = copy.dataset.copy;
+    const done = () => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy IRI"), 1400); };
+    try { navigator.clipboard.writeText(text).then(done, () => selectText(copy.previousElementSibling)); } catch { selectText(copy.previousElementSibling); }
+    return;
+  }
+  if (e.target.id === "more") { st.limit += PAGE; renderEntities(); return; }
+  if (e.target.id === "clear") { st.q = ""; st.classes.clear(); st.flags.clear(); store.set("classes", []); store.set("flags", []); renderEntities(); return; }
+  if (go) {
+    const id = go.dataset.go; st.sel = id;
+    if (tab !== "entities") { tab = "entities"; store.set("tab", tab); }
+    const t = BY_ID.get(id); if (t && !ENT.filter(matches).includes(t)) { st.q = ""; st.classes.clear(); st.flags.clear(); }
+    render(); $(".detail")?.scrollIntoView({ block: "nearest" }); return;
+  }
+  if (card) {
+    st.sel = card.dataset.id; renderEntities();
+    if (window.matchMedia("(max-width: 1100px)").matches) $(".detail")?.scrollIntoView({ block: "start" });
+  }
+  const f = e.target.closest("[data-status]");
+  if (f) { qFilter = f.dataset.status; renderQuestions(); }
+});
+function selectText(el) { if (!el) return; const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+// ---- questions ---------------------------------------------------------------------------------
+let qFilter = "all";
+function cell(v) {
+  if (v == null) return `<span class="muted">—</span>`;
+  if (BY_ID.has(v)) return refLink(v);
+  return esc(v);
+}
+function renderQuestions() {
+  const cq = REPORT.competency;
+  const counts = { all: cq.length }; for (const q of cq) counts[q.status] = (counts[q.status] || 0) + 1;
+  const filt = ["all", "answered", "empty", "n/a", "unmodeled"].filter(k => counts[k])
+    .map(k => `<button data-status="${k}" aria-pressed="${qFilter === k}">${k === "all" ? "All" : STATUS[k].text} · ${counts[k]}</button>`).join("");
+  const areas = [...new Set(cq.map(q => q.area))];
+  const groups = areas.map(a => {
+    const qs = cq.filter(q => q.area === a && (qFilter === "all" || q.status === qFilter));
+    if (!qs.length) return "";
+    return `<div class="qgroup"><h2>${esc(a.replace("_", " "))}</h2>${qs.map(q => {
+      const s = STATUS[q.status];
+      const table = q.columns.length && q.rows.length ? `<div class="tbl"><table><thead><tr>${q.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+        <tbody>${q.rows.map(r => `<tr>${r.map(v => `<td>${cell(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+        ${q.row_count > q.rows.length ? `<p class="note">Showing ${q.rows.length} of ${q.row_count} rows.</p>` : ""}` : "";
+      const why = q.status === "unmodeled" ? `<p>The schema doesn't declare <code>${q.unmodeled.map(t => "bbqs:" + t).join(", ")}</code>, so the graph has no way to say this yet.</p>`
+        : q.status === "empty" ? `<p>The source rows are readable with the anon key, but the export has no <code>${q.terms.map(t => "bbqs:" + t).join("</code> / <code>")}</code> links that answer it. Something the exporter should write is missing.</p>`
+        : q.status === "n/a" ? `<p>The data behind this lives in tables anon can't read. It will be answerable on a full-access export.</p>` : "";
+      return `<details class="q"><summary><span class="id">${q.id}</span><span>${esc(q.question)}</span>
+        <span class="right"><span class="rc">${q.status === "unmodeled" ? "not run" : q.row_count + " rows"}</span><span class="pill ${s.cls}" title="${s.tip}">${s.text}</span></span></summary>
+        <div class="body">${why}${table}<pre>${esc(q.sparql)}</pre></div></details>`;
+    }).join("")}</div>`;
+  }).join("");
+  $("#view").innerHTML = `<div style="display:grid;gap:16px">
+    <div style="display:grid;gap:8px"><p style="margin:0;max-width:75ch">A fixed set of questions this graph should be able to answer, each pinned to a real project, species or group so the answer can be checked against the site. An empty answer means a link the exporter doesn't write; an unmodeled one means a slot the schema doesn't have.</p>
+    <div class="filters">${filt}</div></div>${groups}</div>`;
+}
+
+// ---- shapes ------------------------------------------------------------------------------------
+function renderShapes() {
+  const rows = REPORT.shapes.map(s => {
+    const state = s.exercised ? `<span class="pill ok">checked</span>` : s.targets ? `<span class="pill warn">nothing to check</span>` : `<span class="pill na">no targets</span>`;
+    const miss = s.missing_inputs.length ? s.missing_inputs.map(t => `<code>${esc(t)}</code>`).join(" ") : `<span class="muted">—</span>`;
+    const v = shapeViol[s.shape] || 0;
+    return `<tr><td class="mono">${esc(s.shape)}</td><td>${s.target_class ? `<span class="pill cls" style="color:${colorOf(s.target_class)}">${esc(s.target_class)}</span>` : ""}</td>
+      <td class="num">${s.targets}</td><td>${state}</td><td>${miss}</td><td class="num">${v ? `<b style="color:var(--bad)">${v}</b>` : 0}</td></tr>`;
+  }).join("");
+  $("#view").innerHTML = `<div style="display:grid;gap:12px">
+    <p style="margin:0;max-width:75ch">A shape that passes only means something if the graph contains what it checks. <b>Checked</b> shapes had real data to test. <b>Nothing to check</b> means the target nodes exist but the terms the shape reads are absent, so the pass is vacuous. Treat the absent-terms column as a warning, not a proof.</p>
+    <div class="tbl"><table><thead><tr><th>Shape</th><th>Targets</th><th class="num">Nodes</th><th>State</th><th>Absent from the graph</th><th class="num">Violations</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+// ---- structure ---------------------------------------------------------------------------------
+function renderStructure() {
+  const cls = CLASSES.map(c => {
+    const p = S.per_class[c], pct = p.nodes ? p.isolated / p.nodes : 0;
+    return `<tr><td><span class="pill cls" style="color:${colorOf(c)}"><i class="swatch"></i>${esc(c)}</span></td><td class="num">${p.nodes}</td>
+      <td class="num">${p.isolated}</td><td><div class="bar" title="${Math.round(pct * 100)}% isolated"><i style="width:${(pct * 100).toFixed(1)}%"></i></div></td>
+      <td class="num">${p.mean_degree}</td><td class="num">${p.out_edges}</td><td class="num">${p.in_edges}</td></tr>`;
+  }).join("");
+  const matrix = S.edge_matrix.map(m => `<tr><td><span class="pill cls" style="color:${colorOf(m.from)}">${esc(m.from)}</span></td>
+    <td class="mono">${esc(m.predicate)}</td><td><span class="pill cls" style="color:${colorOf(m.to)}">${esc(m.to)}</span></td><td class="num">${m.count}</td></tr>`).join("");
+  const dang = S.dangling_refs.length ? `<div class="tbl"><table><thead><tr><th>From</th><th>Predicate</th><th class="num">Count</th></tr></thead><tbody>${S.dangling_refs.map(d =>
+    `<tr><td>${esc(d.from_class)}</td><td class="mono">${esc(d.predicate)}</td><td class="num">${d.count}</td></tr>`).join("")}</tbody></table></div>` : `<p class="empty">No link points at a missing node.</p>`;
+  $("#view").innerHTML = `<div class="grid2">
+    <div class="panel"><h2>Nodes by class</h2><div class="tbl"><table><thead><tr><th>Class</th><th class="num">Nodes</th><th class="num">Isolated</th><th>Share isolated</th><th class="num">Mean links</th><th class="num">Out</th><th class="num">In</th></tr></thead><tbody>${cls}</tbody></table></div></div>
+    <div class="panel"><h2>Links that exist</h2><p class="note" style="margin:0">Every kind of link between two nodes in this export, with its count. A link the schema declares but that never appears here is a gap.</p>
+      <div class="tbl"><table><thead><tr><th>From</th><th>Predicate</th><th>To</th><th class="num">Count</th></tr></thead><tbody>${matrix}</tbody></table></div>
+      <h2 style="margin-top:8px">Dangling links</h2>${dang}
+      <p class="note" style="margin:0">${fmt(S.components)} connected pieces; the largest holds ${fmt(S.largest_component)} of ${fmt(S.nodes)} nodes.</p></div>
+  </div>`;
+}
+
+function render() {
+  renderTabs();
+  try { history.replaceState(null, "", "#" + tab); } catch {}
+  ({ entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure })[tab]();
+}
+render();
+</script>

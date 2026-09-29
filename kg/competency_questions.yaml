@@ -1,0 +1,223 @@
+# Competency questions: the fixed set of questions the BBQS KG must be able to answer.
+# `python kg/quality.py` runs each one against an export and reports it as
+#   answered  -- returned >= min_rows rows
+#   empty     -- returned fewer, on an export that should be able to answer it: a real gap
+#   n/a       -- `access: full` on an anon export (the source rows are RLS-hidden), not a gap
+#   unmodeled -- the SPARQL uses a bbqs: term the TBox (bbqs.owl.ttl) doesn't declare: a schema gap
+#
+# Every bbqs: term is a LinkML slot/class name, so an empty answer points at the exporter (the slot
+# exists but isn't emitted) and an unmodeled one points at the schema (the slot doesn't exist).
+# `access` is the weakest Supabase key whose reads can answer the question -- measured against the
+# live tables (e.g. grant_investigators and investigators_public are anon-readable; field_provenance
+# and jobs are not), never assumed.
+#
+# Questions are pinned to real entities (R34DA059723, House Mouse, WG-Devices) so a result is
+# checkable against the site, not just "non-empty".
+
+prefixes:
+  bbqs: https://brain-bbqs.org/schema#
+  bid: https://brain-bbqs.org/id/
+  xsd: http://www.w3.org/2001/XMLSchema#
+
+questions:
+  # ── Projects ────────────────────────────────────────────────────────────────
+  - id: CQ01
+    area: projects
+    question: Which projects are in the consortium, with grant number and mechanism?
+    access: anon
+    sparql: |
+      SELECT ?project ?grant_number ?mechanism WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number .
+        OPTIONAL { ?project bbqs:mechanism ?mechanism }
+      } ORDER BY ?grant_number
+
+  - id: CQ02
+    area: projects
+    question: What is the total award amount per mechanism?
+    access: anon
+    sparql: |
+      SELECT ?mechanism (COUNT(?project) AS ?projects) (SUM(?amount) AS ?total) WHERE {
+        ?project a bbqs:Project ; bbqs:mechanism ?mechanism ; bbqs:award_amount ?amount .
+      } GROUP BY ?mechanism ORDER BY DESC(?total)
+
+  - id: CQ03
+    area: projects
+    question: Which institution hosts each project?
+    access: anon
+    sparql: |
+      SELECT ?project ?grant_number ?org_name WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:part_of_org ?org .
+        ?org bbqs:name ?org_name .
+      }
+
+  # ── People and roles ────────────────────────────────────────────────────────
+  - id: CQ04
+    area: people
+    question: Who holds a role on R34DA059723, and what role?
+    access: anon
+    sparql: |
+      SELECT ?name ?role WHERE {
+        ?project bbqs:grant_number "R34DA059723" .
+        ?pr a bbqs:ProjectRole ; bbqs:on_project ?project ; bbqs:project_role ?role ;
+            bbqs:held_by ?person .
+        ?person bbqs:name ?name .
+      }
+
+  - id: CQ05
+    area: people
+    question: Which investigators hold roles on more than one project?
+    access: anon
+    sparql: |
+      SELECT ?name (COUNT(DISTINCT ?project) AS ?projects) WHERE {
+        ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .
+        ?person bbqs:name ?name .
+      } GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY DESC(?projects)
+
+  - id: CQ06
+    area: people
+    question: Which organization is each investigator affiliated with?
+    access: anon
+    sparql: |
+      SELECT ?name ?org_name WHERE {
+        ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name ; bbqs:members ?person .
+        ?person a bbqs:Investigator ; bbqs:name ?name .
+      }
+
+  - id: CQ07
+    area: people
+    question: Which investigators have an ORCID?
+    access: anon
+    sparql: |
+      SELECT ?name ?orcid WHERE {
+        ?person a bbqs:Investigator ; bbqs:name ?name ; bbqs:orcid ?orcid .
+      }
+
+  # ── Working groups ──────────────────────────────────────────────────────────
+  - id: CQ08
+    area: working_groups
+    question: Who are the members of WG-Devices?
+    access: anon
+    sparql: |
+      SELECT ?name WHERE {
+        ?wg a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
+        ?person bbqs:member_of_group ?wg ; bbqs:name ?name .
+      }
+
+  # ── Species ─────────────────────────────────────────────────────────────────
+  - id: CQ09
+    area: species
+    question: Which projects study the house mouse?
+    access: anon
+    sparql: |
+      SELECT ?project ?grant_number WHERE {
+        ?species a bbqs:Species ; bbqs:common_name "House Mouse" .
+        ?project bbqs:studies_species ?species ; bbqs:grant_number ?grant_number .
+      }
+
+  - id: CQ10
+    area: species
+    question: Which projects study mammals?
+    access: anon
+    sparql: |
+      SELECT DISTINCT ?project ?grant_number WHERE {
+        ?species a bbqs:Species ; bbqs:taxonomy_class "Mammalia" .
+        ?project bbqs:studies_species ?species ; bbqs:grant_number ?grant_number .
+      }
+
+  - id: CQ11
+    area: species
+    question: Which projects name no resolvable species, and is that by design?
+    access: anon
+    sparql: |
+      SELECT ?project ?grant_number ?scope WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number .
+        FILTER NOT EXISTS { ?project bbqs:studies_species ?s }
+        OPTIONAL { ?project bbqs:study_scope ?scope }
+      }
+
+  # ── Products: publications, datasets, software, devices ─────────────────────
+  - id: CQ12
+    area: products
+    question: Which publications came out of which project?
+    access: anon
+    sparql: |
+      SELECT ?grant_number ?title WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:produced ?pub .
+        ?pub a bbqs:Publication ; bbqs:title ?title .
+      }
+
+  - id: CQ13
+    area: products
+    question: Which datasets were produced under which project?
+    access: anon
+    sparql: |
+      SELECT ?grant_number ?dataset_name WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number ;
+                 (bbqs:funded_datasets|bbqs:produced) ?dataset .
+        ?dataset a bbqs:Dataset ; bbqs:name ?dataset_name .
+      }
+
+  - id: CQ14
+    area: products
+    question: Which device categories does each project use?
+    access: anon  # project_device_usage is anon-readable; the schema has no Project->DeviceCategory slot
+    sparql: |
+      SELECT ?grant_number ?category WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:uses_device_category ?cat .
+        ?cat bbqs:label ?category .
+      }
+
+  - id: CQ15
+    area: products
+    question: Which devices does each manufacturer make, by category?
+    access: anon
+    sparql: |
+      SELECT ?manufacturer ?model ?category WHERE {
+        ?device a bbqs:Device ; bbqs:model_name ?model ; bbqs:manufacturer ?m .
+        ?m bbqs:name ?manufacturer .
+        OPTIONAL { ?device bbqs:device_category ?category }
+      }
+
+  - id: CQ16
+    area: products
+    question: Which software tools does the consortium provide, with their repositories?
+    access: anon
+    sparql: |
+      SELECT ?name ?repo WHERE {
+        ?tool a bbqs:SoftwareTool ; bbqs:name ?name ; bbqs:repo_url ?repo .
+      }
+
+  # ── Announcements: funding calls, jobs, news ────────────────────────────────
+  - id: CQ17
+    area: announcements
+    question: Which funding opportunities are still open (expiration after 2026-09-29)?
+    access: anon
+    sparql: |
+      SELECT ?title ?expires WHERE {
+        ?fo a bbqs:FundingOpportunity ; bbqs:name ?title ; bbqs:expiration_date ?expires .
+        FILTER (?expires > "2026-09-29"^^xsd:date)
+      }
+
+  - id: CQ18
+    area: announcements
+    question: Which jobs are posted, and by which institution?
+    access: full  # the jobs table is RLS-hidden; anon sees only the resources row (name)
+    sparql: |
+      SELECT ?title ?institution WHERE {
+        ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .
+      }
+
+  # ── Provenance ──────────────────────────────────────────────────────────────
+  - id: CQ19
+    area: provenance
+    question: Where did R34DA059723's title come from (source class and grade)?
+    access: full
+    sparql: |
+      SELECT ?value ?source ?grade WHERE {
+        ?project bbqs:grant_number "R34DA059723" .
+        BIND(STRAFTER(STR(?project), "https://brain-bbqs.org/id/") AS ?localId)
+        ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId ;
+              bbqs:prov_entity_column "title" ; bbqs:prov_value_text ?value ;
+              bbqs:prov_source_class ?source .
+        OPTIONAL { ?source bbqs:grade ?grade }
+      }
