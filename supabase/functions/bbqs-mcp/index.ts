@@ -57,7 +57,7 @@ const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
-  "create_grant", "repoint_grant", "detect_grant_renumbers",
+  "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -486,6 +486,22 @@ function buildServer(jwt: string, caller: Caller | null) {
         _grant_number: a.grant_number,
         _new_grant_number: a.new_grant_number,
         _reporter_project_num: a.reporter_project_num ?? null,
+      })),
+  });
+
+  T("confirm_species_candidate", {
+    description: "[curator] Confirm a project's species from its species candidates -- for a project whose study_species holds a category or placeholder ('Rodents', 'Freely moving animals'). Each candidate comes from the grant abstract with the quote that supports it (the species_candidates table; list_species shows them). Writes projects.study_species and records provenance in your name with that quote. replace=false ADDS the species, for a project that studies more than one (predator and prey; flies and fish). THE tool for \"set this project's species\" -- do not write SQL.",
+    parameters: obj({
+      grant_number: { type: "string", description: "core grant number, e.g. R34DA059512" },
+      candidate: { type: "string", description: "the candidate exactly as listed, e.g. Mus musculus" },
+      replace: { type: "boolean", description: "true (default) replaces study_species; false adds to it" },
+    }, ["grant_number", "candidate"]),
+    handler: async (a: { grant_number: string; candidate: string; replace?: boolean | string }) =>
+      text(await rpcC("confirm_species_candidate", {
+        _grant_number: a.grant_number,
+        _candidate: a.candidate,
+        // MCP clients sometimes send booleans as strings; only an explicit false adds instead of replacing.
+        _replace: !(a.replace === false || a.replace === "false"),
       })),
   });
 

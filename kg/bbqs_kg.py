@@ -42,6 +42,14 @@ TYPE_CLASS = {
 }
 
 
+def _shown(path) -> str:
+    """A path for log lines, relative to kg/ when it can be (relpath fails across Windows drives)."""
+    try:
+        return os.path.relpath(path, HERE)
+    except ValueError:
+        return str(path)
+
+
 class BBQSKnowledgeGraph:
     """Exports the BBQS KG from Supabase and validates it against the SHACL consistency shapes."""
 
@@ -480,7 +488,7 @@ class BBQSKnowledgeGraph:
             data, shacl_graph=shapes, advanced=True, inference="none",
         )
         print(report_text)
-        print(f"conforms={conforms}  data={os.path.relpath(data_file, HERE)}  "
+        print(f"conforms={conforms}  data={_shown(data_file)}  "
               f"shapes={len(shape_files)} file(s)")
         return conforms, report_text
 
@@ -540,8 +548,8 @@ class BBQSKnowledgeGraph:
                 os.unlink(tmp_path)
 
         print(report)
-        print(f"consistent={consistent}  data={os.path.relpath(data_file, HERE)}  "
-              f"owl={os.path.relpath(owl_file, HERE)}")
+        print(f"consistent={consistent}  data={_shown(data_file)}  "
+              f"owl={_shown(owl_file)}")
         return consistent, report
 
     def run(
