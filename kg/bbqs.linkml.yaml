@@ -288,6 +288,15 @@ classes:
     close_mappings: [OBI:0000272]   # protocol
     slots: [uses_device, measures_construct]
 
+  Standard:
+    is_a: Entity
+    mixins: [CreativeWork]
+    class_uri: dcterms:Standard
+    description: >-
+      A data or metadata standard (resource_type standard), e.g. Psych-DS for behavioral datasets.
+      Not a BBQS award: an award that funds it is recorded in award_numbers, never as a Project.
+    slots: [award_numbers, repo_url, docs_url, version, license]
+
   Device:
     is_a: Entity
     mixins: [Product]
@@ -542,7 +551,7 @@ slots:
   file_count:  { range: integer }
   size_bytes:  { slot_uri: schema:contentSize, range: integer }
   dandi_instance: {}
-  award_numbers: { multivalued: true, description: "Links dandiset → grant(s)." }
+  award_numbers: { multivalued: true, description: "Award number(s) behind this resource: a dandiset's grants, a standard's funding award." }
   evaluates:   { slot_uri: bbqs:evaluates, range: Entity, multivalued: true, description: "What the benchmark scores (model/algorithm/tool)." }
   repo_url:    { slot_uri: schema:codeRepository, range: uriorcurie }
   docs_url:    { slot_uri: schema:url, range: uriorcurie }
@@ -679,6 +688,7 @@ enums:
       device_manufacturer: { description: PROPOSED }
       working_group: { description: PROPOSED }
       event: { description: PROPOSED }
+      standard: { description: "PROPOSED -- a data or metadata standard (class Standard)." }
 
   project_role_enum:
     description: >-

@@ -38,7 +38,7 @@ TYPE_CLASS = {
     "protocol": "Protocol", "benchmark": "Benchmark", "ml_model": "MLModel", "job": "Job",
     "announcement": "Announcement", "funding": "FundingOpportunity", "species": "Species",
     "device": "Device", "device_category": "DeviceCategory", "device_manufacturer": "DeviceManufacturer",
-    "working_group": "WorkingGroup", "event": "Event",
+    "working_group": "WorkingGroup", "event": "Event", "standard": "Standard",
 }
 
 
@@ -125,6 +125,8 @@ class BBQSKnowledgeGraph:
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
             self.add(n, "external_url", r.get("external_url"), datatype=XSD.anyURI)
+            for award in (r.get("metadata") or {}).get("award_numbers") or []:
+                self.add(n, "award_numbers", award)
             if r.get("organization_id") and r["organization_id"] in org_node:
                 g.add((n, BBQS["part_of_org"], org_node[r["organization_id"]]))
 

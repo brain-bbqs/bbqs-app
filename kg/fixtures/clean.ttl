@@ -87,9 +87,10 @@ bid:prov-e a bbqs:ProvenanceRecord ;
 bid:dual-1 a bbqs:ResearchOrganization ;
   bbqs:name "Dual Entity" .
 
-# #1 — the data standard is filed as what it is, not as a Project
-bid:proj-no-award a bbqs:Protocol ;
-  bbqs:name "A data standard filed as a grant" .
+# #1 — the data standard is filed as what it is, with its (non-BBQS) funding award as an attribute
+bid:proj-no-award a bbqs:Standard ;
+  bbqs:name "A data standard filed as a grant" ;
+  bbqs:award_numbers "RF1MH000001" .
 
 # #20 — every award identifier on the node names the same award
 bid:proj-renumbered a bbqs:Project ;
