@@ -20,7 +20,7 @@ This table is the running status of the whole effort, updated as each phase land
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | QA | Quality evaluation — the six [QA steps](#qa-steps): competency questions, structure, conformance, consistency, accuracy, coverage | — | **in progress** (steps 1, 2 and shape coverage live in `quality.py`, #420; 3 → #422; 5 and 6 planned) |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12/#14–#19; HermiT consistency pass | — | **partial** (`reason()` added in #417; not gating, needs a Java runtime, no `owl:disjointWith` axioms yet; full-access export not run) |
-| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | **in progress** (`.github/workflows/kg.yml` + `ci_check.py` live; `kg/` needs owner review via CODEOWNERS; making both binding on `dev` needs a ruleset) |
+| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | **done** (`.github/workflows/kg.yml` + `ci_check.py`; the `dev` ruleset requires a PR, code-owner review for `kg/`, and the `kg` check, for everyone including admins, #423) |
 | 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
 | 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
 
@@ -98,7 +98,7 @@ blocking (live data can change under a PR). When a change makes things better, t
 run `python kg/ci_check.py --update-baseline` and commit the baseline so it can't slip back.
 Proven RED: dropping the #19 `FILTER EXISTS` guard fails it (`NodeHasProvenanceShape fires 34x`).
 
-`.github/CODEOWNERS` makes `kg/` changes need the KG owner's review.
+`.github/CODEOWNERS` makes `kg/` changes need the KG owner's review. The `dev` ruleset makes both binding: every change to `dev` goes through a PR, the `kg` check must pass, and a PR touching `kg/` needs code-owner approval. Repo admins are not exempt.
 
 ## Regenerate OWL + boilerplate SHACL from the schema
 
