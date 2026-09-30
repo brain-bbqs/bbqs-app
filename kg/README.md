@@ -14,7 +14,7 @@ This table is the running status of the whole effort, updated as each phase land
 |---|---|---|---|
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
 | 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
-| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (12 shapes + 1 guard; on the anon export only 3 shapes have data to check — see [QA](#quality-evaluation)) |
+| 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (16 shapes + 2 guards; on the anon export 7 shapes have data to check — see [QA](#quality-evaluation)) |
 | 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done**, with a gap: 3,045 triples, 6 dangling species, but only four kinds of link are written, so 65% of nodes are isolated (#421) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done**, with a gap: generated SHACL uses `slot_uri` IRIs the export doesn't, so it targets nothing (#422); `disjoint_with` → `owl:disjointWith` didn't emit |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
@@ -154,20 +154,20 @@ device" are **out of scope** (that's missing data, not a contradiction). Tracked
 [#386](https://github.com/brain-bbqs/bbqs-app/issues/386).
 
 **live** means the shape exists and runs. It does not mean the export contains anything for it to
-check; see [shape coverage](#quality-evaluation). Today only #4, #7 and #9 have data to check.
+check; see [shape coverage](#quality-evaluation). Today 7 of 16 shapes have data to check.
 
 | # | Invariant (must hold) | Contradiction it catches | Enforced by | Status |
 |---|---|---|---|---|
-| 1 | One node has one `resource_type`, matching the table it came from | a `grants` node also typed `investigator` | OWL disjoint + SHACL | planned |
+| 1 | One node has one `resource_type`, matching the table it came from | a `grants` node also typed `investigator`; a `grant` resource with no `grants` row | SHACL (`OneClassPerNodeShape`, `ProjectIsAnAwardShape`) | **live** (1 hit: Psych-DS, a data standard filed as a `grant`) |
 | 2 | One IRI per entity; no two typed rows share a `resource_id` | two rows collapse into one node | SHACL / guard | planned |
-| 3 | Core classes mutually disjoint (Person/Org/Dataset/Project/Species/Event) | a node typed Person and Product | OWL `disjointWith` | planned |
+| 3 | Core classes mutually disjoint (Person/Org/Dataset/Project/Species/Event) | a node typed Person and Product | SHACL (`OneClassPerNodeShape`: the export mints one class per node, so any second class is a clash) | **live** (0 hits) |
 | 4 | `ProjectRole.project_role` is a canonical token | role = "Principal Investigator" free text | SHACL `sh:in` | **live** |
 | 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | exporter rule + SHACL | partial |
-| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **partial** (`held_by` → Investigator referential shape live; cardinality via gen-shacl) |
+| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **live** (`held_by` → Investigator, at most one holder, one `on_project`; no data to check until `held_by` is exported, #421) |
 | 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (6 real hits; `species_aliases` resolves synonyms, and "no species by design" values like "All Species" route to `study_scope` instead of being flagged) |
 | 8 | Working-group tags are canonical (`canonical_working_group`) | non-canonical WG label | SHACL `sh:in` | planned |
 | 9 | `mechanism` is consistent with `grant_number` | mechanism `R61` on a `U01...` number | SHACL SPARQL | **live** |
-| 10 | Format patterns hold: ORCID, DOI, grant_number, NCBITaxon IRI | malformed ORCID | SHACL `sh:pattern` | planned |
+| 10 | Format patterns hold: URLs, ORCID, DOI, grant_number, NCBITaxon IRI | a sentence in a URL field; malformed ORCID | SHACL `sh:pattern` | **partial** (URL fields live, 2 hits: a Job with two links in one field, EMBER's `website` sentence; the rest planned) |
 | 11 | Numeric/temporal sanity: amount >= 0, budget_floor <= ceiling, open <= expiration | expiration date before open date | SHACL SPARQL | planned |
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
@@ -176,6 +176,7 @@ check; see [shape coverage](#quality-evaluation). Today only #4, #7 and #9 have 
 | 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` pair assert different `project_role` values | SHACL SPARQL | **live** |
 | 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL | **live** (no targets — exporter doesn't emit `author_orcids` yet) |
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
+| 20 | Every award identifier on a Project names the same award as its `grant_number` (`name`, `reporter_project_num`, `nih_link`, `external_url`) | a renumbering updated `grants` but not `resources` | SHACL SPARQL | **live** (2 hits: BARD.CC's `name` and `external_url` still say U24MH136628) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
 
 ## Quality evaluation
@@ -219,14 +220,14 @@ in the sitemap or navigation), but anyone with the link can open it, so it only 
 anon view. The data is live, but the exporter and quality code come from `main`: a change on `dev`
 shows up after `dev` → `main`.
 
-**Latest run (anon export, 2026-09-29):**
+**Latest run (anon export, 2026-09-30):**
 
 | Measure | Result |
 |---|---|
 | Structure | 693 nodes, 205 links. **453 isolated (65%)**, in 491 connected pieces. Only four kinds of link exist: `on_project` 111, `manufacturer` 35, `device_category` 35, `studies_species` 24. |
 | Competency questions | **6 of 19 answered**, 10 empty, 2 n/a on anon (jobs, provenance), 1 unmodeled |
-| Shape coverage | **3 of 12 shapes have data to check** (#4, #7, #9). The other 9 pass vacuously: their inputs (`held_by`, `orcid`, `email`, `consortium_role`, provenance) aren't in the export. |
-| Violations | 6, all #7 |
+| Shape coverage | **7 of 16 shapes have data to check** (#1, #3, #4, #7, #9, #10, #20). The other 9 pass vacuously: their inputs (`held_by`, `orcid`, `email`, `consortium_role`, provenance) aren't in the export. |
+| Violations | 11: #7 ×6 (species), #20 ×2 and #1 ×1 (project identity), #10 ×2 (URLs) |
 
 Each empty question traces to data the exporter doesn't turn into links. Almost all of it is
 anon-readable. In particular `held_by` resolves for all 111 roles through `investigators_public`,
@@ -251,5 +252,5 @@ but the schema has no Project → DeviceCategory slot.
 
 - **Phase 5 cleanup**: remove the orphan `resources` rows the backfill left (~14 `investigator` + 1 `grant` that point at no table row); add an insert trigger so new rows get a `resource_id` automatically; and once `types.ts` is regenerated, promote the 6 backfilled `resource_type` values from PROPOSED → shipped in the LinkML (the parity guard will flag it).
 - **Full-access export**: run with a key that can read investigators / field_provenance / working-group detail; map `field_provenance` → PROV (needed by shapes 5 and 12).
-- **`owl:disjointWith` axioms**: `gen-owl` doesn't emit them from the LinkML `disjoint_with` slot yet, so `reason()` has no class-level contradictions to catch today — only the datatype ones (see above). Fixing this is what makes invariant #3 in the catalog above (and half of #1) go from planned to live.
+- **`owl:disjointWith` axioms**: no longer needed for #1/#3, which SHACL now enforces (`OneClassPerNodeShape`). #411's axioms, the distinct-node declaration and its reasoner failing cases are the starting point if the reasoner gets a real job, e.g. once the Marr layer adds inference chains.
 - **Data fixes in Supabase, not exporter changes:** the two non-URI values in URI fields (`Job.external_url` with two links; EMBER's `Project.website` holding a sentence — see above), and one investigator whose `name` has an email address appended, which puts the address in the public export.

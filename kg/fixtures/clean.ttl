@@ -2,6 +2,7 @@
 # This is the GREEN half of the pair.
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 # #4 — canonical token
 bid:role-1 a bbqs:ProjectRole ;
@@ -81,3 +82,31 @@ bid:sc-basic a bbqs:SourceClass ; bbqs:grade 2 ; bbqs:is_verified false .
 bid:prov-e a bbqs:ProvenanceRecord ;
   bbqs:prov_entity_table "projects" ; bbqs:prov_entity_column "name" ; bbqs:prov_entity_id "proj-no-prov" ;
   bbqs:prov_value_text "Orphan project" ; bbqs:prov_source_class bid:sc-basic .
+
+# #1/#3 — one node, one class
+bid:dual-1 a bbqs:ResearchOrganization ;
+  bbqs:name "Dual Entity" .
+
+# #1 — the data standard is filed as what it is, not as a Project
+bid:proj-no-award a bbqs:Protocol ;
+  bbqs:name "A data standard filed as a grant" .
+
+# #20 — every award identifier on the node names the same award
+bid:proj-renumbered a bbqs:Project ;
+  bbqs:name "U24DA064429" ;
+  bbqs:grant_number "U24DA064429" ;
+  bbqs:mechanism "U24" .
+bid:prov-g a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "grants" ; bbqs:prov_entity_column "grant_number" ; bbqs:prov_entity_id "proj-renumbered" ;
+  bbqs:prov_value_text "U24DA064429" ; bbqs:prov_source_class bid:sc-basic .
+
+# #10 — one URL per URL field
+bid:job-1 a bbqs:Job ;
+  bbqs:name "Community engineer" ;
+  bbqs:external_url "https://jobs.example.org/one"^^xsd:anyURI .
+
+# #6 — one holder per role edge
+bid:role-two a bbqs:ProjectRole ;
+  bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:inv-dup-a ;
+  bbqs:on_project bid:proj-renumbered .

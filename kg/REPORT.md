@@ -35,7 +35,7 @@ Publication 45, ResearchOrganization 37, Device 35, DeviceCategory 34, DeviceMan
 Project 34, Dataset 24, SoftwareTool 19, FundingOpportunity 14, Species 15, Announcement 12,
 Job 6, Benchmark 3, MLModel 3, Protocol 1, Event 1, WorkingGroup 4.
 
-Validated against the consistency shapes: **`Conforms: False`, 6 violations — all invariant #7**.
+Validated against the consistency shapes: **`Conforms: False`, 11 violations**: 6 × #7 (F1), and 5 found by the shapes added 2026-09-30 (F7).
 #4 and #9 conform. Those, with #7, are the only shapes that had data to check: the other 9 pass
 vacuously (see F5). `held_by` is not emitted, so its referential shape passes on nothing. #5/#12/#18/#19
 have no anon inputs (`consortium_role` and `field_provenance` are RLS-hidden, and #19 is guarded to
@@ -91,10 +91,10 @@ them yet (#421).
 
 ### F5 — the graph is mostly unlinked, so most checks had nothing to check
 
-The quality pass (`kg/quality.py`, README → Quality evaluation) shows what "6 violations" leaves
+The quality pass (`kg/quality.py`, README → Quality evaluation) shows what the violation count leaves
 out. **453 of 693 nodes (65%) have no link to anything**, and only four kinds of link exist
 (`on_project`, `manufacturer`, `device_category`, `studies_species`). **6 of 19 competency questions**
-are answered, and **9 of 12 consistency shapes** pass only because their inputs are absent.
+are answered, and **9 of 16 consistency shapes** pass only because their inputs are absent.
 
 This is an exporter gap, not RLS. Anon can read `investigators_public`, and it resolves `held_by` for
 111 of 111 roles. The same view carries ORCIDs (113) and working-group membership (149), and
@@ -107,12 +107,27 @@ This is an exporter gap, not RLS. Anon can read `investigators_public`, and it r
 - One investigator's `name` has an email address appended, which puts the address in the public
   export.
 
+### F7 — project identity contradictions (found reviewing the Graph Inspector, 2026-09-30)
+
+- **Psych-DS is filed as a project.** Its `resources` row is typed `grant`, but no `grants` row backs
+  it. It is a data standard, which is why the graph has 34 Project nodes for 33 grants (#1).
+- **BARD.CC names two awards.** `grant_number` and `nih_link` say U24DA064429, while the spine's
+  `name` and `external_url` still say U24MH136628. The #385 renumbering updated `grants` but not
+  `resources` (#20).
+- **`resources.name` follows two conventions for projects:** 26 hold the grant number and 7 hold
+  the title. The Inspector now labels every project `grant number · title`, but the data should
+  pick one convention.
+- **Two nodes have hand-typed IRIs** (`a1b2c3d4-0002-…`, `a1b2c3d4-0004-…`: an investigator and
+  the SeeMe project). IRIs are permanent, and a patterned UUID invites collisions with the next
+  hand-written insert.
+
 ## Recommendations / next steps
 
 1. ~~Fold `species_aliases` into the resolver~~ / ~~route "no species by design" to `study_scope`~~ **DONE** — F1 is 6.
 2. **Confirm the four strong species candidates** and get the two `needs_choice` answers from the project teams (F1) → #7 to 0.
 3. **Orphan cleanup + insert trigger** (F3), and promote the 6 backfilled `resource_type` values PROPOSED → shipped in the LinkML once `types.ts` regenerates.
 4. **Full-access export run** (Phase 6) — light up #5/#12/#14/#15/#17/#18/#19 against real data; add the OWL reasoner for the `disjoint_with` axioms gen-owl didn't emit.
-5. **Data fixes:** normalize `co-investigator`; investigate the 34th Project (orphan grant resource); the F6 values.
+5. **Data fixes:** normalize `co-investigator`; the F6 values. (The 34th Project is Psych-DS; see F7.)
 6. **Export the edge tables** (#421) so the empty competency questions answer and shapes #6/#14/#16/#17 have data.
 7. **One IRI convention** (#422) so the generated SHACL checks the export.
+8. **F7 data fixes:** retype Psych-DS, update BARD.CC's `resources.name`/`external_url`, choose one `resources.name` convention for projects.
