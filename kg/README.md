@@ -1,8 +1,9 @@
 # BBQS Knowledge Graph
 
-RDF/OWL knowledge graph of the BBQS consortium. **Current goal: generate a *consistent* graph and
-validate that no part contradicts another** — not enrichment. Consistency ≠ completeness; missing
-per-project detail is out of scope for now.
+RDF/OWL knowledge graph of the BBQS consortium. **Goal: a graph that maps one-to-one onto the
+database, in both directions (the database could be rebuilt from it), and in which no part
+contradicts another.** Consistency is checked by the shapes; completeness by the
+[round trip](#round-trip-the-graph-must-be-able-to-rebuild-the-database).
 
 ## Build phases
 
@@ -123,6 +124,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, tracked; commit anon exports only). |
 | `requirements.txt` / `requirements-generate.txt` | Pinned deps: the harness (export, validate, quality) / plus linkml for the CI drift check. |
+| `roundtrip.py` | Round trip: how much of the database a (fresh) export carries, cell by cell → `export/roundtrip.json` (see [Round trip](#round-trip-the-graph-must-be-able-to-rebuild-the-database)). |
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
@@ -196,7 +198,7 @@ built one at a time, and each gets a board issue under #386 while it's in progre
 | 2 | **Structural metrics** | Is it one graph or a pile of records? | Nodes and links per class, isolated nodes, connected pieces, dangling links, and the class→predicate→class link matrix. | **live** (`quality.py`) |
 | 3 | **Cross-artifact conformance** | Do the export, the OWL and the generated SHACL use the same terms? | Every predicate and class the export emits must be declared in `bbqs.owl.ttl` *and* be a path in `bbqs.shapes.gen.ttl`. Today they disagree: the export and OWL use `bbqs:<slot>`, gen-shacl uses the mapped `slot_uri` (`schema:*`, `prov:*`), so the generated shapes target nothing. | planned (needs one IRI convention) |
 | 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL consistency shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
-| 5 | **Accuracy against the source** | Does the graph say what the database says? | Count reconciliation (nodes per class vs rows per table, e.g. 34 Projects vs 33 grants), plus a sampled gold standard: a person checks N random entity cards against the site. | planned |
+| 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 63% of fact cells carried, anon) |
 | 6 | **Coverage** | How much of each record made it in? | Per-class fill rates and external-ID coverage (ORCID, DOI, NCBITaxon). Informational only: it guides enrichment and is not a consistency goal. | planned |
 
 Steps 1, 2 and 4 are one pass:
@@ -247,6 +249,25 @@ so its absence is an exporter gap, not RLS.
 
 CQ14 (device categories per project) is **unmodeled**: `project_device_usage` has 131 anon rows,
 but the schema has no Project → DeviceCategory slot.
+
+### Round trip: the graph must be able to rebuild the database
+
+The target is a **one-to-one, lossless** mapping in both directions: every KG-backed row is one
+node, every column a slot, every edge table a set of links, and DB → KG → DB loses nothing.
+`python kg/roundtrip.py <fresh export>` measures it cell by cell, with no mapping spec to trust.
+Run it on a fresh export: an older file makes every value edited since look dropped.
+
+**2026-09-30, anon, fresh export: 3,156 of 5,006 fact cells carried (63%).**
+
+| Carried in full | Mostly carried | Largely dropped | Not in the graph at all |
+|---|---|---|---|
+| `grants`, `grant_investigators`, `organizations` | `resources` 81% (`metadata`), `device_manufacturers` 95%, `projects` 71%, `software_tools` 71%, `device_categories` 67% | `publications` 55% (authors, citations, keywords), `announcements` 43%, `species` 41% (order/family/genus), `investigators_public` 34% (ORCID, WGs, skills), `device_models` 27%, `funding_opportunities` 24% (all dates), `dandisets` 22% | `investigator_organizations` (95 rows), `project_publications`, `grant_dandisets` |
+
+It also finds facts stored twice that disagree, which no lossless graph can reconcile: `species.name`
+differs from the spine's `resources.name` for 11 of 15 species ("Mouse" vs "House Mouse"), and a few
+investigator, dandiset and software names or descriptions differ between their detail table and the
+spine. On an anon key this covers the public projection only; RLS-hidden rows and columns need a
+full-access run.
 
 ## Not yet built
 
