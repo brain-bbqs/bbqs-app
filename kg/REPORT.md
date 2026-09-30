@@ -6,8 +6,9 @@
 
 We can **generate** a BBQS knowledge graph from the live database and **validate** that no part
 contradicts another. After the Phase-5 backfill (every entity is now in the `resources` spine) and
-the spine-first exporter, the anon run produces a **3,044-triple graph, one node per entity**, and it
-validates to **6 unresolved `study_species`** (invariant #7) — all genuine curation items. Folding
+the spine-first exporter, the anon run produces a **3,045-triple graph, one node per entity**, and it
+validates to **11 violations**: 6 unresolved `study_species` (invariant #7), all genuine curation
+items, and 5 project-identity and URL errors (F7, F6). Folding
 `species_aliases` (synonyms/scientific names) and routing "no species by design" values (infrastructure
 awards' `All Species`) to `study_scope` cut the original 26 dangling values to those 6. The
 role-vocabulary (#4) and grant-mechanism (#9) checks conform.

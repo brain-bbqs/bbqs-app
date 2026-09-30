@@ -111,6 +111,13 @@
   .empty { color: var(--muted); font-style: italic; }
   .note { font-size: 12.5px; color: var(--muted); }
   .copy { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 1px 8px; font-size: 12px; cursor: pointer; }
+  .flagbox { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--sunk); }
+  .flagbox select, .flagbox textarea { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+  .flagbox textarea { width: 100%; min-height: 64px; resize: vertical; }
+  .flagbox .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface); border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12.5px; font-weight: 500; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .pill.flag { background: var(--accent-soft); color: var(--accent); }
 
   /* Tables */
   .tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
@@ -259,9 +266,115 @@ const TABS = [
   ["shapes", "Shapes", REPORT.shapes.length],
   ["structure", "Structure", CLASSES.length],
 ];
+// ---- review flags ------------------------------------------------------------------------------
+// Only inside the artifact viewer, where the page is granted a db: there a reviewer can flag an
+// entity, and the flag survives rebuilds because it lives in the artifact's store, keyed by IRI.
+// Opened any other way (the public site, a local file) the page stays read-only.
+const KINDS = { wrong: "Wrong", missing: "Missing", duplicate: "Duplicate", suspicious: "Suspicious" };
+const RV = { db: null, uid: null, canWrite: null, readOnly: false, flags: new Map(), draft: null, status: "" };
+const flagKey = iri => iri.replace("https://brain-bbqs.org/id/", "").replace(/\//g, "~");
+
+async function initFlags() {
+  if (!window.claude || typeof window.claude.use !== "function") return;
+  const db = await window.claude.use("db");
+  if (!db) return;
+  const user = await window.claude.use("user");
+  RV.db = db;
+  RV.uid = user ? await user.id() : null;
+  RV.canWrite = user ? await user.can("data.write") : null;
+  db.collection("flags").onSnapshot(snap => {
+    RV.flags = new Map(snap.docs.map(d => [d.data().iri, d.data()]));
+    render();
+  }, err => { RV.status = `Flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  render();
+}
+
+async function withRetry(fn) {
+  try { return await fn(); } catch (e) {
+    if (!e || e.code !== "unavailable") throw e;
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 600));
+    return fn();
+  }
+}
+function flagError(err) {
+  const code = err && err.code;
+  if (code === "invalid_argument" || code === "not_granted") { RV.readOnly = true; return "This page is read-only for you, so the flag wasn't saved."; }
+  if (code === "quota_exceeded") return "The flag store is full. Remove flags that are resolved, then try again.";
+  if (code === "revoked") return "Your access to this page changed. Reload to continue.";
+  return "The flag wasn't saved. Check your connection and try again.";
+}
+function setFlagStatus(text) {
+  RV.status = text;
+  const el = document.getElementById("flag-status"); if (el) el.textContent = text;
+}
+function clearStatusSoon(text) {
+  setTimeout(() => { if (RV.status === text) setFlagStatus(""); }, 2500);
+}
+async function saveFlag(iri) {
+  const e = BY_ID.get(iri); if (!e || !RV.db) return;
+  const body = {
+    iri, class: e.class, label: e.label, kind: $("#flag-kind").value, note: $("#flag-note").value.trim(),
+    flagged_at: new Date().toISOString(), flagged_by: RV.uid,
+    report_commit: REPORT.commit || null, report_built_at: REPORT.built_at || null,
+  };
+  setFlagStatus("Saving…");
+  try {
+    await withRetry(() => RV.db.collection("flags").doc(flagKey(iri)).set(body));
+    RV.draft = null; RV.status = "Flag saved.";
+  } catch (err) { RV.status = flagError(err); }
+  render(); clearStatusSoon("Flag saved.");
+}
+async function removeFlag(iri) {
+  if (!RV.db) return;
+  setFlagStatus("Removing…");
+  try {
+    await withRetry(() => RV.db.collection("flags").doc(flagKey(iri)).delete());
+    RV.draft = null; RV.status = "Flag removed.";
+  } catch (err) { RV.status = flagError(err); }
+  render(); clearStatusSoon("Flag removed.");
+}
+const flagWhen = f => (f.flagged_at || "").slice(0, 16).replace("T", " ");
+
+function flagSectionHTML(e) {
+  if (!RV.db) return "";
+  const cur = RV.flags.get(e.id);
+  const who = cur ? `${cur.flagged_by && cur.flagged_by === RV.uid ? "You" : "Someone"} flagged this as ${esc((KINDS[cur.kind] || cur.kind).toLowerCase())} · ${esc(flagWhen(cur))} UTC` : "";
+  if (RV.readOnly || RV.canWrite === false) {
+    return cur ? `<section><h3>Review flag</h3><div class="flagbox"><span>${who}</span>${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div></section>` : "";
+  }
+  const d = RV.draft && RV.draft.iri === e.id ? RV.draft : { kind: (cur && cur.kind) || "wrong", note: (cur && cur.note) || "" };
+  return `<section><h3>Review flag</h3><div class="flagbox">
+    <span class="note" style="margin:0">${cur ? who : "Flag this entity if something about it looks wrong. The flag is saved with this page and read back when flags are triaged."}</span>
+    <div class="row"><label for="flag-kind" class="muted" style="font-size:12.5px">Problem</label>
+      <select id="flag-kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${d.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <textarea id="flag-note" aria-label="What's wrong, and how you know" placeholder="What's wrong, and how you know">${esc(d.note)}</textarea>
+    <div class="row"><button class="btn" id="flag-save" data-iri="${esc(e.id)}">${cur ? "Update flag" : "Save flag"}</button>
+      ${cur ? `<button class="btn ghost" id="flag-remove" data-iri="${esc(e.id)}">Remove flag</button>` : ""}
+      <span class="note" id="flag-status" style="margin:0" role="status">${esc(RV.status)}</span></div>
+  </div></section>`;
+}
+
+function renderFlags() {
+  const rows = [...RV.flags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  const by = {}; for (const f of rows) by[f.kind] = (by[f.kind] || 0) + 1;
+  const summary = Object.entries(by).map(([k, n]) => `${n} ${esc((KINDS[k] || k).toLowerCase())}`).join(" · ");
+  $("#view").innerHTML = `<div style="display:grid;gap:12px">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
+      <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag records the build it was made against, since the entity can change in a later one.</p>
+      ${rows.length ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
+    </div>
+    ${rows.length ? `<div class="tbl"><table><thead><tr><th>Entity</th><th>Problem</th><th>Note</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${rows.map(f => `<tr>
+      <td>${BY_ID.has(f.iri) ? refLink(f.iri) : `<code>${esc(shortId(f.iri))}</code> <span class="pill warn">not in this build</span>`}</td>
+      <td><span class="pill flag">${esc(KINDS[f.kind] || f.kind)}</span></td><td>${esc(f.note || "")}</td>
+      <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="empty">No flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.</p>`}
+  </div>`;
+}
+
+const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size]] : TABS;
 let tab = (location.hash.slice(1) && TABS.some(t => t[0] === location.hash.slice(1))) ? location.hash.slice(1) : store.get("tab", "entities");
 function renderTabs() {
-  $("#tabs").innerHTML = TABS.map(([k, n, c]) =>
+  $("#tabs").innerHTML = tabList().map(([k, n, c]) =>
     `<button role="tab" id="tab-${k}" aria-selected="${k === tab}" data-tab="${k}">${n}<span class="n">${c}</span></button>`).join("");
 }
 $("#tabs").addEventListener("click", e => {
@@ -276,7 +389,8 @@ const st = { q: "", classes: new Set(store.get("classes", [])), flags: new Set(s
 function matches(e) {
   if (st.classes.size && !st.classes.has(e.class)) return false;
   for (const f of st.flags) {
-    if (f === "linked" ? e.degree === 0 : !e.flags.includes(f)) return false;
+    const miss = f === "linked" ? e.degree === 0 : f === "flagged" ? (RV.db ? !RV.flags.has(e.id) : false) : !e.flags.includes(f);
+    if (miss) return false;
   }
   if (st.q) {
     const q = st.q.toLowerCase();
@@ -291,7 +405,7 @@ function cardHTML(e) {
   return `<button class="card" data-id="${esc(e.id)}" aria-current="${st.sel === e.id}">
     <span class="lbl">${esc(e.label)}</span>
     <span class="deg" title="links to and from other nodes">${e.degree} link${e.degree === 1 ? "" : "s"}</span>
-    <span class="sub"><span class="pill cls" style="color:${colorOf(e.class)}"><i class="swatch"></i>${esc(e.class)}</span>${flags}</span>
+    <span class="sub"><span class="pill cls" style="color:${colorOf(e.class)}"><i class="swatch"></i>${esc(e.class)}</span>${flags}${RV.flags.has(e.id) ? `<span class="pill flag">flagged: ${esc((KINDS[RV.flags.get(e.id).kind] || "?").toLowerCase())}</span>` : ""}</span>
   </button>`;
 }
 
@@ -322,6 +436,7 @@ function detailHTML(e) {
       ${e.flags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${e.flags.map(f => `<span class="pill ${FLAG[f].cls}">${FLAG[f].text}</span>`).join("")}</div>` : ""}
       ${why}
     </div>
+    ${flagSectionHTML(e)}
     ${e.violations.length ? `<section><h3>Consistency violations</h3>${e.violations.map(v =>
       `<div class="viol"><b>${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
     <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
@@ -335,7 +450,7 @@ function detailHTML(e) {
 
 function renderEntities() {
   const counts = {}; for (const e of ENT) counts[e.class] = (counts[e.class] || 0) + 1;
-  const fcount = f => ENT.filter(e => f === "linked" ? e.degree > 0 : e.flags.includes(f)).length;
+  const fcount = f => ENT.filter(e => f === "linked" ? e.degree > 0 : f === "flagged" ? RV.flags.has(e.id) : e.flags.includes(f)).length;
   const hits = ENT.filter(matches);
   if (!st.sel || !BY_ID.has(st.sel)) st.sel = (hits.find(e => e.violations.length) || hits[0] || {}).id || null;
   let lastArea = null;
@@ -344,7 +459,8 @@ function renderEntities() {
     lastArea = a;
     return `${head}<label><input type="checkbox" data-class="${c}" ${st.classes.has(c) ? "checked" : ""}><i class="swatch" style="color:${colorOf(c)}"></i>${c}<span class="c">${counts[c] || 0}</span></label>`;
   }).join("");
-  const flagRows = [["violation", "Has a violation"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"]]
+  const flagRows = [["violation", "Has a violation"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"],
+                    ...(RV.db ? [["flagged", "Flagged for review"]] : [])]
     .map(([f, t]) => `<label><input type="checkbox" data-flag="${f}" ${st.flags.has(f) ? "checked" : ""}>${t}<span class="c">${fcount(f)}</span></label>`).join("");
   $("#view").innerHTML = `<div class="ent">
     <aside class="facets">
@@ -363,6 +479,10 @@ function renderEntities() {
 }
 
 $("#view").addEventListener("input", e => {
+  if (e.target.id === "flag-note") {
+    RV.draft = { iri: st.sel, kind: $("#flag-kind").value, note: e.target.value };
+    return;
+  }
   if (e.target.id === "q") {
     st.q = e.target.value; st.limit = PAGE;
     const pos = e.target.selectionStart; renderEntities();
@@ -370,6 +490,7 @@ $("#view").addEventListener("input", e => {
   }
 });
 $("#view").addEventListener("change", e => {
+  if (e.target.id === "flag-kind") { RV.draft = { iri: st.sel, kind: e.target.value, note: $("#flag-note").value }; return; }
   const c = e.target.dataset.class, f = e.target.dataset.flag;
   if (c) { e.target.checked ? st.classes.add(c) : st.classes.delete(c); store.set("classes", [...st.classes]); }
   if (f) { e.target.checked ? st.flags.add(f) : st.flags.delete(f); store.set("flags", [...st.flags]); }
@@ -383,6 +504,14 @@ $("#view").addEventListener("click", e => {
     const text = copy.dataset.copy;
     const done = () => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy IRI"), 1400); };
     try { navigator.clipboard.writeText(text).then(done, () => selectText(copy.previousElementSibling)); } catch { selectText(copy.previousElementSibling); }
+    return;
+  }
+  if (e.target.id === "flag-save") { saveFlag(e.target.dataset.iri); return; }
+  if (e.target.id === "flag-remove") { removeFlag(e.target.dataset.iri); return; }
+  if (e.target.id === "flags-json") {
+    const b = e.target, text = JSON.stringify([...RV.flags.values()], null, 2);
+    const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy as JSON"), 1400); };
+    try { navigator.clipboard.writeText(text).then(done, () => (b.textContent = "Copy failed")); } catch { b.textContent = "Copy failed"; }
     return;
   }
   if (e.target.id === "more") { st.limit += PAGE; renderEntities(); return; }
@@ -472,9 +601,17 @@ function renderStructure() {
 }
 
 function render() {
+  // A live flag update re-renders while someone may be typing: put focus and caret back.
+  const a = document.activeElement, focusId = a && a.id;
+  const caret = a && typeof a.selectionStart === "number" ? [a.selectionStart, a.selectionEnd] : null;
   renderTabs();
   try { history.replaceState(null, "", "#" + tab); } catch {}
-  ({ entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure })[tab]();
+  const views = { entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure,
+                  flags: RV.db ? renderFlags : renderEntities };
+  (views[tab] || renderEntities)();
+  const el = focusId && document.getElementById(focusId);
+  if (el && el !== document.activeElement) { el.focus(); if (caret && el.setSelectionRange) el.setSelectionRange(caret[0], caret[1]); }
 }
 render();
+initFlags();
 </script>
