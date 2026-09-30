@@ -53,7 +53,9 @@ def commit_stamp() -> str:
     try:
         sha = subprocess.run(["git", "rev-parse", "--short=8", "HEAD"], cwd=HERE, capture_output=True,
                              text=True, check=True).stdout.strip()
-        dirty = subprocess.run(["git", "status", "--porcelain", "--", "."], cwd=HERE, capture_output=True,
+        # The report's own outputs don't count: rebuilding them is what dirties them.
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", ".", ":!browser/index.html",
+                                ":!export/quality.json"], cwd=HERE, capture_output=True,
                                text=True).stdout.strip()
         return f"{sha} + uncommitted kg/ changes" if dirty else sha
     except (OSError, subprocess.CalledProcessError):
