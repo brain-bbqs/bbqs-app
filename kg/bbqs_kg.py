@@ -18,12 +18,13 @@ import json
 import os
 import re
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-from rdflib import Graph, Literal, Namespace
-from rdflib.namespace import RDF
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import RDF, XSD
 
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
@@ -88,9 +89,10 @@ class BBQSKnowledgeGraph:
         m = re.search(r"([A-Z]{1,3}\d{2})", grant_number or "")
         return m.group(1) if m else None
 
-    def add(self, subj, pred, value, cast=str):
+    def add(self, subj, pred, value, cast=str, datatype=None):
         if value is not None and value != "":
-            self.graph.add((subj, BBQS[pred], Literal(cast(value)) if cast else Literal(value)))
+            v = cast(value) if cast else value
+            self.graph.add((subj, BBQS[pred], Literal(v, datatype=datatype) if datatype else Literal(v)))
 
     def export(self, out_path: Path | str | None = None) -> Path:
         """Build the instance graph from Supabase and serialize it to out_path. Returns out_path.
@@ -122,7 +124,7 @@ class BBQSKnowledgeGraph:
             g.add((n, RDF.type, BBQS[cls]))
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
-            self.add(n, "external_url", r.get("external_url"))
+            self.add(n, "external_url", r.get("external_url"), datatype=XSD.anyURI)
             if r.get("organization_id") and r["organization_id"] in org_node:
                 g.add((n, BBQS["part_of_org"], org_node[r["organization_id"]]))
 
@@ -139,7 +141,7 @@ class BBQSKnowledgeGraph:
             self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
             self.add(n, "title", gr.get("title"))
             self.add(n, "abstract", gr.get("abstract"))
-            self.add(n, "nih_link", gr.get("nih_link"))
+            self.add(n, "nih_link", gr.get("nih_link"), datatype=XSD.anyURI)
             self.add(n, "reporter_project_num", gr.get("reporter_project_num"))
             self.add(n, "award_amount", gr.get("award_amount"), cast=None)
             self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
@@ -205,7 +207,7 @@ class BBQSKnowledgeGraph:
             n = gn_node.get(p["grant_number"])
             if n is None:
                 continue
-            self.add(n, "website", p.get("website"))
+            self.add(n, "website", p.get("website"), datatype=XSD.anyURI)
             self.add(n, "onboarding_status", p.get("onboarding_status"))
             if p.get("study_human") is not None:
                 g.add((n, BBQS["studies_human"], Literal(bool(p["study_human"]))))
@@ -249,7 +251,7 @@ class BBQSKnowledgeGraph:
             if not rid:
                 continue
             n = BID[rid]
-            self.add(n, "homepage_url", man.get("homepage_url"))
+            self.add(n, "homepage_url", man.get("homepage_url"), datatype=XSD.anyURI)
             for al in man.get("aliases") or []:
                 self.add(n, "aliases", al)
 
@@ -259,7 +261,7 @@ class BBQSKnowledgeGraph:
                 continue
             n = BID[rid]
             self.add(n, "title", pub.get("title"))
-            self.add(n, "doi", pub.get("doi"))
+            self.add(n, "doi", pub.get("doi"), datatype=XSD.anyURI)
             self.add(n, "pmid", pub.get("pmid"))
             self.add(n, "journal", pub.get("journal"))
             self.add(n, "year", pub.get("year"), cast=None)
@@ -302,6 +304,154 @@ class BBQSKnowledgeGraph:
 
         return out_path
 
+    # ---- explorer (globe -> US map -> graph panel) ----------------------------------------------
+
+    def export_explorer_json(self, out_path: Path | str | None = None) -> Path:
+        """Turn the instance graph built by export() into bbqs_explorer.json for kg/explorer/index.html.
+
+        Walks self.graph (run export() first) into {nodes, edges, orgs, unplaced_orgs,
+        unplaced_projects}. Edges are tagged "asserted" (already a triple, e.g. on_project) or
+        "derived" (computed here, e.g. project<->organization via NIH RePORTER, or project<->project
+        affinity from shared species/keywords) -- rendered differently so nobody mistakes a computed
+        tie for a triple that's actually in the exported graph. Returns out_path.
+        """
+        from explorer_geocode import geocode
+
+        out_path = Path(out_path) if out_path else HERE / "explorer" / "bbqs_explorer.json"
+        g = self.graph
+
+        nodes = {}
+        for s, p, o in g:
+            nodes.setdefault(str(s), {"id": str(s), "type": None, "name": None, "props": {}, "triples": []})
+        for s, p, o in g.triples((None, RDF.type, None)):
+            nodes[str(s)]["type"] = str(o).rsplit("#", 1)[-1]
+
+        orgs_by_name = {}
+        for s, p, o in g:
+            if p == RDF.type:
+                continue
+            node = nodes[str(s)]
+            local = str(p).rsplit("#", 1)[-1]
+            if isinstance(o, Literal):
+                node["props"].setdefault(local, []).append(o.toPython())
+                node["triples"].append([local, o.toPython()])
+                if local == "name":
+                    node["name"] = o.toPython()
+                    if node["type"] == "ResearchOrganization":
+                        orgs_by_name[str(o)] = str(s)
+            else:
+                node["triples"].append([local, str(o)])
+
+        edges = []
+        asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
+                                "device_category", "manufacturer"}
+        for s, p, o in g:
+            local = str(p).rsplit("#", 1)[-1]
+            if local in asserted_predicates and not isinstance(o, Literal):
+                edges.append({"source": str(s), "target": str(o), "type": local, "class": "asserted"})
+
+        # ---- derived: project -> organization, via NIH RePORTER (reporter_project_num) ----
+        unplaced_projects = []
+        projects = [(nid, n) for nid, n in nodes.items() if n["type"] == "Project"]
+        for pid, pnode in projects:
+            rpn = (pnode["props"].get("reporter_project_num") or [None])[0]
+            gnum = (pnode["props"].get("grant_number") or [None])[0]
+            org_name = self._lookup_reporter_org(rpn) if rpn else None
+            if org_name and org_name in orgs_by_name:
+                edges.append({"source": pid, "target": orgs_by_name[org_name], "type": "awarded_to", "class": "derived"})
+            else:
+                reason = ("no reporter_project_num" if not rpn else
+                          "RePORTER returned no organization" if not org_name else
+                          f"RePORTER org {org_name!r} not in graph")
+                unplaced_projects.append({"grant_number": gnum, "reporter_project_num": rpn,
+                                           "reason": reason})
+
+        # ---- derived: project <-> project affinity, via shared species / shared keywords ----
+        # Resolved Species IRIs, not the raw study_species strings: "Mus musculus" and "House Mouse"
+        # are one species, and a study_scope value like "All Species" is no species at all.
+        species_of = {nid: {str(o) for o in g.objects(URIRef(nid), BBQS.studies_species)}
+                      for nid, _n in projects}
+        keywords_of = {nid: set(n["props"].get("keywords") or []) for nid, n in projects}
+        seen = set()
+        for i, (pid_a, _) in enumerate(projects):
+            for pid_b, _ in projects[i + 1:]:
+                pair = (pid_a, pid_b)
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                shared_species = species_of[pid_a] & species_of[pid_b]
+                if shared_species:
+                    edges.append({"source": pid_a, "target": pid_b, "type": "species_affinity",
+                                  "class": "derived", "weight": len(shared_species)})
+                shared_kw = keywords_of[pid_a] & keywords_of[pid_b]
+                if len(shared_kw) >= 2:            # floor so this doesn't turn into a hairball
+                    edges.append({"source": pid_a, "target": pid_b, "type": "keyword_affinity",
+                                  "class": "derived", "weight": len(shared_kw)})
+
+        # ---- orgs + geocoding ----
+        org_rows, unplaced_orgs = [], []
+        for name, nid in orgs_by_name.items():
+            coords = geocode(name)
+            if coords:
+                org_rows.append({"id": nid, "name": name, "lat": coords[0], "lng": coords[1]})
+            else:
+                unplaced_orgs.append(name)
+
+        # `props` was only ever an internal index (species/keyword affinity, RePORTER lookup inputs
+        # above) -- every value in it is already in `triples`, so shipping both would double the
+        # literal payload for nothing. Drop it right before serializing.
+        shipped_nodes = [{k: v for k, v in n.items() if k != "props"} for n in nodes.values()]
+
+        payload = {
+            "nodes": shipped_nodes,
+            "edges": edges,
+            "orgs": org_rows,
+            "unplaced_orgs": sorted(unplaced_orgs),
+            "unplaced_projects": unplaced_projects,
+        }
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf8")
+
+        print(f"Wrote {out_path}: {len(nodes)} nodes, {len(edges)} edges "
+              f"({sum(1 for e in edges if e['class'] == 'derived')} derived)")
+        print(f"Orgs geocoded: {len(org_rows)}, unplaced: {len(unplaced_orgs)}")
+        if unplaced_projects:
+            print(f"Projects without a resolved organization: {len(unplaced_projects)}")
+        return out_path
+
+    _reporter_org_cache: dict = {}
+
+    @classmethod
+    def _lookup_reporter_org(cls, reporter_project_num: str):
+        """Awardee org name for a project, from NIH RePORTER's public API (no key required).
+
+        One-time, offline lookup at explorer-build time -- the awardee organization is not in
+        bbqs.ttl or any Supabase table this exporter reads, so this is the only place it exists.
+        Cached per process; returns None on any network/parse failure (caller reports it as
+        unplaced rather than guessing).
+        """
+        if reporter_project_num in cls._reporter_org_cache:
+            return cls._reporter_org_cache[reporter_project_num]
+        org_name = None
+        try:
+            body = json.dumps({
+                "criteria": {"project_nums": [reporter_project_num]},
+                "include_fields": ["Organization"],  # "OrganizationName" is not a field: returns {}
+                "limit": 1,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.reporter.nih.gov/v2/projects/search",
+                data=body, headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as r:
+                results = json.loads(r.read() or "{}").get("results") or []
+            if results:
+                org_name = (results[0].get("organization") or {}).get("org_name")
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError) as e:
+            print(f"  ! RePORTER lookup failed for {reporter_project_num}: {e}", file=sys.stderr)
+        cls._reporter_org_cache[reporter_project_num] = org_name
+        return org_name
+
     @staticmethod
     def validate(data_file: Path | str, shape_files: list[Path] | None = None):
         """Run SHACL consistency validation over an instance graph. Returns (conforms, report_text).
@@ -332,8 +482,81 @@ class BBQSKnowledgeGraph:
               f"shapes={len(shape_files)} file(s)")
         return conforms, report_text
 
-    def run(self, out_path: Path | str | None = None, shape_files: list[Path] | None = None) -> bool:
-        """Run the full pipeline in sequence: export from Supabase, then validate the result."""
+    @staticmethod
+    def reason(data_file: Path | str | None = None, owl_file: Path | str | None = None):
+        """Run a DL reasoner (HermiT, via owlready2) over the OWL TBox + the exported instance
+        graph. Returns (consistent, report): True / False, or None when the reasoner could not
+        decide (a Java error is not a finding about the graph).
+
+        What it can catch: disjoint classes (once owl:disjointWith is emitted) and literals outside
+        their datatype. It cannot catch a violated max-cardinality between IRIs or a range
+        mismatch: OWL has no unique-name assumption and is open-world, so it infers sameAs / a
+        type instead of reporting a contradiction. Those stay SHACL's job.
+
+        Requires:  pip install owlready2, plus a Java runtime installed separately (only the
+        HermiT jar ships inside the package). HermiT only supports the OWL2 datatype map, so `xsd:date` range
+        restrictions are stripped from the TBox before reasoning (reasoner input only -- the
+        committed bbqs.owl.ttl is untouched).
+        """
+        try:
+            import owlready2
+        except ImportError:
+            sys.exit("owlready2 is not installed. Run:  pip install owlready2")
+
+        data_file = Path(data_file) if data_file else BBQSKnowledgeGraph.DEFAULT_EXPORT_PATH
+        owl_file = Path(owl_file) if owl_file else HERE / "bbqs.owl.ttl"
+
+        merged = Graph()
+        merged.parse(str(owl_file), format="turtle")
+        for t in list(merged.triples((None, None, XSD.date))):
+            merged.remove(t)
+        merged.parse(str(data_file), format="turtle")
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".nt", delete=False) as tmp:
+                tmp_path = tmp.name
+            merged.serialize(destination=tmp_path, format="nt", encoding="utf-8")
+
+            world = owlready2.World()
+            onto = world.get_ontology(f"file://{tmp_path}").load()
+            try:
+                with onto:
+                    owlready2.sync_reasoner(world, debug=0)
+                consistent = True
+                report = "Consistent: no logical contradiction found."
+            except owlready2.OwlReadyInconsistentOntologyError:
+                consistent = False
+                report = ("Inconsistent: the TBox + instance graph together violate a logical "
+                           "constraint (disjointness or a literal outside its datatype).")
+            except owlready2.OwlReadyJavaError as e:
+                consistent = None
+                report = ("Reasoner error -- no consistency verdict. Often malformed instance data "
+                          f"(e.g. a non-URI value in an anyURI-typed field): {e}")
+        finally:
+            if tmp_path:
+                os.unlink(tmp_path)
+
+        print(report)
+        print(f"consistent={consistent}  data={os.path.relpath(data_file, HERE)}  "
+              f"owl={os.path.relpath(owl_file, HERE)}")
+        return consistent, report
+
+    def run(
+        self,
+        out_path: Path | str | None = None,
+        shape_files: list[Path] | None = None,
+        explorer_path: Path | str | None = None,
+        owl_file: Path | str | None = None,
+    ) -> bool:
+        """Run the whole pipeline in sequence, one call: export from Supabase, validate the result
+        against the SHACL shapes, check it for logical contradictions with the OWL reasoner, then
+        build the BBQS Explorer JSON -- all from the same graph. Returns the validator's conforms
+        bool (the OWL reasoner's consistency result is printed but doesn't gate the return value,
+        since bbqs.owl.ttl's disjointness axioms are still pending -- see kg/README.md).
+        """
         out_path = self.export(out_path)
         conforms, _report_text = self.validate(out_path, shape_files)
+        self.reason(out_path, owl_file)
+        self.export_explorer_json(explorer_path)
         return conforms

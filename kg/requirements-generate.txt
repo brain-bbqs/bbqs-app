@@ -1,0 +1,4 @@
+# Adds the LinkML generators for the CI drift check. Pinned: a different linkml can emit different
+# triples and fail the check for no real reason.
+-r requirements.txt
+linkml==1.11.1

@@ -1,6 +1,6 @@
 # BBQS Knowledge Graph — Consistency Report
 
-**Date:** 2026-09-21 (counts refreshed 2026-09-23) · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
+**Date:** 2026-09-21 (counts refreshed 2026-09-29) · **Status:** in progress · **Tracking:** [brain-bbqs/bbqs-app#386](https://github.com/brain-bbqs/bbqs-app/issues/386)
 
 ## Executive summary
 
@@ -28,17 +28,18 @@ a contradiction.
 
 The full 19-row invariant catalogue and how to run everything are in [README.md](README.md).
 
-## Latest run — 2026-09-23 (anon, spine-first)
+## Latest run — 2026-09-29 (anon, spine-first)
 
-**3,044 triples**, one node per entity. Node counts: Investigator 263, ProjectRole 111,
+**3,045 triples**, one node per entity. Node counts: Investigator 263, ProjectRole 111,
 Publication 45, ResearchOrganization 37, Device 35, DeviceCategory 34, DeviceManufacturer 32,
 Project 34, Dataset 24, SoftwareTool 19, FundingOpportunity 14, Species 15, Announcement 12,
 Job 6, Benchmark 3, MLModel 3, Protocol 1, Event 1, WorkingGroup 4.
 
 Validated against the consistency shapes: **`Conforms: False`, 6 violations — all invariant #7**.
-#4 and #9 conform; `held_by` is omitted under anon (its referential shape passes); #5/#12/#14–#19
-have no anon targets (PII / `field_provenance` are RLS-hidden, and #19 is guarded to stay dormant
-while the provenance layer is absent).
+#4 and #9 conform. Those, with #7, are the only shapes that had data to check: the other 9 pass
+vacuously (see F5). `held_by` is not emitted, so its referential shape passes on nothing. #5/#12/#18/#19
+have no anon inputs (`consortium_role` and `field_provenance` are RLS-hidden, and #19 is guarded to
+stay dormant while the provenance layer is absent).
 
 ## Findings
 
@@ -82,9 +83,29 @@ row) still need cleanup, and an insert trigger should auto-link new rows.
 
 ### F4 — coverage limits of this run
 
-The exporter ran as **anon**, so RLS hid the `investigators` detail table, `field_provenance`,
-`source_classes`, and working-group detail. Invariants **#5, #12, #14, #15, #17, #18, #19** therefore
-had no data to check; a full-access export (Phase 6) exercises them.
+The exporter ran as **anon**, so RLS hid the `investigators` detail table (emails, the free-text
+role), `field_provenance` and `source_classes`. Invariants **#5, #12, #15, #18, #19** need a
+full-access export (Phase 6). **#14 and #17 do not:** ORCIDs are in the anon-readable
+`investigators_public` (113) and `publications.author_orcids` (21). The exporter just doesn't write
+them yet (#421).
+
+### F5 — the graph is mostly unlinked, so most checks had nothing to check
+
+The quality pass (`kg/quality.py`, README → Quality evaluation) shows what "6 violations" leaves
+out. **453 of 693 nodes (65%) have no link to anything**, and only four kinds of link exist
+(`on_project`, `manufacturer`, `device_category`, `studies_species`). **6 of 19 competency questions**
+are answered, and **9 of 12 consistency shapes** pass only because their inputs are absent.
+
+This is an exporter gap, not RLS. Anon can read `investigators_public`, and it resolves `held_by` for
+111 of 111 roles. The same view carries ORCIDs (113) and working-group membership (149), and
+`investigator_organizations` (95) holds the affiliations. None of it is written as links yet (#421).
+
+### F6 — data-entry values to fix upstream
+
+- `Job.external_url` holds two links joined by `" ; "`, and EMBER's `Project.website` holds a sentence.
+  Both fields are typed `xsd:anyURI`.
+- One investigator's `name` has an email address appended, which puts the address in the public
+  export.
 
 ## Recommendations / next steps
 
@@ -92,4 +113,6 @@ had no data to check; a full-access export (Phase 6) exercises them.
 2. **Confirm the four strong species candidates** and get the two `needs_choice` answers from the project teams (F1) → #7 to 0.
 3. **Orphan cleanup + insert trigger** (F3), and promote the 6 backfilled `resource_type` values PROPOSED → shipped in the LinkML once `types.ts` regenerates.
 4. **Full-access export run** (Phase 6) — light up #5/#12/#14/#15/#17/#18/#19 against real data; add the OWL reasoner for the `disjoint_with` axioms gen-owl didn't emit.
-5. **Data fixes:** normalize `co-investigator`; investigate the 34th Project (orphan grant resource).
+5. **Data fixes:** normalize `co-investigator`; investigate the 34th Project (orphan grant resource); the F6 values.
+6. **Export the edge tables** (#421) so the empty competency questions answer and shapes #6/#14/#16/#17 have data.
+7. **One IRI convention** (#422) so the generated SHACL checks the export.

@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+  # Daily rebuild so the KG Graph Inspector (/kg/inspector/) shows the live database at most a day
+  # old. The site itself is rebuilt from the same main commit, so nothing else changes.
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -54,6 +58,29 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+
+      # KG Graph Inspector -> dist/kg/inspector/index.html (unlisted: noindex, not in the sitemap or
+      # nav). Built from a fresh ANON export only -- never a stronger key, since the page embeds every
+      # fact it was given. Falls back to the committed export, and never blocks the site deploy.
+      - name: Setup Python (KG Inspector)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: kg/requirements.txt
+
+      - name: Build KG Inspector
+        continue-on-error: true
+        env:
+          SUPABASE_KEY: ""
+        run: |
+          pip install -r kg/requirements.txt
+          if python kg/export.py /tmp/live.ttl; then
+            data=/tmp/live.ttl; src="live anon export (daily build)"
+          else
+            data=kg/export/bbqs.ttl; src="committed kg/export/bbqs.ttl (live export failed)"
+          fi
+          python kg/quality.py "$data" --source "$src" --json /tmp/quality.json --html dist/kg/inspector/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

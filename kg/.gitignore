@@ -4,4 +4,5 @@ __pycache__/
 
 # The graph and generated artifacts (.ttl, .jsonld) ARE tracked as versioned outputs.
 # CAUTION: commit only an anon (RLS-limited) export here. A full-access export can contain
-# restricted data (PII) and MUST NOT be committed.
+# restricted data (PII) and MUST NOT be committed. The same goes for export/quality.json and
+# browser/index.html, which quality.py builds from whichever export it is given.
