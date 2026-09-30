@@ -1,0 +1,8 @@
+# Pinned to the versions the committed OWL/SHACL were generated with; a different linkml can emit
+# different triples and fail the drift check for no real reason. owlready2 (reason()) is left out:
+# it needs a Java runtime and doesn't gate yet.
+click==8.5.0
+linkml==1.11.1
+pyshacl==0.40.1
+PyYAML==6.0.3
+rdflib==7.6.0

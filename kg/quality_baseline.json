@@ -1,0 +1,20 @@
+{
+  "violations": {
+    "StudiesSpeciesResolvesShape": 6
+  },
+  "answered": [
+    "CQ01",
+    "CQ02",
+    "CQ09",
+    "CQ10",
+    "CQ11",
+    "CQ15"
+  ],
+  "exercised": [
+    "MechanismMatchesGrantNumberShape",
+    "ProjectRoleTokenShape",
+    "StudiesSpeciesResolvesShape"
+  ],
+  "isolated": 453,
+  "nodes": 693
+}

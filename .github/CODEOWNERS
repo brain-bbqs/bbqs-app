@@ -1,0 +1,4 @@
+# The knowledge graph (schema, shapes, fixtures, exporter, baseline) needs its owner's review.
+/kg/                       @nadernik
+/.github/workflows/kg.yml  @nadernik
+/.github/CODEOWNERS        @nadernik

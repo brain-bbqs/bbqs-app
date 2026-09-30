@@ -20,7 +20,7 @@ This table is the running status of the whole effort, updated as each phase land
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | QA | Quality evaluation — the six [QA steps](#qa-steps): competency questions, structure, conformance, consistency, accuracy, coverage | — | **in progress** (steps 1, 2 and shape coverage live in `quality.py`, #420; 3 → #422; 5 and 6 planned) |
 | 6 | Full-access export + OWL reasoning — light up shapes #5/#12/#14–#19; HermiT consistency pass | — | **partial** (`reason()` added in #417; not gating, needs a Java runtime, no `owl:disjointWith` axioms yet; full-access export not run) |
-| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | planned |
+| 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | **in progress** (`.github/workflows/kg.yml` + `ci_check.py` live; `kg/` needs owner review via CODEOWNERS; making both binding on `dev` needs a ruleset) |
 | 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
 | 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
 
@@ -80,6 +80,26 @@ The current export does hold two values in `xsd:anyURI`-typed fields that are no
 `Job.external_url` with two links joined by `" ; "`, and `Project.website` on EMBER (R24MH136632)
 holding a sentence. Those are Supabase data-entry mistakes to fix upstream, not exporter bugs.
 
+## CI gate
+
+`.github/workflows/kg.yml` runs `ci_check.py` on every PR that touches `kg/` (other PRs pass in
+seconds, so the `kg` check can be required). It fails on a **regression**, never on a known gap:
+
+1. every consistency shape still fires on `fixtures/contradictions.ttl` (RED);
+2. `fixtures/clean.ttl` still conforms (GREEN);
+3. no shape fires on `export/bbqs.ttl` more often than `quality_baseline.json` allows;
+4. every competency question answered in the baseline still answers, and every shape that had data
+   to check still does;
+5. `bbqs.owl.ttl` / `bbqs.shapes.gen.ttl` are what the pinned `gen-owl` / `gen-shacl` produce
+   from `bbqs.linkml.yaml` (`--check-generated`).
+
+It also posts the `quality.py` summary to the run, and validates a fresh anon export without
+blocking (live data can change under a PR). When a change makes things better, the gate says so;
+run `python kg/ci_check.py --update-baseline` and commit the baseline so it can't slip back.
+Proven RED: dropping the #19 `FILTER EXISTS` guard fails it (`NodeHasProvenanceShape fires 34x`).
+
+`.github/CODEOWNERS` makes `kg/` changes need the KG owner's review.
+
 ## Regenerate OWL + boilerplate SHACL from the schema
 
 `bbqs.owl.ttl` and `bbqs.shapes.gen.ttl` are committed. To regenerate after editing the schema
@@ -102,6 +122,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates the OWL TBox and structural SHACL (no JSON-LD context generated yet). |
 | `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, tracked; commit anon exports only). |
+| `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |

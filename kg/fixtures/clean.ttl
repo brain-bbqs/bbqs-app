@@ -15,10 +15,17 @@ bid:inv-1 a bbqs:Investigator ;
   bbqs:consortium_role "Associate Professor" .
 
 # #9 — mechanism matches the grant number
+# #7 — the study_species claim resolves, here through a Species alias
 bid:proj-1 a bbqs:Project ;
   bbqs:name "Test project" ;
   bbqs:grant_number "1U01MH135430-01" ;
-  bbqs:mechanism "U01" .
+  bbqs:mechanism "U01" ;
+  bbqs:studies_species_name "Mus musculus" ;
+  bbqs:studies_species bid:sp-mouse .
+bid:sp-mouse a bbqs:Species ;
+  bbqs:name "House Mouse" ;
+  bbqs:common_name "House Mouse" ;
+  bbqs:aliases "Mus musculus" .
 
 # #12 — the two verified sources agree on projects.title
 bid:sc-reporter a bbqs:SourceClass ; bbqs:is_verified true .

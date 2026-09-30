@@ -15,10 +15,12 @@ bid:inv-1 a bbqs:Investigator ;
   bbqs:consortium_role "Contact PI" .
 
 # #9 — mechanism disagrees with the grant number (award is U01, mechanism says R61)
+# #7 — a study_species claim that names no Species node
 bid:proj-1 a bbqs:Project ;
   bbqs:name "Test project" ;
   bbqs:grant_number "1U01MH135430-01" ;
-  bbqs:mechanism "R61" .
+  bbqs:mechanism "R61" ;
+  bbqs:studies_species_name "Freely moving animals" .
 
 # #12 — two verified provenance records disagree on projects.title for proj-1
 bid:sc-reporter a bbqs:SourceClass ; bbqs:is_verified true .
