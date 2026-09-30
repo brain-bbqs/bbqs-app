@@ -271,7 +271,10 @@ const TABS = [
 // entity, and the flag survives rebuilds because it lives in the artifact's store, keyed by IRI.
 // Opened any other way (the public site, a local file) the page stays read-only.
 const KINDS = { wrong: "Wrong", missing: "Missing", duplicate: "Duplicate", suspicious: "Suspicious" };
-const RV = { db: null, uid: null, canWrite: null, readOnly: false, flags: new Map(), draft: null, status: "" };
+const RV = { db: null, uid: null, canWrite: null, readOnly: false, flags: new Map(), draft: null, status: "",
+             qflags: new Map(), qdraft: new Map(), qstatus: new Map() };
+const QKINDS = { wrong: "Answer is wrong", missing: "Answer is incomplete", question: "Question needs changing", idea: "Idea or follow-up" };
+const qOpen = new Set();
 const flagKey = iri => iri.replace("https://brain-bbqs.org/id/", "").replace(/\//g, "~");
 
 async function initFlags() {
@@ -286,6 +289,10 @@ async function initFlags() {
     RV.flags = new Map(snap.docs.map(d => [d.data().iri, d.data()]));
     render();
   }, err => { RV.status = `Flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  db.collection("question_flags").onSnapshot(snap => {
+    RV.qflags = new Map(snap.docs.map(d => [d.data().cq, d.data()]));
+    render();
+  }, err => { RV.status = `Feedback stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
   render();
 }
 
@@ -333,6 +340,56 @@ async function removeFlag(iri) {
   } catch (err) { RV.status = flagError(err); }
   render(); clearStatusSoon("Flag removed.");
 }
+function setQStatus(cq, text) {
+  RV.qstatus.set(cq, text);
+  const el = document.getElementById("qflag-status-" + cq); if (el) el.textContent = text;
+}
+async function saveQuestionFlag(cq) {
+  const q = REPORT.competency.find(x => x.id === cq); if (!q || !RV.db) return;
+  const body = {
+    cq, question: q.question, area: q.area,
+    kind: document.getElementById("qflag-kind-" + cq).value,
+    note: document.getElementById("qflag-note-" + cq).value.trim(),
+    status_at_flag: q.status, row_count_at_flag: q.row_count,
+    flagged_at: new Date().toISOString(), flagged_by: RV.uid,
+    report_commit: REPORT.commit || null, report_built_at: REPORT.built_at || null,
+  };
+  setQStatus(cq, "Saving…");
+  try {
+    await withRetry(() => RV.db.collection("question_flags").doc(cq).set(body));
+    RV.qdraft.delete(cq); RV.qstatus.set(cq, "Feedback saved.");
+  } catch (err) { RV.qstatus.set(cq, flagError(err)); }
+  render();
+  setTimeout(() => { if (RV.qstatus.get(cq) === "Feedback saved.") setQStatus(cq, ""); }, 2500);
+}
+async function removeQuestionFlag(cq) {
+  if (!RV.db) return;
+  setQStatus(cq, "Removing…");
+  try {
+    await withRetry(() => RV.db.collection("question_flags").doc(cq).delete());
+    RV.qdraft.delete(cq); RV.qstatus.set(cq, "Feedback removed.");
+  } catch (err) { RV.qstatus.set(cq, flagError(err)); }
+  render();
+  setTimeout(() => { if (RV.qstatus.get(cq) === "Feedback removed.") setQStatus(cq, ""); }, 2500);
+}
+function questionFlagHTML(q) {
+  if (!RV.db) return "";
+  const cur = RV.qflags.get(q.id);
+  const who = cur ? `${cur.flagged_by && cur.flagged_by === RV.uid ? "You" : "Someone"} left feedback · ${esc(QKINDS[cur.kind] || cur.kind)} · ${esc(flagWhen(cur))} UTC, when it was ${esc(cur.status_at_flag)} with ${cur.row_count_at_flag} rows` : "";
+  if (RV.readOnly || RV.canWrite === false) {
+    return cur ? `<div class="flagbox"><span>${who}</span>${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div>` : "";
+  }
+  const d = RV.qdraft.get(q.id) || { kind: (cur && cur.kind) || "wrong", note: (cur && cur.note) || "" };
+  return `<div class="flagbox">
+    <span class="note" style="margin:0">${cur ? who : "Is this answer right and complete? Leave feedback on the question or its answer; it is saved with this page."}</span>
+    <div class="row"><label for="qflag-kind-${q.id}" class="muted" style="font-size:12.5px">Feedback</label>
+      <select id="qflag-kind-${q.id}" data-qkind="${q.id}">${Object.entries(QKINDS).map(([k, v]) => `<option value="${k}" ${d.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <textarea id="qflag-note-${q.id}" data-qnote="${q.id}" aria-label="Feedback on ${q.id}" placeholder="What's wrong or missing in the answer, or how the question should change">${esc(d.note)}</textarea>
+    <div class="row"><button class="btn" data-qsave="${q.id}">${cur ? "Update feedback" : "Save feedback"}</button>
+      ${cur ? `<button class="btn ghost" data-qremove="${q.id}">Remove feedback</button>` : ""}
+      <span class="note" id="qflag-status-${q.id}" style="margin:0" role="status">${esc(RV.qstatus.get(q.id) || "")}</span></div>
+  </div>`;
+}
 const flagWhen = f => (f.flagged_at || "").slice(0, 16).replace("T", " ");
 
 function flagSectionHTML(e) {
@@ -356,22 +413,29 @@ function flagSectionHTML(e) {
 
 function renderFlags() {
   const rows = [...RV.flags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  const qrows = [...RV.qflags.values()].sort((a, b) => (a.cq || "").localeCompare(b.cq || ""));
   const by = {}; for (const f of rows) by[f.kind] = (by[f.kind] || 0) + 1;
   const summary = Object.entries(by).map(([k, n]) => `${n} ${esc((KINDS[k] || k).toLowerCase())}`).join(" · ");
   $("#view").innerHTML = `<div style="display:grid;gap:12px">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
       <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag records the build it was made against, since the entity can change in a later one.</p>
-      ${rows.length ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
+      ${rows.length || qrows.length ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
     </div>
+    ${qrows.length ? `<h2>Question feedback · ${qrows.length}</h2><div class="tbl"><table><thead><tr><th>Question</th><th>Feedback</th><th>Note</th><th>Answer then</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${qrows.map(f => `<tr>
+      <td><button class="linkbtn" data-goq="${esc(f.cq)}">${esc(f.cq)}</button> ${esc(f.question || "")}</td>
+      <td><span class="pill flag">${esc(QKINDS[f.kind] || f.kind)}</span></td><td>${esc(f.note || "")}</td>
+      <td class="mono">${esc(f.status_at_flag || "")} · ${esc(String(f.row_count_at_flag ?? ""))} rows</td>
+      <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>
+      <h2>Entity flags · ${rows.length}</h2>` : ""}
     ${rows.length ? `<div class="tbl"><table><thead><tr><th>Entity</th><th>Problem</th><th>Note</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${rows.map(f => `<tr>
       <td>${BY_ID.has(f.iri) ? refLink(f.iri) : `<code>${esc(shortId(f.iri))}</code> <span class="pill warn">not in this build</span>`}</td>
       <td><span class="pill flag">${esc(KINDS[f.kind] || f.kind)}</span></td><td>${esc(f.note || "")}</td>
       <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>`
-      : `<p class="empty">No flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.</p>`}
+      : `<p class="empty">No entity flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.${qrows.length ? "" : " Feedback on a competency question is left on the Questions tab."}</p>`}
   </div>`;
 }
 
-const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size]] : TABS;
+const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size + RV.qflags.size]] : TABS;
 let tab = (location.hash.slice(1) && TABS.some(t => t[0] === location.hash.slice(1))) ? location.hash.slice(1) : store.get("tab", "entities");
 function renderTabs() {
   $("#tabs").innerHTML = tabList().map(([k, n, c]) =>
@@ -478,7 +542,16 @@ function renderEntities() {
   </div>`;
 }
 
+$("#view").addEventListener("toggle", e => {
+  const d = e.target.closest && e.target.closest("details[data-cq]");
+  if (d) d.open ? qOpen.add(d.dataset.cq) : qOpen.delete(d.dataset.cq);
+}, true);
 $("#view").addEventListener("input", e => {
+  const qn = e.target.dataset && e.target.dataset.qnote;
+  if (qn) {
+    RV.qdraft.set(qn, { kind: document.getElementById("qflag-kind-" + qn).value, note: e.target.value });
+    return;
+  }
   if (e.target.id === "flag-note") {
     RV.draft = { iri: st.sel, kind: $("#flag-kind").value, note: e.target.value };
     return;
@@ -491,6 +564,8 @@ $("#view").addEventListener("input", e => {
 });
 $("#view").addEventListener("change", e => {
   if (e.target.id === "flag-kind") { RV.draft = { iri: st.sel, kind: e.target.value, note: $("#flag-note").value }; return; }
+  const qk = e.target.dataset && e.target.dataset.qkind;
+  if (qk) { RV.qdraft.set(qk, { kind: e.target.value, note: document.getElementById("qflag-note-" + qk).value }); return; }
   const c = e.target.dataset.class, f = e.target.dataset.flag;
   if (c) { e.target.checked ? st.classes.add(c) : st.classes.delete(c); store.set("classes", [...st.classes]); }
   if (f) { e.target.checked ? st.flags.add(f) : st.flags.delete(f); store.set("flags", [...st.flags]); }
@@ -506,10 +581,17 @@ $("#view").addEventListener("click", e => {
     try { navigator.clipboard.writeText(text).then(done, () => selectText(copy.previousElementSibling)); } catch { selectText(copy.previousElementSibling); }
     return;
   }
+  if (e.target.dataset && e.target.dataset.qsave) { saveQuestionFlag(e.target.dataset.qsave); return; }
+  if (e.target.dataset && e.target.dataset.qremove) { removeQuestionFlag(e.target.dataset.qremove); return; }
+  if (e.target.dataset && e.target.dataset.goq) {
+    const cq = e.target.dataset.goq; qOpen.add(cq); qFilter = "all"; tab = "questions"; store.set("tab", tab); render();
+    document.querySelector(`details[data-cq="${cq}"]`)?.scrollIntoView({ block: "start" });
+    return;
+  }
   if (e.target.id === "flag-save") { saveFlag(e.target.dataset.iri); return; }
   if (e.target.id === "flag-remove") { removeFlag(e.target.dataset.iri); return; }
   if (e.target.id === "flags-json") {
-    const b = e.target, text = JSON.stringify([...RV.flags.values()], null, 2);
+    const b = e.target, text = JSON.stringify({ entities: [...RV.flags.values()], questions: [...RV.qflags.values()] }, null, 2);
     const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy as JSON"), 1400); };
     try { navigator.clipboard.writeText(text).then(done, () => (b.textContent = "Copy failed")); } catch { b.textContent = "Copy failed"; }
     return;
@@ -553,11 +635,12 @@ function renderQuestions() {
         <tbody>${q.rows.map(r => `<tr>${r.map(v => `<td>${cell(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
         ${q.row_count > q.rows.length ? `<p class="note">Showing ${q.rows.length} of ${q.row_count} rows.</p>` : ""}` : "";
       const why = q.status === "unmodeled" ? `<p>The schema doesn't declare <code>${q.unmodeled.map(t => "bbqs:" + t).join(", ")}</code>, so the graph has no way to say this yet.</p>`
-        : q.status === "empty" ? `<p>The source rows are readable with the anon key, but the export has no <code>${q.terms.map(t => "bbqs:" + t).join("</code> / <code>")}</code> links that answer it. Something the exporter should write is missing.</p>`
+        : q.status === "empty" ? `<p>The export has no <code>${q.terms.map(t => "bbqs:" + t).join("</code> / <code>")}</code> data that answers it. Usually that is a link the exporter doesn't write yet; sometimes the source rows are sparse too. kg/README.md traces each empty question to its source table.</p>`
         : q.status === "n/a" ? `<p>The data behind this lives in tables anon can't read. It will be answerable on a full-access export.</p>` : "";
-      return `<details class="q"><summary><span class="id">${q.id}</span><span>${esc(q.question)}</span>
-        <span class="right"><span class="rc">${q.status === "unmodeled" ? "not run" : q.row_count + " rows"}</span><span class="pill ${s.cls}" title="${s.tip}">${s.text}</span></span></summary>
-        <div class="body">${why}${table}<pre>${esc(q.sparql)}</pre></div></details>`;
+      const fb = RV.qflags.has(q.id) ? `<span class="pill flag" title="Feedback left on this question">feedback</span>` : "";
+      return `<details class="q" data-cq="${q.id}" ${qOpen.has(q.id) ? "open" : ""}><summary><span class="id">${q.id}</span><span>${esc(q.question)}</span>
+        <span class="right">${fb}<span class="rc">${q.status === "unmodeled" ? "not run" : q.row_count + " rows"}</span><span class="pill ${s.cls}" title="${s.tip}">${s.text}</span></span></summary>
+        <div class="body">${why}${table}${questionFlagHTML(q)}<pre>${esc(q.sparql)}</pre></div></details>`;
     }).join("")}</div>`;
   }).join("");
   $("#view").innerHTML = `<div style="display:grid;gap:16px">
