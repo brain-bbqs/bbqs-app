@@ -17,8 +17,11 @@ Four measurements, one report:
 Requires rdflib, pyshacl, PyYAML, click (all in kg/.venv).
 """
 import json
+import os
 import re
+import subprocess
 from collections import Counter, defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -41,6 +44,22 @@ def shown(path: Path) -> str:
         return str(path)
 
 
+def commit_stamp() -> str:
+    """The commit the report was built from; flags uncommitted kg/ edits so a local build can't
+    pass for a clean one."""
+    sha = os.environ.get("GITHUB_SHA", "")
+    if sha:
+        return sha[:8]
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short=8", "HEAD"], cwd=HERE, capture_output=True,
+                             text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "."], cwd=HERE, capture_output=True,
+                               text=True).stdout.strip()
+        return f"{sha} + uncommitted kg/ changes" if dirty else sha
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 def local(term) -> str:
     s = str(term)
     return s.rsplit("#", 1)[-1] if "#" in s else s.rsplit("/", 1)[-1]
@@ -55,9 +74,11 @@ class KGQuality:
     DEFAULT_HTML = HERE / "browser" / "index.html"
     TEMPLATE = HERE / "browser" / "template.html"
 
-    def __init__(self, data_file=None, access="anon", tbox_file=None, cq_file=None, shape_files=None):
+    def __init__(self, data_file=None, access="anon", tbox_file=None, cq_file=None, shape_files=None,
+                 source=None):
         self.data_file = Path(data_file) if data_file else self.DEFAULT_DATA
         self.access = access
+        self.source = source or shown(self.data_file)
         self.graph = Graph().parse(str(self.data_file), format="turtle")
         self.tbox = Graph().parse(str(tbox_file or self.DEFAULT_TBOX), format="turtle")
         self.cq_file = Path(cq_file) if cq_file else self.DEFAULT_CQS
@@ -292,6 +313,9 @@ class KGQuality:
         return {
             "data_file": shown(self.data_file),
             "access": self.access,
+            "source": self.source,
+            "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "commit": commit_stamp(),
             "structure": structure,
             "competency": cqs,
             "competency_summary": dict(Counter(q["status"] for q in cqs)),
@@ -318,7 +342,7 @@ class KGQuality:
     def summary(report: dict) -> str:
         s = report["structure"]
         lines = [
-            f"data={report['data_file']}  access={report['access']}",
+            f"built {report['built_at']}  commit={report['commit']}  source={report['source']}  access={report['access']}",
             f"structure: {s['triples']} triples, {s['nodes']} nodes, {s['edges']} edges, "
             f"{s['components']} components (largest {s['largest_component']}), {s['isolated']} isolated",
             "",
@@ -345,9 +369,11 @@ class KGQuality:
               default=KGQuality.DEFAULT_HTML, show_default=True)
 @click.option("--fragment", "fragment_path", type=click.Path(dir_okay=False, path_type=Path), default=None,
               help="Also write the page without doctype/head, for publishing as an Artifact.")
-def main(data_file, access, json_path, html_path, fragment_path):
+@click.option("--source", default=None,
+              help="How the data was produced, shown in the page's build stamp (default: the file path).")
+def main(data_file, access, json_path, html_path, fragment_path, source):
     """Measure DATA_FILE (default kg/export/bbqs.ttl) and build the entity browser from it."""
-    report = KGQuality(data_file, access=access).report()
+    report = KGQuality(data_file, access=access, source=source).report()
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     KGQuality.render_html(report, html_path)

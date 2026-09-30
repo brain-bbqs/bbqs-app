@@ -1,4 +1,5 @@
 <title>BBQS Graph Inspector</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -48,7 +49,10 @@
 
   header.top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; }
   header.top p { margin: 0; color: var(--muted); max-width: 70ch; }
-  .src { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .src { font-family: var(--f-mono); font-size: 12px; color: var(--muted); display: grid; gap: 2px; justify-items: end; text-align: right; }
+  .src a { color: var(--muted); }
+  .src .pill { font-family: var(--f-body); }
+  @media (max-width: 720px) { .src { justify-items: start; text-align: left; } }
 
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
   .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; }
@@ -218,7 +222,17 @@ const CLASSES = Object.keys(S.per_class).sort((a, b) =>
 const shapeViol = {};
 for (const e of ENT) for (const v of e.violations) shapeViol[v.shape] = (shapeViol[v.shape] || 0) + 1;
 
-$("#src").textContent = `${REPORT.data_file} · ${REPORT.access} export`;
+(function stamp() {
+  const built = REPORT.built_at ? new Date(REPORT.built_at) : null;
+  const hours = built ? (Date.now() - built.getTime()) / 36e5 : null;
+  const age = hours == null ? "" : hours < 1 ? "under an hour ago" : hours < 48 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} days ago`;
+  const sha = (REPORT.commit || "").split(" ")[0];
+  const commit = /^[0-9a-f]{7,}$/.test(sha)
+    ? `<a href="https://github.com/brain-bbqs/bbqs-app/commit/${sha}" target="_blank" rel="noopener">${esc(REPORT.commit)}</a>` : esc(REPORT.commit || "unknown commit");
+  const stale = hours != null && hours > 36 ? ` <span class="pill warn" title="The daily rebuild should keep this under a day old">stale</span>` : "";
+  $("#src").innerHTML = `<span>Built ${built ? esc(built.toISOString().slice(0, 16).replace("T", " ")) + " UTC" : "at an unknown time"} · ${esc(age)}${stale}</span>
+    <span>commit ${commit}</span><span>${esc(REPORT.source || REPORT.data_file)} · ${esc(REPORT.access)}</span>`;
+})();
 
 // ---- summary tiles -----------------------------------------------------------------------------
 (function tiles() {

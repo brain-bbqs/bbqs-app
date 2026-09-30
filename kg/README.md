@@ -122,6 +122,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates the OWL TBox and structural SHACL (no JSON-LD context generated yet). |
 | `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, tracked; commit anon exports only). |
+| `requirements.txt` / `requirements-generate.txt` | Pinned deps: the harness (export, validate, quality) / plus linkml for the CI drift check. |
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
@@ -209,6 +210,14 @@ self-contained file: open it directly. It shows one card per node, faceted by cl
 Turtle. Tabs cover the competency questions with their answers, shape coverage, and link structure.
 Only build it from an anon export if it will be committed or shared: it embeds every fact in the
 graph.
+
+**Online: https://brain-bbqs.org/kg/inspector/**. `publish.yml` rebuilds it on every deploy of
+`main` and daily at 06:17 UTC, from a fresh anon export. If that export fails it falls back to the
+committed one, and it never blocks the site deploy. The header stamp shows when it was built, from
+which commit and which data; it turns *stale* past 36 hours. The page is unlisted (`noindex`, not
+in the sitemap or navigation), but anyone with the link can open it, so it only ever embeds the
+anon view. The data is live, but the exporter and quality code come from `main`: a change on `dev`
+shows up after `dev` → `main`.
 
 **Latest run (anon export, 2026-09-29):**
 
