@@ -24,7 +24,7 @@ This table is the running status of the whole effort, updated as each phase land
 | 7 | CI gate — run the harness on fixtures now, the exported graph later | **D** | **done** (`.github/workflows/kg.yml` + `ci_check.py`; the `dev` ruleset requires a PR, code-owner review for `kg/`, and the `kg` check, for everyone including admins, #423) |
 | 8 | Publish `/schema` + retire old surfaces — regenerate the tree from the LinkML, retire the old `/schema` data + `/data-model`, unhide when done | **E** | in progress (route admin-gated + WIP banner; tree regen pending) |
 | 9 | Spec artifacts in `../bbqs-agent/specs/` | **F** | planned |
-| S | SOSA/SSN sensor layer: which project deploys which sensor, observing what, on whom. Workshop Appendix A staged in [`sosa/`](sosa/README.md) with 9 shapes; phases S0–S5 take it through schema, DB, exporter, observations and PI confirmation | — | **S0 in progress** ([plan](sosa/README.md#the-plan-from-staged-csv-to-the-pipeline)) |
+| S | SOSA/SSN sensor layer: which project deploys which sensor, observing what, on whom. Fed by [data ingestion](../ingest/README.md) (workshop Appendix A → `ingestion_records` → `sensor_deployments`), emitted by `export()` section 4; shapes in [`sosa/`](sosa/README.md) | — | **in progress**: migrations written, not applied ([plan](sosa/README.md#the-plan-from-workshop-notes-to-the-pipeline)) |
 
 ### Why each phase
 

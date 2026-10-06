@@ -26,6 +26,8 @@ from pathlib import Path
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 
+from sosa_layer import emit_sosa
+
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = Namespace("https://brain-bbqs.org/id/")
@@ -119,7 +121,7 @@ class BBQSKnowledgeGraph:
         org_node = id_map("organizations")
         man_node = id_map("device_manufacturers")
         inv_node = id_map("investigators")          # RLS-hidden under anon -> {} -> held_by omitted
-        grant_node, gn_node, cat_node = {}, {}, {}
+        grant_node, gn_node, cat_node, dm_node, gnum_of = {}, {}, {}, {}, {}
 
         # ---- 1. Node spine: one node per resources row, typed by resource_type ----
         skipped = collections.Counter()
@@ -146,6 +148,7 @@ class BBQSKnowledgeGraph:
                 continue
             n = BID[rid]
             grant_node[gr["id"]] = n
+            gnum_of[gr["id"]] = re.sub(r"^\d", "", gr.get("grant_number") or "")
             gn_node[gr["grant_number"]] = n
             self.add(n, "grant_number", gr.get("grant_number"))
             self.add(n, "mechanism", self.mechanism(gr.get("grant_number")))
@@ -249,7 +252,7 @@ class BBQSKnowledgeGraph:
             rid = dm.get("resource_id")
             if not rid:
                 continue
-            n = BID[rid]
+            n = dm_node[dm["id"]] = BID[rid]
             self.add(n, "model_name", dm.get("model_name"))
             if dm.get("device_class") and dm["device_class"] in cat_node:
                 g.add((n, BBQS["device_category"], cat_node[dm["device_class"]]))
@@ -295,15 +298,43 @@ class BBQSKnowledgeGraph:
                 g.add((n, BBQS["held_by"], held))
             roles += 1
 
+        # ---- 4. SOSA layer: sensor deployments promoted by data ingestion (kg/sosa/README.md) ----
+        # Before 20261006120000 is applied the tables 404 and fetch() returns [], so this is a no-op.
+        sosa_warnings = []
+        deployments = self.fetch("sensor_deployments")
+        if deployments:
+            sources = {s["id"]: s for s in self.fetch("ingestion_sources", "id,slug,title,description")}
+            links = collections.defaultdict(lambda: {"observes": [], "actuates": [], "devices": []})
+            for lp in self.fetch("sensor_deployment_properties"):
+                links[lp["deployment_id"]][lp["role"]].append(lp["property_key"])
+            for ld in self.fetch("sensor_deployment_devices"):
+                if ld["device_model_id"] in dm_node:
+                    links[ld["deployment_id"]]["devices"].append(dm_node[ld["device_model_id"]])
+            rows = []
+            for d in sorted(deployments, key=lambda d: (d.get("source_locator") or "", d["label_as_named"])):
+                src = sources.get(d.get("source_id"))
+                if src is None:
+                    sosa_warnings.append(f"deployment {d['id']}: no ingestion source, skipped")
+                    continue
+                rows.append({**d, **links[d["id"]], "source": src,
+                             "grant_number": gnum_of.get(d.get("grant_id")) or None,
+                             "project": grant_node.get(d.get("grant_id"))})
+            sosa_warnings += emit_sosa(g, self.fetch("observable_properties"), rows, cat_node)
+
         out_path.parent.mkdir(parents=True, exist_ok=True)
         g.serialize(destination=str(out_path), format="turtle")
 
         counts = {}
         for _, _, o in g.triples((None, RDF.type, None)):
-            counts[o.split("#")[-1]] = counts.get(o.split("#")[-1], 0) + 1
+            name = re.split(r"[#/]", o)[-1]               # bbqs#Project, sosa/Sensor
+            counts[name] = counts.get(name, 0) + 1
         print(f"Wrote {out_path}: {len(g)} triples")
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         print(f"ProjectRole edges: {roles}")
+        if deployments:
+            print(f"SOSA sensor deployments: {len(deployments)}")
+        for w in sosa_warnings:
+            print(f"  ! sosa: {w}")
         if skipped:
             print("Skipped (deprecated/unknown resource_type, not noded): " +
                   ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())))

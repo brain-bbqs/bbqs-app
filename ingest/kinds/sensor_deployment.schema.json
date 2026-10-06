@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brain-bbqs.org/ingest/kinds/sensor_deployment.schema.json",
+  "title": "sensor_deployment",
+  "description": "One device as used on one award, extracted from an unstructured source (workshop notes, a slide deck, a transcript). This is the contract every extractor meets, human or LLM: ingestion_records.payload for record_kind 'sensor_deployment' is exactly this object, and promote_ingestion_record() turns it into sensor_deployments rows. Presenter NAMES are not part of the payload; they go to sensor_deployment_presenters, which only curators can read.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["label_as_named", "award_label", "grant_match", "presenter_present", "model_status", "system_kind", "observes"],
+  "properties": {
+    "label_as_named":   {"type": "string", "minLength": 1, "description": "The device as the source names it, verbatim."},
+    "award_label":      {"type": "string", "minLength": 1, "description": "The award as the source names it (often a place: 'Michigan', 'Duke/Dunn')."},
+    "grant_number":     {"type": ["string", "null"], "pattern": "^[A-Z][0-9]{2}[A-Z]{2}[0-9]{6}$", "description": "Resolved NIH grant number without the application-type prefix; null when unresolved."},
+    "grant_match":      {"enum": ["stated", "pi_roster", "institution", "title", "ambiguous", "unresolved"], "description": "How award_label was resolved: stated in the source; presenter or lab is a named lead; the only BBQS grant at that place; matched by grant title; best of several candidates; not resolved."},
+    "grant_note":       {"type": ["string", "null"], "description": "Why the match is uncertain, and the other candidates."},
+    "presenter_role":   {"type": ["string", "null"], "description": "Who spoke to it, as a role ('PI (name)', 'Postdoc, Suthana lab'). PIs may be named; nobody else."},
+    "presenter_present":{"type": "boolean", "description": "False when no presenter spoke to the row: nothing in it was confirmed aloud."},
+    "verify_note":      {"type": ["string", "null"], "description": "What still needs confirming. Required when presenter_present is false."},
+    "device_models":    {"type": "array", "items": {"type": "string"}, "description": "device_models.model_name of each matching catalogue model; empty when none matches yet."},
+    "manufacturer_recorded":    {"type": ["string", "null"]},
+    "manufacturer_hq_recorded": {"type": ["string", "null"]},
+    "model_recorded":           {"type": ["string", "null"]},
+    "model_status":     {"enum": ["compiled", "inferred", "candidates", "custom", "unspecified"], "description": "How the model is known: compiled from vendor sources (not the source document), inferred, several candidates, custom/in-house, or not stated."},
+    "system_kind":      {"enum": ["sensor", "platform", "sensor_actuator"], "description": "platform = a rig recording several modalities (one hosted sensor per observed property)."},
+    "observes":         {"type": "array", "minItems": 1, "items": {"type": "string"}, "description": "observable_properties.key values (property_kind 'observable')."},
+    "actuates":         {"type": "array", "items": {"type": "string"}, "description": "observable_properties.key values (property_kind 'actuatable'); only for sensor_actuator."},
+    "measures_recorded":{"type": ["string", "null"], "description": "The source's own words for what is measured, verbatim."}
+  }
+}

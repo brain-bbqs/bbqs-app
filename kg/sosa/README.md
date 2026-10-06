@@ -6,9 +6,12 @@ what that device measures, or on which subjects**. That is the job of the W3C
 [SOSA/SSN](https://www.w3.org/TR/vocab-ssn/) ontology ([Janowicz et al. 2018](https://arxiv.org/abs/1805.09979)),
 and the workshop's Appendix A sensor and device registry is the first dataset that carries it.
 
-This directory is **phase S0**: the registry staged as data, a SOSA mapping, shapes that keep it
-consistent, and the plan for moving it into the database and exporter. Nothing on the site reads
-it yet, and nothing should (Principle XI: rendered data comes from the KG, not a checked-in copy).
+**The data flows through the database, not around it.** Appendix A enters through
+[data ingestion](../../ingest/README.md): it becomes an `ingestion_sources` row with 60
+`ingestion_records`, which are promoted into `sensor_deployments` and its link tables. The
+exporter (`kg/bbqs_kg.py`, section 4, via `kg/sosa_layer.py`) turns those rows into SOSA. This
+directory holds the SOSA shapes and an offline build of what the exporter will emit, so the layer
+can be checked before the migrations are applied.
 
 ## The SOSA model, mapped onto the registry
 
@@ -34,7 +37,7 @@ is a property of a *FeatureOfInterest*. An *Observation* is one act of observing
 |---|---|---|
 | Device (as named) | `sosa:Sensor` or `sosa:Platform`, one per (device, award) | Rigs that record several modalities (EmotiBit, Social Interaction Suite, CAREN) are **platforms**. Each one hosts one sensor per property, so S4 observations attach to the right modality. NeuroPace RNS is also a `sosa:Actuator` (`ssn:forProperty` responsive stimulation). |
 | Award | `ssn:Deployment` → `bbqs:on_project` → the grant's `bbqs:Project` | One deployment per grant. How the place name was resolved is kept in `bbqs:grant_match` (below). |
-| Measures | `sosa:observes` → `sosa:ObservableProperty` | Free text normalized to the 52-key vocabulary in `observable_properties.csv`, each aligned to an existing `DeviceCategory` and its `measures` value where one exists. The original text is kept in `bbqs:measures_recorded`. |
+| Measures | `sosa:observes` → `sosa:ObservableProperty` | Free text normalized to the 52-key vocabulary in `observable_properties` (seeded from `ingest/vocab/sensor_properties.csv`), each aligned to an existing `DeviceCategory` and its `measures` value where one exists. The original text is kept in `bbqs:measures_recorded`. |
 | (implicit) whose body | `sosa:FeatureOfInterest`, `ssn:hasProperty` the observed properties | The project's study subjects, linked to the project's species, and their environment where the property is environmental (water flow). |
 | Manufacturer (HQ), Model | `bbqs:device_model` → existing `bbqs:Device`, plus `bbqs:model_recorded` / `bbqs:manufacturer_recorded` | 33 of 60 rows link to a Device already in the graph. `bbqs:model_status` says how the model is known: `compiled` (from vendor sources, not the deck), `inferred`, `candidates`, `custom`, `unspecified`. |
 | Spoke to it | `bbqs:presenter_role`, `bbqs:presenter_present` | Rows marked "no rep" are `presenter_present false` and must carry a `bbqs:verify_note`. Shape S-8 enforces this. |
@@ -57,19 +60,19 @@ R61MH138713 | GSR (Shimmer3 / iMotions)  | Human | Shimmer3 GSR+
 
 | File | What |
 |---|---|
-| `workshop_sensor_registry.csv` | Appendix A, one row per (device, award). 51 table rows become 60 here, because rows that named several awards are split. **Staging only.** S2 loads it into Supabase and deletes it. |
-| `observable_properties.csv`, `actuatable_properties.csv` | The property vocabulary. |
-| `build_sosa.py` | CSVs + `kg/export/bbqs.ttl` → `workshop_sensors.sosa.ttl`. Resolves grants by `grant_number` and devices by `name` at build time, so no UUIDs are hard-coded. `--check` runs the gate. |
+| `../sosa_layer.py` | The one SOSA emitter. Called by `export()` with live rows, and by `build_sosa.py` with simulated ones. |
+| `build_sosa.py` | Runs **the real exporter** over simulated tables. The staged ingestion records are promoted the way `promote_ingestion_record()` does it, and grants, devices and categories come from the committed export. It writes the SOSA part of the result. There is no second implementation that could drift. `--check` runs the gate. |
 | `sosa.shapes.ttl` | 9 SHACL shapes (S-1 … S-9): the triangle closes, every system is deployed, project and `grant_match` agree, provenance is present, unconfirmed rows are flagged, device links resolve. |
 | `fixtures/{clean,contradictions}.ttl` | GREEN and RED fixtures, the same contract as `kg/shapes/`: every shape fires on RED, and GREEN conforms. |
-| `workshop_sensors.sosa.ttl` | The built layer: 1,818 triples covering 25 deployments, 15 platforms, 97 sensors, 2 actuators, 52 properties and 26 features of interest. |
+| `workshop_sensors.sosa.ttl` | What a live export will emit once the migrations are applied: 1,818 triples covering 25 deployments, 15 platforms, 97 sensors, 2 actuators, 52 properties and 26 features of interest. |
 
 ```bash
 pip install -r kg/requirements.txt
-python kg/sosa/build_sosa.py --check
+python ingest/to_sql.py --check        # records valid, seed migration current
+python kg/sosa/build_sosa.py --check   # SOSA shapes + the built layer
 ```
 
-CI runs the same command in the `kg` job.
+CI runs both in the `kg` job.
 
 ## Decisions taken here (push back on any of them)
 
@@ -87,11 +90,16 @@ CI runs the same command in the `kg` job.
    disagreement is visible rather than silently overwritten. Example: the KG says EmotiBit is made
    by Connected Future Labs, while the record says it is sold "via OpenBCI".
 5. **People.** This repo is public and the committed export is anon-only, which hides investigator
-   names. So the staged CSV names **PIs only**, who are already public on NIH RePORTER. Students,
+   names. So ingestion payloads name **PIs only**, who are already public on NIH RePORTER. Students,
    postdocs and co-Is appear as a role and lab ("Postdoc, Suthana lab"). This is especially true of
    the four names the notes marked VERIFY: guessed identities of students do not belong in a public
-   file. Their names go into the S2 table under RLS, and a presenter becomes a link to an
-   `Investigator` only once confirmed.
+   file. Names live in `sensor_deployment_presenters`, which only curators can read. They are
+   loaded by hand from a SQL file that is never committed. A presenter becomes a link to an
+   `Investigator` (`investigator_id`) only once confirmed.
+6. **IRIs come from content, not uuids.** A system is `bid:sosa/system/<grant>/<slug of the name>`,
+   kept unique by `UNIQUE (award_label, label_as_named)`. This is what lets the offline build and the
+   live export mint identical nodes. The cost: resolving an unresolved award moves its nodes to the
+   new grant's IRIs.
 
 ## Awards the build could not resolve with confidence
 
@@ -110,14 +118,15 @@ These nine need a human:
 Also open: the Suthana-lab rows are filed under R61MH135106, which NIH lists at UCLA while the lab
 presented as Duke. These are tagged in `grant_note`.
 
-## The plan: from staged CSV to the pipeline
+## The plan: from workshop notes to the pipeline
 
 | Phase | What | Where it hooks into the pipeline | Status |
 |---|---|---|---|
-| **S0** | Stage Appendix A, property vocabulary, SOSA mapping, 9 shapes with RED/GREEN fixtures, CI step | Standalone. `build_sosa.py --check` in `kg.yml`; reads the committed export | **this PR** |
-| **S1** | Schema: add `sosa`/`ssn` prefixes and the classes `SensorDeployment` (`ssn:Deployment`), `Sensor`, `Platform`, `Actuator`, `ObservableProperty`, `FeatureOfInterest`, `Observation` (with `class_uri`s to SOSA), plus the slots above, to `bbqs.linkml.yaml`. Regenerate `bbqs.owl.ttl` / `bbqs.shapes.gen.ttl` | `gen-owl` / `gen-shacl` drift check. The `kg-exporter-classes` guard then requires every class the exporter types to exist here | planned |
-| **S2** | Database: `observable_properties` (vocabulary, `resource_id` on the spine), `sensor_deployments` (grant FK, `device_model_id` FK nullable, `label_as_named`, `presenter_investigator_id` nullable, `presenter_role`, `presenter_present`, `verify_note`, `grant_match`, `model_status`, `*_recorded`), and the join `sensor_deployment_properties`. The seed migration starts with `set_actor('migration:workshop_sensor_registry')`. RLS hides presenter names from anon. Add the Caracal and other missing commercial models to `device_models`. **Delete the CSVs.** | Supabase, the system of record (Principles III and X) | planned |
-| **S3** | Exporter: `_export_sosa()` in `bbqs_kg.py` reads the S2 tables and emits exactly what `build_sosa.py` emits today. The diff against `workshop_sensors.sosa.ttl` is the acceptance test. Move `sosa.shapes.ttl` and the fixtures into `kg/shapes/` and `kg/fixtures/`. Add `observes` and `on_project` edges to the explorer. Answer CQ14 (project → device category, today "unmodeled") through `deployedSystem/device_model/device_category`. Add SOSA competency questions to `competency_questions.yaml`. Re-baseline | `export()` → `validate()` → `reason()` → explorer, in one run | planned |
+| **S0** | SOSA mapping, the property vocabulary, 9 shapes with RED/GREEN fixtures | `build_sosa.py --check` in `kg.yml` | **done (this PR)** |
+| **S2** | Database through data ingestion. Generic intake (`ingestion_sources`, `ingestion_records`, `promote_ingestion_record()`) plus the domain tables (`observable_properties`, `sensor_deployments`, `_devices`, `_properties`, curator-only `_presenters`). S-4 and S-8 are enforced as CHECKs. The seed is generated from `ingest/` | `supabase/migrations/20261006120000` (schema) and `…120100` (seed), applied by hand | **written (this PR)**; tested on a scratch Postgres 16; **not applied** |
+| **S3** | Exporter: section 4 of `export()` reads the S2 tables through `sosa_layer.emit_sosa()`. It does nothing until the migration is applied, because the tables 404 and `fetch()` returns `[]` | `export()` → `validate()` → `reason()` → explorer | **written (this PR)**. Still to do after the migration: regenerate `kg/export/bbqs.ttl`; move the shapes and fixtures into `kg/shapes/` and `kg/fixtures/`; add `observes` and `on_project` explorer edges; answer CQ14; add SOSA competency questions; re-baseline |
+| **S1** | Schema: add `sosa`/`ssn` prefixes and the classes `SensorDeployment` (`ssn:Deployment`), `Sensor`, `Platform`, `Actuator`, `ObservableProperty`, `FeatureOfInterest`, `Observation` (with `class_uri`s to SOSA), plus the slots above, to `bbqs.linkml.yaml`. Regenerate `bbqs.owl.ttl` / `bbqs.shapes.gen.ttl` | `gen-owl` / `gen-shacl` drift check | planned (waits on the #422 IRI convention) |
+| **Ingest** | LLM extraction (`ingest-document` edge function) so the next workshop's notes go straight to `pending_review` records; a review screen | `ingest/README.md`, "Not built yet" | planned |
 | **S4** | Observations: mint `sosa:Observation` / `sosa:ObservationCollection` from dataset metadata (DANDI/NWB `devices`, `acquisition`, `Subject`), with `madeBySensor` resolved to the S3 sensor, `hasResult` the dataset, and `resultTime` the session date. The other direction too: `project_device_usage` (abstract-mined evidence) becomes `prov:wasDerivedFrom` evidence on deployments it agrees with, and a shape flags deployments it contradicts | Exporter plus a dataset harvester | planned |
 | **S5** | Confirmation loop: PIs confirm or correct their rows (the Devices page, plus an MCP tool `confirm_sensor_deployment` modelled on `confirm_species_candidate`). Confirmed rows get `prov:wasAttributedTo` the PI, and `verify_note` clears. S-8 then tracks what is still unconfirmed, and the count goes into `quality.json` | App, agent and DB | planned |
 | **Spec** | `spec.md` / `plan.md` / `tasks.md` / `qa-itinerary.md` under `../bbqs-agent/specs/` | Working agreement | planned |
