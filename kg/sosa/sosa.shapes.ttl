@@ -1,0 +1,181 @@
+# BBQS SOSA layer shapes (SOSA phase S0, kg/sosa/README.md).
+#
+# Same contract as kg/shapes/consistency.shapes.ttl: every shape here must fire on
+# fixtures/contradictions.ttl and stay quiet on fixtures/clean.ttl (build_sosa.py --check).
+# They live beside the layer, not in kg/shapes/, until phase S3 moves the layer into the exporter;
+# moving them earlier would make them run against an export that has no SOSA nodes to check.
+#
+# The built layer is checked together with kg/export/bbqs.ttl, because two shapes resolve IRIs
+# into the core graph (bbqs:Project, bbqs:Device).
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix sosa:  <http://www.w3.org/ns/sosa/> .
+@prefix ssn:   <http://www.w3.org/ns/ssn/> .
+@prefix bbqs:  <https://brain-bbqs.org/schema#> .
+
+bbqs:sosaPrefixes
+  sh:declare [ sh:prefix "bbqs" ; sh:namespace "https://brain-bbqs.org/schema#"^^xsd:anyURI ] ,
+             [ sh:prefix "sosa" ; sh:namespace "http://www.w3.org/ns/sosa/"^^xsd:anyURI ] ,
+             [ sh:prefix "ssn"  ; sh:namespace "http://www.w3.org/ns/ssn/"^^xsd:anyURI ] .
+
+# ── S-1 — a sensor observes something ────────────────────────────────────────
+# A sosa:Sensor with no observed property says nothing a query can use ("what measures pupil
+# diameter?"), and is how a registry row with an empty Measures cell would slip through.
+bbqs:SensorObservesShape
+  a sh:NodeShape ;
+  sh:targetClass sosa:Sensor ;
+  sh:property [
+    sh:path sosa:observes ;
+    sh:minCount 1 ;
+    sh:class sosa:ObservableProperty ;
+    sh:message "A sosa:Sensor must observe at least one sosa:ObservableProperty from the vocabulary." ;
+  ] .
+
+# ── S-2 — a platform hosts sensors ───────────────────────────────────────────
+bbqs:PlatformHostsShape
+  a sh:NodeShape ;
+  sh:targetClass sosa:Platform ;
+  sh:property [
+    sh:path sosa:hosts ;
+    sh:minCount 1 ;
+    sh:class sosa:Sensor ;
+    sh:message "A sosa:Platform must host at least one sosa:Sensor (one per modality it records)." ;
+  ] .
+
+# ── S-3 — an actuator acts on a declared property ────────────────────────────
+bbqs:ActuatorForPropertyShape
+  a sh:NodeShape ;
+  sh:targetClass sosa:Actuator ;
+  sh:property [
+    sh:path ssn:forProperty ;
+    sh:minCount 1 ;
+    sh:class sosa:ActuatableProperty ;
+    sh:message "A sosa:Actuator must name the sosa:ActuatableProperty it acts on (e.g. responsive stimulation)." ;
+  ] .
+
+# ── S-4 — a deployment is on one project, or says it is unresolved ───────────
+# The workshop named awards by place ("Michigan", "Duke/Dunn"); the build resolves them to grant
+# numbers and records how. A deployment with no project must say grant_match "unresolved", and one
+# that says "unresolved" must not also carry a project — either way the graph would contradict itself.
+bbqs:DeploymentProjectShape
+  a sh:NodeShape ;
+  sh:targetClass ssn:Deployment ;
+  sh:property [
+    sh:path ssn:deployedSystem ;
+    sh:minCount 1 ;
+    sh:message "An ssn:Deployment must deploy at least one system." ;
+  ] ;
+  sh:property [
+    sh:path bbqs:on_project ;
+    sh:maxCount 1 ;
+    sh:class bbqs:Project ;
+    sh:message "A deployment is on at most one bbqs:Project, and it must resolve to one." ;
+  ] ;
+  sh:property [
+    sh:path bbqs:grant_match ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( "stated" "pi_roster" "institution" "title" "ambiguous" "unresolved" ) ;
+    sh:message "A deployment records how its award was matched to a grant (one canonical token)." ;
+  ] ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:prefixes bbqs:sosaPrefixes ;
+    sh:message "Deployment project and grant_match disagree: no project needs 'unresolved', and 'unresolved' allows no project." ;
+    sh:select """
+      SELECT $this WHERE {
+        $this bbqs:grant_match ?m .
+        OPTIONAL { $this bbqs:on_project ?p }
+        FILTER ( (?m = "unresolved") = BOUND(?p) )
+      }""" ;
+  ] .
+
+# ── S-5 — every top-level system is deployed ─────────────────────────────────
+# A sensor not hosted by a platform and not deployed anywhere is a device floating free of any
+# project — it cannot answer "which projects record X?".
+bbqs:SystemDeployedShape
+  a sh:NodeShape ;
+  sh:targetClass sosa:Sensor , sosa:Platform ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:prefixes bbqs:sosaPrefixes ;
+    sh:message "A sensor or platform must be deployed (ssn:hasDeployment) or hosted by a platform that is." ;
+    sh:select """
+      SELECT $this WHERE {
+        FILTER NOT EXISTS { $this ssn:hasDeployment ?d }
+        FILTER NOT EXISTS { $this sosa:isHostedBy/ssn:hasDeployment ?d2 }
+      }""" ;
+  ] .
+
+# ── S-6 — what a deployment observes is a property of its feature of interest ──
+# The SOSA triangle (sensor observes property; property is of a feature) must close inside each
+# deployment, or "which species is pupil diameter measured on?" returns nothing for that project.
+bbqs:PropertyOfFeatureShape
+  a sh:NodeShape ;
+  sh:targetClass ssn:Deployment ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:prefixes bbqs:sosaPrefixes ;
+    sh:message "A property observed in this deployment is not a property (ssn:hasProperty) of any of its features of interest: {?prop}" ;
+    sh:select """
+      SELECT $this ?prop WHERE {
+        $this ssn:deployedSystem ?sys .
+        { ?sys sosa:observes ?prop } UNION { ?sys sosa:hosts/sosa:observes ?prop }
+        FILTER NOT EXISTS { $this bbqs:deployment_foi ?foi . ?foi ssn:hasProperty ?prop }
+      }""" ;
+  ] .
+
+# ── S-7 — every deployed system carries its provenance ───────────────────────
+# The registry mixes what was said aloud with what was compiled afterwards. A system that cannot
+# say which (presenter present? model stated, inferred, or compiled?) cannot be confirmed later.
+bbqs:SystemProvenanceShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf ssn:hasDeployment ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1 ;
+    sh:message "A deployed system must name its source (prov:wasDerivedFrom)." ;
+  ] ;
+  sh:property [
+    sh:path bbqs:presenter_present ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:boolean ;
+    sh:message "A deployed system must say whether a presenter spoke to it (one xsd:boolean)." ;
+  ] ;
+  sh:property [
+    sh:path bbqs:model_status ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( "compiled" "inferred" "candidates" "custom" "unspecified" ) ;
+    sh:message "A deployed system must say how its model is known (one canonical model_status)." ;
+  ] .
+
+# ── S-8 — nothing unconfirmed passes silently ────────────────────────────────
+# A row no presenter spoke to was confirmed by nobody; it must carry a verify_note saying so, so the
+# confirmation loop (phase S5) can find it.
+bbqs:UnconfirmedFlaggedShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf bbqs:presenter_present ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:prefixes bbqs:sosaPrefixes ;
+    sh:message "No presenter spoke to this system, but it carries no bbqs:verify_note." ;
+    sh:select """
+      SELECT $this WHERE {
+        $this bbqs:presenter_present false .
+        FILTER NOT EXISTS { $this bbqs:verify_note ?n }
+      }""" ;
+  ] .
+
+# ── S-9 — a device model link resolves into the core graph ───────────────────
+bbqs:DeviceModelResolvesShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf bbqs:device_model ;
+  sh:property [
+    sh:path bbqs:device_model ;
+    sh:class bbqs:Device ;
+    sh:message "bbqs:device_model must point at a bbqs:Device node in the export (no dangling model)." ;
+  ] .

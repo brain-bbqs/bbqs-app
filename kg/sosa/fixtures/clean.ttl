@@ -1,0 +1,39 @@
+# GREEN fixture for kg/sosa/sosa.shapes.ttl: a complete, self-consistent SOSA layer. Must conform.
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn:  <http://www.w3.org/ns/ssn/> .
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix ex:   <https://brain-bbqs.org/id/fixture/> .
+
+ex:project a bbqs:Project .
+ex:device a bbqs:Device .
+ex:source a prov:Entity .
+ex:gaze a sosa:ObservableProperty .
+ex:eda a sosa:ObservableProperty .
+ex:ieeg a sosa:ObservableProperty .
+ex:stim a sosa:ActuatableProperty .
+ex:subjects a sosa:FeatureOfInterest ; ssn:hasProperty ex:gaze , ex:eda , ex:ieeg .
+
+ex:dep a ssn:Deployment ;
+  ssn:deployedSystem ex:tracker , ex:wearable , ex:rns ;
+  bbqs:on_project ex:project ; bbqs:grant_match "pi_roster" ; bbqs:deployment_foi ex:subjects .
+
+ex:tracker a sosa:Sensor ; sosa:observes ex:gaze ; ssn:hasDeployment ex:dep ;
+  bbqs:device_model ex:device ; prov:wasDerivedFrom ex:source ;
+  bbqs:presenter_present true ; bbqs:model_status "compiled" .
+
+ex:wearable a sosa:Platform ; sosa:hosts ex:wearable-eda ; ssn:hasDeployment ex:dep ;
+  prov:wasDerivedFrom ex:source ; bbqs:presenter_present false ; bbqs:verify_note "No presenter" ;
+  bbqs:model_status "custom" .
+ex:wearable-eda a sosa:Sensor ; sosa:observes ex:eda ; sosa:isHostedBy ex:wearable .
+
+ex:rns a sosa:Sensor , sosa:Actuator ; sosa:observes ex:ieeg ; ssn:forProperty ex:stim ;
+  ssn:hasDeployment ex:dep ; prov:wasDerivedFrom ex:source ;
+  bbqs:presenter_present true ; bbqs:model_status "compiled" .
+
+ex:dep-unresolved a ssn:Deployment ; ssn:deployedSystem ex:tracker2 ;
+  bbqs:grant_match "unresolved" ; bbqs:deployment_foi ex:subjects .
+ex:tracker2 a sosa:Sensor ; sosa:observes ex:gaze ; ssn:hasDeployment ex:dep-unresolved ;
+  prov:wasDerivedFrom ex:source ; bbqs:presenter_present true ; bbqs:model_status "unspecified" .

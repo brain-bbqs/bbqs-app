@@ -1,0 +1,10 @@
+{
+  "slug": "workshop-2026-appendix-a",
+  "kind": "workshop_notes",
+  "title": "BBQS workshop 2026 - Appendix A, sensor and device registry",
+  "description": "Device, award and presenter are as spoken at the workshop. Manufacturer, HQ and model were compiled afterwards from vendor and peer-reviewed sources; the decks carry no manufacturer fields.",
+  "record_kind": "sensor_deployment",
+  "extracted_by": "human:workshop-notes",
+  "source_class": "curator_fill",
+  "records": "records.csv"
+}

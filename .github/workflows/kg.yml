@@ -34,7 +34,7 @@ jobs:
              || ! files=$(git diff --name-only "$base" HEAD); then
             echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          if echo "$files" | grep -qE '^(kg/|\.github/workflows/kg\.yml$)'; then
+          if echo "$files" | grep -qE '^(kg/|ingest/|supabase/migrations/[0-9]+_(data_ingestion|ingest_)|\.github/workflows/kg\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"; echo "No kg/ changes; nothing to check."
@@ -54,6 +54,14 @@ jobs:
       - name: Gate -- fixtures, committed export vs baseline, generated OWL/SHACL drift
         if: steps.scope.outputs.run == 'true'
         run: python kg/ci_check.py --check-generated
+
+      - name: Data ingestion -- records valid against their schema, seed migration current (ingest/README.md)
+        if: steps.scope.outputs.run == 'true'
+        run: python ingest/to_sql.py --check
+
+      - name: SOSA layer -- the exporter over the staged records; RED/GREEN fixtures (kg/sosa/README.md)
+        if: steps.scope.outputs.run == 'true'
+        run: python kg/sosa/build_sosa.py --check --out /tmp/workshop_sensors.sosa.ttl
 
       - name: Quality summary
         if: steps.scope.outputs.run == 'true' && always()
