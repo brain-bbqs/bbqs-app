@@ -1,0 +1,42 @@
+# RED fixture for kg/sosa/sosa.shapes.ttl: one contradiction per shape. Every shape must fire.
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn:  <http://www.w3.org/ns/ssn/> .
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix ex:   <https://brain-bbqs.org/id/fixture/> .
+
+ex:project a bbqs:Project .
+ex:source a prov:Entity .
+ex:gaze a sosa:ObservableProperty .
+ex:subjects a sosa:FeatureOfInterest .
+
+# S-1 SensorObserves: a sensor that observes nothing.
+ex:mute a sosa:Sensor ; ssn:hasDeployment ex:dep ; prov:wasDerivedFrom ex:source ;
+  bbqs:presenter_present true ; bbqs:model_status "compiled" .
+
+# S-2 PlatformHosts: a platform with no sensors.
+ex:empty-rig a sosa:Platform ; ssn:hasDeployment ex:dep ; prov:wasDerivedFrom ex:source ;
+  bbqs:presenter_present true ; bbqs:model_status "custom" .
+
+# S-3 ActuatorForProperty: an actuator that acts on nothing.
+ex:stimulator a sosa:Sensor , sosa:Actuator ; sosa:observes ex:gaze ; ssn:hasDeployment ex:dep ;
+  prov:wasDerivedFrom ex:source ; bbqs:presenter_present true ; bbqs:model_status "compiled" .
+
+# S-4 DeploymentProject: says "unresolved" while carrying a project.
+# S-6 PropertyOfFeature: ex:stimulator observes gaze, but ex:subjects has no gaze property.
+ex:dep a ssn:Deployment ; ssn:deployedSystem ex:mute , ex:empty-rig , ex:stimulator , ex:silent , ex:dangling ;
+  bbqs:on_project ex:project ; bbqs:grant_match "unresolved" ; bbqs:deployment_foi ex:subjects .
+
+# S-5 SystemDeployed: a sensor deployed nowhere.
+ex:orphan a sosa:Sensor ; sosa:observes ex:gaze .
+
+# S-7 SystemProvenance: no source, no presenter flag, free-text model status.
+ex:silent a sosa:Sensor ; sosa:observes ex:gaze ; ssn:hasDeployment ex:dep ; bbqs:model_status "probably" .
+
+# S-8 UnconfirmedFlagged: nobody spoke to it and no verify_note says so.
+# S-9 DeviceModelResolves: its device_model is not a bbqs:Device.
+ex:dangling a sosa:Sensor ; sosa:observes ex:gaze ; ssn:hasDeployment ex:dep ;
+  prov:wasDerivedFrom ex:source ; bbqs:presenter_present false ; bbqs:model_status "compiled" ;
+  bbqs:device_model ex:not-a-device .

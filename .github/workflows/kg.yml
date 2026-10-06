@@ -55,6 +55,10 @@ jobs:
         if: steps.scope.outputs.run == 'true'
         run: python kg/ci_check.py --check-generated
 
+      - name: SOSA layer -- RED/GREEN fixtures, built layer vs the committed export (kg/sosa/README.md)
+        if: steps.scope.outputs.run == 'true'
+        run: python kg/sosa/build_sosa.py --check --out /tmp/workshop_sensors.sosa.ttl
+
       - name: Quality summary
         if: steps.scope.outputs.run == 'true' && always()
         run: |
