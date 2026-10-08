@@ -3590,6 +3590,7 @@ export type Database = {
           created_at: string | null
           id: string | null
           name: string | null
+          onboarded: boolean | null
           orcid: string | null
           pending_role: Database["public"]["Enums"]["app_role"] | null
           profile_url: string | null
