@@ -394,8 +394,11 @@ const fetchPIs = async (): Promise<PIRow[]> => {
     const piGrantLinks = grantInvLinks.filter(gi => gi.investigator_id === inv.id);
     const wgs: string[] = (inv as any).working_groups || [];
 
-    // Only include investigators who have grants OR working groups
-    if (piGrantLinks.length === 0 && wgs.length === 0) continue;
+    // Include investigators who have grants, working groups, or went through onboarding. The
+    // roster is RePORTER-derived, so onboarded trainees/staff with no grant picked were invisible
+    // here (Jared Reiling, 2026-10-08). `onboarded` comes from 20261008120000; until that is
+    // applied it is undefined and this falls back to grants-or-working-groups.
+    if (piGrantLinks.length === 0 && wgs.length === 0 && inv.onboarded !== true) continue;
 
     let piAsPi = 0;
     let piAsCoPi = 0;
