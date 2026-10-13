@@ -1,0 +1,93 @@
+sosa_sensor_id,predicate,observable_property_label
+bbqs:device/obsbot-3-d-cameras,sosa:observes,AI-tracked video
+bbqs:device/obsbot-3-d-cameras,sosa:observes,body position
+bbqs:device/eye-tracking-tobii-pupil,sosa:observes,Gaze
+bbqs:device/eye-tracking-tobii-pupil,sosa:observes,pupil
+bbqs:device/eye-tracking-tobii-pupil,sosa:observes,eye position
+bbqs:device/plethysmograph-eda,sosa:observes,Respiratory effort
+bbqs:device/plethysmograph-eda,sosa:observes,skin conductance
+bbqs:device/synchronized-cameras-basler-flir,sosa:observes,Synchronized multi-view video
+bbqs:device/3d-pose-cameras-st3dio,sosa:observes,3D whole-body kinematics
+bbqs:device/gopro-hero10,sosa:observes,Field video
+bbqs:device/wildlife-acoustics-pam,sosa:observes,Passive bioacoustic/ultrasonic audio
+bbqs:device/caracal-recorder,sosa:observes,Multi-mic acoustic localization
+bbqs:device/microphone-array-uma-16,sosa:observes,Beamforming
+bbqs:device/microphone-array-uma-16,sosa:observes,source localization
+bbqs:device/gps-garmin,sosa:observes,Location
+bbqs:device/gps-garmin,sosa:observes,ranging
+bbqs:device/touchscreen-med-associates,sosa:observes,Cognitive/operant responses
+bbqs:device/first-person-cameras-ewego,sosa:observes,Egocentric video
+bbqs:device/first-person-cameras-ewego,sosa:observes,visual sensorium
+bbqs:device/wireless-implant-eeg-single-unit,sosa:observes,Cortical/hippocampal LFP
+bbqs:device/wireless-implant-eeg-single-unit,sosa:observes,single-unit
+bbqs:device/multi-view-cameras-white-matter-e3,sosa:observes,Synchronized video + ephys
+bbqs:device/biomark-pit-tags,sosa:observes,RFID individual ID
+bbqs:device/head-mounted-accelerometers,sosa:observes,Body movement
+bbqs:device/respiration-sensor-nasal-cannula,sosa:observes,Breathing rhythm
+bbqs:device/ultrasonic-mics-avisoft,sosa:observes,Ultrasonic vocalizations to ~250 kHz
+bbqs:device/infrared-cameras-bonsai,sosa:observes,Video
+bbqs:device/infrared-cameras-bonsai,sosa:observes,two connected arenas
+bbqs:device/aviary-cameras-mic-arrays,sosa:observes,3D pose
+bbqs:device/aviary-cameras-mic-arrays,sosa:observes,vocalization source
+bbqs:device/bioluminescent-indicators,sosa:observes,Non-invasive neural activity
+bbqs:device/high-speed-video-robocam,sosa:observes,Sub-mm
+bbqs:device/high-speed-video-robocam,sosa:observes,ms-scale food handling
+bbqs:device/intranasal-thermistor,sosa:observes,Breathing
+bbqs:device/prey-tracking-water-flow-apparatus,sosa:observes,Prey capture
+bbqs:device/prey-tracking-water-flow-apparatus,sosa:observes,environmental flow
+bbqs:device/core-body-temp-sensor,sosa:observes,Core body temperature
+bbqs:device/neuropixels,sosa:observes,High-density single-unit + LFP
+bbqs:device/accelerometers-intracranial-ephys,sosa:observes,Body movement
+bbqs:device/accelerometers-intracranial-ephys,sosa:observes,neural recording
+bbqs:device/ieeg-single-unit-biofluid-sensing,sosa:observes,iEEG/LFP
+bbqs:device/ieeg-single-unit-biofluid-sensing,sosa:observes,spiking
+bbqs:device/ieeg-single-unit-biofluid-sensing,sosa:observes,glucose/cortisol/melatonin
+bbqs:device/social-interaction-suite,sosa:observes,fNIRS
+bbqs:device/social-interaction-suite,sosa:observes,EEG
+bbqs:device/social-interaction-suite,sosa:observes,gaze
+bbqs:device/social-interaction-suite,sosa:observes,pupillometry
+bbqs:device/social-interaction-suite,sosa:observes,HR
+bbqs:device/social-interaction-suite,sosa:observes,SC
+bbqs:device/chest-mounted-video-capture-app,sosa:observes,Egocentric video
+bbqs:device/chest-mounted-video-capture-app,sosa:observes,movement
+bbqs:device/emotibit,sosa:observes,PPG
+bbqs:device/emotibit,sosa:observes,EDA
+bbqs:device/emotibit,sosa:observes,9-axis IMU
+bbqs:device/emotibit,sosa:observes,skin temp
+bbqs:device/pupil-labs-glasses,sosa:observes,Gaze
+bbqs:device/pupil-labs-glasses,sosa:observes,pupil
+bbqs:device/pupil-labs-glasses,sosa:observes,fixations
+bbqs:device/neuropace-rns,sosa:observes,Chronic iEEG + responsive stimulation
+bbqs:device/lidar-mmwave-radar-imu,sosa:observes,Movement without identifiable video
+bbqs:device/eeg-mbraintrain,sosa:observes,Mobile EEG + 9D motion
+bbqs:device/ppg-ecg-motionsense-ecgsense,sosa:observes,HRV
+bbqs:device/ppg-ecg-motionsense-ecgsense,sosa:observes,ECG
+bbqs:device/ppg-ecg-motionsense-ecgsense,sosa:observes,respiration
+bbqs:device/gsr-shimmer3-imotions,sosa:observes,Electrodermal activity
+bbqs:device/blurred-video-mocap-ecog-emg,sosa:observes,Facial micromovements
+bbqs:device/blurred-video-mocap-ecog-emg,sosa:observes,iEEG
+bbqs:device/blurred-video-mocap-ecog-emg,sosa:observes,EMG
+bbqs:device/delsys-trigno-emg,sosa:observes,Wireless surface EMG + IMU
+bbqs:device/64-ch-mobile-eeg-ant-neuro,sosa:observes,Mobile high-density EEG
+bbqs:device/caren-vr-mocap-markers,sosa:observes,GRF
+bbqs:device/caren-vr-mocap-markers,sosa:observes,joint angles
+bbqs:device/caren-vr-mocap-markers,sosa:observes,energy expenditure
+bbqs:device/custom-skin-like-wearable,sosa:observes,HRV + SC + cortisol
+bbqs:device/custom-skin-like-wearable,sosa:observes,simultaneous
+bbqs:device/natus-xltek-eeg,sosa:observes,Clinical long-term video-EEG
+bbqs:device/optitrack,sosa:observes,Marker-based 3D motion capture
+bbqs:device/xsens,sosa:observes,Full-body inertial capture
+bbqs:device/biopac,sosa:observes,ECG
+bbqs:device/biopac,sosa:observes,EDA
+bbqs:device/biopac,sosa:observes,respiration
+bbqs:device/biopac,sosa:observes,EMG
+bbqs:device/custom-smartwatch-cortisol-epinephrine,sosa:observes,Biochemical assay
+bbqs:device/on-scalp-opm-meg,sosa:observes,Wearable whole-head MEG
+bbqs:device/video-to-1000-fps,sosa:observes,Movement kinematics
+bbqs:device/wearable-embraceplus,sosa:observes,EDA
+bbqs:device/wearable-embraceplus,sosa:observes,PPG
+bbqs:device/wearable-embraceplus,sosa:observes,IMU
+bbqs:device/wearable-embraceplus,sosa:observes,skin temp
+bbqs:device/ipad-ema-smartphone-phenotyping,sosa:observes,Anxiety surveys
+bbqs:device/ipad-ema-smartphone-phenotyping,sosa:observes,memory task
+bbqs:device/ipad-ema-smartphone-phenotyping,sosa:observes,app/keyboard usage

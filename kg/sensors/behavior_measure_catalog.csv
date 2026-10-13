@@ -1,0 +1,87 @@
+category,measure
+Behavioral / motor,Facial expression
+Behavioral / motor,facial micromovements
+Behavioral / motor,emotive categorization
+Behavioral / motor,body posture and gesture
+Behavioral / motor,"pose (2D, 3D, whole-body kinematics)"
+Behavioral / motor,limb kinematics
+Behavioral / motor,locomotion and gait
+Behavioral / motor,movement kinematics
+Behavioral / motor,body and head movement
+Behavioral / motor,freely-moving locomotion
+Behavioral / motor,fidgeting
+Behavioral / motor,passive vs. active engagement
+Behavioral / motor,on-task behaviors
+Behavioral / motor,oromanual food handling
+Behavioral / motor,feeding and drinking
+Behavioral / motor,dexterous food sniffs
+Behavioral / motor,prey capture and foraging
+Behavioral / motor,grooming and idle
+Behavioral / motor,"chasing, following, touching"
+Behavioral / motor,mutual interaction and engagement
+Behavioral / motor,action motifs and behavioral syllables
+Behavioral / motor,postural transition networks
+Behavioral / motor,pain and discomfort (guarding)
+Behavioral / motor,activity and sleep/rest
+Behavioral / motor,micturition
+Behavioral / motor,reproduction
+Behavioral / motor,ranging and herd position
+Behavioral / motor,individual ID and position
+Behavioral / motor,environment modification
+Vocal / acoustic,Vocalizations
+Vocal / acoustic,vocal and non-vocal sounds
+Vocal / acoustic,ultrasonic vocalizations
+Vocal / acoustic,vocalization source localization
+Vocal / acoustic,deep acoustic embeddings for individual ID
+Vocal / acoustic,speech prosody and pauses
+Vocal / acoustic,speech audio
+Vocal / acoustic,voice frequency
+Vocal / acoustic,ambient and environmental audio
+Ocular,Eye movements and gaze
+Ocular,gaze position
+Ocular,pupil diameter
+Ocular,pupillometry
+Ocular,visual sensorium / first-person field of view
+Ocular,cyclovergence and saccades (sheep — likely first in the species)
+Neural,Intracranial EEG / LFP
+Neural,single-neuron spiking
+Neural,single- and multiunit recording
+Neural,ECoG
+Neural,scalp EEG
+Neural,cortical oscillations
+Neural,inter-brain EEG synchrony (hyperscanning)
+Neural,fNIRS
+Neural,"whole-brain MEG (source localization, evoked, coherence, spectrotemporal dynamics)"
+Neural,bioluminescent non-invasive readout
+Neural,neural transition networks
+Neural,DBS stimulation
+Autonomic / physiological,Heart rate
+Autonomic / physiological,HRV
+Autonomic / physiological,"cardiac, EDA and respiration"
+Autonomic / physiological,skin conductance
+Autonomic / physiological,EMG and derived measures
+Autonomic / physiological,respiration and breathing rhythm
+Autonomic / physiological,core body temperature
+Autonomic / physiological,skin temperature
+Autonomic / physiological,ground reaction force and joint angles
+Autonomic / physiological,indirect calorimetry
+Autonomic / physiological,peripheral and autonomic physiology
+Biochemical / molecular,Cortisol
+Biochemical / molecular,epinephrine
+Biochemical / molecular,glucose
+Biochemical / molecular,melatonin
+Biochemical / molecular,immediate-early gene expression
+Biochemical / molecular,histology
+Biochemical / molecular,gut microbiota (RNA-seq)
+Biochemical / molecular,biofluid sensing
+Cognitive / self-report / clinical,Cognitive and memory task performance
+Cognitive / self-report / clinical,memory accuracy and response time
+Cognitive / self-report / clinical,reaction time and accuracy
+Cognitive / self-report / clinical,attention performance
+Cognitive / self-report / clinical,effort-based decision-making
+Cognitive / self-report / clinical,spatial navigation (VR)
+Cognitive / self-report / clinical,learning and cognitive flexibility
+Cognitive / self-report / clinical,exploratory and affective behavior
+Cognitive / self-report / clinical,"self-reported anxiety (VAS, STAI6)"
+Cognitive / self-report / clinical,approach/avoid self-report
+Cognitive / self-report / clinical,dial ratings

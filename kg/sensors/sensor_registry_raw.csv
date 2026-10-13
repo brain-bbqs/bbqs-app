@@ -1,0 +1,52 @@
+device_as_named,spoke_to,award,manufacturer_hq,model_product_line,measures
+OBSBOT 3-D cameras,Jack Grinband (with K-Sun),Mount Sinai,"OBSBOT, Shenzhen, China",Tiny 2 AI PTZ 4K,"AI-tracked video, body position"
+Eye tracking (Tobii / Pupil),Jack Grinband,Mount Sinai,"Tobii AB, Danderyd, Sweden","Tobii Pro Spectrum, to 1200 Hz","Gaze, pupil, eye position"
+Plethysmograph + EDA,Jack Grinband,Mount Sinai,"BIOPAC, Goleta CA; Shimmer, Dublin",SS5LB + EDA100C; Shimmer3 GSR+ — exact model not in record,"Respiratory effort, skin conductance"
+Synchronized cameras (Basler / FLIR),"Dunn-lab member (""Yan Kun"" — VERIFY)",Duke/Dunn,"Basler AG, Ahrensburg; Teledyne FLIR, Wilsonville OR",ace 2; Blackfly S,Synchronized multi-view video
+3D pose cameras + St3DIO,"Josh (PhD student, Dunn lab)",Duke 059512,Custom / in-house,No commercial model,3D whole-body kinematics
+GoPro HERO10,Grad student (likely Á. Vega-Hidalgo — VERIFY),Michigan,"GoPro Inc., San Mateo CA",HERO10 Black,Field video
+Wildlife Acoustics PAM,"Grad student, Michigan",Michigan,"Wildlife Acoustics, Maynard MA",Song Meter SM4,Passive bioacoustic/ultrasonic audio
+Caracal recorder,"Grad student, Michigan",Michigan,"Oxford WildCRU, UK — open hardware",CARACAL,Multi-mic acoustic localization
+Microphone array UMA-16,"Grad student, Michigan — noted direction-of-arrival",Michigan,"miniDSP Ltd., Hong Kong",UMA-16 v2,"Beamforming, source localization"
+GPS (Garmin),"Grad student, Michigan; Caleb Kemere",Michigan; Rice,"Garmin Ltd., Olathe KS",Alpha 300i + TT 25/T 20,"Location, ranging"
+Touchscreen (Med Associates),"Grad student, Michigan — deployed in the wild",Michigan,"Med Associates, Fairfax VT",MedTouch Screens,Cognitive/operant responses
+First-person cameras (EweGo),Caleb Kemere — demoed live on stage,Rice,Custom / in-house,Stereo cams + mics + GPS + likely IMU (VERIFY),"Egocentric video, visual sensorium"
+"Wireless implant (EEG, single-unit)",Caleb Kemere,Rice,Not specified in record,—,"Cortical/hippocampal LFP, single-unit"
+Multi-view cameras (White Matter e3),— no rep — / Nigel,Georgia Tech; NYU/Sanes,"White Matter LLC, Seattle WA",e3Vision; eCube 32–640 ch,Synchronized video + ephys
+Biomark PIT tags,— no rep —,Georgia Tech,"Biomark Inc., Boise ID","APT12, 12 mm ISO FDX-B",RFID individual ID
+Head-mounted accelerometers,Thomas Heaps (undergrad),Florida,Not specified in record,—,Body movement
+Respiration sensor (nasal cannula),Thomas Heaps,Florida,"Braebon, Kanata ON; GLNT, Cleveland OH",Braebon thermistor; GLNT piezo belt — rodent model inferred,Breathing rhythm
+Ultrasonic mics (Avisoft),Nigel (Sanes lab); CMU — no rep —,NYU/Sanes; CMU,"Avisoft Bioacoustics, Glienicke",UltraSoundGate 416H + CM16/CMPA,Ultrasonic vocalizations to ~250 kHz
+Infrared cameras (Bonsai),Nigel,NYU/Sanes,Not specified; Bonsai = acquisition software,—,"Video, two connected arenas"
+Aviary cameras + mic arrays,Unnamed Schmidt-group member (no slides),UPenn,Not specified in record,—,"3D pose, vocalization source"
+Bioluminescent indicators,— no rep —,NYU/Schoppik,Custom / in-house,—,Non-invasive neural activity
+High-speed video (RoboCam),Mangal (Shepherd lab),Northwestern,Custom / in-house,"Robot-positioned, high-FPS","Sub-mm, ms-scale food handling"
+Intranasal thermistor,Mangal,Northwestern,"Braebon, Kanata ON (or custom)",Braebon airflow sensor — inferred,Breathing
+Prey-tracking + water-flow apparatus,— no rep —,Harvard,Custom / in-house,—,"Prey capture, environmental flow"
+Core-body temp sensor,Wanchun (Wilbrecht lab),Berkeley,Not specified in record,—,Core body temperature
+Neuropixels,— no rep —,CMU,"imec, Leuven, Belgium",Neuropixels 2.0 (Steinmetz 2021),High-density single-unit + LFP
+Accelerometers + intracranial ephys,Jared (Zhang/Frohlich),Michigan State,Not specified in record,—,"Body movement, neural recording"
+iEEG + single-unit; biofluid sensing,Avniel Ghuman,Pittsburgh,Not specified in record,—,"iEEG/LFP, spiking, glucose/cortisol/melatonin"
+Social Interaction Suite,Joy Hirsch — only PI in attendance,Yale,Integrated in-house,No single commercial model,"fNIRS, EEG, gaze, pupillometry, HR, SC"
+Chest-mounted video + Capture App,"Cory Inman, postdoc demoed live",Utah,Custom / in-house,—,"Egocentric video, movement"
+EmotiBit,Cory Inman,Utah,"EmotiBit via OpenBCI, New York",EmotiBit / MD,"PPG, EDA, 9-axis IMU, skin temp"
+Pupil Labs glasses,"Cory Inman, Duke postdoc, Lenartowicz",Utah; Duke; UCLA,"Pupil Labs GmbH, Berlin",Pupil Core; Neon,"Gaze, pupil, fixations"
+NeuroPace RNS,"Cory Inman, Duke postdoc",Utah; Duke,"NeuroPace Inc., Mountain View CA",RNS-320,Chronic iEEG + responsive stimulation
+LiDAR / mmWave radar / IMU,Agatha Lenartowicz — privacy contribution,UCLA,Not specified in record,—,Movement without identifiable video
+EEG (mBrainTrain),Agatha Lenartowicz,UCLA,"mBrainTrain, Belgrade","Smarting PRO X, 64-ch",Mobile EEG + 9D motion
+"PPG/ECG (MotionSense, ECGSense)",Agatha Lenartowicz,UCLA,MD2K Center — academic hardware,"MotionSenseHRV, AutoSense — availability unverified","HRV, ECG, respiration"
+GSR (Shimmer3 / iMotions),Agatha Lenartowicz,UCLA,"Shimmer, Dublin; iMotions, Copenhagen",Shimmer3 GSR+,Electrodermal activity
+Blurred video + mocap; ECoG; EMG,Sima Mofakham with Chuck Mikell,Stony Brook,Not specified in record,—,"Facial micromovements, iEEG, EMG"
+Delsys Trigno EMG,"Co-I for Rozell (""Shankar Agapan"" — VERIFY)",Georgia Tech,"Delsys Inc., Natick MA","Trigno Centro, to 128 ch",Wireless surface EMG + IMU
+64-ch mobile EEG (ANT Neuro),Co-I for Rozell,Georgia Tech,"ANT Neuro, Hengelo NL",eego sports,Mobile high-density EEG
+CAREN VR + mocap markers,Co-I for Rozell — named calorimetry + pupillometry absent from slide table,Georgia Tech,Motek (D-Flow); Cosmed K5,Georgia Tech core facility,"GRF, joint angles, energy expenditure"
+Custom skin-like wearable,"Student, Shanechi lab (""Paris too"" — VERIFY)",USC,Custom / in-house,First-of-its-kind flexible patch,"HRV + SC + cortisol, simultaneous"
+Natus XLTek EEG,"Student, Shanechi lab; Joshua Jacobs",USC; Columbia,"Natus Medical, Middleton WI",NeuroWorks + Xltek,Clinical long-term video-EEG
+OptiTrack,"Postdoc, Suthana lab (likely Uros Topalovic — VERIFY)",Duke,"NaturalPoint (OptiTrack), Corvallis OR",Prime x 41 / x 260,Marker-based 3D motion capture
+Xsens,"Postdoc, Suthana lab",Duke,"Movella (formerly Xsens), Enschede NL","MVN Awinda, 17 IMUs",Full-body inertial capture
+Biopac,"Postdoc, Suthana lab",Duke,"BIOPAC Systems, Goleta CA",MP160 + AcqKnowledge,"ECG, EDA, respiration, EMG"
+"Custom smartwatch (cortisol, epinephrine)","Postdoc, Suthana lab — in development",Duke,Custom / in-house,—,Biochemical assay
+On-scalp OPM-MEG,Tim Roberts,Seattle/CHOP,"QuSpin, Louisville CO; FieldLine, Boulder CO; Cerca, Nottingham UK",QZFM Gen-3; HEDscan; Cerca — vendor not stated in record,Wearable whole-head MEG
+Video to 1000 fps,"Tim Roberts — 1 camera now, 2 expected",Seattle/CHOP,Not specified in record,—,Movement kinematics
+Wearable (EmbracePlus),Joshua Jacobs — flagged real-time limitation,Columbia,"Empatica Inc., Boston / Milan",EmbracePlus,"EDA, PPG, IMU, skin temp"
+iPad EMA; smartphone phenotyping,"Joshua Jacobs; also Pittsburgh, USC",Columbia; Pitt; USC,Apple; Android OEMs,"Bedside iPad, ~90–120 min intervals","Anxiety surveys, memory task, app/keyboard usage"
