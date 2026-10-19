@@ -1,0 +1,1067 @@
+{
+ "data_file": "fresh anon export, 2026-09-30",
+ "cells": 5006,
+ "carried": 3156,
+ "pct": 63.0,
+ "tables": [
+  {
+   "table": "resources",
+   "readable": true,
+   "rows": 582,
+   "noded": 582,
+   "cells": 1906,
+   "carried": 1534,
+   "pct": 80.5,
+   "columns": {
+    "description": {
+     "cells": 143,
+     "carried": 143,
+     "pct": 100.0,
+     "examples": []
+    },
+    "external_url": {
+     "cells": 227,
+     "carried": 227,
+     "pct": 100.0,
+     "examples": []
+    },
+    "metadata": {
+     "cells": 372,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "{'species': 'Quadrupeds, mice, birds, humans, macaques, primates, horses', 'cate",
+      "{'species': 'Quadrupeds, birds, humans, multi-species', 'category': 'ML Models',"
+     ]
+    },
+    "name": {
+     "cells": 582,
+     "carried": 582,
+     "pct": 100.0,
+     "examples": []
+    },
+    "resource_type": {
+     "cells": 582,
+     "carried": 582,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "grants",
+   "readable": true,
+   "rows": 33,
+   "noded": 33,
+   "cells": 230,
+   "carried": 230,
+   "pct": 100.0,
+   "columns": {
+    "abstract": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "award_amount": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "fiscal_year": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "grant_number": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "nih_link": {
+     "cells": 32,
+     "carried": 32,
+     "pct": 100.0,
+     "examples": []
+    },
+    "reporter_project_num": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "title": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "projects",
+   "readable": true,
+   "rows": 33,
+   "noded": 33,
+   "cells": 224,
+   "carried": 160,
+   "pct": 71.4,
+   "columns": {
+    "grant_number": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "keywords": {
+     "cells": 29,
+     "carried": 29,
+     "pct": 100.0,
+     "examples": []
+    },
+    "metadata": {
+     "cells": 31,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "{'devices': {'sensor': ['Multi-camera arrays'], 'data_acquisition_modalities': [",
+      "{'devices': {'sensor': ['Kinematic trackers', 'Physiological monitors'], 'behavi"
+     ]
+    },
+    "metadata_completeness": {
+     "cells": 33,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "86",
+      "82"
+     ]
+    },
+    "onboarding_status": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "study_human": {
+     "cells": 33,
+     "carried": 33,
+     "pct": 100.0,
+     "examples": []
+    },
+    "study_species": {
+     "cells": 31,
+     "carried": 31,
+     "pct": 100.0,
+     "examples": []
+    },
+    "website": {
+     "cells": 1,
+     "carried": 1,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "grant_investigators",
+   "readable": true,
+   "rows": 111,
+   "noded": 111,
+   "cells": 222,
+   "carried": 222,
+   "pct": 100.0,
+   "columns": {
+    "role": {
+     "cells": 111,
+     "carried": 111,
+     "pct": 100.0,
+     "examples": []
+    },
+    "role_source": {
+     "cells": 111,
+     "carried": 111,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "investigators_public",
+   "readable": true,
+   "rows": 249,
+   "noded": 249,
+   "cells": 780,
+   "carried": 268,
+   "pct": 34.4,
+   "columns": {
+    "name": {
+     "cells": 249,
+     "carried": 246,
+     "pct": 98.8,
+     "examples": [
+      "Joseph Neimat",
+      "Laura Yenisa Cabrera Trujillo"
+     ]
+    },
+    "orcid": {
+     "cells": 113,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "0000-0002-9726-9115",
+      "0000-0002-4704-2852"
+     ]
+    },
+    "pending_role": {
+     "cells": 2,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "curator",
+      "member"
+     ]
+    },
+    "profile_url": {
+     "cells": 25,
+     "carried": 22,
+     "pct": 88.0,
+     "examples": [
+      "https://www.pesaranlab.org",
+      "https://jreiling1.github.io/"
+     ]
+    },
+    "research_areas": {
+     "cells": 19,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Ethics', 'Law', 'Regulation']",
+      "['Computational and systems neuroscience', 'Neuro-AI', 'Behavioral neuroscience'"
+     ]
+    },
+    "role": {
+     "cells": 206,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Ember/DCAIC team",
+      "Research Staff (Scientist and others)"
+     ]
+    },
+    "scholar_id": {
+     "cells": 3,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "fKsY32YAAAAJ&hl",
+      "AWOkpNcAAAAJ"
+     ]
+    },
+    "skills": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Data engineering', 'Metadata standards', 'Pipeline orchestration']",
+      "['Behavioral neuroscience']"
+     ]
+    },
+    "working_groups": {
+     "cells": 149,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['WG-Devices']",
+      "['WG-Analytics']"
+     ]
+    }
+   }
+  },
+  {
+   "table": "organizations",
+   "readable": true,
+   "rows": 37,
+   "noded": 37,
+   "cells": 38,
+   "carried": 38,
+   "pct": 100.0,
+   "columns": {
+    "name": {
+     "cells": 37,
+     "carried": 37,
+     "pct": 100.0,
+     "examples": []
+    },
+    "url": {
+     "cells": 1,
+     "carried": 1,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "publications",
+   "readable": true,
+   "rows": 45,
+   "noded": 45,
+   "cells": 412,
+   "carried": 225,
+   "pct": 54.6,
+   "columns": {
+    "author_orcids": {
+     "cells": 21,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "[{'name': 'Chandra, Vikram', 'orcid': '0000-0002-8020-0664'}, {'name': 'Nejad, M",
+      "[{'name': 'Vargas, Federico S&#xe1;nchez', 'orcid': '0009-0000-5456-5881'}, {'na"
+     ]
+    },
+    "authors": {
+     "cells": 45,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Vahidi, Parsa, Sani, Omid G, Shanechi, Maryam M",
+      "Hosseini, Mohammad, Shanechi, Maryam M"
+     ]
+    },
+    "citations": {
+     "cells": 45,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "0",
+      "0"
+     ]
+    },
+    "journal": {
+     "cells": 45,
+     "carried": 45,
+     "pct": 100.0,
+     "examples": []
+    },
+    "keywords": {
+     "cells": 31,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['HDAC', 'SCFAs', 'circadian clock', 'histone modification', 'immunity', 'metabo",
+      "['circadian rhythms', 'immune', 'infection', 'mucosa', 'norovirus']"
+     ]
+    },
+    "pmid": {
+     "cells": 45,
+     "carried": 45,
+     "pct": 100.0,
+     "examples": []
+    },
+    "pubmed_link": {
+     "cells": 45,
+     "carried": 45,
+     "pct": 100.0,
+     "examples": []
+    },
+    "rcr": {
+     "cells": 45,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "0",
+      "0"
+     ]
+    },
+    "title": {
+     "cells": 45,
+     "carried": 45,
+     "pct": 100.0,
+     "examples": []
+    },
+    "year": {
+     "cells": 45,
+     "carried": 45,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "dandisets",
+   "readable": true,
+   "rows": 22,
+   "noded": 22,
+   "cells": 296,
+   "carried": 64,
+   "pct": 21.6,
+   "columns": {
+    "access": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "dandi:OpenAccess",
+      "dandi:OpenAccess"
+     ]
+    },
+    "api_url": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "https://api-dandi.emberarchive.org/api/dandisets/000463/versions/draft/",
+      "https://api-dandi.emberarchive.org/api/dandisets/000470/versions/draft/"
+     ]
+    },
+    "award_numbers": {
+     "cells": 3,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['R34DA059723', 'R37NS061963']",
+      "['U01NS117838']"
+     ]
+    },
+    "contact_name": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Gao, Mang",
+      "Baker, Cody"
+     ]
+    },
+    "description": {
+     "cells": 22,
+     "carried": 21,
+     "pct": 95.5,
+     "examples": [
+      "This dataset contains automated contributions of bounding boxes for subjects fro"
+     ]
+    },
+    "draft_url": {
+     "cells": 22,
+     "carried": 22,
+     "pct": 100.0,
+     "examples": []
+    },
+    "file_count": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "3366",
+      "13"
+     ]
+    },
+    "instance": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "ember",
+      "ember"
+     ]
+    },
+    "last_synced_at": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "2026-09-30T04:17:03.852+00:00",
+      "2026-09-30T04:17:05.358+00:00"
+     ]
+    },
+    "license": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "spdx:CC-BY-4.0",
+      "spdx:CC-BY-4.0"
+     ]
+    },
+    "name": {
+     "cells": 22,
+     "carried": 21,
+     "pct": 95.5,
+     "examples": [
+      "Pozu: Bounding Box"
+     ]
+    },
+    "neurosift_url": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "https://neurosift.app/dandiset/000463?dandisetVersion=draft&staging=ember",
+      "https://neurosift.app/dandiset/000470?dandisetVersion=draft&staging=ember"
+     ]
+    },
+    "raw": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "{'id': 'EMBER-DANDI:000463/draft', 'url': 'https://dandi.emberarchive.org/dandis",
+      "{'id': 'EMBER-DANDI:000470/draft', 'url': 'https://dandi.emberarchive.org/dandis"
+     ]
+    },
+    "size_bytes": {
+     "cells": 22,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "3254527486964",
+      "124982"
+     ]
+    },
+    "species": {
+     "cells": 7,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Mus musculus - House mouse']",
+      "['Mus musculus - House mouse']"
+     ]
+    }
+   }
+  },
+  {
+   "table": "software_tools",
+   "readable": true,
+   "rows": 18,
+   "noded": 18,
+   "cells": 75,
+   "carried": 53,
+   "pct": 70.7,
+   "columns": {
+    "description": {
+     "cells": 18,
+     "carried": 17,
+     "pct": 94.4,
+     "examples": [
+      "Open source GPU-accelerated scientific plotting library built on wgpu & pygfx. S"
+     ]
+    },
+    "docs_url": {
+     "cells": 1,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "https://lightning-pose.readthedocs.io/"
+     ]
+    },
+    "language": {
+     "cells": 18,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Python",
+      "Python"
+     ]
+    },
+    "license": {
+     "cells": 2,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Open Source",
+      "Open Source"
+     ]
+    },
+    "name": {
+     "cells": 18,
+     "carried": 18,
+     "pct": 100.0,
+     "examples": []
+    },
+    "repo_url": {
+     "cells": 18,
+     "carried": 18,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "funding_opportunities",
+   "readable": true,
+   "rows": 14,
+   "noded": 14,
+   "cells": 168,
+   "carried": 40,
+   "pct": 23.8,
+   "columns": {
+    "activity_code": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "R01/R21",
+      "Fellowship"
+     ]
+    },
+    "announcement_type": {
+     "cells": 1,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "New"
+     ]
+    },
+    "budget_ceiling": {
+     "cells": 4,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "8000000",
+      "350000"
+     ]
+    },
+    "due_dates": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "[{'date': '2026-05-25', 'type': 'Cycle II start'}, {'date': '2026-08-12', 'type'",
+      "[{'date': '2026-10-19', 'type': 'Life Sciences'}, {'date': '2026-10-20', 'type':"
+     ]
+    },
+    "eligible_activity_codes": {
+     "cells": 1,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['R34']"
+     ]
+    },
+    "expiration_date": {
+     "cells": 7,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "2027-09-29",
+      "2028-06-24"
+     ]
+    },
+    "fon": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "NOT-MH-25-155",
+      "NSF 26-526"
+     ]
+    },
+    "notes": {
+     "cells": 12,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "This is a Highlighted Topic, not a standalone FOA. Expires September 29, 2026.",
+      "NIH Common Fund PRIMED-AI. Contact ODPRIMED-AI@od.nih.gov."
+     ]
+    },
+    "open_date": {
+     "cells": 6,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "2026-09-07",
+      "2025-09-28"
+     ]
+    },
+    "participating_orgs": {
+     "cells": 13,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['NINDS', 'NCCIH', 'NEI', 'NIA', 'NIAAA', 'NIBIB', 'NIDA', 'NIDCD', 'NIMH', 'ORW",
+      "['NSF']"
+     ]
+    },
+    "posted_date": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "2026-02-24",
+      "2026-08-25"
+     ]
+    },
+    "purpose": {
+     "cells": 12,
+     "carried": 12,
+     "pct": 100.0,
+     "examples": []
+    },
+    "relevance_tags": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['BRAIN Initiative', 'NeuroAI', 'knowledgebase', 'highlighted topic']",
+      "['fellowship', 'graduate training', 'young investigators']"
+     ]
+    },
+    "status": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "open",
+      "open"
+     ]
+    },
+    "title": {
+     "cells": 14,
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
+    },
+    "url": {
+     "cells": 14,
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "announcements",
+   "readable": true,
+   "rows": 12,
+   "noded": 12,
+   "cells": 58,
+   "carried": 25,
+   "pct": 43.1,
+   "columns": {
+    "content": {
+     "cells": 12,
+     "carried": 5,
+     "pct": 41.7,
+     "examples": [
+      "The NIH BRAIN Initiative has launched a new NeuroAI Community Updates listserv. ",
+      "BRAIN Conference 2026 will be held August 11-13 at North Bethesda Marriott Hotel"
+     ]
+    },
+    "is_external_link": {
+     "cells": 12,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "True",
+      "False"
+     ]
+    },
+    "link": {
+     "cells": 11,
+     "carried": 8,
+     "pct": 72.7,
+     "examples": [
+      "/jobs",
+      "/sfn-2025"
+     ]
+    },
+    "link_text": {
+     "cells": 11,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Learn more & participate",
+      "View on Job Board"
+     ]
+    },
+    "title": {
+     "cells": 12,
+     "carried": 12,
+     "pct": 100.0,
+     "examples": []
+    }
+   }
+  },
+  {
+   "table": "species",
+   "readable": true,
+   "rows": 15,
+   "noded": 15,
+   "cells": 87,
+   "carried": 36,
+   "pct": 41.4,
+   "columns": {
+    "common_name": {
+     "cells": 15,
+     "carried": 15,
+     "pct": 100.0,
+     "examples": []
+    },
+    "metadata": {
+     "cells": 1,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "{'grants': ['R34DA061984']}"
+     ]
+    },
+    "name": {
+     "cells": 15,
+     "carried": 4,
+     "pct": 26.7,
+     "examples": [
+      "Mouse",
+      "Rat"
+     ]
+    },
+    "taxonomy_class": {
+     "cells": 15,
+     "carried": 15,
+     "pct": 100.0,
+     "examples": []
+    },
+    "taxonomy_family": {
+     "cells": 14,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Muridae",
+      "Muridae"
+     ]
+    },
+    "taxonomy_genus": {
+     "cells": 12,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Mus",
+      "Rattus"
+     ]
+    },
+    "taxonomy_order": {
+     "cells": 15,
+     "carried": 2,
+     "pct": 13.3,
+     "examples": [
+      "Rodentia",
+      "Rodentia"
+     ]
+    }
+   }
+  },
+  {
+   "table": "device_models",
+   "readable": true,
+   "rows": 35,
+   "noded": 35,
+   "cells": 238,
+   "carried": 64,
+   "pct": 26.9,
+   "columns": {
+    "aliases": {
+     "cells": 35,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Open Ephys', 'open ephys']",
+      "['Neuropixels', 'neuropixels']"
+     ]
+    },
+    "device_class": {
+     "cells": 35,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "wireless_ephys",
+      "ephys_probe"
+     ]
+    },
+    "firmware_notes": {
+     "cells": 35,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "Open-source electrophysiology acquisition software and hardware",
+      "High-density silicon recording probe"
+     ]
+    },
+    "first_seen_at": {
+     "cells": 35,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "2026-08-06T13:08:55.567613+00:00",
+      "2026-08-06T13:08:55.567613+00:00"
+     ]
+    },
+    "model_name": {
+     "cells": 35,
+     "carried": 35,
+     "pct": 100.0,
+     "examples": []
+    },
+    "output_signals": {
+     "cells": 29,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Spikes', 'LFP']",
+      "['Spikes', 'LFP']"
+     ]
+    },
+    "product_url": {
+     "cells": 29,
+     "carried": 29,
+     "pct": 100.0,
+     "examples": []
+    },
+    "regulatory_class": {
+     "cells": 5,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "FDA-approved (PMA)",
+      "FDA-cleared / CE medical device"
+     ]
+    }
+   }
+  },
+  {
+   "table": "device_categories",
+   "readable": true,
+   "rows": 34,
+   "noded": 34,
+   "cells": 204,
+   "carried": 136,
+   "pct": 66.7,
+   "columns": {
+    "description": {
+     "cells": 34,
+     "carried": 34,
+     "pct": 100.0,
+     "examples": []
+    },
+    "key": {
+     "cells": 34,
+     "carried": 34,
+     "pct": 100.0,
+     "examples": []
+    },
+    "label": {
+     "cells": 34,
+     "carried": 34,
+     "pct": 100.0,
+     "examples": []
+    },
+    "measures": {
+     "cells": 34,
+     "carried": 34,
+     "pct": 100.0,
+     "examples": []
+    },
+    "schema_org_type": {
+     "cells": 34,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "MedicalDevice",
+      "MedicalDevice"
+     ]
+    },
+    "typical_use_cases": {
+     "cells": 34,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "['Behavioural video capture', 'Pose estimation input', 'Social interaction recor",
+      "['Dark-phase rodent recording', 'Night-time field observation']"
+     ]
+    }
+   }
+  },
+  {
+   "table": "device_manufacturers",
+   "readable": true,
+   "rows": 32,
+   "noded": 32,
+   "cells": 64,
+   "carried": 61,
+   "pct": 95.3,
+   "columns": {
+    "homepage_url": {
+     "cells": 29,
+     "carried": 29,
+     "pct": 100.0,
+     "examples": []
+    },
+    "name": {
+     "cells": 32,
+     "carried": 32,
+     "pct": 100.0,
+     "examples": []
+    },
+    "notes": {
+     "cells": 3,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "publisher",
+      "publisher"
+     ]
+    }
+   }
+  },
+  {
+   "table": "investigator_organizations",
+   "readable": true,
+   "rows": 95,
+   "noded": 0,
+   "cells": 0,
+   "carried": 0,
+   "pct": null,
+   "columns": {}
+  },
+  {
+   "table": "project_publications",
+   "readable": true,
+   "rows": 2,
+   "noded": 0,
+   "cells": 0,
+   "carried": 0,
+   "pct": null,
+   "columns": {}
+  },
+  {
+   "table": "grant_dandisets",
+   "readable": true,
+   "rows": 2,
+   "noded": 0,
+   "cells": 4,
+   "carried": 0,
+   "pct": 0.0,
+   "columns": {
+    "match_source": {
+     "cells": 2,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "award_number",
+      "award_number"
+     ]
+    },
+    "matched_award": {
+     "cells": 2,
+     "carried": 0,
+     "pct": 0.0,
+     "examples": [
+      "R34DA059723",
+      "R24MH136632"
+     ]
+    }
+   }
+  }
+ ]
+}

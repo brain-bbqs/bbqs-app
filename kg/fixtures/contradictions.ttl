@@ -2,6 +2,7 @@
 # This is the RED half of the RED/GREEN pair that proves the shapes actually bite.
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 # #4 — non-canonical project_role token
 bid:role-1 a bbqs:ProjectRole ;
@@ -81,3 +82,34 @@ bid:prov-d a bbqs:ProvenanceRecord ;
 bid:proj-no-prov a bbqs:Project ;
   bbqs:name "Orphan project" ;
   bbqs:grant_number "1U01MH000000-01" .
+
+# #1/#3 — one IRI claimed by a person and an organization
+bid:dual-1 a bbqs:Investigator , bbqs:ResearchOrganization ;
+  bbqs:name "Dual Entity" .
+
+# #1 — a Project with no grant number: a resources row typed grant that no grants row backs
+bid:proj-no-award a bbqs:Project ;
+  bbqs:name "A data standard filed as a grant" .
+bid:prov-f a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "resources" ; bbqs:prov_entity_column "name" ; bbqs:prov_entity_id "proj-no-award" ;
+  bbqs:prov_value_text "A data standard filed as a grant" ; bbqs:prov_source_class bid:sc-curator .
+
+# #20 — after a renumbering, the spine name still carries the award's old number
+bid:proj-renumbered a bbqs:Project ;
+  bbqs:name "U24MH136628" ;
+  bbqs:grant_number "U24DA064429" ;
+  bbqs:mechanism "U24" .
+bid:prov-g a bbqs:ProvenanceRecord ;
+  bbqs:prov_entity_table "grants" ; bbqs:prov_entity_column "grant_number" ; bbqs:prov_entity_id "proj-renumbered" ;
+  bbqs:prov_value_text "U24DA064429" ; bbqs:prov_source_class bid:sc-curator .
+
+# #10 — two links joined into one URL field
+bid:job-1 a bbqs:Job ;
+  bbqs:name "Community engineer" ;
+  bbqs:external_url "https://jobs.example.org/one ; https://jobs.example.org/two"^^xsd:anyURI .
+
+# #6 — one role edge with two holders
+bid:role-two a bbqs:ProjectRole ;
+  bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:inv-dup-a , bid:inv-email-a ;
+  bbqs:on_project bid:proj-renumbered .

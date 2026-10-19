@@ -1,6 +1,9 @@
 {
   "violations": {
-    "StudiesSpeciesResolvesShape": 6
+    "ProjectIdentifiersAgreeShape": 2,
+    "ProjectIsAnAwardShape": 1,
+    "StudiesSpeciesResolvesShape": 6,
+    "UrlFieldsAreUrlsShape": 2
   },
   "answered": [
     "CQ01",
@@ -12,8 +15,12 @@
   ],
   "exercised": [
     "MechanismMatchesGrantNumberShape",
+    "OneClassPerNodeShape",
+    "ProjectIdentifiersAgreeShape",
+    "ProjectIsAnAwardShape",
     "ProjectRoleTokenShape",
-    "StudiesSpeciesResolvesShape"
+    "StudiesSpeciesResolvesShape",
+    "UrlFieldsAreUrlsShape"
   ],
   "isolated": 453,
   "nodes": 693

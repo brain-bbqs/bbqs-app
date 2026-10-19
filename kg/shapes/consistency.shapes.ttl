@@ -7,6 +7,7 @@
 #
 # Run:  python kg/validate.py kg/fixtures/contradictions.ttl   # expect NON-conformance (fires)
 #       python kg/validate.py kg/fixtures/clean.ttl            # expect conformance
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix bbqs:  <https://brain-bbqs.org/schema#> .
@@ -40,6 +41,19 @@ bbqs:HeldByResolvesShape
     sh:path bbqs:held_by ;
     sh:class bbqs:Investigator ;
     sh:message "ProjectRole.held_by must point at a bbqs:Investigator node (no dangling role holder)." ;
+  ] ;
+  # #6: one role edge is one person on one project. Two holders or two projects on one edge is two
+  # facts collapsed into one node. (The generated SHACL has the same maxCounts but can't fire yet, #422.)
+  sh:property [
+    sh:path bbqs:held_by ;
+    sh:maxCount 1 ;
+    sh:message "A ProjectRole has one holder; two held_by values collapse two roles into one (#6)." ;
+  ] ;
+  sh:property [
+    sh:path bbqs:on_project ;
+    sh:maxCount 1 ;
+    sh:class bbqs:Project ;
+    sh:message "A ProjectRole is on exactly one bbqs:Project (#6)." ;
   ] .
 
 # ── Invariant #5 — the two role columns must not be conflated ─────────────────
@@ -256,3 +270,78 @@ bbqs:NodeHasProvenanceShape
       }
     """ ;
   ] .
+
+# ── Invariants #1 and #3 — one node, one class ────────────────────────────────
+# Every node is exactly one resources.resource_type, and the exporter mints exactly one bbqs: class
+# per node (never a superclass as well), so a node carrying two bbqs: classes -- Investigator and
+# Project, Person and Organization -- is two things claiming one IRI. For this flat export that
+# is the whole of #3's class disjointness; the OWL axioms (owl:disjointWith) add nothing SHACL misses.
+bbqs:OneClassPerNodeShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf rdf:type ;
+  sh:sparql [
+    sh:message "This node carries two bbqs: classes; one node is one resource_type (#1, #3)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this a ?a , ?value .
+        FILTER(STRSTARTS(STR(?a), "https://brain-bbqs.org/schema#")
+            && STRSTARTS(STR(?value), "https://brain-bbqs.org/schema#")
+            && STR(?a) < STR(?value))
+      }
+    """ ;
+  ] .
+
+# ── Invariant #1 — a Project came from the grants table ───────────────────────
+# Project = Grant: a node typed Project is an NIH award, so it carries its grant_number. One
+# without it is a resources row typed `grant` that no grants row backs (e.g. a data standard filed
+# as a grant): its type disagrees with the table it came from.
+bbqs:ProjectIsAnAwardShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:property [
+    sh:path bbqs:grant_number ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "A Project is one NIH award: it needs exactly one grant_number; this one has no grants row behind it (#1)." ;
+  ] .
+
+# ── Invariant #20 — every award identifier on a Project names the same award ──
+# grant_number is the authority. The spine's name, reporter_project_num, nih_link and external_url
+# also carry an award number (core form: activity code + IC + serial, e.g. U24DA064429); when one
+# names a different award -- a renumbering that updated grants but not resources -- the node says
+# two things about which award it is. Values with no award number in them (a title) are skipped.
+bbqs:ProjectIdentifiersAgreeShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:sparql [
+    sh:message "This value names a different award than grant_number (#20)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:grant_number ?gn .
+        $this ?p ?value .
+        FILTER(?p IN (bbqs:name, bbqs:reporter_project_num, bbqs:nih_link, bbqs:external_url))
+        FILTER(REGEX(STR(?value), "[A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6}"))
+        BIND(REPLACE(STR(?gn),    "^.*?([A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6}).*$", "$1") AS ?core)
+        BIND(REPLACE(STR(?value), "^.*?([A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6}).*$", "$1") AS ?vcore)
+        FILTER(?vcore != ?core)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #10 (URLs) — a URL-typed field holds a URL ─────────────────────
+# These slots are uriorcurie in the schema and xsd:anyURI in the export: one URI (any scheme,
+# mailto: included) with no spaces. Two links joined by " ; " or a sentence in place of a link
+# contradicts the declared type.
+bbqs:UrlFieldsAreUrlsShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf bbqs:external_url , bbqs:nih_link , bbqs:website , bbqs:homepage_url ;
+  sh:property [ sh:path bbqs:external_url ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
+                sh:message "external_url is not a single URL (#10)." ] ;
+  sh:property [ sh:path bbqs:nih_link ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
+                sh:message "nih_link is not a single URL (#10)." ] ;
+  sh:property [ sh:path bbqs:website ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
+                sh:message "website is not a single URL (#10)." ] ;
+  sh:property [ sh:path bbqs:homepage_url ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
+                sh:message "homepage_url is not a single URL (#10)." ] .

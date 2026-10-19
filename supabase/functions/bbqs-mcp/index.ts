@@ -57,7 +57,8 @@ const CURATOR_TOOLS = new Set([
   "onboarding_status", "recent_onboardings", "find_person", "whois", "list_admins", "kg_query",
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
-  "create_grant", "repoint_grant", "detect_grant_renumbers",
+  "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
+  "add_resource",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -489,6 +490,22 @@ function buildServer(jwt: string, caller: Caller | null) {
       })),
   });
 
+  T("confirm_species_candidate", {
+    description: "[curator] Confirm a project's species from its species candidates -- for a project whose study_species holds a category or placeholder ('Rodents', 'Freely moving animals'). Each candidate comes from the grant abstract with the quote that supports it (the species_candidates table; list_species shows them). Writes projects.study_species and records provenance in your name with that quote. replace=false ADDS the species, for a project that studies more than one (predator and prey; flies and fish). THE tool for \"set this project's species\" -- do not write SQL.",
+    parameters: obj({
+      grant_number: { type: "string", description: "core grant number, e.g. R34DA059512" },
+      candidate: { type: "string", description: "the candidate exactly as listed, e.g. Mus musculus" },
+      replace: { type: "boolean", description: "true (default) replaces study_species; false adds to it" },
+    }, ["grant_number", "candidate"]),
+    handler: async (a: { grant_number: string; candidate: string; replace?: boolean | string }) =>
+      text(await rpcC("confirm_species_candidate", {
+        _grant_number: a.grant_number,
+        _candidate: a.candidate,
+        // MCP clients sometimes send booleans as strings; only an explicit false adds instead of replacing.
+        _replace: !(a.replace === false || a.replace === "false"),
+      })),
+  });
+
   T("detect_grant_renumbers", {
     description: "[curator] Find grants that silently froze because the award was RENUMBERED — e.g. an NIH administering-IC transfer that mints a new core number (#385). Cross-checks RePORTER: for each grant whose latest fiscal year is stale (2+ years behind), it looks for the same title/PI under a NEWER, DIFFERENT number and reports it as a probable renumber, with the exact repoint_grant call to run. REPORT ONLY — review each candidate and run repoint_grant to confirm. Good to run periodically or when a grant looks out of date.",
     parameters: obj({ stale_years: { type: "number", description: "flag grants whose latest RePORTER year is this many years behind (default 2)" } }),
@@ -530,6 +547,71 @@ function buildServer(jwt: string, caller: Caller | null) {
         headers: { Prefer: "return=representation,resolution=merge-duplicates" },
         body: JSON.stringify(body),
       }));
+    },
+  });
+
+  // Category → resources.resource_type. The display category itself lives in metadata.category,
+  // which is what the Resources page filters on (useResources → mapDbToResource).
+  const RESOURCE_CATEGORY_TYPE: Record<string, string> = {
+    Software: "software", Libraries: "software", "ML Models": "ml_model",
+    Datasets: "dataset", Benchmarks: "benchmark", Protocols: "protocol",
+  };
+
+  T("add_resource", {
+    description: "[curator] Add a tool/library/model/dataset/benchmark/protocol to the public Resources page. name + category required. Matches an existing row by name (case-insensitive) and fills only the fields you pass, so re-running never duplicates. THE tool for \"add X to the resources page\" — never fall back to SQL.",
+    parameters: obj({
+      name: { type: "string" },
+      category: { type: "string", enum: Object.keys(RESOURCE_CATEGORY_TYPE) },
+      url: { type: "string", description: "Homepage or docs URL" },
+      description: { type: "string", description: "One line: what it does" },
+      repo_url: { type: "string" },
+      version: { type: "string" },
+      computational: { type: "string", description: "Methods/algorithms it implements" },
+      neural_network_architecture: { type: "string" },
+      ml_pipeline: { type: "string" },
+      implementation: { type: "string", description: "Language/framework, e.g. 'Python (JAX)'" },
+      species: { type: "string" },
+      containerized: { type: "boolean" },
+    }, ["name", "category"]),
+    handler: async (a: Record<string, any>) => {
+      const resource_type = RESOURCE_CATEGORY_TYPE[a.category];
+      if (!resource_type) throw new Error(`category must be one of: ${Object.keys(RESOURCE_CATEGORY_TYPE).join(", ")}`);
+      const meta: Record<string, unknown> = { category: a.category };
+      const metaKeys: Record<string, string> = {
+        repo_url: "repoUrl", version: "version", description: "algorithm", computational: "computational",
+        neural_network_architecture: "neuralNetworkArchitecture", ml_pipeline: "mlPipeline",
+        implementation: "implementation", species: "species", containerized: "containerized",
+      };
+      for (const [k, m] of Object.entries(metaKeys)) if (a[k] != null) meta[m] = a[k];
+      // Clients may send booleans as strings; the page reads `containerized || false`, so "false" would
+      // render as containerized.
+      if (meta.containerized != null) meta.containerized = meta.containerized === true || meta.containerized === "true";
+
+      const name = String(a.name).trim();
+      const existing = await restC(
+        `resources?select=id,metadata,description,external_url&name=ilike.${encodeURIComponent(name.replace(/[%_*]/g, ""))}&limit=1`);
+      if (Array.isArray(existing) && existing.length) {
+        const row = existing[0];
+        const patch: Record<string, unknown> = { metadata: { ...(row.metadata ?? {}), ...meta } };
+        if (a.url != null) patch.external_url = a.url;
+        if (a.description != null) patch.description = a.description;
+        const rows = await restC(`resources?id=eq.${row.id}`, {
+          method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
+        });
+        // RLS filters a forbidden UPDATE to zero rows instead of erroring; say so rather than "updated".
+        if (!Array.isArray(rows) || !rows.length) {
+          throw new Error(`"${name}" exists (id ${row.id}) but RLS did not let this account update it; nothing changed.`);
+        }
+        return text({ action: "updated", rows });
+      }
+      if (!("mcpStatus" in meta)) meta.mcpStatus = "not-started";
+      return text({ action: "inserted", rows: await restC("resources", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          name, resource_type, description: a.description ?? null, external_url: a.url ?? null, metadata: meta,
+        }),
+      }) });
     },
   });
 

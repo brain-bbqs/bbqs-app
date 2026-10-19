@@ -53,7 +53,9 @@ def commit_stamp() -> str:
     try:
         sha = subprocess.run(["git", "rev-parse", "--short=8", "HEAD"], cwd=HERE, capture_output=True,
                              text=True, check=True).stdout.strip()
-        dirty = subprocess.run(["git", "status", "--porcelain", "--", "."], cwd=HERE, capture_output=True,
+        # The report's own outputs don't count: rebuilding them is what dirties them.
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", ".", ":!browser/index.html",
+                                ":!export/quality.json"], cwd=HERE, capture_output=True,
                                text=True).stdout.strip()
         return f"{sha} + uncommitted kg/ changes" if dirty else sha
     except (OSError, subprocess.CalledProcessError):
@@ -95,6 +97,12 @@ class KGQuality:
     # ---- structure -------------------------------------------------------------------------------
 
     def label(self, node) -> str:
+        if self.types.get(node) == "Project":
+            # resources.name holds the grant number on some projects and the title on others, so
+            # label every project the same way from the award facts instead.
+            gn = self.graph.value(node, BBQS.grant_number)
+            title = self.graph.value(node, BBQS.title) or self.graph.value(node, BBQS.name)
+            return f"{gn or 'No grant number'} · {title or local(node)}"
         for p in LABEL_PREDICATES:
             v = self.graph.value(node, BBQS[p])
             if v is not None:
@@ -219,7 +227,11 @@ class KGQuality:
             if isinstance(shape, BNode):
                 continue
             target = sg.value(shape, SH.targetClass)
-            targets = sum(1 for _ in self.graph.subjects(RDF.type, target)) if target else 0
+            subjects_of = sorted(sg.objects(shape, SH.targetSubjectsOf), key=str)
+            if target is not None:
+                targets = sum(1 for _ in self.graph.subjects(RDF.type, target))
+            else:
+                targets = len({s for p in subjects_of for s in self.graph.subjects(p, None)})
             terms = set()
             for ps in sg.objects(shape, SH.property):
                 path = sg.value(ps, SH.path)
@@ -231,7 +243,8 @@ class KGQuality:
             missing = sorted(t for t in terms if not self._present(t))
             out.append({
                 "shape": local(shape),
-                "target_class": local(target) if target else None,
+                "target_class": local(target) if target is not None else (
+                    "subjects of " + ", ".join(local(p) for p in subjects_of) if subjects_of else None),
                 "targets": targets,
                 "checks": sorted(terms),
                 "missing_inputs": missing,
