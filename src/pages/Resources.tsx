@@ -46,6 +46,15 @@ const INITIAL_RESOURCE_FORM: ResourceForm = {
 const CATEGORIES = ["All", "Software", "Libraries", "ML Models", "Datasets", "Benchmarks", "Protocols"] as const;
 type Category = typeof CATEGORIES[number];
 
+const CATEGORY_TO_RESOURCE_TYPE: Record<string, "software" | "ml_model" | "dataset" | "benchmark" | "protocol"> = {
+  Software: "software",
+  Libraries: "software",
+  "ML Models": "ml_model",
+  Datasets: "dataset",
+  Benchmarks: "benchmark",
+  Protocols: "protocol",
+};
+
 const categoryColors: Record<string, string> = {
   Software:    "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Libraries:   "bg-sky-500/20 text-sky-400 border-sky-500/30",
@@ -120,11 +129,15 @@ const Resources = () => {
     }
     setIsSubmitting(true);
     try {
-      const { error } = await (supabase as any).from("resources").insert({
+      // resources has no category/algorithm/url columns: the type is an enum and the display
+      // category lives in metadata (see mapDbToResource in useResources).
+      const description = form.algorithm.trim() || null;
+      const { error } = await supabase.from("resources").insert({
         name: form.name.trim(),
-        category: form.category,
-        algorithm: form.algorithm.trim() || null,
-        url: form.url.trim() || null,
+        resource_type: CATEGORY_TO_RESOURCE_TYPE[form.category],
+        description,
+        external_url: form.url.trim() || null,
+        metadata: { category: form.category, algorithm: description },
       });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["resources"] });
