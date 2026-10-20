@@ -58,7 +58,7 @@ const CURATOR_TOOLS = new Set([
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
   "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
-  "add_resource",
+  "add_resource", "set_suggestion_status",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -512,6 +512,23 @@ function buildServer(jwt: string, caller: Caller | null) {
     handler: async (a: { stale_years?: number }) => {
       const q = a.stale_years ? `?action=detect-renumbers&stale_years=${a.stale_years}` : "?action=detect-renumbers";
       return text(await callFunction(jwt, `nih-grants${q}`, {}));
+    },
+  });
+
+  T("set_suggestion_status", {
+    description: "[curator] Set the open/closed status of Suggest-a-Feature entries, by their GitHub issue number. The /suggest-feature page shows this stored status whenever it can't get the issue's live state from GitHub, so set it to match the issue after closing or reopening one. THE tool for \"mark these suggestions closed\" — do not write SQL.",
+    parameters: obj({
+      issue_numbers: { type: "array", items: { type: "number" }, description: "GitHub issue numbers, e.g. [194, 195]" },
+      status: { type: "string", enum: ["open", "closed"] },
+    }, ["issue_numbers", "status"]),
+    handler: async (a: { issue_numbers: unknown; status: string }) => {
+      const nums = coerceArray(a.issue_numbers).map(Number).filter(Number.isInteger);
+      if (!nums.length) throw new Error("issue_numbers must contain at least one issue number");
+      if (a.status !== "open" && a.status !== "closed") throw new Error("status must be open or closed");
+      return text(await restC(
+        `feature_suggestions?github_issue_number=in.(${nums.join(",")})&select=github_issue_number,title,status`,
+        { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: a.status }) },
+      ));
     },
   });
 
