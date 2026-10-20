@@ -1,0 +1,223 @@
+{
+ "generated_at": "2026-10-20T19:08:48.239Z",
+ "project": {
+  "title": "BBQS Project Dev Board",
+  "url": "https://github.com/orgs/brain-bbqs/projects/6",
+  "public": false
+ },
+ "phases": [
+  {
+   "number": 386,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/386",
+   "title": "Knowledge Graph v1",
+   "status": "In progress",
+   "start": "2026-09-21",
+   "target": "2026-10-31",
+   "done_when": "All four milestones are done: changes checked automatically, known data errors fixed, graph matches the database, anyone can browse it and get answers.",
+   "what": "One connected, checked map of everything in the BBQS database: people, projects, institutions, working groups, species, datasets and tools. Anyone can browse it on the website.",
+   "now": null,
+   "progress": {
+    "completed": 1,
+    "total": 4,
+    "percent": 25
+   },
+   "closed_at": null,
+   "milestones": [
+    {
+     "number": 449,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/449",
+     "title": "Changes are checked automatically",
+     "status": "Done",
+     "start": "2026-09-21",
+     "target": "2026-09-30",
+     "done_when": "Every change to the graph runs the automatic checks, and a reviewer must approve changes to it.",
+     "what": "Nothing can quietly break the knowledge graph: every change is checked before it lands.",
+     "now": "Done (2026-09-30). The checks run on every change, and the knowledge-graph files need the owner's review.",
+     "progress": {
+      "completed": 3,
+      "total": 3,
+      "percent": 100
+     },
+     "closed_at": "2026-10-20T17:22:01Z"
+    },
+    {
+     "number": 450,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/450",
+     "title": "Known data errors are fixed",
+     "status": "In progress",
+     "start": "2026-09-29",
+     "target": "2026-10-24",
+     "done_when": "The graph's consistency checks report 0 errors.",
+     "what": "The facts the checks flagged as wrong are corrected at the source: six projects get real species, BARD.CC its current award number, Psych-DS is filed as a standard, and a duplicate person record is merged.",
+     "now": null,
+     "progress": {
+      "completed": 0,
+      "total": 4,
+      "percent": 0
+     },
+     "closed_at": null,
+     "measures": [
+      {
+       "label": "Consistency errors",
+       "value": "11",
+       "goal": "0"
+      }
+     ]
+    },
+    {
+     "number": 451,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/451",
+     "title": "The graph matches the database",
+     "status": "In progress",
+     "start": "2026-09-30",
+     "target": "2026-10-31",
+     "done_when": "At least 95% of the database's facts are in the graph, and fewer than 10% of records are unconnected.",
+     "what": "Every person, project, institution, working group, dataset and tool is in the graph and connected the way the database says, so the database could be rebuilt from it.",
+     "now": null,
+     "progress": {
+      "completed": 0,
+      "total": 3,
+      "percent": 0
+     },
+     "closed_at": null,
+     "measures": [
+      {
+       "label": "Database facts carried in the graph",
+       "value": "63%",
+       "goal": "95% or more"
+      },
+      {
+       "label": "Records not connected to anything",
+       "value": "65%",
+       "goal": "under 10%"
+      }
+     ]
+    },
+    {
+     "number": 452,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/452",
+     "title": "Anyone can browse it and get answers",
+     "status": "In progress",
+     "start": "2026-09-29",
+     "target": "2026-10-31",
+     "done_when": "The browsable page is live and refreshed daily, and at least 15 of the 19 standard questions get an answer.",
+     "what": "A page on brain-bbqs.org shows the graph and how complete it is, and the graph answers the everyday questions people ask about BBQS.",
+     "now": null,
+     "progress": {
+      "completed": 1,
+      "total": 2,
+      "percent": 50
+     },
+     "closed_at": null,
+     "measures": [
+      {
+       "label": "Standard questions the graph answers",
+       "value": "6 of 19",
+       "goal": "15 of 19"
+      }
+     ]
+    }
+   ],
+   "measures": [
+    {
+     "label": "Database facts carried in the graph",
+     "value": "63%",
+     "goal": "95% or more"
+    },
+    {
+     "label": "Records not connected to anything",
+     "value": "65%",
+     "goal": "under 10%"
+    },
+    {
+     "label": "Standard questions the graph answers",
+     "value": "6 of 19",
+     "goal": "15 of 19"
+    },
+    {
+     "label": "Consistency errors",
+     "value": "11",
+     "goal": "0"
+    }
+   ]
+  },
+  {
+   "number": 456,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/456",
+   "title": "Website and community",
+   "status": "In progress",
+   "done_when": "Ongoing.",
+   "what": "The public website and the processes around it: what the community can see, how work is tracked, and how progress is reported.",
+   "now": null,
+   "progress": {
+    "completed": 0,
+    "total": 6,
+    "percent": 0
+   },
+   "closed_at": null,
+   "milestones": []
+  },
+  {
+   "number": 454,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/454",
+   "title": "Community content: publications, resources, datasets",
+   "status": "Todo",
+   "done_when": "Milestones to be defined.",
+   "what": "Bringing BBQS publications, resources and datasets into one place the community can use, built on the knowledge graph.",
+   "now": null,
+   "progress": {
+    "completed": 0,
+    "total": 1,
+    "percent": 0
+   },
+   "closed_at": null,
+   "milestones": []
+  },
+  {
+   "number": 455,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/455",
+   "title": "BBQS assistant answers from the knowledge graph",
+   "status": "Todo",
+   "done_when": "Milestones to be defined.",
+   "what": "The BBQS assistant and its tools answer questions from the knowledge graph's checked facts, with the source of each answer.",
+   "now": null,
+   "progress": {
+    "completed": 0,
+    "total": 1,
+    "percent": 0
+   },
+   "closed_at": null,
+   "milestones": []
+  },
+  {
+   "number": 453,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/453",
+   "title": "Knowledge Graph v2 (later)",
+   "status": "Todo",
+   "done_when": "To be defined once Knowledge Graph v1 is done.",
+   "what": "Work that improves the graph but is deliberately not part of v1, so that v1 can close: device and sensor detail (SOSA, including the workshop's sensor registry and PR #433, paused), more consistency checks, and schema housekeeping.",
+   "now": null,
+   "progress": {
+    "completed": 0,
+    "total": 4,
+    "percent": 0
+   },
+   "closed_at": null,
+   "milestones": []
+  }
+ ],
+ "not_on_roadmap": [],
+ "milestones": {
+  "total": 4,
+  "done": 1
+ }
+}

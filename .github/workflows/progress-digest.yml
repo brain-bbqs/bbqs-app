@@ -61,6 +61,6 @@ jobs:
           if [ -z "$SLACK_WEBHOOK" ]; then echo "SLACK_PROGRESS_WEBHOOK is not set; not posting."; exit 0; fi
           node -e '
             const md = require("fs").readFileSync("out/progress.md", "utf8");
-            const text = md.length > 3500 ? md.slice(0, 3500) + "\n…full digest: https://brain-bbqs.org/progress/" : md;
+            const text = md.length > 3500 ? md.slice(0, 3500) + "\n…full report: https://brain-bbqs.org/progress" : md;
             fetch(process.env.SLACK_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text }) }).then(r => { if (!r.ok) { console.error(r.status); process.exit(1); } });'

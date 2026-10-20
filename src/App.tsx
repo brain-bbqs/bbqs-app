@@ -21,7 +21,7 @@ import MITWorkshopPosters from "./pages/MITWorkshopPosters";
 import WorkingGroups from "./pages/WorkingGroups";
 import Resources from "./pages/Resources";
 import Announcements from "./pages/Announcements";
-import Roadmap from "./pages/Roadmap";
+import ProgressPage from "./pages/Progress";
 import Auth from "./pages/Auth";
 import OAuthConsent from "./pages/OAuthConsent";
 import Publications from "./pages/Publications";
@@ -89,7 +89,8 @@ const App = () => (
               <Route path="/resources/devices" element={<Devices />} />
               <Route path="/resources/devices/graph" element={<DevicesGraph />} />
               <Route path="/announcements" element={<Announcements />} />
-              <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/progress" element={<ProgressPage />} />
+              <Route path="/roadmap" element={<Navigate to="/progress" replace />} />
               <Route path="/data-model" element={<DataModel />} />
               {/* Internal/WIP: admin-gated while the KG schema migration is in progress.
                   ProtectedRoute removes public (anon) access; the page also checks isAdmin. */}

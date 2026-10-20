@@ -31,3 +31,6 @@ playwright-report
 # Supabase CLI scratch: project ref, pooler URL, version pins for the linked project.
 # Machine-local and it leaks the connection string.
 supabase/.temp/
+
+# The weekly digest the progress builder writes next to its JSON snapshot; only the JSON is served.
+public/data/progress.md

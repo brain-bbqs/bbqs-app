@@ -53,6 +53,7 @@ export interface NavGroup {
 const mainItems: NavItem[] = [
   { title: "Home", url: "/", icon: Home },
   { title: "About", url: "/about", icon: Info },
+  { title: "Progress", url: "/progress", icon: Map },
   { title: "Settings", url: "/settings", icon: Settings, authRequired: true },
   { title: "BBQS Agent", url: "https://agent.brain-bbqs.org", icon: Bot, external: true },
   { title: "My Dashboard", url: "/dashboard", icon: LayoutDashboard, authRequired: true },
@@ -107,7 +108,6 @@ const conferencesItems: NavItem[] = [
 // like tier 1, but AppSidebar resolves it as `isAdmin || isCurator` — tier 1 AND 2 — which is the
 // intended audience here. Suggest a Feature stays open deliberately: it is the consortium's way in.
 const engineeringItems: NavItem[] = [
-  { title: "Roadmap", url: "/roadmap", icon: Map, adminOnly: true },
   { title: "Data Model", url: "/data-model", icon: Database, adminOnly: true },
   { title: "BBQS Schema", url: "/schema", icon: Database, adminOnly: true },
   { title: "Suggest a Feature", url: "/suggest-feature", icon: Lightbulb },

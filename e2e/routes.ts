@@ -13,7 +13,7 @@ export const PUBLIC_ROUTES = [
   "/resources",
   "/resources/devices",
   "/announcements",
-  "/roadmap",
+  "/progress",
   "/data-model",
   "/schema",
   "/auth",
