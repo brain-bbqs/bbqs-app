@@ -1,17 +1,14 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { useUserTier } from "@/hooks/useUserTier";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Lightbulb, Loader2, Send, Search } from "lucide-react";
 import { format } from "date-fns";
@@ -20,7 +17,6 @@ import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "@/styles/ag-grid-theme.css";
-import { PipelineBar } from "@/components/suggestions/PipelineBar";
 
 interface Suggestion {
   id: string;
@@ -31,31 +27,17 @@ interface Suggestion {
   github_issue_number: number | null;
   github_issue_url: string | null;
   status: string;
-  qa_status: string | null;
   target_version: string | null;
   created_at: string;
 }
 
-const QA_STAGES = ["submitted", "triage", "in-qa", "approved", "merged", "declined"] as const;
-
-const QA_VARIANT: Record<string, "secondary" | "outline" | "default" | "destructive"> = {
-  submitted: "secondary",
-  triage: "secondary",
-  "in-qa": "outline",
-  approved: "default",
-  merged: "default",
-  declined: "destructive",
-};
-
 export default function FeatureSuggestions() {
   const { user } = useAuth();
-  const { isCurator } = useUserTier();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [githubUsername, setGithubUsername] = useState("");
   const [search, setSearch] = useState("");
-  const [qaFilter, setQaFilter] = useState<string>("all");
 
   const { data: suggestions = [], isLoading } = useQuery<Suggestion[]>({
     queryKey: ["feature-suggestions"],
@@ -122,36 +104,19 @@ export default function FeatureSuggestions() {
     onError: (err: any) => toast.error(err.message || "Failed to submit suggestion"),
   });
 
-  const trackingMutation = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"feature_suggestions"> }) => {
-      const { error } = await supabase.from("feature_suggestions").update(patch).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Tracking updated");
-      queryClient.invalidateQueries({ queryKey: ["feature-suggestions"] });
-    },
-    onError: (err: any) => toast.error(err.message || "Could not update tracking"),
-  });
-
-  // Effective QA stage: a curator's manual qa_status wins; otherwise it's derived from the live
-  // issue lifecycle (closed -> merged, open -> submitted), so the stage tracks reality instead of
-  // sitting at "submitted" forever.
   const isClosed = (s: Suggestion) => {
     const live = s.github_issue_number != null ? liveIssueStatus?.get(s.github_issue_number) : undefined;
     return (live ?? s.status) === "closed";
   };
-  const stageOf = (s: Suggestion) => s.qa_status || (isClosed(s) ? "merged" : "submitted");
 
-  const filtered = useMemo(() => {
-    const rows = suggestions.filter((s) => (qaFilter === "all" ? true : stageOf(s) === qaFilter));
+  const sorted = useMemo(() => {
     // Closed issues sink to the bottom; newest first within each group.
-    return [...rows].sort((a, b) => {
+    return [...suggestions].sort((a, b) => {
       const ca = isClosed(a) ? 1 : 0;
       const cb = isClosed(b) ? 1 : 0;
       return ca - cb || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [suggestions, qaFilter, liveIssueStatus]);
+  }, [suggestions, liveIssueStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,6 +140,7 @@ export default function FeatureSuggestions() {
     {
       headerName: "GitHub ID",
       field: "github_username",
+      hide: true,
       width: 130,
       cellRenderer: (p: ICellRendererParams) =>
         p.value ? (
@@ -215,26 +181,12 @@ export default function FeatureSuggestions() {
       },
     },
     {
-      headerName: "QA stage",
-      field: "qa_status",
-      width: 210,
-      editable: isCurator,
-      cellEditor: "agSelectCellEditor",
-      cellEditorParams: { values: QA_STAGES },
-      // Sort by the effective stage (mirrors PipelineBar below), not the raw nullable
-      // `qa_status` field, so sorting matches what's displayed (issue #382).
-      valueGetter: (p) => stageOf(p.data as Suggestion),
-      cellRenderer: (p: ICellRendererParams) => (
-        <PipelineBar stage={p.value as string} />
-      ),
-    },
-    {
       headerName: "Submitted",
       field: "created_at",
       width: 130,
       valueFormatter: (p) => (p.value ? format(new Date(p.value), "MMM d, yyyy") : "—"),
     },
-  ], [isCurator, liveIssueStatus]);
+  ], [liveIssueStatus]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: true,
@@ -252,7 +204,7 @@ export default function FeatureSuggestions() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Suggest a Feature</h1>
           <p className="text-sm text-muted-foreground">
-            Suggest an improvement — each suggestion becomes a tracked GitHub issue with a live status and QA stage
+            Suggest an improvement — each suggestion becomes a tracked GitHub issue with a live status
           </p>
         </div>
       </div>
@@ -263,18 +215,11 @@ export default function FeatureSuggestions() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Search suggestions, person, GitHub ID, issue #..."
+            placeholder="Search suggestions, person, issue #..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={qaFilter} onValueChange={setQaFilter}>
-          <SelectTrigger className="w-[170px]"><SelectValue placeholder="QA stage" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All QA stages</SelectItem>
-            {QA_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
       </div>
 
       {isLoading ? (
@@ -284,7 +229,7 @@ export default function FeatureSuggestions() {
       ) : (
         <div className="ag-theme-alpine rounded-lg border border-border overflow-x-auto" style={{ width: "100%" }}>
           <AgGridReact<Suggestion>
-            rowData={filtered}
+            rowData={sorted}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             quickFilterText={search}
@@ -295,13 +240,6 @@ export default function FeatureSuggestions() {
             headerHeight={40}
             pagination={true}
             paginationPageSize={25}
-            onCellValueChanged={(e) => {
-              if (!isCurator || e.colDef.field !== "qa_status") return;
-              trackingMutation.mutate({
-                id: (e.data as Suggestion).id,
-                patch: { qa_status: (e.newValue as string)?.trim() || null },
-              });
-            }}
           />
         </div>
       )}
