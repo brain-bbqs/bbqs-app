@@ -120,7 +120,7 @@ function node(item) {
   const c = item.content, s = c.subIssuesSummary || { total: 0, completed: 0, percentCompleted: 0 };
   return {
     number: c.number, repo: c.repository.nameWithOwner, url: c.url,
-    title: c.title.replace(/^KG v\d+ · \d+\.\s*/, ""),      // milestones carry their phase in the title for the board
+    title: c.title.replace(/^[^·]{1,24} · \d+\.\s*/, ""),   // "KG v1 · 2. ", "MCP · 1. ": the board's phase prefix
     status: status(item, c), ...dates(c),
     done_when: item.doneWhen?.text || section(c.body, "Done when"),
     what: section(c.body, "What it is") || section(c.body, "Outcome"),

@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-20T19:08:48.239Z",
+ "generated_at": "2026-10-20T19:37:49.443Z",
  "project": {
   "title": "BBQS Project Dev Board",
   "url": "https://github.com/orgs/brain-bbqs/projects/6",
@@ -147,6 +147,72 @@
    ]
   },
   {
+   "number": 455,
+   "repo": "brain-bbqs/bbqs-app",
+   "url": "https://github.com/brain-bbqs/bbqs-app/issues/455",
+   "title": "BBQS MCP: answers and data fixes through the knowledge graph",
+   "status": "In progress",
+   "done_when": "Its three milestones are done: answers come from the knowledge graph, curators make data fixes through it, members can connect and use it.",
+   "what": "The BBQS MCP server is how the BBQS assistant, and any AI tool a member connects, reads and updates BBQS data. This phase makes it answer from the knowledge graph's checked facts, with the source of each answer, gives curators a tool for every routine data fix, and documents it so members can use it.",
+   "now": null,
+   "progress": {
+    "completed": 0,
+    "total": 3,
+    "percent": 0
+   },
+   "closed_at": null,
+   "milestones": [
+    {
+     "number": 461,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/461",
+     "title": "Answers come from the knowledge graph",
+     "status": "Todo",
+     "done_when": "The MCP's knowledge-graph tools answer the standard questions with the same results the graph's own checks get, and every answer carries its source.",
+     "what": "Questions asked through the BBQS MCP are answered from the knowledge graph's checked facts, and each answer says where it came from.",
+     "now": "Planned. The design is in #438.",
+     "progress": {
+      "completed": 0,
+      "total": 1,
+      "percent": 0
+     },
+     "closed_at": null
+    },
+    {
+     "number": 462,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/462",
+     "title": "Curators make data fixes through it",
+     "status": "In progress",
+     "done_when": "Each routine kind of data fix has an MCP curator tool.",
+     "what": "Every routine data fix (a project's species, a renumbered award, a resource, a duplicate person) is made through an MCP tool that records who changed what, never by hand-written SQL.",
+     "now": "Tools exist for renumbered awards, species and resources; merging duplicate people and changing a resource's type are still missing.",
+     "progress": {
+      "completed": 0,
+      "total": 1,
+      "percent": 0
+     },
+     "closed_at": null
+    },
+    {
+     "number": 463,
+     "repo": "brain-bbqs/bbqs-app",
+     "url": "https://github.com/brain-bbqs/bbqs-app/issues/463",
+     "title": "Members can connect and use it",
+     "status": "Todo",
+     "done_when": "The MCP docs and tutorial list every tool and its access level, and a check keeps them in step with the server.",
+     "what": "A member can connect the BBQS MCP to their AI tool and know what each tool does and who may use it.",
+     "now": "Docs exist but are not checked against the server's tool list.",
+     "progress": {
+      "completed": 0,
+      "total": 1,
+      "percent": 0
+     },
+     "closed_at": null
+    }
+   ]
+  },
+  {
    "number": 456,
    "repo": "brain-bbqs/bbqs-app",
    "url": "https://github.com/brain-bbqs/bbqs-app/issues/456",
@@ -181,23 +247,6 @@
    "milestones": []
   },
   {
-   "number": 455,
-   "repo": "brain-bbqs/bbqs-app",
-   "url": "https://github.com/brain-bbqs/bbqs-app/issues/455",
-   "title": "BBQS assistant answers from the knowledge graph",
-   "status": "Todo",
-   "done_when": "Milestones to be defined.",
-   "what": "The BBQS assistant and its tools answer questions from the knowledge graph's checked facts, with the source of each answer.",
-   "now": null,
-   "progress": {
-    "completed": 0,
-    "total": 1,
-    "percent": 0
-   },
-   "closed_at": null,
-   "milestones": []
-  },
-  {
    "number": 453,
    "repo": "brain-bbqs/bbqs-app",
    "url": "https://github.com/brain-bbqs/bbqs-app/issues/453",
@@ -217,7 +266,7 @@
  ],
  "not_on_roadmap": [],
  "milestones": {
-  "total": 4,
+  "total": 7,
   "done": 1
  }
 }
