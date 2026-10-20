@@ -99,6 +99,7 @@ const conferencesItems: NavItem[] = [
       { title: "Poster Sessions", url: "/mit-workshop-2026/posters", icon: Presentation, authRequired: true },
     ],
   },
+  { title: "SFN 2026", url: "/sfn-2026", icon: Calendar },
   { title: "SFN 2025", url: "/sfn-2025", icon: Calendar },
 ];
 
