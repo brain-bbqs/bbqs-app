@@ -1,0 +1,66 @@
+name: Weekly progress digest
+
+# The plain-language weekly digest (scripts/progress/), built from the org project board: phases ->
+# milestones -> work, with the KG measures taken from a fresh anon export. Lands in the run summary
+# and as an artifact; also posted to Slack when SLACK_PROGRESS_WEBHOOK is set. Needs the
+# PROJECT_READ_TOKEN secret (Projects: read): GITHUB_TOKEN cannot read org projects.
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: kg/requirements*.txt
+
+      - name: Fresh KG measures (anon)
+        continue-on-error: true
+        env:
+          SUPABASE_KEY: ""
+        run: |
+          pip install -r kg/requirements.txt
+          python kg/export.py /tmp/live.ttl
+          python kg/quality.py /tmp/live.ttl --json /tmp/quality.json --html /tmp/inspector.html
+          python kg/roundtrip.py /tmp/live.ttl --json /tmp/roundtrip.json
+
+      - name: Build the digest
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::Set the PROJECT_READ_TOKEN secret (Projects: read)."; exit 1; fi
+          q=/tmp/quality.json; [ -f "$q" ] || q=kg/export/quality.json
+          r=/tmp/roundtrip.json; [ -f "$r" ] || r=kg/export/roundtrip.json
+          node scripts/progress/build-progress.mjs --out-dir out --quality "$q" --roundtrip "$r"
+          cat out/progress.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: progress
+          path: out/
+
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_PROGRESS_WEBHOOK }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then echo "SLACK_PROGRESS_WEBHOOK is not set; not posting."; exit 0; fi
+          node -e '
+            const md = require("fs").readFileSync("out/progress.md", "utf8");
+            const text = md.length > 3500 ? md.slice(0, 3500) + "\n…full digest: https://brain-bbqs.org/progress/" : md;
+            fetch(process.env.SLACK_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text }) }).then(r => { if (!r.ok) { console.error(r.status); process.exit(1); } });'
