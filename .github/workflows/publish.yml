@@ -83,18 +83,19 @@ jobs:
           python kg/quality.py "$data" --source "$src" --json /tmp/quality.json --html dist/kg/inspector/index.html
           python kg/roundtrip.py "$data" --json /tmp/roundtrip.json || true
 
-      # Progress page -> dist/progress/ (scripts/progress/). Built from the org project board, which
-      # GITHUB_TOKEN cannot read: needs the PROJECT_READ_TOKEN secret (Projects: read). Skips without
-      # it, and never blocks the site deploy.
-      - name: Build progress page
+      # Progress data -> dist/data/progress.json, read by the site's /progress page (scripts/progress/).
+      # Built from the org project board, which GITHUB_TOKEN cannot read: needs the PROJECT_READ_TOKEN
+      # secret (Projects: read). Without it the committed snapshot in public/data/ is served; it never
+      # blocks the site deploy.
+      - name: Build progress data
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.PROJECT_READ_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then echo "::notice::PROJECT_READ_TOKEN is not set; skipping /progress"; exit 0; fi
           node scripts/progress/build-progress.mjs --out-dir /tmp/progress \
-            --quality /tmp/quality.json --roundtrip /tmp/roundtrip.json --html dist/progress/index.html
-          cp /tmp/progress/progress.json dist/progress/progress.json
+            --quality /tmp/quality.json --roundtrip /tmp/roundtrip.json
+          mkdir -p dist/data && cp /tmp/progress/progress.json dist/data/progress.json
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

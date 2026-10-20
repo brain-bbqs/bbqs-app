@@ -29,6 +29,7 @@ const PAGES: SearchablePage[] = [
   { title: "Working Groups", path: "/working-groups", keywords: ["working", "groups", "committees", "teams"], section: "Community" },
   { title: "Announcements", path: "/announcements", keywords: ["announcements", "news", "updates"], section: "Community" },
 
+  { title: "SFN 2026", path: "/sfn-2026", keywords: ["sfn", "2026", "conference", "neuroscience", "poster"], section: "Conferences" },
   { title: "SFN 2025", path: "/sfn-2025", keywords: ["sfn", "2025", "conference", "neuroscience", "poster"], section: "Conferences" },
 
   { title: "Data Sharing Policy", path: "/data-sharing-policy", keywords: ["data", "sharing", "policy", "legal", "compliance"], section: "Documentation" },
@@ -36,7 +37,7 @@ const PAGES: SearchablePage[] = [
   { title: "MCP Server Docs", path: "/mcp-docs", keywords: ["mcp", "server", "claude", "cursor", "model", "context", "protocol"], section: "Documentation" },
   { title: "Build MCP Server", path: "/mcp-tutorial", keywords: ["build", "mcp", "tutorial", "python", "fastmcp", "deploy"], section: "Documentation" },
 
-  { title: "Roadmap", path: "/roadmap", keywords: ["roadmap", "timeline", "milestones", "planning", "github"], section: "Development" },
+  { title: "Progress", path: "/progress", keywords: ["progress", "roadmap", "timeline", "milestones", "phases", "planning"], section: "About" },
   { title: "Software Architecture", path: "/design-docs", keywords: ["software", "architecture", "design", "system", "technical"], section: "Development" },
   { title: "Agentic Framework", path: "/agentic-framework", keywords: ["agentic", "framework", "workflow", "agents", "ai"], section: "Development" },
 ];

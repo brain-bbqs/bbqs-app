@@ -25,13 +25,16 @@ Target date on the board. The Knowledge Graph v1 milestones report measured numb
 `scripts/progress/build-progress.mjs` reads the board and writes `progress.json`, the one file every
 report is made from:
 
-- **brain-bbqs.org/progress/**: rebuilt by `publish.yml` with each daily site build.
+- **brain-bbqs.org/progress**, the site's public Progress page (`src/pages/Progress.tsx`, in the
+  sidebar under About). It reads `data/progress.json`, which `publish.yml` rebuilds from the board
+  with each daily site build. `public/data/progress.json` is a committed snapshot for local and preview
+  copies of the site. `/roadmap` redirects here; it replaced the hand-kept roadmap page.
 - **Weekly digest**: `progress-digest.yml` runs every Monday. The digest lands in the run summary
   and as an artifact, and is posted to Slack when `SLACK_PROGRESS_WEBHOOK` is set.
 
 Both need the repo secret **`PROJECT_READ_TOKEN`**: a fine-grained token owned by `brain-bbqs` with
 *Projects: read* and *Issues: read*. GitHub's built-in token cannot read org projects. Without the
-secret, the page is skipped and the site still deploys.
+secret, the page shows the committed snapshot and the site still deploys.
 
 Both reports end with the open issues that have **no phase or milestone**. Attach each one to the
 roadmap, or close it.

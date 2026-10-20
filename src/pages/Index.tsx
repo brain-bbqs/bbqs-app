@@ -82,13 +82,11 @@ const navCards: NavCard[] = [
   },
   {
     title: "Engineering",
-    description: "Track development progress, suggest features, and view the roadmap.",
+    description: "See where BBQS is heading and how far each part has come, or suggest a feature.",
     icon: Wrench,
     color: "hsl(200 60% 50%)",
     links: [
-      // The roadmap is internal. Suggest a Feature is not, and the card's own description already
-      // promises it — without it this card is empty for everyone outside tier 1/2.
-      { label: "Roadmap", to: "/roadmap", adminOnly: true },
+      { label: "Progress", to: "/progress" },
       { label: "Suggest a Feature", to: "/suggest-feature" },
     ],
   },

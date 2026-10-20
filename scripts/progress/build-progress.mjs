@@ -2,18 +2,16 @@
 // Build the BBQS progress report from the org project board: phases -> milestones -> work.
 //
 //   GH_TOKEN=<token that can read org projects> node scripts/progress/build-progress.mjs \
-//     [--out-dir DIR] [--quality kg/export/quality.json] [--roundtrip kg/export/roundtrip.json] [--html OUT]
+//     [--out-dir DIR] [--quality kg/export/quality.json] [--roundtrip kg/export/roundtrip.json]
 //
-// Writes progress.json (the data every report is made from) and progress.md (the weekly digest), and
-// with --html a self-contained page from scripts/progress/progress.html. The board is the source of
+// Writes progress.json (the data every report is made from; the site's /progress page reads it)
+// and progress.md (the weekly digest). The board is the source of
 // truth: a phase is an issue labelled "roadmap: phase", a milestone one labelled "roadmap: milestone"
 // whose parent is its phase, and the work is the milestone's sub-issues. Nothing here is hand-kept.
 // The built-in GITHUB_TOKEN cannot read org projects; pass a token with Projects: read.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const ORG = "brain-bbqs";
 const PROJECT = 6;
 const KG_PHASE = 386;
@@ -100,10 +98,11 @@ async function boardItems() {
   return { project, items: out };
 }
 
-// "**Where it stands.** ..." -> the paragraph after the marker.
+// "**Where it stands.** ..." -> the paragraph after the marker, as plain text: readers see no markdown.
+const plain = t => t.replace(/\*\*(.+?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 const section = (body, name) => {
   const m = (body || "").match(new RegExp(`\\*\\*${name}\\.?\\*\\*\\s*([\\s\\S]*?)(?:\\n\\s*\\n|$)`));
-  return m ? m[1].trim() : null;
+  return m ? plain(m[1].trim()) : null;
 };
 const dates = c => Object.fromEntries((c.issueFieldValues?.nodes || []).filter(v => v?.value)
   .map(v => [v.field.name === "Start date" ? "start" : v.field.name === "Target date" ? "target" : v.field.name, v.value]));
@@ -121,7 +120,7 @@ function node(item) {
   const c = item.content, s = c.subIssuesSummary || { total: 0, completed: 0, percentCompleted: 0 };
   return {
     number: c.number, repo: c.repository.nameWithOwner, url: c.url,
-    title: c.title.replace(/^KG v\d+ · \d+\.\s*/, ""),      // milestones carry their phase in the title for the board
+    title: c.title.replace(/^[^·]{1,24} · \d+\.\s*/, ""),   // "KG v1 · 2. ", "MCP · 1. ": the board's phase prefix
     status: status(item, c), ...dates(c),
     done_when: item.doneWhen?.text || section(c.body, "Done when"),
     what: section(c.body, "What it is") || section(c.body, "Outcome"),
@@ -217,12 +216,5 @@ if (notOnRoadmap.length) {
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, "progress.json"), JSON.stringify(report, null, 1));
 writeFileSync(join(outDir, "progress.md"), md.join("\n"));
-if (args.html) {
-  const tpl = readFileSync(join(HERE, "progress.html"), "utf8");
-  mkdirSync(dirname(args.html), { recursive: true });
-  writeFileSync(args.html, '<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n'
-    + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-    + tpl.replace("/*__PROGRESS__*/null", JSON.stringify(report).replace(/</g, "\\u003c")));
-}
 console.log(`${phases.length} phases, ${report.milestones.total} milestones (${report.milestones.done} done), `
   + `${notOnRoadmap.length} open issues not on the roadmap -> ${join(outDir, "progress.json")}`);

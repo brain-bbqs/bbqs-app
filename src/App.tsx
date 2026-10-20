@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import ProjectProfile from "./pages/ProjectProfile";
 import SFN2025 from "./pages/SFN2025";
+import SFN2026 from "./pages/SFN2026";
 import MITWorkshop2026 from "./pages/MITWorkshop2026";
 import MITWorkshopTravel from "./pages/MITWorkshopTravel";
 import MITWorkshopParticipants from "./pages/MITWorkshopParticipants";
@@ -20,7 +21,7 @@ import MITWorkshopPosters from "./pages/MITWorkshopPosters";
 import WorkingGroups from "./pages/WorkingGroups";
 import Resources from "./pages/Resources";
 import Announcements from "./pages/Announcements";
-import Roadmap from "./pages/Roadmap";
+import ProgressPage from "./pages/Progress";
 import Auth from "./pages/Auth";
 import OAuthConsent from "./pages/OAuthConsent";
 import Publications from "./pages/Publications";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:grantNumber/profile" element={<ProjectProfile />} />
               <Route path="/sfn-2025" element={<SFN2025 />} />
+              <Route path="/sfn-2026" element={<SFN2026 />} />
               <Route path="/mit-workshop-2026" element={<MITWorkshop2026 />} />
               <Route path="/mit-workshop-2026/travel" element={<MITWorkshopTravel />} />
               <Route path="/mit-workshop-2026/participants" element={<MITWorkshopParticipants />} />
@@ -87,7 +89,8 @@ const App = () => (
               <Route path="/resources/devices" element={<Devices />} />
               <Route path="/resources/devices/graph" element={<DevicesGraph />} />
               <Route path="/announcements" element={<Announcements />} />
-              <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/progress" element={<ProgressPage />} />
+              <Route path="/roadmap" element={<Navigate to="/progress" replace />} />
               <Route path="/data-model" element={<DataModel />} />
               {/* Internal/WIP: admin-gated while the KG schema migration is in progress.
                   ProtectedRoute removes public (anon) access; the page also checks isAdmin. */}

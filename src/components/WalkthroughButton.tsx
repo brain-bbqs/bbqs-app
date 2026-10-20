@@ -48,8 +48,8 @@ const steps: Step[] = [
   {
     icon: Map,
     title: "You're all set!",
-    description: "That's the tour! Use the sidebar to navigate anytime. Check the Roadmap for upcoming features, or click the ? button again to replay this walkthrough.",
-    route: "/roadmap",
+    description: "That's the tour! Use the sidebar to navigate anytime. See Progress for where BBQS is heading, or click the ? button again to replay this walkthrough.",
+    route: "/progress",
     color: "bg-[hsl(222_47%_20%)]",
   },
 ];
