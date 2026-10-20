@@ -10,6 +10,7 @@
   <url><loc>https://app.brain-bbqs.org/investigators</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://app.brain-bbqs.org/working-groups</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://app.brain-bbqs.org/announcements</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://app.brain-bbqs.org/sfn-2026</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://app.brain-bbqs.org/sfn-2025</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://app.brain-bbqs.org/data-sharing-policy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
   <url><loc>https://app.brain-bbqs.org/api-docs</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
