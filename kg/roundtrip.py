@@ -68,6 +68,11 @@ def node_values(g: Graph, node) -> set[str]:
             out.add(str(o).strip())
         elif isinstance(o, URIRef):
             out.add(str(o))
+            if str(o).startswith("https://orcid.org/"):
+                out.add(str(o).removeprefix("https://orcid.org/"))
+            # A cell the exporter turned into a link (working_groups -> member_of_group) is carried
+            # when the linked node's name equals the value: that is how a rebuild would recover it.
+            out.update(str(n).strip() for n in g.objects(o, BBQS.name))
     return out
 
 

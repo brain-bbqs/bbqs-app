@@ -10,10 +10,10 @@ bid:role-1 a bbqs:ProjectRole ;
   bbqs:held_by bid:inv-1 ;
   bbqs:on_project bid:proj-1 .
 
-# #5 — consortium_role is a career label, not a role token
+# #5 — a PI label, backed by a PI role on the roster (role-1)
 bid:inv-1 a bbqs:Investigator ;
   bbqs:name "Jane Roe" ;
-  bbqs:consortium_role "Associate Professor" .
+  bbqs:consortium_role "Principal Investigator (PI)" .
 
 # #9 — mechanism matches the grant number
 # #7 — the study_species claim resolves, here through a Species alias

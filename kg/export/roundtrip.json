@@ -1,32 +1,32 @@
 {
- "data_file": "fresh anon export, 2026-09-30",
- "cells": 5006,
- "carried": 3156,
- "pct": 63.0,
+ "data_file": "bbqs.ttl",
+ "cells": 5774,
+ "carried": 4249,
+ "pct": 73.6,
  "tables": [
   {
    "table": "resources",
    "readable": true,
-   "rows": 582,
-   "noded": 582,
-   "cells": 1906,
-   "carried": 1534,
-   "pct": 80.5,
+   "rows": 636,
+   "noded": 636,
+   "cells": 2132,
+   "carried": 1706,
+   "pct": 80.0,
    "columns": {
     "description": {
-     "cells": 143,
-     "carried": 143,
+     "cells": 153,
+     "carried": 153,
      "pct": 100.0,
      "examples": []
     },
     "external_url": {
-     "cells": 227,
-     "carried": 227,
+     "cells": 281,
+     "carried": 281,
      "pct": 100.0,
      "examples": []
     },
     "metadata": {
-     "cells": 372,
+     "cells": 426,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -35,14 +35,14 @@
      ]
     },
     "name": {
-     "cells": 582,
-     "carried": 582,
+     "cells": 636,
+     "carried": 636,
      "pct": 100.0,
      "examples": []
     },
     "resource_type": {
-     "cells": 582,
-     "carried": 582,
+     "cells": 636,
+     "carried": 636,
      "pct": 100.0,
      "examples": []
     }
@@ -195,8 +195,8 @@
    "rows": 249,
    "noded": 249,
    "cells": 780,
-   "carried": 268,
-   "pct": 34.4,
+   "carried": 770,
+   "pct": 98.7,
    "columns": {
     "name": {
      "cells": 249,
@@ -209,11 +209,11 @@
     },
     "orcid": {
      "cells": 113,
-     "carried": 0,
-     "pct": 0.0,
+     "carried": 111,
+     "pct": 98.2,
      "examples": [
-      "0000-0002-9726-9115",
-      "0000-0002-4704-2852"
+      "MARABAYLIS",
+      "0000000324485797"
      ]
     },
     "pending_role": {
@@ -236,48 +236,33 @@
     },
     "research_areas": {
      "cells": 19,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "['Ethics', 'Law', 'Regulation']",
-      "['Computational and systems neuroscience', 'Neuro-AI', 'Behavioral neuroscience'"
-     ]
+     "carried": 19,
+     "pct": 100.0,
+     "examples": []
     },
     "role": {
      "cells": 206,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "Ember/DCAIC team",
-      "Research Staff (Scientist and others)"
-     ]
+     "carried": 206,
+     "pct": 100.0,
+     "examples": []
     },
     "scholar_id": {
      "cells": 3,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "fKsY32YAAAAJ&hl",
-      "AWOkpNcAAAAJ"
-     ]
+     "carried": 3,
+     "pct": 100.0,
+     "examples": []
     },
     "skills": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "['Data engineering', 'Metadata standards', 'Pipeline orchestration']",
-      "['Behavioral neuroscience']"
-     ]
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
     },
     "working_groups": {
      "cells": 149,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "['WG-Devices']",
-      "['WG-Analytics']"
-     ]
+     "carried": 149,
+     "pct": 100.0,
+     "examples": []
     }
    }
   },
@@ -307,42 +292,48 @@
   {
    "table": "publications",
    "readable": true,
-   "rows": 45,
-   "noded": 45,
-   "cells": 412,
-   "carried": 225,
-   "pct": 54.6,
+   "rows": 89,
+   "noded": 89,
+   "cells": 842,
+   "carried": 523,
+   "pct": 62.1,
    "columns": {
     "author_orcids": {
      "cells": 21,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "[{'name': 'Chandra, Vikram', 'orcid': '0000-0002-8020-0664'}, {'name': 'Nejad, M",
-      "[{'name': 'Vargas, Federico S&#xe1;nchez', 'orcid': '0009-0000-5456-5881'}, {'na"
+      "[{'name': 'Peterson, Ralph E', 'orcid': '0000-0002-2692-5955'}, {'name': 'Mitelu",
+      "[{'name': 'Mitelut, Catalin', 'orcid': '0000-0003-0471-9816'}, {'name': 'Diez Ca"
      ]
     },
     "authors": {
-     "cells": 45,
+     "cells": 89,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "Vahidi, Parsa, Sani, Omid G, Shanechi, Maryam M",
-      "Hosseini, Mohammad, Shanechi, Maryam M"
+      "Peterson, Ralph E, Choudhri, Aman, Mitelut, Catalin, Tanelus, Aramis, Capo-Batta",
+      "Peterson, Ralph E, Choudhri, Aman, Mitelut, Catalin, Tanelus, Aramis, Capo-Batta"
      ]
     },
     "citations": {
-     "cells": 45,
+     "cells": 89,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "0",
-      "0"
+      "9",
+      "2"
      ]
     },
+    "doi": {
+     "cells": 78,
+     "carried": 78,
+     "pct": 100.0,
+     "examples": []
+    },
     "journal": {
-     "cells": 45,
-     "carried": 45,
+     "cells": 89,
+     "carried": 89,
      "pct": 100.0,
      "examples": []
     },
@@ -351,40 +342,40 @@
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "['HDAC', 'SCFAs', 'circadian clock', 'histone modification', 'immunity', 'metabo",
-      "['circadian rhythms', 'immune', 'infection', 'mucosa', 'norovirus']"
+      "['auditory neuroscience', 'bioacoustics', 'ecology', 'ethology', 'mongolian gerb",
+      "['bioacoustics', 'ethology', 'family behavior', 'longitudinal monitoring', 'soci"
      ]
     },
     "pmid": {
-     "cells": 45,
-     "carried": 45,
+     "cells": 89,
+     "carried": 89,
      "pct": 100.0,
      "examples": []
     },
     "pubmed_link": {
-     "cells": 45,
-     "carried": 45,
+     "cells": 89,
+     "carried": 89,
      "pct": 100.0,
      "examples": []
     },
     "rcr": {
-     "cells": 45,
+     "cells": 89,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "0",
-      "0"
+      "2.259361952893084",
+      "0.5368027383852817"
      ]
     },
     "title": {
-     "cells": 45,
-     "carried": 45,
+     "cells": 89,
+     "carried": 89,
      "pct": 100.0,
      "examples": []
     },
     "year": {
-     "cells": 45,
-     "carried": 45,
+     "cells": 89,
+     "carried": 89,
      "pct": 100.0,
      "examples": []
     }
@@ -393,14 +384,14 @@
   {
    "table": "dandisets",
    "readable": true,
-   "rows": 22,
-   "noded": 22,
-   "cells": 296,
-   "carried": 64,
-   "pct": 21.6,
+   "rows": 31,
+   "noded": 31,
+   "cells": 408,
+   "carried": 93,
+   "pct": 22.8,
    "columns": {
     "access": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -409,57 +400,55 @@
      ]
     },
     "api_url": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "https://api-dandi.emberarchive.org/api/dandisets/000463/versions/draft/",
-      "https://api-dandi.emberarchive.org/api/dandisets/000470/versions/draft/"
+      "https://api-dandi.emberarchive.org/api/dandisets/000564/versions/0.261015.2324/",
+      "https://api-dandi.emberarchive.org/api/dandisets/000398/versions/draft/"
      ]
     },
     "award_numbers": {
      "cells": 3,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "['R34DA059723', 'R37NS061963']",
-      "['U01NS117838']"
-     ]
+     "carried": 3,
+     "pct": 100.0,
+     "examples": []
     },
     "contact_name": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "Gao, Mang",
-      "Baker, Cody"
+      "Pereira, Talmo",
+      "Bezold, Grace"
      ]
     },
     "description": {
-     "cells": 22,
-     "carried": 21,
-     "pct": 95.5,
+     "cells": 31,
+     "carried": 29,
+     "pct": 93.5,
      "examples": [
-      "This dataset contains automated contributions of bounding boxes for subjects fro"
+      "This dataset contains automated contributions of bounding boxes for subjects fro",
+      "This dataset contains 1,132 one-hour open field video recordings of mice, collec"
      ]
     },
     "draft_url": {
-     "cells": 22,
-     "carried": 22,
+     "cells": 31,
+     "carried": 31,
      "pct": 100.0,
      "examples": []
     },
     "file_count": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "3366",
-      "13"
+      "2352",
+      "5"
      ]
     },
     "instance": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -468,65 +457,65 @@
      ]
     },
     "last_synced_at": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "2026-09-30T04:17:03.852+00:00",
-      "2026-09-30T04:17:05.358+00:00"
+      "2026-10-21T04:17:05.3+00:00",
+      "2026-10-21T04:17:02.444+00:00"
      ]
     },
     "license": {
-     "cells": 22,
+     "cells": 25,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "spdx:CC-BY-4.0",
-      "spdx:CC-BY-4.0"
+      "spdx:CC-BY-NC-SA-4.0",
+      "spdx:CC0-1.0"
      ]
     },
     "name": {
-     "cells": 22,
-     "carried": 21,
-     "pct": 95.5,
+     "cells": 31,
+     "carried": 30,
+     "pct": 96.8,
      "examples": [
       "Pozu: Bounding Box"
      ]
     },
     "neurosift_url": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "https://neurosift.app/dandiset/000463?dandisetVersion=draft&staging=ember",
-      "https://neurosift.app/dandiset/000470?dandisetVersion=draft&staging=ember"
+      "https://neurosift.app/dandiset/000564?dandisetVersion=0.261015.2324&staging=embe",
+      "https://neurosift.app/dandiset/000398?dandisetVersion=draft&staging=ember"
      ]
     },
     "raw": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "{'id': 'EMBER-DANDI:000463/draft', 'url': 'https://dandi.emberarchive.org/dandis",
-      "{'id': 'EMBER-DANDI:000470/draft', 'url': 'https://dandi.emberarchive.org/dandis"
+      "{'id': 'EMBER-DANDI:000564/0.261015.2324', 'doi': '10.60533/ember-dandi.000564/0",
+      "{'id': 'EMBER-DANDI:000398/draft', 'url': 'https://dandi.emberarchive.org/dandis"
      ]
     },
     "size_bytes": {
-     "cells": 22,
+     "cells": 31,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "3254527486964",
-      "124982"
+      "200849687225",
+      "707178439"
      ]
     },
     "species": {
-     "cells": 7,
+     "cells": 8,
      "carried": 0,
      "pct": 0.0,
      "examples": [
       "['Mus musculus - House mouse']",
-      "['Mus musculus - House mouse']"
+      "['Unidentified']"
      ]
     }
    }
@@ -537,8 +526,8 @@
    "rows": 18,
    "noded": 18,
    "cells": 75,
-   "carried": 53,
-   "pct": 70.7,
+   "carried": 74,
+   "pct": 98.7,
    "columns": {
     "description": {
      "cells": 18,
@@ -550,29 +539,21 @@
     },
     "docs_url": {
      "cells": 1,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "https://lightning-pose.readthedocs.io/"
-     ]
+     "carried": 1,
+     "pct": 100.0,
+     "examples": []
     },
     "language": {
      "cells": 18,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "Python",
-      "Python"
-     ]
+     "carried": 18,
+     "pct": 100.0,
+     "examples": []
     },
     "license": {
      "cells": 2,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "Open Source",
-      "Open Source"
-     ]
+     "carried": 2,
+     "pct": 100.0,
+     "examples": []
     },
     "name": {
      "cells": 18,
@@ -594,25 +575,20 @@
    "rows": 14,
    "noded": 14,
    "cells": 168,
-   "carried": 40,
-   "pct": 23.8,
+   "carried": 111,
+   "pct": 66.1,
    "columns": {
     "activity_code": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "R01/R21",
-      "Fellowship"
-     ]
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
     },
     "announcement_type": {
      "cells": 1,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "New"
-     ]
+     "carried": 1,
+     "pct": 100.0,
+     "examples": []
     },
     "budget_ceiling": {
      "cells": 4,
@@ -634,29 +610,21 @@
     },
     "eligible_activity_codes": {
      "cells": 1,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "['R34']"
-     ]
+     "carried": 1,
+     "pct": 100.0,
+     "examples": []
     },
     "expiration_date": {
      "cells": 7,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "2027-09-29",
-      "2028-06-24"
-     ]
+     "carried": 7,
+     "pct": 100.0,
+     "examples": []
     },
     "fon": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "NOT-MH-25-155",
-      "NSF 26-526"
-     ]
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
     },
     "notes": {
      "cells": 12,
@@ -669,12 +637,9 @@
     },
     "open_date": {
      "cells": 6,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "2026-09-07",
-      "2025-09-28"
-     ]
+     "carried": 6,
+     "pct": 100.0,
+     "examples": []
     },
     "participating_orgs": {
      "cells": 13,
@@ -687,12 +652,9 @@
     },
     "posted_date": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "2026-02-24",
-      "2026-08-25"
-     ]
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
     },
     "purpose": {
      "cells": 12,
@@ -711,12 +673,9 @@
     },
     "status": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
-     "examples": [
-      "open",
-      "open"
-     ]
+     "carried": 14,
+     "pct": 100.0,
+     "examples": []
     },
     "title": {
      "cells": 14,
@@ -1027,7 +986,7 @@
   {
    "table": "project_publications",
    "readable": true,
-   "rows": 2,
+   "rows": 89,
    "noded": 0,
    "cells": 0,
    "carried": 0,

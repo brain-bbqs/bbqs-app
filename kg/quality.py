@@ -267,6 +267,7 @@ class KGQuality:
                 "shape": local(shape) if not isinstance(shape, BNode) else "property shape",
                 "message": str(results.value(r, SH.resultMessage) or ""),
                 "value": str(results.value(r, SH.value) or ""),
+                "severity": "warning" if results.value(r, SH.resultSeverity) != SH.Violation else "violation",
             })
         return dict(by_node)
 
@@ -299,8 +300,8 @@ class KGQuality:
                 flags.append("isolated")
             if dangling_out[node]:
                 flags.append("dangling")
-            if violations.get(str(node)):
-                flags.append("violation")
+            severities = {v["severity"] for v in violations.get(str(node), [])}
+            flags += [s for s in ("violation", "warning") if s in severities]
             cards.append({
                 "id": str(node),
                 "class": cls,
@@ -333,7 +334,8 @@ class KGQuality:
             "competency": cqs,
             "competency_summary": dict(Counter(q["status"] for q in cqs)),
             "shapes": self.shape_exercise(),
-            "violation_count": sum(len(v) for v in violations.values()),
+            "violation_count": sum(v["severity"] == "violation" for vs in violations.values() for v in vs),
+            "warning_count": sum(v["severity"] == "warning" for vs in violations.values() for v in vs),
             "entities": self.entities(degree, violations),
         }
 
@@ -364,7 +366,7 @@ class KGQuality:
         for q in report["competency"]:
             extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
             lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
-        lines += ["", f"shapes (violations: {report['violation_count']}):"]
+        lines += ["", f"shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
         for sh in report["shapes"]:
             state = "exercised" if sh["exercised"] else (
                 f"vacuous (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else "vacuous (no targets)")

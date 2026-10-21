@@ -107,6 +107,8 @@
   .edge .p { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
   .viol { border-left: 3px solid var(--bad); background: var(--bad-soft); padding: 6px 10px; border-radius: 0 4px 4px 0; display: grid; gap: 2px; }
   .viol b { font-family: var(--f-mono); font-size: 12px; font-weight: 500; color: var(--bad); }
+  .viol.w { border-left-color: var(--warn); background: var(--warn-soft); }
+  .viol.w b { color: var(--warn); }
   pre.ttl { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 10px; margin: 0; overflow-x: auto; white-space: pre; line-height: 1.45; }
   .empty { color: var(--muted); font-style: italic; }
   .note { font-size: 12.5px; color: var(--muted); }
@@ -197,6 +199,7 @@ const FLAG = {
   isolated: { cls: "warn", text: "isolated", tip: "No link to or from any other node" },
   dangling: { cls: "bad", text: "dangling link", tip: "Points at an IRI that has no node" },
   violation: { cls: "bad", text: "violation", tip: "A consistency shape fired on this node" },
+  warning: { cls: "warn", text: "warning", tip: "A warning-level shape fired: worth a look, not an error" },
 };
 const STATUS = {
   answered: { cls: "ok", text: "answered", tip: "Returned rows" },
@@ -227,7 +230,9 @@ const BY_ID = new Map(ENT.map(e => [e.id, e]));
 const CLASSES = Object.keys(S.per_class).sort((a, b) =>
   Object.keys(AREA_NAME).indexOf(areaOf(a)) - Object.keys(AREA_NAME).indexOf(areaOf(b)) || a.localeCompare(b));
 const shapeViol = {};
-for (const e of ENT) for (const v of e.violations) shapeViol[v.shape] = (shapeViol[v.shape] || 0) + 1;
+const shapeWarn = {};
+const isWarn = v => v.severity === "warning";
+for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shapeWarn : shapeViol; m[v.shape] = (m[v.shape] || 0) + 1; }
 
 (function stamp() {
   const built = REPORT.built_at ? new Date(REPORT.built_at) : null;
@@ -255,6 +260,7 @@ for (const e of ENT) for (const v of e.violations) shapeViol[v.shape] = (shapeVi
     [`${answered}/${cq.length}`, "questions answered", answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
     [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
     [fmt(REPORT.violation_count), "consistency violations", REPORT.violation_count ? "bad" : "ok"],
+    ...(REPORT.warning_count ? [[fmt(REPORT.warning_count), "warnings", "warn"]] : []),
   ];
   $("#tiles").innerHTML = t.map(([b, s, c]) => `<div class="tile ${c}"><b>${b}</b><span>${esc(s)}</span></div>`).join("");
 })();
@@ -501,8 +507,8 @@ function detailHTML(e) {
       ${why}
     </div>
     ${flagSectionHTML(e)}
-    ${e.violations.length ? `<section><h3>Consistency violations</h3>${e.violations.map(v =>
-      `<div class="viol"><b>${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
+    ${e.violations.length ? `<section><h3>Consistency checks</h3>${e.violations.map(v =>
+      `<div class="viol${isWarn(v) ? " w" : ""}"><b>${isWarn(v) ? "warning · " : ""}${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
     <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
       `<dt>${esc(p)}</dt><dd>${vs.map(v => /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v)).join("<br>")}</dd>`).join("")}</dl>` : `<p class="empty">No literal facts.</p>`}</section>
     <section><h3>Links out · ${e.out.length}</h3>${e.out.length ? e.out.map(l => `<div class="edge"><span class="p">${esc(l.predicate)} →</span>${refLink(l.target)}</div>`).join("") : `<p class="empty">None.</p>`}</section>
@@ -516,14 +522,14 @@ function renderEntities() {
   const counts = {}; for (const e of ENT) counts[e.class] = (counts[e.class] || 0) + 1;
   const fcount = f => ENT.filter(e => f === "linked" ? e.degree > 0 : f === "flagged" ? RV.flags.has(e.id) : e.flags.includes(f)).length;
   const hits = ENT.filter(matches);
-  if (!st.sel || !BY_ID.has(st.sel)) st.sel = (hits.find(e => e.violations.length) || hits[0] || {}).id || null;
+  if (!st.sel || !BY_ID.has(st.sel)) st.sel = (hits.find(e => e.flags.includes("violation")) || hits[0] || {}).id || null;
   let lastArea = null;
   const classRows = CLASSES.map(c => {
     const a = areaOf(c), head = a !== lastArea ? `<span class="muted" style="font-size:11.5px;margin-top:6px">${AREA_NAME[a]}</span>` : "";
     lastArea = a;
     return `${head}<label><input type="checkbox" data-class="${c}" ${st.classes.has(c) ? "checked" : ""}><i class="swatch" style="color:${colorOf(c)}"></i>${c}<span class="c">${counts[c] || 0}</span></label>`;
   }).join("");
-  const flagRows = [["violation", "Has a violation"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"],
+  const flagRows = [["violation", "Has a violation"], ["warning", "Has a warning"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"],
                     ...(RV.db ? [["flagged", "Flagged for review"]] : [])]
     .map(([f, t]) => `<label><input type="checkbox" data-flag="${f}" ${st.flags.has(f) ? "checked" : ""}>${t}<span class="c">${fcount(f)}</span></label>`).join("");
   $("#view").innerHTML = `<div class="ent">
@@ -653,9 +659,9 @@ function renderShapes() {
   const rows = REPORT.shapes.map(s => {
     const state = s.exercised ? `<span class="pill ok">checked</span>` : s.targets ? `<span class="pill warn">nothing to check</span>` : `<span class="pill na">no targets</span>`;
     const miss = s.missing_inputs.length ? s.missing_inputs.map(t => `<code>${esc(t)}</code>`).join(" ") : `<span class="muted">—</span>`;
-    const v = shapeViol[s.shape] || 0;
+    const v = shapeViol[s.shape] || 0, w = shapeWarn[s.shape] || 0;
     return `<tr><td class="mono">${esc(s.shape)}</td><td>${s.target_class ? `<span class="pill cls" style="color:${colorOf(s.target_class)}">${esc(s.target_class)}</span>` : ""}</td>
-      <td class="num">${s.targets}</td><td>${state}</td><td>${miss}</td><td class="num">${v ? `<b style="color:var(--bad)">${v}</b>` : 0}</td></tr>`;
+      <td class="num">${s.targets}</td><td>${state}</td><td>${miss}</td><td class="num">${v ? `<b style="color:var(--bad)">${v}</b>` : w ? `<b style="color:var(--warn)" title="warnings">${w}</b>` : 0}</td></tr>`;
   }).join("");
   $("#view").innerHTML = `<div style="display:grid;gap:12px">
     <p style="margin:0;max-width:75ch">A shape that passes only means something if the graph contains what it checks. <b>Checked</b> shapes had real data to test. <b>Nothing to check</b> means the target nodes exist but the terms the shape reads are absent, so the pass is vacuous. Treat the absent-terms column as a warning, not a proof.</p>

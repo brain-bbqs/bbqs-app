@@ -97,6 +97,18 @@ class BBQSKnowledgeGraph:
         m = re.search(r"([A-Z]{1,3}\d{2})", grant_number or "")
         return m.group(1) if m else None
 
+    @staticmethod
+    def orcid_iri(value):
+        """An ORCID iD in any common form ('0000-...', 'orcid.org/...', a full URL) -> its IRI."""
+        m = re.search(r"(\d{4}-\d{4}-\d{4}-\d{3}[\dX])", str(value or ""))
+        return URIRef(f"https://orcid.org/{m.group(1)}") if m else None
+
+    @staticmethod
+    def core_award(value):
+        """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds."""
+        m = re.search(r"[A-Z][A-Z0-9]{2}[A-Z]{2}\d{6}", str(value or "").upper())
+        return m.group(0) if m else None
+
     def add(self, subj, pred, value, cast=str, datatype=None):
         if value is not None and value != "":
             v = cast(value) if cast else value
@@ -118,8 +130,10 @@ class BBQSKnowledgeGraph:
 
         org_node = id_map("organizations")
         man_node = id_map("device_manufacturers")
-        inv_node = id_map("investigators")          # RLS-hidden under anon -> {} -> held_by omitted
-        grant_node, gn_node, cat_node = {}, {}, {}
+        # investigators is RLS-hidden under anon; investigators_public carries the same id and
+        # resource_id, so every role holder resolves either way.
+        inv_node = {**id_map("investigators_public"), **id_map("investigators")}
+        grant_node, gn_node, cat_node, wg_node, proj_node, pub_node = {}, {}, {}, {}, {}, {}
 
         # ---- 1. Node spine: one node per resources row, typed by resource_type ----
         skipped = collections.Counter()
@@ -130,6 +144,8 @@ class BBQSKnowledgeGraph:
                 continue
             n = BID[r["id"]]
             g.add((n, RDF.type, BBQS[cls]))
+            if cls == "WorkingGroup" and r.get("name"):
+                wg_node[r["name"].strip().lower()] = n
             self.add(n, "name", r.get("name"))
             self.add(n, "description", r.get("description"))
             self.add(n, "external_url", r.get("external_url"), datatype=XSD.anyURI)
@@ -217,6 +233,9 @@ class BBQSKnowledgeGraph:
             n = gn_node.get(p["grant_number"])
             if n is None:
                 continue
+            proj_node[p["id"]] = n
+            if p.get("organization_id") in org_node:
+                g.add((n, BBQS["part_of_org"], org_node[p["organization_id"]]))
             self.add(n, "website", p.get("website"), datatype=XSD.anyURI)
             self.add(n, "onboarding_status", p.get("onboarding_status"))
             if p.get("study_human") is not None:
@@ -269,19 +288,88 @@ class BBQSKnowledgeGraph:
             rid = pub.get("resource_id")
             if not rid:
                 continue
-            n = BID[rid]
+            n = pub_node[pub["id"]] = BID[rid]
             self.add(n, "title", pub.get("title"))
+            for o in pub.get("author_orcids") or []:
+                if self.orcid_iri(o):
+                    g.add((n, BBQS["author_orcids"], self.orcid_iri(o)))
             self.add(n, "doi", pub.get("doi"), datatype=XSD.anyURI)
             self.add(n, "pmid", pub.get("pmid"))
             self.add(n, "journal", pub.get("journal"))
             self.add(n, "year", pub.get("year"), cast=None)
+
+        for st in self.fetch("software_tools"):
+            rid = st.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            self.add(n, "repo_url", st.get("repo_url"), datatype=XSD.anyURI)
+            self.add(n, "docs_url", st.get("docs_url"), datatype=XSD.anyURI)
+            self.add(n, "language", st.get("language"))
+            self.add(n, "software_license", st.get("license"))
+            self.add(n, "version", st.get("version"))
+        for fo in self.fetch("funding_opportunities"):
+            rid = fo.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            for col in ("fon", "activity_code", "status", "announcement_type"):
+                self.add(n, "opportunity_type" if col == "announcement_type" else col, fo.get(col))
+            for col in ("open_date", "posted_date", "expiration_date"):   # typed, so date comparisons work
+                self.add(n, col, (fo.get(col) or "")[:10] or None, datatype=XSD.date)
+            self.add(n, "url", fo.get("url"), datatype=XSD.anyURI)
+            for code in fo.get("eligible_activity_codes") or []:
+                self.add(n, "eligible_activity_codes", code)
 
         for o in self.fetch("organizations"):        # name/description already come from the spine row
             rid = o.get("resource_id")
             if rid:
                 self.add(BID[rid], "external_url", o.get("url"))
 
-        # ---- 3. Reified per-project role (grant_investigators) ----
+        # People: identity and the facts the schema carries. The free-text role is the consortium
+        # label (consortium_role), never a project role -- that is the ProjectRole edge (#283).
+        for ip in self.fetch("investigators_public"):
+            rid = ip.get("resource_id")
+            if not rid:
+                continue
+            n = BID[rid]
+            if self.orcid_iri(ip.get("orcid")):
+                g.add((n, BBQS["orcid"], self.orcid_iri(ip["orcid"])))
+            self.add(n, "consortium_role", ip.get("role"))
+            self.add(n, "scholar_id", ip.get("scholar_id"))
+            for area in ip.get("research_areas") or []:
+                self.add(n, "research_areas", area)
+            for skill in ip.get("skills") or []:
+                self.add(n, "skills", skill)
+            for wg in ip.get("working_groups") or []:
+                if str(wg).strip().lower() in wg_node:
+                    g.add((n, BBQS["member_of_group"], wg_node[str(wg).strip().lower()]))
+
+        # ---- 3. Links held in join tables ----
+        for io in self.fetch("investigator_organizations"):
+            org, inv = org_node.get(io.get("organization_id")), inv_node.get(io.get("investigator_id"))
+            if org is not None and inv is not None:
+                g.add((org, BBQS["members"], inv))
+        for pp in self.fetch("project_publications"):
+            proj, pub = proj_node.get(pp.get("project_id")), pub_node.get(pp.get("publication_id"))
+            if proj is not None and pub is not None:
+                g.add((proj, BBQS["produced"], pub))
+        dandi_node = {}
+        for d in self.fetch("dandisets"):
+            if not d.get("resource_id"):
+                continue
+            n = dandi_node[d["id"]] = BID[d["resource_id"]]
+            for award in d.get("award_numbers") or []:       # the dataset's own award claim
+                self.add(n, "award_numbers", award)
+                proj = gn_node.get(self.core_award(award))
+                if proj is not None:
+                    g.add((proj, BBQS["funded_datasets"], n))
+        for gd in self.fetch("grant_dandisets"):
+            proj, ds = grant_node.get(gd.get("grant_id")), dandi_node.get(gd.get("dandiset_id"))
+            if proj is not None and ds is not None:
+                g.add((proj, BBQS["funded_datasets"], ds))
+
+        # ---- 4. Reified per-project role (grant_investigators) ----
         roles = 0
         for gi in self.fetch("grant_investigators"):
             n = BID["role/" + gi["id"]]

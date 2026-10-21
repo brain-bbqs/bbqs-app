@@ -33,8 +33,10 @@ RED = HERE / "fixtures" / "contradictions.ttl"
 GREEN = HERE / "fixtures" / "clean.ttl"
 
 
-def shape_counts(q: KGQuality) -> Counter:
-    return Counter(v["shape"] for vs in q.violations().values() for v in vs)
+def shape_counts(q: KGQuality, severity: str | None = None) -> Counter:
+    """Results per shape; severity=None counts warnings too (the RED/GREEN fixtures test both)."""
+    return Counter(v["shape"] for vs in q.violations().values() for v in vs
+                   if severity is None or v["severity"] == severity)
 
 
 def consistency_shape_names(q: KGQuality) -> set[str]:
@@ -76,7 +78,10 @@ def main(export_path, check_generated, update_baseline):
     q = KGQuality(export_path)
     report = q.report()
     now = {
-        "violations": dict(sorted(Counter(v["shape"] for e in report["entities"] for v in e["violations"]).items())),
+        "violations": dict(sorted(Counter(v["shape"] for e in report["entities"] for v in e["violations"]
+                                          if v["severity"] == "violation").items())),
+        "warnings": dict(sorted(Counter(v["shape"] for e in report["entities"] for v in e["violations"]
+                                        if v["severity"] == "warning").items())),
         "answered": sorted(c["id"] for c in report["competency"] if c["status"] == "answered"),
         "exercised": sorted(s["shape"] for s in report["shapes"] if s["exercised"]),
         "isolated": report["structure"]["isolated"],
@@ -111,6 +116,7 @@ def main(export_path, check_generated, update_baseline):
         if now["violations"].get(shape, 0) < allowed:
             improved.append(f"{shape} {allowed} -> {now['violations'].get(shape, 0)}")
     print(f"{'ok ' if not any(e.startswith('export') for e in errors) else 'BAD'} export violations: {now['violations']}")
+    print(f"--  export warnings (reported, not gated): {now['warnings']}")
 
     for key, label in [("answered", "competency questions answered"), ("exercised", "shapes with data to check")]:
         lost = sorted(set(base[key]) - set(now[key]))
