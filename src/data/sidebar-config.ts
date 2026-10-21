@@ -86,7 +86,12 @@ const communityItems: NavItem[] = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays, authRequired: true },
 ];
 
-const conferencesItems: NavItem[] = [
+// Events move from Upcoming to Past by hand once they have taken place.
+const upcomingEventsItems: NavItem[] = [
+  { title: "SFN 2026", url: "/sfn-2026", icon: Calendar },
+];
+
+const pastEventsItems: NavItem[] = [
   {
     title: "MIT Workshop 2026",
     url: "/mit-workshop-2026",
@@ -100,7 +105,6 @@ const conferencesItems: NavItem[] = [
       { title: "Poster Sessions", url: "/mit-workshop-2026/posters", icon: Presentation, authRequired: true },
     ],
   },
-  { title: "SFN 2026", url: "/sfn-2026", icon: Calendar },
   { title: "SFN 2025", url: "/sfn-2025", icon: Calendar },
 ];
 
@@ -123,7 +127,8 @@ export const sidebarGroups: NavGroup[] = [
   { label: "Community", items: communityItems },
   { label: "Tools", items: toolsItems },
   { label: "Knowledge Base", items: knowledgeBaseItems },
-  { label: "Conferences", items: conferencesItems },
+  { label: "Upcoming Events", items: upcomingEventsItems },
+  { label: "Past Events", items: pastEventsItems },
   { label: "Engineering", items: engineeringItems },
   { label: "Legal", items: legalItems },
 ];
