@@ -396,7 +396,7 @@ const fetchPIs = async (): Promise<PIRow[]> => {
 
     // Include investigators who have grants, working groups, or went through onboarding. The
     // roster is RePORTER-derived, so onboarded trainees/staff with no grant picked were invisible
-    // here (Jared Reiling, 2026-10-08). `onboarded` comes from 20261008120000; until that is
+    // here (Jared Reiling, #232). `onboarded` comes from 20261008120000; until that is
     // applied it is undefined and this falls back to grants-or-working-groups.
     if (piGrantLinks.length === 0 && wgs.length === 0 && inv.onboarded !== true) continue;
 
