@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-20T19:37:49.443Z",
+ "generated_at": "2026-10-21T17:52:25.434Z",
  "project": {
   "title": "BBQS Project Dev Board",
   "url": "https://github.com/orgs/brain-bbqs/projects/6",
@@ -79,20 +79,20 @@
      "what": "Every person, project, institution, working group, dataset and tool is in the graph and connected the way the database says, so the database could be rebuilt from it.",
      "now": null,
      "progress": {
-      "completed": 0,
+      "completed": 1,
       "total": 3,
-      "percent": 0
+      "percent": 33
      },
      "closed_at": null,
      "measures": [
       {
        "label": "Database facts carried in the graph",
-       "value": "63%",
+       "value": "73.6%",
        "goal": "95% or more"
       },
       {
        "label": "Records not connected to anything",
-       "value": "65%",
+       "value": "24%",
        "goal": "under 10%"
       }
      ]
@@ -110,14 +110,14 @@
      "now": null,
      "progress": {
       "completed": 1,
-      "total": 2,
-      "percent": 50
+      "total": 1,
+      "percent": 100
      },
      "closed_at": null,
      "measures": [
       {
        "label": "Standard questions the graph answers",
-       "value": "6 of 19",
+       "value": "16 of 19",
        "goal": "15 of 19"
       }
      ]
@@ -126,17 +126,17 @@
    "measures": [
     {
      "label": "Database facts carried in the graph",
-     "value": "63%",
+     "value": "73.6%",
      "goal": "95% or more"
     },
     {
      "label": "Records not connected to anything",
-     "value": "65%",
+     "value": "24%",
      "goal": "under 10%"
     },
     {
      "label": "Standard questions the graph answers",
-     "value": "6 of 19",
+     "value": "16 of 19",
      "goal": "15 of 19"
     },
     {
@@ -222,9 +222,9 @@
    "what": "The public website and the processes around it: what the community can see, how work is tracked, and how progress is reported.",
    "now": null,
    "progress": {
-    "completed": 0,
-    "total": 6,
-    "percent": 0
+    "completed": 1,
+    "total": 8,
+    "percent": 12
    },
    "closed_at": null,
    "milestones": []
@@ -257,7 +257,7 @@
    "now": null,
    "progress": {
     "completed": 0,
-    "total": 4,
+    "total": 5,
     "percent": 0
    },
    "closed_at": null,

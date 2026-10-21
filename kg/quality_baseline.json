@@ -5,23 +5,41 @@
     "StudiesSpeciesResolvesShape": 6,
     "UrlFieldsAreUrlsShape": 2
   },
+  "warnings": {
+    "AuthorOrcidResolvesShape": 147
+  },
   "answered": [
     "CQ01",
     "CQ02",
+    "CQ03",
+    "CQ04",
+    "CQ05",
+    "CQ06",
+    "CQ07",
+    "CQ08",
     "CQ09",
     "CQ10",
     "CQ11",
-    "CQ15"
+    "CQ12",
+    "CQ13",
+    "CQ15",
+    "CQ16",
+    "CQ17"
   ],
   "exercised": [
+    "AuthorOrcidResolvesShape",
+    "ConsortiumRoleNotAProjectRoleShape",
+    "HeldByResolvesShape",
     "MechanismMatchesGrantNumberShape",
     "OneClassPerNodeShape",
+    "OneRolePerPersonPerGrantShape",
+    "OrcidUniquePerPersonShape",
     "ProjectIdentifiersAgreeShape",
     "ProjectIsAnAwardShape",
     "ProjectRoleTokenShape",
     "StudiesSpeciesResolvesShape",
     "UrlFieldsAreUrlsShape"
   ],
-  "isolated": 453,
-  "nodes": 693
+  "isolated": 180,
+  "nodes": 747
 }

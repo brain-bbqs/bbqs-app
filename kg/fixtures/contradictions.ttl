@@ -10,10 +10,19 @@ bid:role-1 a bbqs:ProjectRole ;
   bbqs:held_by bid:inv-1 ;
   bbqs:on_project bid:proj-1 .
 
-# #5 — a per-project role token stuffed into the free-text consortium_role
+# #5 — inv-1 is a PI through role-16 (below), so its "Contact PI" label is fine. These two are not:
+# a machine role token in the free-text label, and a PI label with no PI role on any roster.
 bid:inv-1 a bbqs:Investigator ;
   bbqs:name "Jane Roe" ;
   bbqs:consortium_role "Contact PI" .
+
+bid:inv-token a bbqs:Investigator ;
+  bbqs:name "Sam Token" ;
+  bbqs:consortium_role "postdoc" .
+
+bid:inv-pi-label a bbqs:Investigator ;
+  bbqs:name "Pat Label" ;
+  bbqs:consortium_role "Principal Investigator (PI)" .
 
 # #9 — mechanism disagrees with the grant number (award is U01, mechanism says R61)
 # #7 — a study_species claim that names no Species node

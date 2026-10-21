@@ -57,19 +57,37 @@ bbqs:HeldByResolvesShape
   ] .
 
 # ── Invariant #5 — the two role columns must not be conflated ─────────────────
-# investigators.role (consortium_role) is ONE free-text career/consortium label. The per-project
-# machine role lives on ProjectRole. A canonical role token appearing in consortium_role means the
-# graph is asserting project standing from the wrong source — the exact #283 failure.
+# investigators.role (consortium_role) is ONE free-text career/consortium label from the onboarding
+# form ("Principal Investigator (PI)", "Co-Investigator", ...). The per-project role lives on
+# ProjectRole. Two things contradict that split: a machine role token leaking into the label (the
+# label is the form's wording, never a token), and a label claiming PI for someone who is a PI on no
+# project roster -- the label must never be the source of PI standing (#283).
 bbqs:ConsortiumRoleNotAProjectRoleShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Investigator ;
   sh:sparql [
-    sh:message "consortium_role holds a per-project role token; project role belongs on ProjectRole (#283)." ;
+    sh:message "consortium_role holds a machine role token; the project role belongs on ProjectRole (#5, #283)." ;
     sh:prefixes bbqs:prefixes ;
     sh:select """
       SELECT $this ?value WHERE {
         $this bbqs:consortium_role ?value .
-        FILTER(REGEX(?value, '(contact.?pi|co.?pi|principal investigator|multiple.?pi|^mpi$|^pi$)', 'i'))
+        FILTER(STR(?value) IN ("contact_pi", "co_pi", "mpi", "co-investigator", "trainee", "postdoc",
+                               "graduate_student", "research_staff"))
+      }
+    """ ;
+  ] ;
+  sh:sparql [
+    sh:message "consortium_role says PI, but this person is a PI on no project roster (#5, #283)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:consortium_role ?value .
+        FILTER(REGEX(?value, "principal investigator|(^|[^a-z])pi([^a-z]|$)", "i"))
+        FILTER EXISTS { ?anyRole a bbqs:ProjectRole ; bbqs:held_by ?someone }
+        FILTER NOT EXISTS {
+          ?r a bbqs:ProjectRole ; bbqs:held_by $this ; bbqs:project_role ?t .
+          FILTER(?t IN ("contact_pi", "co_pi", "mpi"))
+        }
       }
     """ ;
   ] .
@@ -204,14 +222,16 @@ bbqs:OneRolePerPersonPerGrantShape
 # ── Invariant #17 — author_orcids resolves to an Investigator node ────────────
 # publications.authors is deliberately NOT an FK (free-text byline); author_orcids is where a
 # real identity claim can be checked. An ORCID here with no matching bbqs:orcid on any
-# Investigator is incomplete identity resolution -- grade it, don't silently drop it (mirrors
-# the #7 species-resolution shape). No targets yet: the exporter doesn't emit author_orcids
-# for Publication nodes yet.
+# Investigator is incomplete identity resolution -- graded as a WARNING, not a violation: most
+# authors of a BBQS paper are outside co-authors (3 of 126 author ORCIDs are BBQS investigators,
+# 2026-10-21), so an unmatched ORCID is expected, not a contradiction.
 bbqs:AuthorOrcidResolvesShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Publication ;
+  sh:severity sh:Warning ;
   sh:sparql [
-    sh:message "author_orcids has an ORCID with no matching Investigator node -- dangling author identity (#17)." ;
+    sh:severity sh:Warning ;
+    sh:message "author_orcids has an ORCID with no matching Investigator node -- unresolved author identity (#17)." ;
     sh:prefixes bbqs:prefixes ;
     sh:select """
       SELECT $this ?orcid WHERE {

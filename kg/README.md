@@ -16,7 +16,7 @@ This table is the running status of the whole effort, updated as each phase land
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
 | 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
 | 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (16 shapes + 2 guards; on the anon export 7 shapes have data to check — see [QA](#quality-evaluation)) |
-| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done**, with a gap: 3,045 triples, 6 dangling species, but only four kinds of link are written, so 65% of nodes are isolated (#421) |
+| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done**: 4,737 triples, 771 links of ten kinds; 180 of 747 nodes (24%) still isolated, mostly records with nothing to link to (#421) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done**, with a gap: generated SHACL uses `slot_uri` IRIs the export doesn't, so it targets nothing (#422); `disjoint_with` → `owl:disjointWith` didn't emit |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | QA | Quality evaluation — the six [QA steps](#qa-steps): competency questions, structure, conformance, consistency, accuracy, coverage | — | **in progress** (steps 1, 2 and shape coverage live in `quality.py`, #420; 3 → #422; 5 and 6 planned) |
@@ -164,8 +164,8 @@ check; see [shape coverage](#quality-evaluation). Today 7 of 16 shapes have data
 | 2 | One IRI per entity; no two typed rows share a `resource_id` | two rows collapse into one node | SHACL / guard | planned |
 | 3 | Core classes mutually disjoint (Person/Org/Dataset/Project/Species/Event) | a node typed Person and Product | SHACL (`OneClassPerNodeShape`: the export mints one class per node, so any second class is a clash) | **live** (0 hits) |
 | 4 | `ProjectRole.project_role` is a canonical token | role = "Principal Investigator" free text | SHACL `sh:in` | **live** |
-| 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | exporter rule + SHACL | partial |
-| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **live** (`held_by` → Investigator, at most one holder, one `on_project`; no data to check until `held_by` is exported, #421) |
+| 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | SHACL SPARQL (`ConsortiumRoleNotAProjectRoleShape`): a machine role token in the label, or a PI label with no PI `ProjectRole` | **live** (0 hits: all 73 people labelled "Principal Investigator (PI)" are PIs on a roster) |
+| 6 | Each `ProjectRole` has one `held_by`, one `on_project`, a `role_source`; `held_by` resolves to an Investigator | dangling / source-less role edge | SHACL + OWL functional | **live** (`held_by` → Investigator, at most one holder, one `on_project`; 0 hits on 111 roles) |
 | 7 | `studies_species` resolves to a Species node (later: `member_of_group`/`manufacturer`/`award_numbers`) | project studies "Mus musculus" but no such Species node | SHACL SPARQL | **live** (6 real hits; `species_aliases` resolves synonyms, and "no species by design" values like "All Species" route to `study_scope` instead of being flagged) |
 | 8 | Working-group tags are canonical (`canonical_working_group`) | non-canonical WG label | SHACL `sh:in` | planned |
 | 9 | `mechanism` is consistent with `grant_number` | mechanism `R61` on a `U01...` number | SHACL SPARQL | **live** |
@@ -173,10 +173,10 @@ check; see [shape coverage](#quality-evaluation). Today 7 of 16 shapes have data
 | 11 | Numeric/temporal sanity: amount >= 0, budget_floor <= ceiling, open <= expiration | expiration date before open date | SHACL SPARQL | planned |
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
-| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL | **live** (no targets — anon export omits `orcid`) |
+| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL | **live** (0 hits on 111 ORCIDs) |
 | 15 | One email (primary or secondary) → one Investigator node | same address as one node's `email` and another's `secondary_emails` (the `lyc5332@psu.edu` failure) | SHACL SPARQL | **live** (no targets — `email`/`secondary_emails` are PII, restricted from anon export) |
 | 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` pair assert different `project_role` values | SHACL SPARQL | **live** |
-| 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL | **live** (no targets — exporter doesn't emit `author_orcids` yet) |
+| 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL, **warning** | **live**, as a warning (147 hits: author lists name outside co-authors, and only 3 of 126 author ORCIDs are BBQS investigators, 2026-10-21) |
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
 | 20 | Every award identifier on a Project names the same award as its `grant_number` (`name`, `reporter_project_num`, `nih_link`, `external_url`) | a renumbering updated `grants` but not `resources` | SHACL SPARQL | **live** (2 hits: BARD.CC's `name` and `external_url` still say U24MH136628) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
@@ -198,7 +198,7 @@ built one at a time, and each gets a board issue under #386 while it's in progre
 | 2 | **Structural metrics** | Is it one graph or a pile of records? | Nodes and links per class, isolated nodes, connected pieces, dangling links, and the class→predicate→class link matrix. | **live** (`quality.py`) |
 | 3 | **Cross-artifact conformance** | Do the export, the OWL and the generated SHACL use the same terms? | Every predicate and class the export emits must be declared in `bbqs.owl.ttl` *and* be a path in `bbqs.shapes.gen.ttl`. Today they disagree: the export and OWL use `bbqs:<slot>`, gen-shacl uses the mapped `slot_uri` (`schema:*`, `prov:*`), so the generated shapes target nothing. | planned (needs one IRI convention) |
 | 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL consistency shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
-| 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 63% of fact cells carried, anon) |
+| 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 73.6% of fact cells carried, anon) |
 | 6 | **Coverage** | How much of each record made it in? | Per-class fill rates and external-ID coverage (ORCID, DOI, NCBITaxon). Informational only: it guides enrichment and is not a consistency goal. | planned |
 
 Steps 1, 2 and 4 are one pass:
@@ -222,20 +222,19 @@ in the sitemap or navigation), but anyone with the link can open it, so it only 
 anon view. The data is live, but the exporter and quality code come from `main`: a change on `dev`
 shows up after `dev` → `main`.
 
-**Latest run (anon export, 2026-09-30):**
+**Latest run (anon export, 2026-10-21, after #421):**
 
 | Measure | Result |
 |---|---|
-| Structure | 693 nodes, 205 links. **453 isolated (65%)**, in 491 connected pieces. Only four kinds of link exist: `on_project` 111, `manufacturer` 35, `device_category` 35, `studies_species` 24. |
-| Competency questions | **6 of 19 answered**, 10 empty, 2 n/a on anon (jobs, provenance), 1 unmodeled |
-| Shape coverage | **7 of 16 shapes have data to check** (#1, #3, #4, #7, #9, #10, #20). The other 9 pass vacuously: their inputs (`held_by`, `orcid`, `email`, `consortium_role`, provenance) aren't in the export. |
-| Violations | 11: #7 ×6 (species), #20 ×2 and #1 ×1 (project identity), #10 ×2 (URLs) |
+| Structure | 747 nodes, 771 links. **180 isolated (24%)**, in 202 connected pieces (largest 472). Links: `member_of_group` 266, `held_by` 111, `on_project` 111, `members` 95, `produced` 89, `manufacturer` 35, `device_category` 35, `studies_species` 24, `part_of_org` 3, `funded_datasets` 2. On 2026-09-30 it was 453 of 693 isolated (65%), with only the last four kinds. |
+| Competency questions | **16 of 19 answered** (was 6), 2 n/a on anon (jobs, provenance), 1 unmodeled (CQ14) |
+| Shape coverage | **12 of 16 shapes have data to check** (was 7). The other 4 need what anon can't read: `email` (#15) and provenance (#12, #18, #19). |
+| Violations | 11: #7 ×6 (species), #20 ×2 and #1 ×1 (project identity), #10 ×2 (URLs). Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
 
-Each empty question traces to data the exporter doesn't turn into links. Almost all of it is
-anon-readable. In particular `held_by` resolves for all 111 roles through `investigators_public`,
-so its absence is an exporter gap, not RLS.
+On 2026-09-30, ten questions came back empty because the exporter didn't turn anon-readable data
+into links. #421 wrote these links:
 
-| CQ | Missing link | Anon-readable source |
+| CQ | Link written | Anon-readable source |
 |---|---|---|
 | CQ04, CQ05 who holds a role | `held_by` | `grant_investigators` → `investigators_public` (111 of 111 resolve) |
 | CQ06 affiliations | `members` | `investigator_organizations` (95) |
@@ -257,11 +256,17 @@ node, every column a slot, every edge table a set of links, and DB → KG → DB
 `python kg/roundtrip.py <fresh export>` measures it cell by cell, with no mapping spec to trust.
 Run it on a fresh export: an older file makes every value edited since look dropped.
 
-**2026-09-30, anon, fresh export: 3,156 of 5,006 fact cells carried (63%).**
+**2026-10-21, anon, fresh export: 4,249 of 5,774 fact cells carried (73.6%)**, up from 63% on 2026-09-30. A
+cell the exporter writes as a link (`working_groups` → `member_of_group`, an ORCID → its orcid.org IRI)
+counts as carried when the linked node's name, or the IRI's id, equals the value.
 
 | Carried in full | Mostly carried | Largely dropped | Not in the graph at all |
 |---|---|---|---|
-| `grants`, `grant_investigators`, `organizations` | `resources` 81% (`metadata`), `device_manufacturers` 95%, `projects` 71%, `software_tools` 71%, `device_categories` 67% | `publications` 55% (authors, citations, keywords), `announcements` 43%, `species` 41% (order/family/genus), `investigators_public` 34% (ORCID, WGs, skills), `device_models` 27%, `funding_opportunities` 24% (all dates), `dandisets` 22% | `investigator_organizations` (95 rows), `project_publications`, `grant_dandisets` |
+| `grants`, `grant_investigators`, `organizations`; nearly: `investigators_public` 99%, `software_tools` 99% | `device_manufacturers` 95%, `resources` 80% (`metadata`), `projects` 71%, `device_categories` 67%, `funding_opportunities` 66%, `publications` 62% (authors, citations, keywords) | `announcements` 43%, `species` 41% (order/family/genus), `device_models` 27%, `dandisets` 23% | — |
+
+The join tables (`investigator_organizations`, `project_publications`, `grant_dandisets`) are now
+written as links (`members` 95, `produced` 89, `funded_datasets` 2). `roundtrip.py` doesn't count
+links yet: their columns are all keys, so they show no fact cells.
 
 It also finds facts stored twice that disagree, which no lossless graph can reconcile: `species.name`
 differs from the spine's `resources.name` for 11 of 15 species ("Mouse" vs "House Mouse"), and a few

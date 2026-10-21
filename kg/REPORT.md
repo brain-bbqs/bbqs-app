@@ -92,6 +92,12 @@ them yet (#421).
 
 ### F5 — the graph is mostly unlinked, so most checks had nothing to check
 
+**Update 2026-10-21 (#421):** the exporter now writes these links. 180 of 747 nodes (24%) are
+isolated, 16 of 19 questions are answered, and 12 of 16 shapes have data to check. What stays
+isolated is mostly records with nothing to link to: datasets and tools with no project, and
+people with no role, affiliation or working group on record. The text below is the 2026-09-30
+finding.
+
 The quality pass (`kg/quality.py`, README → Quality evaluation) shows what the violation count leaves
 out. **453 of 693 nodes (65%) have no link to anything**, and only four kinds of link exist
 (`on_project`, `manufacturer`, `device_category`, `studies_species`). **6 of 19 competency questions**
