@@ -1,47 +1,49 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 
-type Presentation = { time: string; number?: string; title: string; presenters: string; kind?: "Talk" };
+// Shape served by the sfn-2026-presentations edge function (supabase/functions/sfn-2026-presentations).
+type Presentation = {
+  day: number | null;
+  start: number | null;
+  end: number | null;
+  time: string | null;
+  number: string | null;
+  title: string;
+  presenters: string[];
+  link: string | null;
+};
 
-// From the "SFN2026 - Talks and Posters" form responses, limited to presenters who agreed to share
-// their poster or talk on the website. Duplicate submissions of one poster are merged.
-const PRESENTATIONS: { day: string; items: Presentation[] }[] = [
-  {
-    day: "Sunday, November 15",
-    items: [
-      { time: "8:00 AM–12:00 PM", number: "PSTR060.13", title: "Context-Aware Multimodal Ecological Research and Assessment Platform Reveals Neural and Physiological Signatures of Anxiety-Memory State During Naturalistic Monitoring", presenters: "Hongkun Zhu, Kun Zhao" },
-      { time: "8:00 AM–12:00 PM", number: "#3481", title: "Causal Role of the Right Supramarginal Gyrus in Live Face-to-Face Interaction: Neural and Behavioral Correlates of Eye Movements, Facial Action, and Pupil Dynamics", presenters: "Joy Hirsch" },
-      { time: "1:00–5:00 PM", number: "PSTR116 (Optical Methods II)", title: "fNIRS-fMRI Reliability for Motor and Social Perception Paradigms: Validation of fNIRS Against fMRI", presenters: "Adam Noah, Joy Hirsch" },
-      { time: "1:00–5:00 PM", number: "#8999", title: "Comparing fNIRS and fMRI with Surface-Based Registration and Hyper-Resolution Analysis", presenters: "Joy Hirsch" },
-    ],
-  },
-  {
-    day: "Monday, November 16",
-    items: [
-      { time: "8:00 AM–12:00 PM", number: "PSTR142.14", title: "Two-scale temporal organization of vocal communication in Mongolian gerbil families", presenters: "Dan Sanes" },
-      { time: "8:00 AM–12:00 PM", number: "PSTR025.14", title: "Conspecific vocalizations induce approach behavior in Mongolian gerbils", presenters: "Dan Sanes" },
-      { time: "10:30–11:30 AM", title: "Social behaviors: Innate yet flexible", presenters: "Dayu Lin", kind: "Talk" },
-    ],
-  },
-  {
-    day: "Tuesday, November 17",
-    items: [
-      { time: "8:00 AM", number: "PSTR250.04", title: "Topological data analysis reveals transient neural states in ferrets during naturalistic social interaction", presenters: "Jared Reiling" },
-      { time: "1:00–5:00 PM", number: "#5794", title: "A multimodal approach to identify atypical face processing systems in schizophrenia", presenters: "Joy Hirsch" },
-      { time: "1:00–5:00 PM", number: "#3652", title: "Graph Bispectrum Reveals Increased Nonlinear Cortical Coupling During Live Social Interaction in First-Episode Psychosis", presenters: "Joy Hirsch" },
-      { time: "1:00–5:00 PM", number: "PSTR274.03", title: "Auditory feature weighting during gerbil vocalization category perception", presenters: "Dan Sanes" },
-    ],
-  },
-  {
-    day: "Wednesday, November 18",
-    items: [
-      { time: "1:00–5:00 PM", number: "PSTR383.05", title: "EMBER: NIH BRAIN's Secure, Collaborative Multi-Modal Data Archive for Human and Animal Behavioral Neuroscience", presenters: "Nicole Tregoning" },
-      { time: "1:00–5:00 PM", number: "PSTR383.07", title: "Building Better Data Standards Together: The NWB Enhancement Proposal (NWBEP) Framework and Advances in NWB", presenters: "Ryan Ly, Oliver Ruebel et al." },
-      { time: "1:00–5:00 PM", number: "#8372", title: "STAMPED principles for reproducible research objects in neuroscience", presenters: "Cody Baker" },
-    ],
-  },
+const p = (day: number, start: number, end: number | null, time: string, number: string | null, title: string, ...presenters: string[]): Presentation =>
+  ({ day, start, end, time, number, title, presenters, link: null });
+
+// Shown until the edge function is deployed, or when it can't reach the sheet: the form answers as
+// of 2026-10-21. The live list replaces it as soon as the function answers.
+const SNAPSHOT: Presentation[] = [
+  p(15, 480, 720, "8:00 AM–12:00 PM", "#3481", "Causal Role of the Right Supramarginal Gyrus in Live Face-to-Face Interaction: Neural and Behavioral Correlates of Eye Movements, Facial Action, and Pupil Dynamics", "Joy Hirsch"),
+  p(15, 480, 720, "8:00 AM–12:00 PM", "PSTR060.13", "Context-Aware Multimodal Ecological Research and Assessment Platform Reveals Neural and Physiological Signatures of Anxiety-Memory State During Naturalistic Monitoring", "Hongkun Zhu", "Kun Zhao"),
+  p(15, 780, 1020, "1:00–5:00 PM", "#8999", "Comparing fNIRS and fMRI with Surface-Based Registration and Hyper-Resolution Analysis", "Joy Hirsch"),
+  p(15, 780, 1020, "1:00–5:00 PM", "PSTR116", "fNIRS-fMRI Reliability for Motor and Social Perception Paradigms: Validation of fNIRS Against fMRI", "Joy Hirsch", "Adam Noah"),
+  p(16, 480, 720, "8:00 AM–12:00 PM", "PSTR025.14", "Conspecific vocalizations induce approach behavior in Mongolian gerbils", "Dan Sanes"),
+  p(16, 480, 720, "8:00 AM–12:00 PM", "PSTR142.14", "Two-scale temporal organization of vocal communication in Mongolian gerbil families", "Dan Sanes"),
+  p(16, 630, 690, "10:30–11:30 AM", null, "Social behaviors: Innate yet flexible", "Dayu Lin"),
+  p(17, 480, null, "8:00 AM", "PSTR250.04", "Topological data analysis reveals transient neural states in ferrets during naturalistic social interaction", "Jared Reiling"),
+  p(17, 780, 1020, "1:00–5:00 PM", "#5794", "A multimodal approach to identify atypical face processing systems in schizophrenia", "Joy Hirsch"),
+  p(17, 780, 1020, "1:00–5:00 PM", "PSTR274.03", "Auditory feature weighting during gerbil vocalization category perception", "Dan Sanes"),
+  p(17, 780, 1020, "1:00–5:00 PM", "#3652", "Graph Bispectrum Reveals Increased Nonlinear Cortical Coupling During Live Social Interaction in First-Episode Psychosis", "Joy Hirsch"),
+  p(18, 780, 1020, "1:00–5:00 PM", "PSTR383.05", "EMBER: NIH BRAIN's Secure, Collaborative Multi-Modal Data Archive for Human and Animal Behavioral Neuroscience", "Nicole Tregoning"),
+  p(18, 780, 1020, "1:00–5:00 PM", "PSTR383.07", "Building Better Data Standards Together: The NWB Enhancement Proposal (NWBEP) Framework and Advances in NWB", "Oliver Ruebel"),
+  p(18, 780, 1020, "1:00–5:00 PM", "#8372", "STAMPED principles for reproducible research objects in neuroscience", "Cody Baker"),
 ];
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const weekday = (d: number) => WEEKDAYS[new Date(Date.UTC(2026, 10, d)).getUTCDay()];
+const clock = (min: number) => {
+  const h = Math.floor(min / 60);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(min % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
 
 const EVENING_EVENTS = [
   {
@@ -60,19 +62,45 @@ const EVENING_EVENTS = [
   },
 ];
 
-const count = (day: string) => PRESENTATIONS.find((d) => d.day.startsWith(day))?.items.length ?? 0;
-
-const GLANCE = [
-  { day: "Sun, Nov 15", time: "8:00 AM–5:00 PM", event: `BBQS posters (${count("Sunday")})`, location: "WCC poster halls" },
-  { day: "Sun, Nov 15", time: "2:00–4:30 PM", event: "Embodied Cognition: How Does Embodiment Impact Cognitive Processing?", location: "WCC Rm 151" },
-  { day: "Sun, Nov 15", time: "7:00–9:00 PM", event: "BRAIN Initiative Alliance Toolmakers Showcase (social)", location: "Marriott Marquis, Independence Ballroom, Salons EFGH" },
-  { day: "Mon, Nov 16", time: "8:00 AM–12:00 PM", event: `BBQS posters and talk (${count("Monday")})`, location: "WCC" },
-  { day: "Mon, Nov 16", time: "7:00–9:00 PM", event: "Social Neuroscience Social", location: "Hall E – NNE Space #6" },
-  { day: "Tue, Nov 17", time: "8:00 AM–5:00 PM", event: `BBQS posters (${count("Tuesday")})`, location: "WCC poster halls" },
-  { day: "Wed, Nov 18", time: "1:00–5:00 PM", event: `BBQS posters (${count("Wednesday")})`, location: "WCC poster halls" },
+const FIXED_GLANCE = [
+  { day: 15, start: 840, time: "2:00–4:30 PM", event: "Embodied Cognition: How Does Embodiment Impact Cognitive Processing?", location: "WCC Rm 151" },
+  { day: 15, start: 1140, time: "7:00–9:00 PM", event: "BRAIN Initiative Alliance Toolmakers Showcase (social)", location: "Marriott Marquis, Independence Ballroom, Salons EFGH" },
+  { day: 16, start: 1140, time: "7:00–9:00 PM", event: "Social Neuroscience Social", location: "Hall E – NNE Space #6" },
 ];
 
 const SFN2026 = () => {
+  const { data } = useQuery({
+    queryKey: ["sfn-2026-presentations"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("sfn-2026-presentations");
+      if (error || !data?.ok) throw error ?? new Error(data?.error ?? "unavailable");
+      return data.presentations as Presentation[];
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const presentations = data ?? SNAPSHOT;
+
+  const days = [...new Set(presentations.map((x) => x.day).filter((d): d is number => d != null))].sort((a, b) => a - b);
+  const undated = presentations.filter((x) => x.day == null);
+  const onDay = (d: number) => presentations.filter((x) => x.day === d);
+
+  const glance = [
+    ...FIXED_GLANCE,
+    ...days.map((d) => {
+      const items = onDay(d);
+      const starts = items.map((x) => x.start).filter((n): n is number => n != null);
+      const ends = items.map((x) => x.end ?? x.start).filter((n): n is number => n != null);
+      return {
+        day: d,
+        start: starts.length ? Math.min(...starts) : 0,
+        time: starts.length ? `${clock(Math.min(...starts))}–${clock(Math.max(...ends))}` : "",
+        event: `BBQS posters and talks (${items.length})`,
+        location: "WCC",
+      };
+    }),
+  ].sort((a, b) => a.day - b.day || a.start - b.start);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="px-6 py-8 max-w-5xl mx-auto">
@@ -99,9 +127,9 @@ const SFN2026 = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {GLANCE.map((g) => (
-                <TableRow key={`${g.day}-${g.time}-${g.event}`}>
-                  <TableCell className="font-semibold whitespace-nowrap">{g.day}</TableCell>
+              {glance.map((g) => (
+                <TableRow key={`${g.day}-${g.start}-${g.event}`}>
+                  <TableCell className="font-semibold whitespace-nowrap">{weekday(g.day).slice(0, 3)}, Nov {g.day}</TableCell>
                   <TableCell className="whitespace-nowrap">{g.time}</TableCell>
                   <TableCell>{g.event}</TableCell>
                   <TableCell>{g.location}</TableCell>
@@ -173,11 +201,15 @@ const SFN2026 = () => {
         <Separator className="my-8" />
 
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground mb-6">🔬 BBQS Posters & Talks</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">🔬 BBQS Posters & Talks</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Updated automatically from the BBQS SfN form, for presenters who agreed to be listed here.
+          </p>
           <div className="space-y-8">
-            {PRESENTATIONS.map((d) => (
-              <div key={d.day}>
-                <h3 className="text-xl font-semibold text-foreground mb-3">📅 {d.day}</h3>
+            {[...days.map((d) => ({ heading: `${weekday(d)}, November ${d}`, items: onDay(d) })),
+              ...(undated.length ? [{ heading: "Date to be confirmed", items: undated }] : [])].map((group) => (
+              <div key={group.heading}>
+                <h3 className="text-xl font-semibold text-foreground mb-3">📅 {group.heading}</h3>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -188,12 +220,19 @@ const SFN2026 = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {d.items.map((p) => (
-                      <TableRow key={`${p.number ?? p.time}-${p.title}`}>
-                        <TableCell className="whitespace-nowrap">{p.time}</TableCell>
-                        <TableCell className="whitespace-nowrap">{p.kind ?? p.number}</TableCell>
-                        <TableCell className="font-medium">{p.title}</TableCell>
-                        <TableCell>{p.presenters}</TableCell>
+                    {group.items.map((x) => (
+                      <TableRow key={`${x.number ?? x.link ?? x.time}-${x.title}`}>
+                        <TableCell className="whitespace-nowrap">{x.time ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{x.number ?? "—"}</TableCell>
+                        <TableCell className="font-medium">
+                          {x.title || null}
+                          {x.link && (
+                            <a href={x.link} className="text-primary hover:underline ml-1" target="_blank" rel="noopener noreferrer">
+                              {x.title ? "(abstract)" : "View abstract"}
+                            </a>
+                          )}
+                        </TableCell>
+                        <TableCell>{x.presenters.join(", ")}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
