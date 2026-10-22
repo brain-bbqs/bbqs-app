@@ -4,6 +4,8 @@ name: Work tracking
 # check passes when it names an issue, is small, is labelled `trivial`, or is a dev -> main release.
 # On a push, commits that came in without a PR, name no issue and aren't trivial are listed in an
 # "Untracked work on <branch>" issue, which lands on the project board and in the progress report.
+# `board` moves every open issue a PR or a push to dev/main names to In progress on the project board
+# (scripts/tracking/board-status.mjs); "Closes #N" reaching main closes it, and the board marks it Done.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
@@ -57,3 +59,29 @@ jobs:
           REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/tracking/check-tracked.mjs push
+
+  board:
+    if: >-
+      (github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled')
+      || (github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Move the issues this change names on the project board
+        env:
+          REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_WRITE_TOKEN }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/tracking/board-status.mjs ${{ github.event_name == 'pull_request' && 'pr' || 'push' }}

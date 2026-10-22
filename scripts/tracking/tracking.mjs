@@ -33,3 +33,28 @@ export function size(numstat) {
 }
 
 export const isTiny = s => s.lines <= TINY.lines && s.files <= TINY.files;
+
+// The board half (board-status.mjs): which issues a change moves on the project board. Stricter
+// than referencesIssue: a wrong match moves an issue nobody worked on, so "see #5" and "for #19"
+// don't count, and neither does a bare issue link. One keyword can lead a list: "Closes #12, #13".
+const WORK = String.raw`(?:refs?|references|close[sd]?|fix(?:e[sd])?|resolve[sd]?|part of|tracks|tracked (?:in|by))`;
+const TARGET = String.raw`(?:(?:[\w.-]+\/[\w.-]+)?#\d+|https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/issues\/\d+)`;
+const LED = new RegExp(String.raw`\b(${WORK}):?\s+(${TARGET}(?:\s*(?:,|&|and)\s*${TARGET})*)`, "gi");
+const ONE = new RegExp(String.raw`([\w.-]+\/[\w.-]+)?#(\d+)|github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)`, "g");
+const CLOSING = /^(close[sd]?|fix(e[sd])?|resolve[sd]?)$/i;
+
+/** Every issue a change names with a work keyword -> [{repo, number, closes}], once each. */
+export function issueRefs(text, repo) {
+  const found = new Map();
+  for (const [, keyword, list] of (text || "").matchAll(LED)) {
+    for (const m of list.matchAll(ONE)) {
+      const ref = { repo: m[1] || m[3] || repo, number: Number(m[2] || m[4]), closes: CLOSING.test(keyword) };
+      const key = `${ref.repo}#${ref.number}`;
+      found.set(key, { ...ref, closes: ref.closes || Boolean(found.get(key)?.closes) });
+    }
+  }
+  return [...found.values()];
+}
+
+/** The board status a referenced issue moves to, or null to leave it: work only moves forward. */
+export const nextStatus = current => (!current || current === "Todo" || current === "Backlog") ? "In progress" : null;
