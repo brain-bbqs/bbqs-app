@@ -365,3 +365,96 @@ bbqs:UrlFieldsAreUrlsShape
                 sh:message "website is not a single URL (#10)." ] ;
   sh:property [ sh:path bbqs:homepage_url ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
                 sh:message "homepage_url is not a single URL (#10)." ] .
+
+# ── Invariant #8 — working-group names are canonical ──────────────────────────
+# The four consortium working groups, as normalize_working_groups writes them. A fifth name is a
+# phantom group (the 'Analytics' vs 'WG-Analytics' incident). Keep this list equal to the
+# migration's tokens: tests/guards/kg-shape-catalog-parity checks it.
+bbqs:WorkingGroupCanonicalShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:WorkingGroup ;
+  sh:property [
+    sh:path bbqs:name ;
+    sh:in ( "WG-Analytics" "WG-Devices" "WG-ELSI" "WG-Standards" ) ;
+    sh:message "Working group is not one of the four canonical groups (#8)." ;
+  ] .
+
+# ── Invariant #11 — a funding call opens before it expires ────────────────────
+# Dates are xsd:date in the export, so ordering is a real comparison. budget_floor <= ceiling joins
+# this shape once the exporter carries the budget columns.
+bbqs:FundingWindowShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:FundingOpportunity ;
+  sh:property [
+    sh:path bbqs:open_date ;
+    sh:lessThanOrEquals bbqs:expiration_date ;
+    sh:message "A funding opportunity cannot expire before it opens (#11)." ;
+  ] .
+
+# ── Invariant #21 — a Device's category is a DeviceCategory node ──────────────
+# device_category resolves to one of the canonical DeviceCategory nodes, never a string or another
+# class. Categories no device uses are not a violation (completeness is not consistency).
+bbqs:DeviceCategoryCanonicalShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Device ;
+  sh:property [
+    sh:path bbqs:device_category ;
+    sh:class bbqs:DeviceCategory ;
+    sh:maxCount 1 ;
+    sh:message "A Device has at most one category and it must be a DeviceCategory node (#21)." ;
+  ] .
+
+# ── Invariant #22 — no dangling edge ──────────────────────────────────────────
+# Every link the exporter writes between nodes points at a typed node. A target with no rdf:type is
+# an id that did not resolve (the held_by bug that made every role holder dangle).
+bbqs:EdgeEndpointResolvesShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf bbqs:held_by , bbqs:on_project , bbqs:part_of_org , bbqs:produced ,
+                      bbqs:funded_datasets , bbqs:studies_species , bbqs:manufacturer ,
+                      bbqs:device_category , bbqs:member_of_group , bbqs:members ;
+  sh:sparql [
+    sh:message "This link points at a node that has no type: the id did not resolve (#22)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this ?p ?value .
+        FILTER(?p IN (bbqs:held_by, bbqs:on_project, bbqs:part_of_org, bbqs:produced,
+                      bbqs:funded_datasets, bbqs:studies_species, bbqs:manufacturer,
+                      bbqs:device_category, bbqs:member_of_group, bbqs:members))
+        FILTER(isIRI(?value))
+        FILTER NOT EXISTS { ?value a ?t }
+      }
+    """ ;
+  ] .
+
+# ── Invariant #23 — one organization per institution ──────────────────────────
+# Two organizations with the same ROR id, or (as a warning) the same name once case and punctuation
+# are removed, are one institution entered twice. Distinct institutions that merely share words
+# (Penn State, University of Pennsylvania) normalise differently and are never flagged.
+bbqs:OrganizationVariantsCollapseShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:ResearchOrganization ;
+  sh:sparql [
+    sh:message "Another organization has the same ROR id: collapse them (#23)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:ror_id ?id .
+        ?value bbqs:ror_id ?id ; a bbqs:ResearchOrganization .
+        FILTER($this != ?value)
+      }
+    """ ;
+  ] ;
+  sh:sparql [
+    sh:severity sh:Warning ;
+    sh:message "Another organization has the same name once case and punctuation are ignored (#23)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:name ?n1 .
+        ?value a bbqs:ResearchOrganization ; bbqs:name ?n2 .
+        FILTER($this != ?value)
+        FILTER(LCASE(REPLACE(STR(?n1), "[^A-Za-z0-9]", "")) = LCASE(REPLACE(STR(?n2), "[^A-Za-z0-9]", "")))
+      }
+    """ ;
+  ] .

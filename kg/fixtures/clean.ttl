@@ -111,3 +111,20 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-dup-a ;
   bbqs:on_project bid:proj-renumbered .
+
+# #8 — a canonical working group
+bid:wg-devices a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
+
+# #11 — a call that opens before it expires
+bid:fo-ok a bbqs:FundingOpportunity ;
+  bbqs:name "Ordinary call" ;
+  bbqs:open_date "2026-03-01"^^xsd:date ;
+  bbqs:expiration_date "2026-09-01"^^xsd:date .
+
+# #21 — a device with one resolving category
+bid:cat-camera a bbqs:DeviceCategory ; bbqs:name "Camera" .
+bid:dev-ok a bbqs:Device ; bbqs:name "Basler ace 2" ; bbqs:device_category bid:cat-camera .
+
+# #23 — Penn State and the University of Pennsylvania are different institutions
+bid:org-psu a bbqs:ResearchOrganization ; bbqs:name "Pennsylvania State University" .
+bid:org-upenn a bbqs:ResearchOrganization ; bbqs:name "University of Pennsylvania" .

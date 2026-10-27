@@ -122,3 +122,27 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-dup-a , bid:inv-email-a ;
   bbqs:on_project bid:proj-renumbered .
+
+# #8 — a fifth working group
+bid:wg-phantom a bbqs:WorkingGroup ; bbqs:name "Analytics" .
+
+# #11 — a funding call that expires before it opens
+bid:fo-backwards a bbqs:FundingOpportunity ;
+  bbqs:name "Backwards call" ;
+  bbqs:open_date "2026-09-01"^^xsd:date ;
+  bbqs:expiration_date "2026-03-01"^^xsd:date .
+
+# #21 — a device whose category is a string, and a second category
+bid:dev-bad a bbqs:Device ;
+  bbqs:name "Mystery camera" ;
+  bbqs:device_category "camera" .
+
+# #22 — a link whose target was never minted as a node
+bid:role-dangling a bbqs:ProjectRole ;
+  bbqs:project_role "co_pi" ;
+  bbqs:held_by bid:inv-never-minted ;
+  bbqs:on_project bid:proj-renumbered .
+
+# #23 — one institution entered twice (same name, different punctuation)
+bid:org-a a bbqs:ResearchOrganization ; bbqs:name "Georgia Institute of Technology" .
+bid:org-b a bbqs:ResearchOrganization ; bbqs:name "Georgia Institute of Technology." .
