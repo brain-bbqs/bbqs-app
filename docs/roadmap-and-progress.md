@@ -53,3 +53,21 @@ roadmap, or close it.
   the progress report until the work is attached to the right issue.
 
 Tag a genuinely small change `[trivial]` in its commit message or PR title.
+
+## The board follows the work
+
+The `tracked` check proves a change names its issue; it doesn't move the issue. The `board` job in
+`track-work.yml` does (`scripts/tracking/board-status.mjs`):
+
+- A pull request, or a push to `dev` or `main`, that names an open issue moves it to **In progress**.
+  An issue that isn't on the board yet is added first. Issues only move forward, and closed ones are
+  left alone.
+- **Done** comes from closing the issue. Write `Closes #N` (or `Fixes #N`) in the commit or PR that
+  finishes it: GitHub closes the issue when that commit reaches `main`, and the board's own
+  *Item closed* workflow marks it Done. `Refs #N` means "part of", so it leaves the issue open.
+- Only a keyword counts here: `Refs`, `Closes`, `Fixes`, `Resolves`, `Part of`, `Tracks`, `Tracked by`,
+  which can lead a list (`Closes #12, #13`). `see #5` and `for #19` don't move anything.
+
+It needs the repo secret **`PROJECT_WRITE_TOKEN`**: a fine-grained token owned by `brain-bbqs` with
+*Projects: read and write* and *Issues: read*, on this repo and `bbqs-agent`. Without it the job
+lists the issues it would have moved and passes.

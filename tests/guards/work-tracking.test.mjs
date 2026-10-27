@@ -6,7 +6,9 @@
 // of work.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { referencesIssue, markedTrivial, size, isTiny } from "../../scripts/tracking/tracking.mjs";
+import { referencesIssue, markedTrivial, size, isTiny, issueRefs, nextStatus } from "../../scripts/tracking/tracking.mjs";
+
+const HERE = "brain-bbqs/bbqs-app";
 
 test("a keyword plus an issue number is a reference", () => {
   for (const msg of ["Refs #421", "Closes #12", "fixes #3", "Part of #386", "Tracks brain-bbqs/bbqs-app#386",
@@ -33,4 +35,27 @@ test("size leaves out generated files, so a rebuild is tiny and real work is not
   assert.deepEqual(size(work), { lines: 154, files: 2 });
   assert.equal(isTiny(size(work)), false);
   assert.equal(isTiny(size("3\t1\tREADME.md")), true);
+});
+
+// The board half: which issues a change moves on the project board. Stricter than the `tracked`
+// check, because a wrong match moves someone else's issue: "see #5" and "guard for #19" name no work.
+test("issueRefs finds every issue a change names, and whether it closes it", () => {
+  const refs = text => issueRefs(text, HERE).map(r => `${r.repo}#${r.number}${r.closes ? " closes" : ""}`);
+  assert.deepEqual(refs("feat: x\n\nRefs #421"), ["brain-bbqs/bbqs-app#421"]);
+  assert.deepEqual(refs("Closes #12, #13 and #14"), ["brain-bbqs/bbqs-app#12 closes", "brain-bbqs/bbqs-app#13 closes", "brain-bbqs/bbqs-app#14 closes"]);
+  assert.deepEqual(refs("Fixes brain-bbqs/bbqs-agent#9"), ["brain-bbqs/bbqs-agent#9 closes"]);
+  assert.deepEqual(refs("Part of #386; tracked by https://github.com/brain-bbqs/bbqs-app/issues/440"),
+                   ["brain-bbqs/bbqs-app#386", "brain-bbqs/bbqs-app#440"]);
+  assert.deepEqual(refs("Refs #421\nCloses #421"), ["brain-bbqs/bbqs-app#421 closes"]);
+});
+
+test("issueRefs ignores what isn't a work reference", () => {
+  for (const msg of ["#7 8->6", "restore #19 guard", "see #5", "the guard for #19", "Merge pull request #472 from x/y", "", null]) {
+    assert.deepEqual(issueRefs(msg, HERE), [], String(msg));
+  }
+});
+
+test("nextStatus only moves an issue forward, never back out of Done", () => {
+  for (const s of [null, undefined, "", "Todo", "Backlog"]) assert.equal(nextStatus(s), "In progress", String(s));
+  for (const s of ["In progress", "Done"]) assert.equal(nextStatus(s), null, s);
 });

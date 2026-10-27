@@ -120,6 +120,7 @@
   .btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface); border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12.5px; font-weight: 500; }
   .btn.ghost { background: transparent; color: var(--accent); }
   .pill.flag { background: var(--accent-soft); color: var(--accent); }
+  .now { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; font-size: 12.5px; }
 
   /* Tables */
   .tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
@@ -283,6 +284,54 @@ const QKINDS = { wrong: "Answer is wrong", missing: "Answer is incomplete", ques
 const qOpen = new Set();
 const flagKey = iri => iri.replace("https://brain-bbqs.org/id/", "").replace(/\//g, "~");
 
+// A flag keeps what its entity or question looked like when it was made, so this build can say
+// whether the thing the reviewer pointed at has changed. It only marks a flag; clearing one stays
+// the reviewer's call.
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16); };
+const entityPrint = e => fnv(JSON.stringify([e.class, e.label, e.facts, e.out]));
+const entitySnapshot = e => ({
+  checks_at_flag: [...new Set(e.violations.map(v => v.shape))].sort(),
+  isolated_at_flag: e.degree === 0,
+  dangling_at_flag: e.dangling.length,
+  fingerprint_at_flag: entityPrint(e),
+});
+const NOW = {
+  resolved: { cls: "ok", text: "looks resolved" },
+  changed: { cls: "warn", text: "changed, recheck" },
+  open: { cls: "na", text: "unchanged" },
+  gone: { cls: "warn", text: "not in this build" },
+  unknown: { cls: "na", text: "no snapshot" },
+};
+function entityFlagState(f) {
+  const e = BY_ID.get(f.iri);
+  if (!e) return { k: "gone", why: "This IRI has no node in this build" };
+  if (!f.fingerprint_at_flag) return { k: "unknown", why: "Flagged before flags kept the entity's state: check by hand" };
+  const now = new Set(e.violations.map(v => v.shape)), was = f.checks_at_flag || [];
+  const cleared = was.filter(s => !now.has(s));
+  const linked = f.isolated_at_flag && e.degree > 0, undangled = f.dangling_at_flag > 0 && !e.dangling.length;
+  const why = [...cleared.map(s => `${s} no longer fires`), ...(linked ? ["now linked"] : []), ...(undangled ? ["no dangling links left"] : [])];
+  // What the flag can be checked against: the failing checks if there were any, else the missing
+  // links. A flag on an entity that passed every check has nothing to test; only a change shows.
+  const fixed = was.length ? cleared.length === was.length
+    : f.isolated_at_flag ? linked : f.dangling_at_flag > 0 ? undangled : false;
+  if (fixed) return { k: "resolved", why: why.join("; ") };
+  // Flags made before snapshots existed had theirs recorded later; say so rather than imply flag time.
+  const since = f.snapshot_backfilled_at ? `since ${f.snapshot_backfilled_at.slice(0, 10)}, when its state was first recorded` : "since it was flagged";
+  const changed = entityPrint(e) !== f.fingerprint_at_flag;
+  if (why.length || changed) return { k: "changed", why: why.length ? `${why.join("; ")}, but not everything it was flagged with` : `Its facts or links changed ${since}` };
+  return { k: "open", why: `Same facts, links and checks ${since}` };
+}
+function questionFlagState(f) {
+  const q = REPORT.competency.find(x => x.id === f.cq);
+  if (!q) return { k: "gone", why: "This question isn't in this build" };
+  const then = `${f.status_at_flag} with ${f.row_count_at_flag} rows`, now = `${q.status} with ${q.row_count} rows`;
+  if (f.status_at_flag !== "answered" && q.status === "answered") return { k: "resolved", why: `Was ${then}, now ${now}` };
+  if (q.status !== f.status_at_flag || q.row_count !== f.row_count_at_flag) return { k: "changed", why: `Was ${then}, now ${now}` };
+  return { k: "open", why: `Still ${now}` };
+}
+const nowPill = s => `<span class="pill ${NOW[s.k].cls}" title="${esc(s.why)}">${NOW[s.k].text}</span>`;
+const nowLine = s => `<span class="now">${nowPill(s)} <span class="muted">${esc(s.why)}</span></span>`;
+
 async function initFlags() {
   if (!window.claude || typeof window.claude.use !== "function") return;
   const db = await window.claude.use("db");
@@ -329,6 +378,7 @@ async function saveFlag(iri) {
     iri, class: e.class, label: e.label, kind: $("#flag-kind").value, note: $("#flag-note").value.trim(),
     flagged_at: new Date().toISOString(), flagged_by: RV.uid,
     report_commit: REPORT.commit || null, report_built_at: REPORT.built_at || null,
+    ...entitySnapshot(e),
   };
   setFlagStatus("Saving…");
   try {
@@ -383,11 +433,12 @@ function questionFlagHTML(q) {
   const cur = RV.qflags.get(q.id);
   const who = cur ? `${cur.flagged_by && cur.flagged_by === RV.uid ? "You" : "Someone"} left feedback · ${esc(QKINDS[cur.kind] || cur.kind)} · ${esc(flagWhen(cur))} UTC, when it was ${esc(cur.status_at_flag)} with ${cur.row_count_at_flag} rows` : "";
   if (RV.readOnly || RV.canWrite === false) {
-    return cur ? `<div class="flagbox"><span>${who}</span>${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div>` : "";
+    return cur ? `<div class="flagbox"><span>${who}</span>${nowLine(questionFlagState(cur))}${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div>` : "";
   }
   const d = RV.qdraft.get(q.id) || { kind: (cur && cur.kind) || "wrong", note: (cur && cur.note) || "" };
   return `<div class="flagbox">
     <span class="note" style="margin:0">${cur ? who : "Is this answer right and complete? Leave feedback on the question or its answer; it is saved with this page."}</span>
+    ${cur ? nowLine(questionFlagState(cur)) : ""}
     <div class="row"><label for="qflag-kind-${q.id}" class="muted" style="font-size:12.5px">Feedback</label>
       <select id="qflag-kind-${q.id}" data-qkind="${q.id}">${Object.entries(QKINDS).map(([k, v]) => `<option value="${k}" ${d.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
     <textarea id="qflag-note-${q.id}" data-qnote="${q.id}" aria-label="Feedback on ${q.id}" placeholder="What's wrong or missing in the answer, or how the question should change">${esc(d.note)}</textarea>
@@ -403,11 +454,12 @@ function flagSectionHTML(e) {
   const cur = RV.flags.get(e.id);
   const who = cur ? `${cur.flagged_by && cur.flagged_by === RV.uid ? "You" : "Someone"} flagged this as ${esc((KINDS[cur.kind] || cur.kind).toLowerCase())} · ${esc(flagWhen(cur))} UTC` : "";
   if (RV.readOnly || RV.canWrite === false) {
-    return cur ? `<section><h3>Review flag</h3><div class="flagbox"><span>${who}</span>${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div></section>` : "";
+    return cur ? `<section><h3>Review flag</h3><div class="flagbox"><span>${who}</span>${nowLine(entityFlagState(cur))}${cur.note ? `<span>${esc(cur.note)}</span>` : ""}</div></section>` : "";
   }
   const d = RV.draft && RV.draft.iri === e.id ? RV.draft : { kind: (cur && cur.kind) || "wrong", note: (cur && cur.note) || "" };
   return `<section><h3>Review flag</h3><div class="flagbox">
     <span class="note" style="margin:0">${cur ? who : "Flag this entity if something about it looks wrong. The flag is saved with this page and read back when flags are triaged."}</span>
+    ${cur ? nowLine(entityFlagState(cur)) : ""}
     <div class="row"><label for="flag-kind" class="muted" style="font-size:12.5px">Problem</label>
       <select id="flag-kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${d.kind === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
     <textarea id="flag-note" aria-label="What's wrong, and how you know" placeholder="What's wrong, and how you know">${esc(d.note)}</textarea>
@@ -422,20 +474,24 @@ function renderFlags() {
   const qrows = [...RV.qflags.values()].sort((a, b) => (a.cq || "").localeCompare(b.cq || ""));
   const by = {}; for (const f of rows) by[f.kind] = (by[f.kind] || 0) + 1;
   const summary = Object.entries(by).map(([k, n]) => `${n} ${esc((KINDS[k] || k).toLowerCase())}`).join(" · ");
+  const states = new Map([...rows.map(f => [f, entityFlagState(f)]), ...qrows.map(f => [f, questionFlagState(f)])]);
+  const nk = {}; for (const s of states.values()) nk[s.k] = (nk[s.k] || 0) + 1;
+  const plural = { resolved: "look resolved", changed: "changed since", gone: "not in this build" };
+  const nowSummary = Object.keys(plural).filter(k => nk[k]).map(k => `${nk[k]} ${plural[k]}`).join(" · ");
   $("#view").innerHTML = `<div style="display:grid;gap:12px">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
-      <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag records the build it was made against, since the entity can change in a later one.</p>
+      <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag keeps what it pointed at when it was made, and <b>Now</b> compares that with this build${nowSummary ? `: ${nowSummary}` : ""}. A flag that looks resolved stays until someone removes it.</p>
       ${rows.length || qrows.length ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
     </div>
-    ${qrows.length ? `<h2>Question feedback · ${qrows.length}</h2><div class="tbl"><table><thead><tr><th>Question</th><th>Feedback</th><th>Note</th><th>Answer then</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${qrows.map(f => `<tr>
+    ${qrows.length ? `<h2>Question feedback · ${qrows.length}</h2><div class="tbl"><table><thead><tr><th>Question</th><th>Feedback</th><th>Now</th><th>Note</th><th>Answer then</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${qrows.map(f => `<tr>
       <td><button class="linkbtn" data-goq="${esc(f.cq)}">${esc(f.cq)}</button> ${esc(f.question || "")}</td>
-      <td><span class="pill flag">${esc(QKINDS[f.kind] || f.kind)}</span></td><td>${esc(f.note || "")}</td>
+      <td><span class="pill flag">${esc(QKINDS[f.kind] || f.kind)}</span></td><td>${nowPill(states.get(f))}</td><td>${esc(f.note || "")}</td>
       <td class="mono">${esc(f.status_at_flag || "")} · ${esc(String(f.row_count_at_flag ?? ""))} rows</td>
       <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>
       <h2>Entity flags · ${rows.length}</h2>` : ""}
-    ${rows.length ? `<div class="tbl"><table><thead><tr><th>Entity</th><th>Problem</th><th>Note</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${rows.map(f => `<tr>
-      <td>${BY_ID.has(f.iri) ? refLink(f.iri) : `<code>${esc(shortId(f.iri))}</code> <span class="pill warn">not in this build</span>`}</td>
-      <td><span class="pill flag">${esc(KINDS[f.kind] || f.kind)}</span></td><td>${esc(f.note || "")}</td>
+    ${rows.length ? `<div class="tbl"><table><thead><tr><th>Entity</th><th>Problem</th><th>Now</th><th>Note</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${rows.map(f => `<tr>
+      <td>${BY_ID.has(f.iri) ? refLink(f.iri) : `<code>${esc(shortId(f.iri))}</code>`}</td>
+      <td><span class="pill flag">${esc(KINDS[f.kind] || f.kind)}</span></td><td>${nowPill(states.get(f))}</td><td>${esc(f.note || "")}</td>
       <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>`
       : `<p class="empty">No entity flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.${qrows.length ? "" : " Feedback on a competency question is left on the Questions tab."}</p>`}
   </div>`;
@@ -475,7 +531,7 @@ function cardHTML(e) {
   return `<button class="card" data-id="${esc(e.id)}" aria-current="${st.sel === e.id}">
     <span class="lbl">${esc(e.label)}</span>
     <span class="deg" title="links to and from other nodes">${e.degree} link${e.degree === 1 ? "" : "s"}</span>
-    <span class="sub"><span class="pill cls" style="color:${colorOf(e.class)}"><i class="swatch"></i>${esc(e.class)}</span>${flags}${RV.flags.has(e.id) ? `<span class="pill flag">flagged: ${esc((KINDS[RV.flags.get(e.id).kind] || "?").toLowerCase())}</span>` : ""}</span>
+    <span class="sub"><span class="pill cls" style="color:${colorOf(e.class)}"><i class="swatch"></i>${esc(e.class)}</span>${flags}${RV.flags.has(e.id) ? `<span class="pill flag">flagged: ${esc((KINDS[RV.flags.get(e.id).kind] || "?").toLowerCase())}</span>${entityFlagState(RV.flags.get(e.id)).k === "resolved" ? nowPill(entityFlagState(RV.flags.get(e.id))) : ""}` : ""}</span>
   </button>`;
 }
 
@@ -597,7 +653,9 @@ $("#view").addEventListener("click", e => {
   if (e.target.id === "flag-save") { saveFlag(e.target.dataset.iri); return; }
   if (e.target.id === "flag-remove") { removeFlag(e.target.dataset.iri); return; }
   if (e.target.id === "flags-json") {
-    const b = e.target, text = JSON.stringify({ entities: [...RV.flags.values()], questions: [...RV.qflags.values()] }, null, 2);
+    const b = e.target, withNow = (f, s) => ({ ...f, now: NOW[s.k].text, now_why: s.why }),
+      text = JSON.stringify({ entities: [...RV.flags.values()].map(f => withNow(f, entityFlagState(f))),
+                              questions: [...RV.qflags.values()].map(f => withNow(f, questionFlagState(f))) }, null, 2);
     const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy as JSON"), 1400); };
     try { navigator.clipboard.writeText(text).then(done, () => (b.textContent = "Copy failed")); } catch { b.textContent = "Copy failed"; }
     return;

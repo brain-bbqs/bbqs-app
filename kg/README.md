@@ -214,6 +214,13 @@ Turtle. Tabs cover the competency questions with their answers, shape coverage, 
 Only build it from an anon export if it will be committed or shared: it embeds every fact in the
 graph.
 
+Review flags exist only in the private review copy, an Artifact whose page has a store; opened any
+other way the page is read-only. A flag keeps what it pointed at when it was made: a question's
+status and row count, or an entity's failing checks, whether it was isolated, and a fingerprint of
+its facts and links. The Flags tab compares that with the build on screen and marks each flag
+*looks resolved*, *changed, recheck* or *unchanged*. It never clears a flag; removing one is the
+reviewer's call.
+
 **Online: https://brain-bbqs.org/kg/inspector/**. `publish.yml` rebuilds it on every deploy of
 `main` and daily at 06:17 UTC, from a fresh anon export. If that export fails it falls back to the
 committed one, and it never blocks the site deploy. The header stamp shows when it was built, from
