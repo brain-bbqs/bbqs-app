@@ -52,6 +52,19 @@ test("WorkingGroupCanonicalShape lists the tokens the database writes", () => {
   assert.deepEqual(shape, db);
 });
 
+test("the funder map in the shape equals the one in the migration", () => {
+  const shapeBlock = shapes.match(/bbqs:FunderMatchesGrantNumberShape[\s\S]*$/);
+  assert.ok(shapeBlock, "FunderMatchesGrantNumberShape not found");
+  const pairs = (src, re) => [...src.matchAll(re)].map((m) => `${m[1]}=${m[2]}`).sort();
+  const inShape = pairs(shapeBlock[0], /\?ic = "([A-Z]{2})" && STR\(\?value\) != "([^"]+)"/g);
+  const mig = read("supabase/migrations/20261027120000_grants_funded_by.sql");
+  const values = mig.match(/FROM \(VALUES([\s\S]*?)\) AS m\(ic, acronym\)/);
+  assert.ok(values, "migration has no VALUES map");
+  const inMigration = pairs(values[1], /\('([A-Z]{2})',\s*'([^']+)'\)/g);
+  assert.ok(inShape.length >= 10, "found too few institute codes in the shape");
+  assert.deepEqual(inShape, inMigration);
+});
+
 test("standalone_by_design names real classes, each with a decision", () => {
   const yml = read("kg/standalone_by_design.yaml");
   const block = yml.split(/^standalone_by_design:\n/m)[1];

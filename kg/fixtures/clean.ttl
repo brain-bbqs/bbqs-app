@@ -21,6 +21,7 @@ bid:proj-1 a bbqs:Project ;
   bbqs:name "Test project" ;
   bbqs:grant_number "1U01MH135430-01" ;
   bbqs:mechanism "U01" ;
+  bbqs:funded_by "NIMH" ;
   bbqs:studies_species_name "Mus musculus" ;
   bbqs:studies_species bid:sp-mouse .
 bid:sp-mouse a bbqs:Species ;
