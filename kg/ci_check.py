@@ -85,6 +85,7 @@ def main(export_path, check_generated, update_baseline):
         "answered": sorted(c["id"] for c in report["competency"] if c["status"] == "answered"),
         "exercised": sorted(s["shape"] for s in report["shapes"] if s["exercised"]),
         "isolated": report["structure"]["isolated"],
+        "isolated_unexplained": report["structure"]["isolated_unexplained"],
         "nodes": report["structure"]["nodes"],
     }
     if update_baseline:
@@ -127,6 +128,14 @@ def main(export_path, check_generated, update_baseline):
             improved.append(f"{label} gained: {', '.join(gained)}")
         print(f"{'ok ' if not lost else 'BAD'} {label}: {len(now[key])} (baseline {len(base[key])})")
     print(f"--  isolated nodes: {now['isolated']} of {now['nodes']} (baseline {base['isolated']} of {base['nodes']})")
+    allowed_iso = base.get("isolated_unexplained", base["isolated"])
+    if now["isolated_unexplained"] > allowed_iso:
+        errors.append(f"isolated nodes outside standalone-by-design classes grew: "
+                      f"{now['isolated_unexplained']} (baseline {allowed_iso})")
+    elif now["isolated_unexplained"] < allowed_iso:
+        improved.append(f"isolated nodes outside standalone-by-design classes {allowed_iso} -> {now['isolated_unexplained']}")
+    print(f"{'ok ' if now['isolated_unexplained'] <= allowed_iso else 'BAD'} unexplained isolated "
+          f"(not in a standalone-by-design class): {now['isolated_unexplained']} (baseline {allowed_iso})")
 
     if check_generated:
         check_generated_artifacts(errors)

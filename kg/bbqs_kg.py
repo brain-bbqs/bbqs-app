@@ -169,6 +169,7 @@ class BBQSKnowledgeGraph:
             self.add(n, "abstract", gr.get("abstract"))
             self.add(n, "nih_link", gr.get("nih_link"), datatype=XSD.anyURI)
             self.add(n, "reporter_project_num", gr.get("reporter_project_num"))
+            self.add(n, "funded_by", gr.get("funded_by"))   # absent until the migration is applied
             self.add(n, "award_amount", gr.get("award_amount"), cast=None)
             self.add(n, "fiscal_year", gr.get("fiscal_year"), cast=None)
 

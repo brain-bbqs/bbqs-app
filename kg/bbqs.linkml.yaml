@@ -193,7 +193,8 @@ classes:
       - fiscal_year
       - nih_link
       - mechanism            # derived from grant_number, not stored
-      - funder
+      - funded_by            # grants.funded_by: the institute, as a fact
+      - funder               # → FundingAgency (RESERVED until agencies are spine rows)
       # --- science facet (projects table) ---
       - website
       - keywords
@@ -490,6 +491,7 @@ slots:
   reporter_profile_id: { range: integer, description: "NIH RePORTER profile id." }
   members:     { slot_uri: schema:member, range: Investigator, multivalued: true }
   funder:      { slot_uri: schema:funder, range: FundingAgency }
+  funded_by:   { description: "grants.funded_by — the NIH institute funding the award (NIMH, NIDA, ...), backfilled from the institute letters of grant_number. A fact, not a link: `funder` is the link slot, reserved until FundingAgency nodes are in the resources spine." }
   ror_id:      { slot_uri: schema:identifier, range: uriorcurie }
   aliases:     { slot_uri: schema:alternateName, multivalued: true }
   country:     { slot_uri: schema:addressCountry }
