@@ -52,10 +52,21 @@ const ROLE_KEYS = ["pi", "young_investigators", "dcaic_all", "nih"];
 // "WG-Analytics", "ELSI", "Ethics", etc.
 function normaliseWG(raw: string): string | null {
   const s = (raw ?? "").toLowerCase().trim();
+  // A leading WG token decides. Form option descriptions use other groups' words: the Standards
+  // option says "ethically aligned", which the substring checks below would route to ELSI.
+  const lead = s.match(/^wg[-_ ]?([a-z]+(?:[-_ ][a-z]+)?)/);
+  if (lead) {
+    const t = lead[1].replace(/[-_ ]/g, "");
+    if (t === "analytics") return "wg_analytics";
+    if (t === "devices") return "wg_devices";
+    if (t === "elsi") return "wg_elsi";
+    if (t === "standards") return "wg_standards";
+    if (t === "crossspecies") return "wg_cross_species";
+  }
   if (s.includes("analyt")) return "wg_analytics";
   if (s.includes("device")) return "wg_devices";
-  if (s.includes("elsi") || s.includes("ethic")) return "wg_elsi";
   if (s.includes("standard")) return "wg_standards";
+  if (s.includes("elsi") || s.includes("ethic")) return "wg_elsi";
   if (s.includes("cross") || s.includes("species")) return "wg_cross_species";
   return null;
 }
