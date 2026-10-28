@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageMeta } from "@/components/PageMeta";
-import { ExternalLink, BarChart3, Cpu, Scale, BookOpen, Users } from "lucide-react";
+import { ExternalLink, BarChart3, Cpu, Scale, BookOpen, PawPrint, Users } from "lucide-react";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
 import type { LucideIcon } from "lucide-react";
 
@@ -9,6 +9,7 @@ const WG_COLORS = [
   { bg: "bg-violet-500/10", border: "border-violet-500/30", accent: "bg-violet-500", text: "text-violet-600 dark:text-violet-400", icon: Cpu },
   { bg: "bg-amber-500/10", border: "border-amber-500/30", accent: "bg-amber-500", text: "text-amber-600 dark:text-amber-400", icon: Scale },
   { bg: "bg-sky-500/10", border: "border-sky-500/30", accent: "bg-sky-500", text: "text-sky-600 dark:text-sky-400", icon: BookOpen },
+  { bg: "bg-orange-500/10", border: "border-orange-500/30", accent: "bg-orange-500", text: "text-orange-600 dark:text-orange-400", icon: PawPrint },
 ];
 
 interface WGData {
@@ -57,6 +58,16 @@ const workingGroups: WGData[] = [
     chairs: [
       { name: "Oliver Ruebel", url: "https://crd.lbl.gov/divisions/scidata/computational-biosciences/members/staff/oliver-ruebel-bio/" },
       { name: "Melissa Kline Struhl", url: "https://eccl.mit.edu/team-profiles/melissa-kline-struhl" },
+    ],
+  },
+  {
+    name: "WG-Cross-Species",
+    shortName: "Cross-Species",
+    entityId: "wg-cross-species",
+    description: "Developing tools, methods, and models that use data from, and knowledge about, different species to derive general principles or mechanisms common to multiple species, with attention to both convergence and divergence.",
+    chairs: [
+      { name: "Steve Chang", url: null },
+      { name: "Dan Sanes", url: null },
     ],
   },
 ];

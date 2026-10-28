@@ -133,7 +133,7 @@ function EditableTagList({ items, onChange, placeholder }: {
 // Google Groups (the sync-member-groups edge function maps on these). Free-text entry
 // produced drift ("Analytics" vs "WG-Analytics"), so working groups are now picked from
 // this fixed list only.
-const CANONICAL_WORKING_GROUPS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards"] as const;
+const CANONICAL_WORKING_GROUPS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards", "WG-Cross-Species"] as const;
 
 // Standardized working-group picker — choose from the canonical list, no free text.
 function EditableWorkingGroups({ items, onChange }: {

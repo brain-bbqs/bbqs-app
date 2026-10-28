@@ -41,8 +41,9 @@ const GROUPS: Record<string, string> = {
   wg_devices: "wg-devices@brain-bbqs.org",
   wg_elsi: "wg-elsi@brain-bbqs.org",
   wg_standards: "wg-standards@brain-bbqs.org",
+  wg_cross_species: "wg-cross-species@brain-bbqs.org",
 };
-const WG_KEYS = ["wg_analytics", "wg_devices", "wg_elsi", "wg_standards"];
+const WG_KEYS = ["wg_analytics", "wg_devices", "wg_elsi", "wg_standards", "wg_cross_species"];
 // Role-driven groups this function is allowed to add/remove (consortium is separate —
 // always ensured, never removed).
 const ROLE_KEYS = ["pi", "young_investigators", "dcaic_all", "nih"];
@@ -55,6 +56,7 @@ function normaliseWG(raw: string): string | null {
   if (s.includes("device")) return "wg_devices";
   if (s.includes("elsi") || s.includes("ethic")) return "wg_elsi";
   if (s.includes("standard")) return "wg_standards";
+  if (s.includes("cross") || s.includes("species")) return "wg_cross_species";
   return null;
 }
 function wgSet(arr: unknown): Set<string> {

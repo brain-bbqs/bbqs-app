@@ -277,7 +277,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   });
 
   T("request_working_groups", {
-    description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
+    description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards, WG-Cross-Species). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
     parameters: obj({ working_groups: { type: "array", items: { type: "string" } } }, ["working_groups"]),
     handler: async (a: { working_groups: string[] }) => text(await rpcC( "member_self_update", {
       _institution: null, _orcid: null, _research_areas: null, _skills: null,

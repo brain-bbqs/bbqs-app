@@ -605,7 +605,7 @@ const ALL_COLUMNS = [
 type ColumnId = "investigator" | "institution" | "workingGroups" | "projects" | "grants" | "funding" | "skills" | "researchAreas";
 
 type RoleFilter = "all" | "pi";
-type WgFilter = "all" | "WG-Analytics" | "WG-Devices" | "WG-ELSI" | "WG-Standards";
+type WgFilter = "all" | "WG-Analytics" | "WG-Devices" | "WG-ELSI" | "WG-Standards" | "WG-Cross-Species";
 
 const ROLE_FILTERS: { id: RoleFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -618,6 +618,7 @@ const WG_FILTERS: { id: WgFilter; label: string }[] = [
   { id: "WG-Devices", label: "Devices" },
   { id: "WG-ELSI", label: "ELSI" },
   { id: "WG-Standards", label: "Standards" },
+  { id: "WG-Cross-Species", label: "Cross-Species" },
 ];
 
 // wgChairNames removed — using isWorkingGroupChair() instead
@@ -726,6 +727,7 @@ export default function PrincipalInvestigators() {
           "WG-Devices": "bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-400",
           "WG-ELSI": "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-400",
           "WG-Standards": "bg-teal-500/10 text-teal-700 border-teal-500/30 dark:text-teal-400",
+          "WG-Cross-Species": "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400",
         };
         return (
           <div className="flex flex-wrap gap-1 py-1">
