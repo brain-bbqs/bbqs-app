@@ -120,7 +120,7 @@ const App = () => (
               
               
               <Route path="/jobs" element={<JobBoard />} />
-              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
               <Route path="/state-privacy" element={<StatePrivacyMap />} />
               <Route path="/grants" element={<FundingOpportunities />} />
               <Route path="/cross-species-synchronization" element={<CrossSpeciesSynchronization />} />
