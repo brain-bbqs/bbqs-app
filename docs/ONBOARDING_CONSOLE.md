@@ -143,7 +143,7 @@ channel per working group the member belongs to. Kept in KG project secrets:
 | WG-Analytics | `#bbqs-wg-analytics` | `C0BP1AN59CZ` | `SLACK_WG_CHANNELS` |
 | WG-Devices | `#bbqs-wg-devices` | `C09633EE5M5` | `SLACK_WG_CHANNELS` |
 | WG-ELSI | `#bbqs-wg-elsi` | `C098CRMDFUK` | `SLACK_WG_CHANNELS` |
-| WG-Cross-Species | _channel not yet created_ | — | `SLACK_WG_CHANNELS` (add `WG-Cross-Species=<id>` once it exists) |
+| WG-Cross-Species | `#bbqs-wg-cross-species` | `C0CCG7THX55` | `SLACK_WG_CHANNELS` |
 | WG-Standards | `#bbqs-wg-standards` | `C097J7SLNJY` | `SLACK_WG_CHANNELS` |
 
 `trg_sync_slack_channels` (migration `20260807220000`) keeps these in step automatically on any
