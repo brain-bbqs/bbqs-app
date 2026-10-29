@@ -89,6 +89,36 @@ function explainSlackError(code: string, channel: string): string {
   }
 }
 
+/** Every address to try for a member, the requested one first, each once. Slack is keyed on a
+ *  single email and people often joined it under an address other than the one we hold. */
+function orderedCandidates(requested: string, primary?: string | null, secondaries?: unknown): string[] {
+  const all = [requested, primary || "", ...(Array.isArray(secondaries) ? secondaries : [])]
+    .map((e) => String(e ?? "").trim().toLowerCase())
+    .filter((e) => e.includes("@"));
+  return [...new Set(all)];
+}
+
+/** The member's KG addresses (primary + secondary_emails), found by any one of them. */
+async function memberEmails(email: string): Promise<string[]> {
+  const em = String(email).trim().toLowerCase();
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const pattern = em.replace(/[\\%_]/g, (c) => "\\" + c);
+  const { data } = await admin.from("investigators").select("email,secondary_emails")
+    .or(`email.ilike.${pattern},secondary_emails.cs.{${em}}`).limit(1).maybeSingle();
+  return orderedCandidates(em, data?.email, data?.secondary_emails);
+}
+
+/** Look a member up in Slack under each of their addresses; the first hit wins. */
+async function lookupMember(email: string, token: string) {
+  const tried = await memberEmails(email);
+  for (const addr of tried) {
+    const r = await slack("users.lookupByEmail", token, { email: addr });
+    if (r?.ok) return { ok: true as const, user: r.user, matched_email: addr, tried };
+    if (r?.error !== "users_not_found") return { ok: false as const, error: String(r?.error ?? "unknown"), tried };
+  }
+  return { ok: false as const, error: "users_not_found", tried };
+}
+
 /** id -> #name for display. Falls back to the raw id if the lookup fails. */
 async function channelNames(ids: string[], token: string): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
@@ -209,10 +239,9 @@ Deno.serve(async (req) => {
         const batch = list.slice(i, i + 5);
         const res = await Promise.all(batch.map(async (p) => {
           const em = String(p.email).toLowerCase();
-          const lk = await slack("users.lookupByEmail", token, { email: em });
-          if (!lk?.ok) {
-            return { email: em, name: p.name ?? null, in_workspace: false,
-                     reason: String(lk?.error ?? "unknown") };
+          const lk = await lookupMember(em, token);
+          if (!lk.ok) {
+            return { email: em, name: p.name ?? null, in_workspace: false, reason: lk.error, tried: lk.tried };
           }
           const want = targetsFor(base, yi, wgMap, p.role, (p as { working_groups?: unknown }).working_groups);
           const cv = await slack("users.conversations", token, {
@@ -221,6 +250,7 @@ Deno.serve(async (req) => {
           const cur: string[] = cv?.ok ? (cv.channels ?? []).map((c: { id: string }) => c.id) : [];
           const miss = want.filter((c) => !cur.includes(c));
           return { email: em, name: p.name ?? null, in_workspace: true,
+                   ...(lk.matched_email !== em ? { matched_email: lk.matched_email } : {}),
                    missing: miss.map((c) => names[c] ?? c), missing_ids: miss };
         }));
         out.push(...res);
@@ -239,19 +269,24 @@ Deno.serve(async (req) => {
     const isYI = YI_ROLES.has(String(effRole ?? "").toLowerCase());
     const target = targetsFor(base, yi, wgMap, effRole, effWGs);
 
-    // 1. Resolve the person in the workspace (external guests must be invited manually first).
-    const lookup = await slack("users.lookupByEmail", token, { email: String(email).toLowerCase() });
-    if (!lookup?.ok) {
-      const err = String(lookup?.error ?? "unknown");
-      if (err === "users_not_found") {
+    // 1. Resolve the person in the workspace under any address the KG holds for them (external
+    //    guests must be invited manually first). The trigger caller is untrusted, so it is never
+    //    shown the member's other addresses.
+    const lookup = await lookupMember(String(email), token);
+    if (!lookup.ok) {
+      if (lookup.error === "users_not_found") {
         return json({
           ok: false, not_in_workspace: true,
-          error: `${email} is not in the Slack workspace yet — send them a Slack guest invite first, then run this again.`,
+          ...(triggerMode ? {} : { tried: lookup.tried }),
+          error: triggerMode
+            ? `${email} is not in the Slack workspace yet.`
+            : `Not in the Slack workspace under any address we hold (${lookup.tried.join(", ")}) — send a Slack guest invite first, then run this again.`,
         });
       }
-      return json({ ok: false, error: `Slack lookup failed: ${err}` }, 502);
+      return json({ ok: false, error: `Slack lookup failed: ${lookup.error}` }, 502);
     }
     const userId = lookup.user.id as string;
+    const matched = lookup.matched_email !== String(email).trim().toLowerCase() ? { matched_email: lookup.matched_email } : {};
 
     // 2. Which of the target channels are they already in?
     const conv = await slack("users.conversations", token, {
@@ -276,7 +311,7 @@ Deno.serve(async (req) => {
 
     if (action !== "invite") {
       return json({
-        ok: true, user_id: userId, is_young_investigator: isYI,
+        ok: true, user_id: userId, ...matched, is_young_investigator: isYI,
         target: target.map(label),
         in_channels: target.filter((c) => current.includes(c)).map(label),
         missing: missing.map(label),
@@ -309,6 +344,7 @@ Deno.serve(async (req) => {
     return json({
       ok: failed.length === 0,
       user_id: userId,
+      ...matched,
       is_young_investigator: isYI,
       invited: invited.map(label),
       failed,
