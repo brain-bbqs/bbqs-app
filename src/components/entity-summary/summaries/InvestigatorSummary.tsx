@@ -555,9 +555,11 @@ export function InvestigatorSummary({ id }: { id: string }) {
       </SummaryField>
 
       {/* Email — sourced from the base table (investigators_public omits it) so the
-          owner/curator sees the real value and edits persist visibly. */}
+          owner/curator sees the real value and edits persist visibly. Email and Consortium Role are
+          curator-edits only: they decide sign-in identity and mailing lists, and the DB refuses them
+          from anyone else (guard_investigator_client_write). */}
       <SummaryField label="Email" field="email">
-        {canEdit ? (
+        {isCurator ? (
           <EditableText value={emailValue} onSave={(v) => handleSave("email", v)} placeholder="Enter email address" type="email" />
         ) : emailValue ? (
           <a href={`mailto:${emailValue}`} className="text-primary hover:underline">{emailValue}</a>
@@ -612,7 +614,7 @@ export function InvestigatorSummary({ id }: { id: string }) {
 
       {/* Consortium Role */}
       <SummaryField label="Consortium Role" field="role">
-        {canEdit ? (
+        {isCurator ? (
           <EditableText
             value={data.role || ""}
             onSave={(v) => handleSave("role", v)}
