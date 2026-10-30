@@ -100,7 +100,10 @@ One email per **award**, addressed to all PIs together, contact PI first — not
 ```
 
 `check` reports `not_in_workspace`; workspace entry for an external guest is a manual Slack guest
-invite. `invite` adds the configured channels once they exist in the workspace. Ask first — the
+invite. The lookup tries every address on the member's record (primary and `secondary_emails`) and
+reports `matched_email` when it found them under another one, so record a member's new or personal
+address before concluding they are not in Slack. A **single-channel guest** cannot be added to more
+channels until a workspace admin changes their account type. `invite` adds the configured channels once they exist in the workspace. Ask first — the
 welcome email offers Slack rather than assuming it.
 
 ## Verify — the panel for in-flight, the audit for drift
@@ -111,6 +114,9 @@ did not ask.
 - **`onboarding_pipeline` panel** — people who have not finished. Membership requires
   `onboarding_completed_at IS NULL`, so a new team appears the moment the roster lands and shows
   n/7. This is the surface for a fresh onboarding.
+- **Weekly digest** — every Monday the stuck list is emailed to dcaic-admin@ with each open step and
+  the tool that unblocks it (`onboarding-stuck-digest`; preview any time with the bbqs MCP
+  `onboarding_digest`). A stuck flag nobody sees is how a Slack step sat open for 96 days.
 - **`group-audit`** — people who finished and have since drifted, and addresses in a group that no
   roster explains. It reads live Google, so it is slower and answers about everyone.
 

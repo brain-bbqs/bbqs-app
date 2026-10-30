@@ -58,7 +58,7 @@ const CURATOR_TOOLS = new Set([
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
   "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
-  "add_resource", "set_suggestion_status", "import_questionnaire_response",
+  "add_resource", "set_suggestion_status", "import_questionnaire_response", "onboarding_digest",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -162,7 +162,7 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
 }
 
 function buildServer(jwt: string, caller: Caller | null) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.3.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.4.0" });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
@@ -302,6 +302,13 @@ function buildServer(jwt: string, caller: Caller | null) {
       const keep = new Set(ids.map((r) => r.investigator_id));
       return text(rows.filter((r) => keep.has(String(r.id))));
     },
+  });
+
+  T("onboarding_digest", {
+    description: "[curator] The weekly stuck-onboarding digest: everyone the pipeline flags is_stuck, with days stuck, grants, each open step and the tool that unblocks it. dry_run (default true) returns it without sending. dry_run=false emails it to dcaic-admin@ now, which is OUTWARD-FACING, so confirm with the human first. It also sends itself every Monday.",
+    parameters: obj({ dry_run: { type: "boolean", description: "default true: return the digest, do not email it" } }),
+    handler: async (a: { dry_run?: boolean }) =>
+      text(await callFunction(jwt, "onboarding-stuck-digest", { dry_run: a.dry_run !== false })),
   });
 
   T("recent_onboardings", {
