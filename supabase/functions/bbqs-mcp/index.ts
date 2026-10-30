@@ -58,7 +58,8 @@ const CURATOR_TOOLS = new Set([
   "onboard_member", "sync_member_groups", "group_audit", "send_welcome_email", "slack_channels",
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
   "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
-  "add_resource", "set_suggestion_status",
+  "add_resource", "set_suggestion_status", "import_questionnaire_response", "onboarding_digest",
+  "revoke_role",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -162,7 +163,7 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
 }
 
 function buildServer(jwt: string, caller: Caller | null) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.2.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.4.0" });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
@@ -277,7 +278,7 @@ function buildServer(jwt: string, caller: Caller | null) {
   });
 
   T("request_working_groups", {
-    description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
+    description: "[sign-in] Request to join working groups (WG-Analytics, WG-Devices, WG-ELSI, WG-Standards, WG-Cross-Species). This is a REQUEST — a curator approves it before the mailing lists change. You cannot self-subscribe.",
     parameters: obj({ working_groups: { type: "array", items: { type: "string" } } }, ["working_groups"]),
     handler: async (a: { working_groups: string[] }) => text(await rpcC( "member_self_update", {
       _institution: null, _orcid: null, _research_areas: null, _skills: null,
@@ -302,6 +303,13 @@ function buildServer(jwt: string, caller: Caller | null) {
       const keep = new Set(ids.map((r) => r.investigator_id));
       return text(rows.filter((r) => keep.has(String(r.id))));
     },
+  });
+
+  T("onboarding_digest", {
+    description: "[curator] The weekly stuck-onboarding digest: everyone the pipeline flags is_stuck, with days stuck, grants, each open step and the tool that unblocks it. dry_run (default true) returns it without sending. dry_run=false emails it to dcaic-admin@ now, which is OUTWARD-FACING, so confirm with the human first. It also sends itself every Monday.",
+    parameters: obj({ dry_run: { type: "boolean", description: "default true: return the digest, do not email it" } }),
+    handler: async (a: { dry_run?: boolean }) =>
+      text(await callFunction(jwt, "onboarding-stuck-digest", { dry_run: a.dry_run !== false })),
   });
 
   T("recent_onboardings", {
@@ -345,6 +353,37 @@ function buildServer(jwt: string, caller: Caller | null) {
       const ids = [...new Set(rows.map((r) => r.user_id))];
       const out = await Promise.all(ids.map((id) => rpcC( "admin_lookup_user", { _user_id: id, _email: null })));
       return text(out);
+    },
+  });
+
+  T("revoke_role", {
+    description: "[admin] Remove a role (admin, curator or member) from an account, by email or user_id. The database lets only admins change roles; refuses to remove the last admin. whois first to confirm the account. Revoke-only by design: granting admin is not an MCP capability. THE tool for \"take admin/curator away from X\" — do not write SQL.",
+    parameters: obj({
+      email: { type: "string" }, user_id: { type: "string" },
+      role: { type: "string", enum: ["admin", "curator", "member"] },
+    }, ["role"]),
+    handler: async (a: { email?: string; user_id?: string; role: string }) => {
+      if (!["admin", "curator", "member"].includes(a.role)) throw new Error("role must be admin, curator or member");
+      let uid = a.user_id;
+      if (!uid) {
+        if (!a.email) throw new Error("Provide email or user_id");
+        const who = await rpcC("admin_lookup_user", { _user_id: null, _email: a.email }) as { found?: boolean; user_id?: string };
+        if (!who?.found || !who.user_id) throw new Error(`No account for ${a.email}`);
+        uid = who.user_id;
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) throw new Error("user_id must be a UUID");
+      if (a.role === "admin") {
+        const admins = await restC("user_roles?select=user_id&role=eq.admin") as Array<{ user_id: string }>;
+        if (admins.every((r) => r.user_id === uid)) throw new Error("Refusing to remove the last admin");
+      }
+      const rows = await restC(`user_roles?user_id=eq.${uid}&role=eq.${a.role}`, {
+        method: "DELETE", headers: { Prefer: "return=representation" },
+      });
+      // RLS turns a forbidden DELETE into zero rows rather than an error.
+      if (!Array.isArray(rows) || !rows.length) {
+        throw new Error(`Nothing removed: ${a.email ?? uid} does not hold ${a.role}, or this account may not change roles`);
+      }
+      return text({ removed: rows, note: "Takes effect on the account's next request; an existing session token keeps working until it expires." });
     },
   });
 
@@ -464,6 +503,25 @@ function buildServer(jwt: string, caller: Caller | null) {
         _fiscal_year: a.fiscal_year ?? null, _institution: a.institution ?? null,
         _study_human: a.study_human ?? null, _contact_pi_email: a.contact_pi_email ?? null,
       })),
+  });
+
+  T("import_questionnaire_response", {
+    description: "[curator] Record one BBQS Data Questionnaire response on its project (projects.metadata). answers is an object of questionnaire key -> value, keys from src/data/questionnaire-fields.ts (e.g. data_types_collected, use_sensors, primary_storage); an unknown key rejects the whole call. Map the form's answers to keys yourself and store option labels with their '(e.g., ...)' examples trimmed — the convention earlier imports used, so the same answer reads the same across projects. FILL-ONLY-EMPTY: a field that already holds an answer is skipped and reported, never overwritten, so re-running is safe. Each written answer is credited to the respondent at G2 (questionnaire) while the audit log records you as the importer; also sets questionnaire_submitted_by/_at, which the questionnaire status view judges against the roster. THE tool for 'import/update the questionnaire answers for grant X' — do not write SQL. Then mark the contact PI's data_questionnaire step done with set_onboarding_step.",
+    parameters: obj({
+      grant_number: { type: "string", description: "Core project number, e.g. U01MH143789" },
+      respondent_email: { type: "string", description: "The address the respondent entered on the form" },
+      answers: { type: "object", description: "questionnaire key -> value (string, array of strings, or boolean)" },
+      submitted_at: { type: "string", description: "Form timestamp, ISO 8601 with offset, e.g. 2026-10-27T16:07:35-04:00" },
+      response_id: { type: "string", description: "Forms responseId if known; makes a re-import of the same response a no-op" },
+    }, ["grant_number", "respondent_email", "answers"]),
+    handler: async (a: { grant_number: string; respondent_email: string; answers: unknown; submitted_at?: string; response_id?: string }) => {
+      // A client may serialise the object parameter as a JSON string.
+      const answers = typeof a.answers === "string" ? JSON.parse(a.answers) : a.answers;
+      return text(await rpcC("import_questionnaire_response", {
+        _grant_number: a.grant_number, _respondent_email: a.respondent_email, _answers: answers,
+        _submitted_at: a.submitted_at ?? null, _response_id: a.response_id ?? null,
+      }));
+    },
   });
 
   T("refresh_grant_from_reporter", {

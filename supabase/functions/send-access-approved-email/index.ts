@@ -1,3 +1,5 @@
+import { escapeHtml, requireCuratorOrService } from "../_shared/auth.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -15,6 +17,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denied = await requireCuratorOrService(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     const { to, name, note } = await req.json();
@@ -34,7 +39,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const displayName = (name || to.split("@")[0] || "there").trim();
+    const displayName = escapeHtml((name || to.split("@")[0] || "there").trim());
+    const toHtml = escapeHtml(to);
     const subject = "Your BBQS access has been approved";
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
@@ -44,13 +50,13 @@ Deno.serve(async (req) => {
         <div style="padding: 28px; background: #f7f8fa; border-radius: 0 0 8px 8px;">
           <p>Hi ${displayName},</p>
           <p>Good news — your access request to the <strong>BBQS Consortium</strong> portal has been approved by a curator.</p>
-          <p>You can now sign in via Globus using this email address (<code>${to}</code>):</p>
+          <p>You can now sign in via Globus using this email address (<code>${toHtml}</code>):</p>
           <p style="text-align: center; margin: 28px 0;">
             <a href="${SIGN_IN_URL}" style="background: #f5b942; color: #1a2247; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
               Sign in to BBQS
             </a>
           </p>
-          ${note ? `<p style="background: #fff; padding: 12px; border-left: 3px solid #f5b942; font-size: 14px;"><strong>Note from the curator:</strong><br/>${note}</p>` : ""}
+          ${note ? `<p style="background: #fff; padding: 12px; border-left: 3px solid #f5b942; font-size: 14px;"><strong>Note from the curator:</strong><br/>${escapeHtml(String(note))}</p>` : ""}
           <p style="font-size: 13px; color: #666; margin-top: 24px;">
             If you have trouble signing in, email <a href="mailto:dcaic-admin@brain-bbqs.org">dcaic-admin@brain-bbqs.org</a> and we'll help you out.
           </p>

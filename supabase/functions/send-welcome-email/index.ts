@@ -2,6 +2,8 @@
 // the chat agent had its own). Mirrors send-access-approved-email (Resend). Called by the
 // onboard wizard after onboard_member succeeds; on success the wizard marks the
 // welcome_email checklist step done via set_onboarding_step.
+import { escapeHtml, requireCuratorOrService } from "../_shared/auth.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bbqs-client",
@@ -30,6 +32,9 @@ const NON_RESEARCH = new Set(["nih_program", "admin"]);
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const denied = await requireCuratorOrService(req, corsHeaders);
+  if (denied) return denied;
+
   try {
     const { to, name, role } = await req.json();
     if (!to || typeof to !== "string") {
@@ -48,7 +53,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const displayName = (name || to.split("@")[0] || "there").trim();
+    const displayName = escapeHtml((name || to.split("@")[0] || "there").trim());
+    const toHtml = escapeHtml(to);
     const isNonResearch = NON_RESEARCH.has(String(role || "").toLowerCase());
     const subject = "Welcome to the BBQS Consortium";
     const researchBlurb = isNonResearch
@@ -64,7 +70,7 @@ Deno.serve(async (req) => {
           <p>Hi ${displayName},</p>
           <p>Welcome to the <strong>Brain Behavior Quantification &amp; Synchronization (BBQS)</strong> consortium! Your member profile has been created.</p>
           ${researchBlurb}
-          <p>Sign in via Globus using this email address (<code>${to}</code>):</p>
+          <p>Sign in via Globus using this email address (<code>${toHtml}</code>):</p>
           <p style="text-align: center; margin: 28px 0;">
             <a href="${SIGN_IN_URL}" style="background: #f5b942; color: #1a2247; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
               Sign in to BBQS

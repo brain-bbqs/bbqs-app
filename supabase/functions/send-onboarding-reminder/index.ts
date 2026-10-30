@@ -1,6 +1,8 @@
 // One-click onboarding reminder: emails a member the onboarding steps still remaining.
 // Called from the pipeline status panel. Resend, mirrors send-welcome-email.
 // Deploy: supabase functions deploy send-onboarding-reminder  (needs RESEND_API_KEY).
+import { escapeHtml, requireCuratorOrService } from "../_shared/auth.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bbqs-client",
@@ -36,6 +38,8 @@ const STEP_LABELS: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  const denied = await requireCuratorOrService(req, corsHeaders);
+  if (denied) return denied;
   try {
     const { to, name, steps } = await req.json().catch(() => ({}));
     if (!to || typeof to !== "string") return json({ success: false, error: "Missing 'to'" }, 400);
@@ -45,8 +49,8 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) return json({ success: false, error: "RESEND_API_KEY not configured" }, 500);
 
-    const displayName = (name || to.split("@")[0] || "there").trim();
-    const items = remaining.map((k) => `<li style="margin:4px 0;">${STEP_LABELS[k] || k}</li>`).join("");
+    const displayName = escapeHtml((name || to.split("@")[0] || "there").trim());
+    const items = remaining.map((k) => `<li style="margin:4px 0;">${STEP_LABELS[k] || escapeHtml(String(k))}</li>`).join("");
     const subject = "A few steps left to finish your BBQS onboarding";
     const html = `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">

@@ -16,6 +16,7 @@ const WORKING_GROUPS = [
   { token: "WG-Devices", label: "Devices" },
   { token: "WG-ELSI", label: "ELSI" },
   { token: "WG-Standards", label: "Standards" },
+  { token: "WG-Cross-Species", label: "Cross-Species" },
 ];
 
 type InvRow = {

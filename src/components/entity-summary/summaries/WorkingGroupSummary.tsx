@@ -103,6 +103,26 @@ const WORKING_GROUPS: Record<string, WorkingGroupData> = {
     contactChairs: "wg-chairs@brain-bbqs.org",
     mailingList: "wg-standards@brain-bbqs.org",
   },
+  "wg-cross-species": {
+    name: "WG-Cross-Species",
+    shortName: "Cross-Species",
+    purpose:
+      "The Cross-Species Working Group develops tools, methods, and models that use data from, and knowledge about, different species to derive general principles or mechanisms common to multiple species, with attention to both convergence and divergence. It meets bimonthly on the first Wednesday of the month, 3:30-4:30 PM ET, and collaborates with the other working groups to bring a cross-species lens to consortium-wide progress.",
+    deliverables: [
+      "Study the evolution of behavior across species",
+      "Build methods to infer cross-species latent variables from multimodal data",
+      "Identify biological signatures of social behavior",
+      "Develop models accounting for the different timescales of processes that govern social behavior across species",
+      "A cross-species, hypothesis-generating knowledge graph indexing studies by level of analysis and functional domain, so researchers can compare findings across species and spot gaps that point to new experiments",
+    ],
+    resourcesUrl: "/resources?search=WG-Cross-Species",
+    chairs: [
+      { name: "Steve Chang", url: null },
+      { name: "Dan Sanes", url: null },
+    ],
+    contactChairs: "wg-chairs@brain-bbqs.org",
+    mailingList: "wg-cross-species@brain-bbqs.org",
+  },
 };
 
 export function getWorkingGroupData(id: string): WorkingGroupData | null {

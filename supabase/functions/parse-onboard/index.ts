@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 const ROLES = ["contact_pi", "co_pi", "mpi", "co-investigator", "postdoc", "graduate_student", "research_staff", "data_manager", "project_manager", "nih_program", "admin", "other"];
-const WGS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards"];
+const WGS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards", "WG-Cross-Species"];
 const TIERS = ["member", "curator", "admin"];
 
 const SYSTEM = `You extract BBQS member-onboarding fields from free text (a form row, an email, or a description). Return ONLY a JSON object — no prose, no markdown fences — with EXACTLY these keys:
@@ -23,7 +23,7 @@ const SYSTEM = `You extract BBQS member-onboarding fields from free text (a form
  "email": string,               // primary email, lowercased
  "secondary_email": string|null,
  "role": string|null,           // ONE of: contact_pi, co_pi, mpi, co-investigator, postdoc, graduate_student, research_staff, data_manager, project_manager, nih_program, admin, other
- "working_groups": string[],    // subset of ["WG-Analytics","WG-Devices","WG-ELSI","WG-Standards"]
+ "working_groups": string[],    // subset of ["WG-Analytics","WG-Devices","WG-ELSI","WG-Standards","WG-Cross-Species"]
  "institution": string|null,
  "access_tier": string|null,    // "member" | "curator" | "admin"; default "member" unless clearly stated
  "grant_hint": string|null      // a grant number, grant title, or PI name to help locate the grant
