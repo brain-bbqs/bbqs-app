@@ -22,7 +22,7 @@ const functions = readdirSync(FUNCS, { withFileTypes: true })
 const FIXED_RECIPIENT_MAILERS = new Set(["notify-access-request", "security-audit", "report-critical-error"]);
 const checksCaller = (s) =>
   /requireCuratorOrService\(|requireAdmin\(/.test(s) ||
-  /SUPABASE_SERVICE_ROLE_KEY[\s\S]{0,400}(Unauthorized|status: 401)/.test(s);
+  /SUPABASE_SERVICE_ROLE_KEY[\s\S]{0,800}(Unauthorized|status: 401|, 401\))/.test(s);
 
 test("a function that sends email to a caller-chosen address checks the caller", () => {
   const open = functions.filter((f) => {

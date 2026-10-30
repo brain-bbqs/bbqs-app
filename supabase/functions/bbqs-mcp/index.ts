@@ -59,6 +59,7 @@ const CURATOR_TOOLS = new Set([
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
   "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
   "add_resource", "set_suggestion_status", "import_questionnaire_response", "onboarding_digest",
+  "revoke_role",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -352,6 +353,37 @@ function buildServer(jwt: string, caller: Caller | null) {
       const ids = [...new Set(rows.map((r) => r.user_id))];
       const out = await Promise.all(ids.map((id) => rpcC( "admin_lookup_user", { _user_id: id, _email: null })));
       return text(out);
+    },
+  });
+
+  T("revoke_role", {
+    description: "[admin] Remove a role (admin, curator or member) from an account, by email or user_id. The database lets only admins change roles; refuses to remove the last admin. whois first to confirm the account. Revoke-only by design: granting admin is not an MCP capability. THE tool for \"take admin/curator away from X\" — do not write SQL.",
+    parameters: obj({
+      email: { type: "string" }, user_id: { type: "string" },
+      role: { type: "string", enum: ["admin", "curator", "member"] },
+    }, ["role"]),
+    handler: async (a: { email?: string; user_id?: string; role: string }) => {
+      if (!["admin", "curator", "member"].includes(a.role)) throw new Error("role must be admin, curator or member");
+      let uid = a.user_id;
+      if (!uid) {
+        if (!a.email) throw new Error("Provide email or user_id");
+        const who = await rpcC("admin_lookup_user", { _user_id: null, _email: a.email }) as { found?: boolean; user_id?: string };
+        if (!who?.found || !who.user_id) throw new Error(`No account for ${a.email}`);
+        uid = who.user_id;
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) throw new Error("user_id must be a UUID");
+      if (a.role === "admin") {
+        const admins = await restC("user_roles?select=user_id&role=eq.admin") as Array<{ user_id: string }>;
+        if (admins.every((r) => r.user_id === uid)) throw new Error("Refusing to remove the last admin");
+      }
+      const rows = await restC(`user_roles?user_id=eq.${uid}&role=eq.${a.role}`, {
+        method: "DELETE", headers: { Prefer: "return=representation" },
+      });
+      // RLS turns a forbidden DELETE into zero rows rather than an error.
+      if (!Array.isArray(rows) || !rows.length) {
+        throw new Error(`Nothing removed: ${a.email ?? uid} does not hold ${a.role}, or this account may not change roles`);
+      }
+      return text({ removed: rows, note: "Takes effect on the account's next request; an existing session token keeps working until it expires." });
     },
   });
 
