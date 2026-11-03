@@ -37,9 +37,8 @@ BEGIN
          updated_at = now()
    WHERE id = _keep;
 
-  -- history follows the person; transient rows of the stub are dropped
+  -- history follows the person; the stub's organization links are dropped (access_request_matches is a view, nothing to delete)
   UPDATE public.curation_audit_log SET investigator_id = _keep WHERE investigator_id = _stub;
-  DELETE FROM public.access_request_matches WHERE investigator_id = _stub;
   DELETE FROM public.investigator_organizations WHERE investigator_id = _stub;
 
   DELETE FROM public.investigators WHERE id = _stub;
