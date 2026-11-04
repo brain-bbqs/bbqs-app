@@ -162,6 +162,14 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
   return tier;
 }
 
+// Served by Pages from public/brand/. PNG first: the MCP spec requires clients that show icons to
+// support PNG, while SVG support is optional.
+const ICONS = [
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon-256.png", mimeType: "image/png", sizes: ["256x256"] },
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
+];
+
 const tierOf = (n: string): "public" | "member" | "curator" =>
   CURATOR_TOOLS.has(n) ? "curator" : MEMBER_TOOLS.has(n) ? "member" : "public";
 
@@ -200,6 +208,10 @@ async function logCall(jwt: string, meta: RequestMeta, e: CallLog, clientTag?: s
 
 function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   const mcp = new McpServer({ name: "bbqs-mcp", version: "3.4.0" });
+  // mcp-lite 0.10 builds serverInfo from name and version only and returns that same object in the
+  // initialize result, so the spec's display fields (title, websiteUrl, icons) are set on it here.
+  const serverInfo = (mcp as unknown as { serverInfo?: Record<string, unknown> }).serverInfo;
+  if (serverInfo) Object.assign(serverInfo, { title: "BBQS", websiteUrl: "https://brain-bbqs.org", icons: ICONS });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
@@ -733,6 +745,7 @@ app.get("/bbqs-mcp", (c) =>
   c.json({
     name: "bbqs-mcp",
     version: "3.0.0",
+    icons: ICONS,
     description: "BBQS knowledge graph over MCP. Public search anonymously; sign in for member self-service; curators onboard and offboard. One endpoint, step-up OAuth.",
     auth: "OAuth 2.1 via Supabase Auth, on demand. Public tools need no account; the server challenges only when a member or curator tool is called.",
     mcp_endpoint: RESOURCE,
