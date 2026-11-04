@@ -1652,6 +1652,7 @@ export type Database = {
           award_amount: number | null
           created_at: string
           fiscal_year: number | null
+          funded_by: string | null
           grant_number: string
           id: string
           nih_link: string | null
@@ -1665,6 +1666,7 @@ export type Database = {
           award_amount?: number | null
           created_at?: string
           fiscal_year?: number | null
+          funded_by?: string | null
           grant_number: string
           id?: string
           nih_link?: string | null
@@ -1678,6 +1680,7 @@ export type Database = {
           award_amount?: number | null
           created_at?: string
           fiscal_year?: number | null
+          funded_by?: string | null
           grant_number?: string
           id?: string
           nih_link?: string | null

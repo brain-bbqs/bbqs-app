@@ -35,6 +35,14 @@ BID = "https://brain-bbqs.org/id/"
 
 LABEL_PREDICATES = ("name", "title", "label", "common_name", "model_name")
 ROW_LIMIT = 25
+STANDALONE = HERE / "standalone_by_design.yaml"
+
+
+def standalone_classes(path: Path = STANDALONE) -> set[str]:
+    """Classes decided to stand alone (standalone_by_design.yaml). Counted separately, never dropped."""
+    if not path.exists():
+        return set()
+    return set((yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("standalone_by_design") or {})
 
 
 def shown(path: Path) -> str:
@@ -152,6 +160,7 @@ class KGQuality:
         comp_size = Counter(find(n) for n in types)
         sizes = sorted(comp_size.values(), reverse=True)
 
+        standalone = standalone_classes()
         per_class = {}
         for cls in sorted(set(types.values())):
             members = [n for n, c in types.items() if c == cls]
@@ -159,6 +168,7 @@ class KGQuality:
             per_class[cls] = {
                 "nodes": len(members),
                 "isolated": len(members) - len(linked),
+                "standalone_by_design": cls in standalone,
                 "mean_degree": round(sum(degree[n] for n in members) / len(members), 2),
                 "max_degree": max(degree[n] for n in members),
                 "out_edges": sum(out_deg[n] for n in members),
@@ -172,6 +182,9 @@ class KGQuality:
             "components": len(sizes),
             "largest_component": sizes[0] if sizes else 0,
             "isolated": sum(1 for n in types if not degree[n]),
+            # Of the isolated nodes, those in a class decided to stand alone (still in `isolated`).
+            "isolated_standalone": sum(1 for n in types if not degree[n] and types[n] in standalone),
+            "isolated_unexplained": sum(1 for n in types if not degree[n] and types[n] not in standalone),
             "dangling_refs": [{"from_class": c, "predicate": p, "count": n}
                               for (c, p), n in dangling.most_common()],
             "per_class": per_class,
@@ -359,7 +372,8 @@ class KGQuality:
         lines = [
             f"built {report['built_at']}  commit={report['commit']}  source={report['source']}  access={report['access']}",
             f"structure: {s['triples']} triples, {s['nodes']} nodes, {s['edges']} edges, "
-            f"{s['components']} components (largest {s['largest_component']}), {s['isolated']} isolated",
+            f"{s['components']} components (largest {s['largest_component']}), {s['isolated']} isolated "
+            f"({s['isolated_standalone']} in standalone-by-design classes, {s['isolated_unexplained']} unexplained)",
             "",
             f"competency: {report['competency_summary']}",
         ]

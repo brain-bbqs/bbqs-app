@@ -29,6 +29,9 @@
   "exercised": [
     "AuthorOrcidResolvesShape",
     "ConsortiumRoleNotAProjectRoleShape",
+    "DeviceCategoryCanonicalShape",
+    "EdgeEndpointResolvesShape",
+    "FundingWindowShape",
     "HeldByResolvesShape",
     "MechanismMatchesGrantNumberShape",
     "OneClassPerNodeShape",
@@ -38,8 +41,10 @@
     "ProjectIsAnAwardShape",
     "ProjectRoleTokenShape",
     "StudiesSpeciesResolvesShape",
-    "UrlFieldsAreUrlsShape"
+    "UrlFieldsAreUrlsShape",
+    "WorkingGroupCanonicalShape"
   ],
   "isolated": 180,
+  "isolated_unexplained": 133,
   "nodes": 747
 }

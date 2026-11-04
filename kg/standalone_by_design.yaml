@@ -1,0 +1,34 @@
+# Classes whose nodes are standalone by design: no edge to another node is defined for them, so a
+# node of the class with no link is not a gap in the export. Decided under #475.
+#
+# Effect: quality.py still counts these nodes, still lists them as isolated on their entity cards,
+# and reports them as their own number (`isolated_standalone`). Only the unexplained count,
+# `isolated_unexplained`, leaves them out. Nothing is hidden from the node or isolated totals.
+#
+# Add a class here only when the decision is recorded below. Take it out when an edge is defined
+# for it: its nodes then count as unexplained again.
+standalone_by_design:
+  Announcement:
+    decision: >-
+      Attaches to a ResearchOrganization only, through part_of_org (resources.organization_id,
+      already exported when set). No project or working-group edge: the database has no column that
+      says which. All 12 have an empty organization_id, so until one is set they stand alone.
+    revisit_when: an announcement names the organization or project it is about.
+  Protocol:
+    decision: >-
+      Standalone. No edge is defined, and `produced` is not reused with a type check: it means a
+      project produced the thing, and nothing records that for a protocol. Protocols already link
+      outward through uses_device and measures_construct when those are filled.
+    revisit_when: a table ties protocols to projects, investigators or working groups.
+  FundingOpportunity:
+    decision: >-
+      Standalone. A funding call is not attached to a BBQS project; most have nothing to link to by
+      design. participating_orgs is free text and stays a fact, not a link.
+    revisit_when: a project-to-call relation is recorded (for example, the call a project answered).
+  SoftwareTool:
+    decision: >-
+      Standalone until a source ties tools to projects. No column does, and the project lists in
+      seed-all-tables came from original project descriptions, not from checking what each lab uses.
+      The Named/Related table in #444 is a suggestion to confirm with the project teams. It becomes
+      edges only through a table the teams confirm.
+    revisit_when: a project_software_tools table (or equivalent) exists with confirmed rows.
