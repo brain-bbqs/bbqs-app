@@ -162,8 +162,56 @@ function requiredTier(bodyText: string): "public" | "member" | "curator" {
   return tier;
 }
 
-function buildServer(jwt: string, caller: Caller | null) {
+// Served by Pages from public/brand/. PNG first: the MCP spec requires clients that show icons to
+// support PNG, while SVG support is optional.
+const ICONS = [
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon-256.png", mimeType: "image/png", sizes: ["256x256"] },
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+  { src: "https://brain-bbqs.org/brand/bbqs-mcp-icon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
+];
+
+const tierOf = (n: string): "public" | "member" | "curator" =>
+  CURATOR_TOOLS.has(n) ? "curator" : MEMBER_TOOLS.has(n) ? "member" : "public";
+
+/** The tools/call and initialize messages in a JSON-RPC body (one message or a batch). */
+function rpcMessages(bodyText: string): Array<{ method: string; params?: { name?: string; arguments?: unknown; clientInfo?: { name?: string; version?: string } } }> {
+  try {
+    const parsed = JSON.parse(bodyText);
+    return (Array.isArray(parsed) ? parsed : [parsed])
+      .filter((m) => m?.method === "tools/call" || m?.method === "initialize");
+  } catch {
+    return [];
+  }
+}
+
+type RequestMeta = { userAgent: string | null; sessionId: string | null };
+type CallLog = {
+  tool: string; tier: string; outcome: "ok" | "error" | "refused"; error?: string | null;
+  durationMs?: number | null; args?: unknown; method?: string; clientName?: string | null;
+};
+
+/** One row in mcp_usage_log. Sent under the caller's JWT so the row names them, or the anon key when
+ *  there is none. Best-effort: a logging failure never touches the call. Until migration
+ *  20261104120000 is applied log_mcp_usage knows only the first five parameters, so fall back. */
+async function logCall(jwt: string, meta: RequestMeta, e: CallLog, clientTag?: string) {
+  const token = jwt || ANON_KEY;
+  const base = { _tool: e.tool, _tier: e.tier, _ok: e.outcome === "ok", _error: e.error ?? null, _duration_ms: e.durationMs ?? null };
+  try {
+    await rpc(token, "log_mcp_usage", {
+      ...base, _outcome: e.outcome, _args: e.args ?? null, _method: e.method ?? "tools/call",
+      _client_name: e.clientName ?? null, _user_agent: meta.userAgent, _session_id: meta.sessionId,
+    }, clientTag);
+  } catch {
+    try { await rpc(token, "log_mcp_usage", base, clientTag); } catch { /* best-effort */ }
+  }
+}
+
+function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   const mcp = new McpServer({ name: "bbqs-mcp", version: "3.4.0" });
+  // mcp-lite 0.10 builds serverInfo from name and version only and returns that same object in the
+  // initialize result, so the spec's display fields (title, websiteUrl, icons) are set on it here.
+  const serverInfo = (mcp as unknown as { serverInfo?: Record<string, unknown> }).serverInfo;
+  if (serverInfo) Object.assign(serverInfo, { title: "BBQS", websiteUrl: "https://brain-bbqs.org", icons: ICONS });
   const obj = (properties: Record<string, unknown>, required?: string[]) =>
     ({ type: "object" as const, properties, ...(required ? { required } : {}) });
 
@@ -172,9 +220,6 @@ function buildServer(jwt: string, caller: Caller | null) {
   const _clientTag = caller ? `bbqs-mcp:${caller.email}` : "bbqs-mcp";
   const restC = (path: string, init?: RequestInit) => rest(jwt, path, init, _clientTag);
   const rpcC = (fn: string, args: unknown) => rpc(jwt, fn, args, _clientTag);
-
-  const toolTier = (n: string): "public" | "member" | "curator" =>
-    CURATOR_TOOLS.has(n) ? "curator" : MEMBER_TOOLS.has(n) ? "member" : "public";
 
   // Register every tool through T: a thrown error becomes a returned isError result carrying the
   // REAL message. Without it mcp-lite flattens a PostgREST error ("duplicate key", "malformed
@@ -195,11 +240,10 @@ function buildServer(jwt: string, caller: Caller | null) {
           ok = false; errMsg = e instanceof Error ? e.message : String(e);
           return { content: [{ type: "text" as const, text: `Error: ${errMsg}` }], isError: true };
         } finally {
-          try {
-            await rpcC("log_mcp_usage", {
-              _tool: name, _tier: toolTier(name), _ok: ok, _error: errMsg, _duration_ms: Date.now() - t0,
-            });
-          } catch { /* usage logging is best-effort */ }
+          await logCall(jwt, meta, {
+            tool: name, tier: tierOf(name), outcome: ok ? "ok" : "error", error: errMsg,
+            durationMs: Date.now() - t0, args: a,
+          }, _clientTag);
         }
       },
     });
@@ -701,6 +745,7 @@ app.get("/bbqs-mcp", (c) =>
   c.json({
     name: "bbqs-mcp",
     version: "3.0.0",
+    icons: ICONS,
     description: "BBQS knowledge graph over MCP. Public search anonymously; sign in for member self-service; curators onboard and offboard. One endpoint, step-up OAuth.",
     auth: "OAuth 2.1 via Supabase Auth, on demand. Public tools need no account; the server challenges only when a member or curator tool is called.",
     mcp_endpoint: RESOURCE,
@@ -721,6 +766,21 @@ app.get("/bbqs-mcp/.well-known/oauth-protected-resource", (c) =>
 app.all("/bbqs-mcp/*", async (c) => {
   const req = c.req.raw;
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const meta: RequestMeta = {
+    userAgent: c.req.header("User-Agent") ?? null,
+    sessionId: c.req.header("mcp-session-id") ?? null,
+  };
+
+  // The body is read before anything can refuse the request, so a refusal is logged with the tools
+  // it refused.
+  const bodyText = req.method === "POST" ? await req.text() : "";
+  const messages = rpcMessages(bodyText);
+  const calls = messages.filter((m) => m.method === "tools/call");
+  const logRefused = (token: string, error: string) =>
+    Promise.all(calls.map((m) => {
+      const name = String(m.params?.name ?? "");
+      return logCall(token, meta, { tool: name, tier: tierOf(name), outcome: "refused", error, args: m.params?.arguments });
+    }));
 
   // Resolve the caller once if a token was sent. A present-but-invalid token is rejected here so a
   // stale token never silently degrades to anonymous.
@@ -728,6 +788,7 @@ app.all("/bbqs-mcp/*", async (c) => {
   if (jwt) {
     caller = await resolveCaller(jwt);
     if (!caller) {
+      await logRefused("", "invalid_token");
       return c.json({ error: "invalid_token", error_description: "Token is invalid or expired." },
         401, challenge({ error: "invalid_token" }));
     }
@@ -735,11 +796,10 @@ app.all("/bbqs-mcp/*", async (c) => {
 
   // Step-up gate. Peek the JSON-RPC body BEFORE the transport runs, so a call above the caller's
   // tier is refused at the HTTP layer with a proper challenge instead of executing.
-  let bodyText = "";
   if (req.method === "POST") {
-    bodyText = await req.text();
     const tier = requiredTier(bodyText);
     if (tier === "curator" && !caller?.isCurator) {
+      await logRefused(jwt, caller ? "not a curator" : "not signed in");
       return caller
         ? c.json({ error: "insufficient_scope", error_description: `${caller.email} is not a BBQS curator.` },
             403, challenge({ error: "insufficient_scope", scope: "curator" }))
@@ -747,6 +807,7 @@ app.all("/bbqs-mcp/*", async (c) => {
             401, challenge({ scope: "curator" }));
     }
     if (tier === "member" && !caller) {
+      await logRefused(jwt, "not signed in");
       return c.json({ error: "unauthorized", error_description: "Sign in to use this tool." },
         401, challenge());
     }
@@ -758,9 +819,17 @@ app.all("/bbqs-mcp/*", async (c) => {
     : req;
 
   try {
-    const handler = new StreamableHttpTransport().bind(buildServer(jwt, caller));
+    const handler = new StreamableHttpTransport().bind(buildServer(jwt, caller, meta));
     const res = await handler(forwarded);
     for (const [k, v] of Object.entries(CORS)) res.headers.set(k, v);
+    // initialize is where a client says what it is; the session id it is given comes back on the response.
+    for (const m of messages.filter((x) => x.method === "initialize")) {
+      const ci = m.params?.clientInfo;
+      await logCall(jwt, { ...meta, sessionId: res.headers.get("mcp-session-id") ?? meta.sessionId }, {
+        tool: "(initialize)", tier: "public", outcome: res.ok ? "ok" : "error", method: "initialize",
+        clientName: ci?.name ? `${ci.name}${ci.version ? ` ${ci.version}` : ""}` : null,
+      });
+    }
     return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
