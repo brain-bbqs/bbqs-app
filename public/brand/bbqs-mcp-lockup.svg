@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 128" role="img" aria-label="BBQS MCP">
+  <g>
+    <rect width="128" height="128" rx="28" fill="#1a2247"/>
+    <g stroke="#f5b942" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M44 33 L19 48 L19 80 L44 95"/>
+      <path d="M44 64 L44 33 M44 64 L19 48 M44 64 L19 80 M44 64 L44 95"/>
+    </g>
+    <path d="M53 64 H73" stroke="#f5b942" stroke-width="6" stroke-linecap="round"/>
+    <g fill="#f5b942">
+      <circle cx="44" cy="33" r="6.5"/>
+      <circle cx="19" cy="48" r="6.5"/>
+      <circle cx="19" cy="80" r="6.5"/>
+      <circle cx="44" cy="95" r="6.5"/>
+      <rect x="72" y="44" width="22" height="40" rx="8"/>
+      <rect x="92" y="52" width="18" height="7" rx="3.5"/>
+      <rect x="92" y="69" width="18" height="7" rx="3.5"/>
+    </g>
+    <circle cx="44" cy="64" r="9.5" fill="#ffffff"/>
+  </g>
+  <text x="150" y="76" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="0.5"><tspan fill="#1a2247">BBQS</tspan><tspan fill="#d99a1e"> MCP</tspan></text>
+  <text x="152" y="102" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" letter-spacing="1.6" fill="#5b6478">KNOWLEDGE GRAPH CONNECTOR</text>
+</svg>

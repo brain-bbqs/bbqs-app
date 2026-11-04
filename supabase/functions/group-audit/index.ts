@@ -25,6 +25,7 @@ const WG_GROUPS: Record<string, string> = {
   "WG-Devices": "wg-devices@brain-bbqs.org",
   "WG-ELSI": "wg-elsi@brain-bbqs.org",
   "WG-Standards": "wg-standards@brain-bbqs.org",
+  "WG-Cross-Species": "wg-cross-species@brain-bbqs.org",
 };
 const CONSORTIUM = "consortium@brain-bbqs.org";
 const PI_GROUP = "pi@brain-bbqs.org";

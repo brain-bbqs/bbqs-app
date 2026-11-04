@@ -1,5 +1,7 @@
 import { PageMeta } from "@/components/PageMeta";
+import { Link } from "react-router-dom";
 import { CalendarDays } from "lucide-react";
+import { SFN_2026_FIXED_EVENTS } from "@/data/sfn2026-events";
 
 const CALENDAR_EMBED_URL =
   "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America/New_York&showPrint=0&mode=AGENDA&title=BBQS+Events+Calendar&src=YWRtaW5AYnJhaW4tYmJxcy5vcmc&color=%23039BE5";
@@ -34,6 +36,21 @@ export default function Calendar() {
             loading="lazy"
           />
         </div>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-bold text-foreground mb-3">SfN 2026 · Washington, DC</h2>
+          <ul className="rounded-xl border border-border bg-card divide-y divide-border">
+            {SFN_2026_FIXED_EVENTS.map((e) => (
+              <li key={`${e.day}-${e.start}`} className="px-4 py-3 text-sm">
+                <span className="font-semibold">Nov {e.day}, {e.time}</span> — {e.event}
+                <span className="text-muted-foreground"> · {e.location}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-muted-foreground mt-2">
+            BBQS posters and talks are listed on the <Link to="/sfn-2026" className="underline">SfN 2026 page</Link>.
+          </p>
+        </section>
       </div>
     </div>
   );

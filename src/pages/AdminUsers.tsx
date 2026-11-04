@@ -68,7 +68,7 @@ interface InvitedInvestigatorRow {
 
 /** The four canonical tokens. Must match canonical_working_group() and the WG_GROUPS map in
  *  group-audit / sync-member-groups — a fifth spelling here would write a token nothing subscribes. */
-const WORKING_GROUPS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards"] as const;
+const WORKING_GROUPS = ["WG-Analytics", "WG-Devices", "WG-ELSI", "WG-Standards", "WG-Cross-Species"] as const;
 
 const TIER_META: Record<AssignableRole, { label: string; tier: number; color: string; icon: any }> = {
   admin:   { label: "Admin",   tier: 1, color: "bg-destructive/10 text-destructive border-destructive/30", icon: ShieldCheck },

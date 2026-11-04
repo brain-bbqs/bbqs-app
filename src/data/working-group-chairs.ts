@@ -7,6 +7,8 @@ const WG_CHAIRS: { name: string; group: string }[] = [
   { name: "Laura Cabrera", group: "WG-ELSI" },
   { name: "Oliver Ruebel", group: "WG-Standards" },
   { name: "Melissa Kline Struhl", group: "WG-Standards" },
+  { name: "Steve Chang", group: "WG-Cross-Species" },
+  { name: "Dan Sanes", group: "WG-Cross-Species" },
 ];
 
 function normalize(name: string): string {

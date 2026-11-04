@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { SFN_2026_FIXED_EVENTS } from "@/data/sfn2026-events";
 
 // Shape served by the sfn-2026-presentations edge function (supabase/functions/sfn-2026-presentations).
 type Presentation = {
@@ -62,12 +63,6 @@ const EVENING_EVENTS = [
   },
 ];
 
-const FIXED_GLANCE = [
-  { day: 15, start: 840, time: "2:00–4:30 PM", event: "Embodied Cognition: How Does Embodiment Impact Cognitive Processing?", location: "WCC Rm 151" },
-  { day: 15, start: 1140, time: "7:00–9:00 PM", event: "BRAIN Initiative Alliance Toolmakers Showcase (social)", location: "Marriott Marquis, Independence Ballroom, Salons EFGH" },
-  { day: 16, start: 1140, time: "7:00–9:00 PM", event: "Social Neuroscience Social", location: "Hall E – NNE Space #6" },
-];
-
 const SFN2026 = () => {
   const { data } = useQuery({
     queryKey: ["sfn-2026-presentations"],
@@ -86,7 +81,7 @@ const SFN2026 = () => {
   const onDay = (d: number) => presentations.filter((x) => x.day === d);
 
   const glance = [
-    ...FIXED_GLANCE,
+    ...SFN_2026_FIXED_EVENTS,
     ...days.map((d) => {
       const items = onDay(d);
       const starts = items.map((x) => x.start).filter((n): n is number => n != null);

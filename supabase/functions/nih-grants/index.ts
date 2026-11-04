@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
+import { requireCuratorOrService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -476,6 +477,13 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
+
+    // The bare GET is the public Projects page; every action writes the KG with the service role, so
+    // it needs the cron's service-role key or a curator (verify_jwt is off for the public read).
+    if (action) {
+      const denied = await requireCuratorOrService(req, corsHeaders);
+      if (denied) return denied;
+    }
 
     // ACTION: reconcile — light daily sync from RePORTER (pg_cron, 07:00 UTC).
     // Syncs PIs and backfills grant-metadata fields, but skips the publication

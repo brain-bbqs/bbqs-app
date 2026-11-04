@@ -36,7 +36,8 @@ async function gql(query, variables) {
     method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }) });
   const j = await r.json();
-  if (j.errors) throw new Error(j.errors.map(e => e.message).join("; "));
+  // GitHub names the field a token may not read only in `path`; without it the error says nothing useful.
+  if (j.errors) throw new Error(j.errors.map(e => e.path ? `${e.message} (at ${e.path.join(".")})` : e.message).join("; "));
   return j.data;
 }
 

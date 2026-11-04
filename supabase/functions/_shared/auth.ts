@@ -91,8 +91,18 @@ export async function requireAuth(
   return { user };
 }
 
+/** The caller's roles from user_roles, read under their own JWT (RLS lets a user read their own). */
+async function callerRoles(authHeader: string, userId: string): Promise<string[]> {
+  const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data } = await client.from("user_roles").select("role").eq("user_id", userId);
+  return (data ?? []).map((r: { role: string }) => r.role);
+}
+
 /**
- * Validates JWT and checks the user is an admin (MIT email or in ADMIN_EMAILS).
+ * Validates JWT and checks the user holds the admin role (or is listed in ADMIN_EMAILS). An email
+ * domain is not an authority: sign-in is open to whole institutions.
  */
 export async function requireAdmin(
   req: Request,
@@ -107,10 +117,10 @@ export async function requireAdmin(
     .map((e: string) => e.trim().toLowerCase())
     .filter(Boolean);
 
-  const isMitUser = email.endsWith("@mit.edu");
-  const isExplicitAdmin = adminEmails.includes(email);
+  const isAdmin = adminEmails.includes(email) ||
+    (await callerRoles(req.headers.get("Authorization")!, result.user.id)).includes("admin");
 
-  if (!isMitUser && !isExplicitAdmin) {
+  if (!isAdmin) {
     return {
       user: null,
       error: new Response(
@@ -121,4 +131,31 @@ export async function requireAdmin(
   }
 
   return result;
+}
+
+/**
+ * For functions that act on the consortium's behalf (send email, write the KG): the service-role key
+ * (cron and DB triggers via cron_invoke) or a signed-in admin/curator. Returns the rejection to send,
+ * or null to proceed. The public anon key is rejected — it ships in every browser bundle.
+ */
+export async function requireCuratorOrService(
+  req: Request,
+  headers: Record<string, string>,
+): Promise<Response | null> {
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (bearer && bearer === serviceKey) return null;
+
+  const deny = (status: number, error: string) =>
+    new Response(JSON.stringify({ error }), { status, headers: { ...headers, "Content-Type": "application/json" } });
+  const result = await requireAuth(req, headers);
+  if (result.error) return result.error;
+  const roles = await callerRoles(authHeader, result.user.id);
+  return roles.includes("admin") || roles.includes("curator") ? null : deny(403, "Admin or curator only");
+}
+
+/** Escape text interpolated into an HTML email. */
+export function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }

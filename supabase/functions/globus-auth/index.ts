@@ -291,28 +291,29 @@ Deno.serve(async (req) => {
       let canonicalEmail = email;
       const emailLower = email.toLowerCase();
 
-      // Check if this email is a secondary_email for any investigator
-      const { data: invBySecondaryRows } = await supabaseAdmin
+      // Primary email first. Matching secondaries first let anyone who listed another person's address
+      // as their own secondary capture that person's sign-in.
+      const { data: invByPrimaryRows } = await supabaseAdmin
         .from("investigators")
         .select("email")
-        .contains("secondary_emails", [emailLower])
-        .not("email", "is", null)
-        .order("updated_at", { ascending: false })
+        .ilike("email", emailLower.replace(/[\\%_]/g, "\\$&"))
         .limit(1);
-      const invBySecondary = invBySecondaryRows?.[0];
+      const invByPrimary = invByPrimaryRows?.[0];
 
-      if (invBySecondary?.email) {
-        canonicalEmail = invBySecondary.email;
-        console.log(`Resolved secondary email ${email} → canonical ${canonicalEmail}`);
+      if (invByPrimary?.email) {
+        canonicalEmail = invByPrimary.email;
       } else {
-        const { data: invByPrimaryRows } = await supabaseAdmin
+        const { data: invBySecondaryRows } = await supabaseAdmin
           .from("investigators")
           .select("email")
-          .ilike("email", emailLower)
+          .contains("secondary_emails", [emailLower])
+          .not("email", "is", null)
+          .order("updated_at", { ascending: false })
           .limit(1);
-        const invByPrimary = invByPrimaryRows?.[0];
-        if (invByPrimary?.email) {
-          canonicalEmail = invByPrimary.email;
+        const invBySecondary = invBySecondaryRows?.[0];
+        if (invBySecondary?.email) {
+          canonicalEmail = invBySecondary.email;
+          console.log(`Resolved secondary email ${email} → canonical ${canonicalEmail}`);
         }
       }
 

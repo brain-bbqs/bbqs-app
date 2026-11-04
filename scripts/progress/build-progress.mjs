@@ -28,14 +28,22 @@ const outDir = args["out-dir"] || ".";
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
 if (!token) { console.error("Set GH_TOKEN to a token that can read org projects."); process.exit(2); }
 
-async function gql(query, variables) {
+// A board item whose issue lives in a repo the token can't read comes back with `content: null` and a
+// "not accessible" error at items.nodes.N.content. One such item must not blank the whole page:
+// tolerateItems leaves it out and says so.
+async function gql(query, variables, { tolerateItems = false } = {}) {
   const r = await fetch("https://api.github.com/graphql", {
     method: "POST",
     headers: { Authorization: `bearer ${token}`, "Content-Type": "application/json", "GraphQL-Features": "sub_issues,issue_types" },
     body: JSON.stringify({ query, variables }),
   });
   const j = await r.json();
-  if (j.errors) throw new Error(j.errors.map(e => e.message).join("; "));
+  // GitHub names the field a token may not read only in `path`; without it the error says nothing useful.
+  const unreadable = e => tolerateItems && /not accessible/i.test(e.message) && e.path?.slice(-3, -2)[0] === "nodes" && e.path.at(-1) === "content";
+  const fatal = (j.errors || []).filter(e => !unreadable(e));
+  if (fatal.length) throw new Error(fatal.map(e => e.path ? `${e.message} (at ${e.path.join(".")})` : e.message).join("; "));
+  const skipped = (j.errors || []).length - fatal.length;
+  if (skipped) console.log(`::warning::${skipped} board item(s) are in a repo this token can't read, so they're left out. Give the token access to that repo.`);
   return j.data;
 }
 
@@ -89,7 +97,7 @@ async function roadmapIssues() {
 async function boardItems() {
   const out = []; let after = null, project = null;
   do {
-    const d = await gql(ITEMS, { org: ORG, num: PROJECT, after });
+    const d = await gql(ITEMS, { org: ORG, num: PROJECT, after }, { tolerateItems: true });
     const p = d.organization.projectV2;
     project = { title: p.title, url: p.url, public: p.public };
     for (const n of p.items.nodes) if (n.content?.__typename === "Issue") out.push(n);
