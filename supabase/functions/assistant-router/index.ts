@@ -149,7 +149,7 @@ async function callLLM(messages: { role: string; content: string }[], system: st
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const denied = requireService(req, corsHeaders);
+  const denied = await requireService(req, corsHeaders);
   if (denied) return denied;
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 

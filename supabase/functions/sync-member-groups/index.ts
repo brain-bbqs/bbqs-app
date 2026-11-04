@@ -24,7 +24,7 @@
 //
 // Requires (KG project function secrets, same values the agent uses):
 //   GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET · GOOGLE_REFRESH_TOKEN
-import { createClient } from "npm:@supabase/supabase-js@2.39.3";
+import { requireCuratorOrService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -178,22 +178,8 @@ Deno.serve(async (req) => {
   // trigger, via cron_invoke, and manual cron_invoke) — same branch as reporter-pi-sync. Otherwise
   // the caller must be a signed-in admin/curator, checked under their own forwarded JWT — the
   // pattern slack-channels uses. Anything else (including the public anon key) is rejected.
-  const authHeader = req.headers.get("Authorization") || "";
-  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const isServiceRole = bearer.length > 0 && bearer === serviceKey;
-  if (!isServiceRole) {
-    const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await asUser.auth.getUser();
-    const uid = userData?.user?.id;
-    if (!uid) return json({ ok: false, error: "Not authenticated — sign in as an admin/curator, or call with the service role key" }, 401);
-    const { data: roles } = await asUser.from("user_roles").select("role").eq("user_id", uid);
-    if (!(roles ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
-      return json({ ok: false, error: "Admin or curator only" }, 403);
-    }
-  }
+  const denied = await requireCuratorOrService(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     const body = await req.json().catch(() => ({}));

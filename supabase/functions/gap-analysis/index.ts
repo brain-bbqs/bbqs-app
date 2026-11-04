@@ -23,7 +23,7 @@ function getField(project: Record<string, any>, field: string): any {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const denied = requireService(req, corsHeaders);
+  const denied = await requireService(req, corsHeaders);
   if (denied) return denied;
 
   try {

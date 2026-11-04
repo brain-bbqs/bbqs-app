@@ -10,7 +10,7 @@ import { getCorsHeaders, requireService } from "../_shared/auth.ts";
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-  const denied = requireService(req, cors);
+  const denied = await requireService(req, cors);
   if (denied) return denied;
   const jsonHeaders = { ...cors, "Content-Type": "application/json" };
   let body: any = {};

@@ -38,6 +38,7 @@
 // or with the service role key -- which is what cron_invoke sends, e.g.
 //   SELECT public.cron_invoke('reporter-pi-sync', '{"action":"snapshot"}'::jsonb);
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
+import { requireCuratorOrService } from "../_shared/auth.ts";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
 
 // Hand-written per function, and the reason tests/guards/cors-header-parity exists: a global header
@@ -136,23 +137,8 @@ Deno.serve(async (req) => {
     // this one supersedes for PIs, has no gate at all for exactly that reason. A service-role bearer
     // is already trusted -- it can do anything in the database directly -- so honouring it here adds
     // no privilege, it just stops the function being unreachable by the scheduler.
-    const authHeader = req.headers.get("Authorization") || "";
-    const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const isServiceRole = bearer.length > 0 && bearer === serviceKey;
-
-    if (!isServiceRole) {
-      const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: userData } = await asUser.auth.getUser();
-      const uid = userData?.user?.id;
-      if (!uid) return json({ ok: false, error: "Not authenticated — sign in, or call with the service role key" }, 401);
-      const { data: roles } = await asUser.from("user_roles").select("role").eq("user_id", uid);
-      if (!(roles ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
-        return json({ ok: false, error: "Admin or curator only" }, 403);
-      }
-    }
+    const denied = await requireCuratorOrService(req, corsHeaders);
+    if (denied) return denied;
 
     // Declared, not inferred: without this every write below lands at G8 'unknown' and the
     // provenance guard refuses it the moment a human has edited the same cell.

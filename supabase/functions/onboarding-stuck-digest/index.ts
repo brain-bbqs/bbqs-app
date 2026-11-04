@@ -7,6 +7,7 @@
 //
 // Deploy: supabase functions deploy onboarding-stuck-digest  (needs RESEND_API_KEY).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCuratorOrService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,23 +46,10 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     const { dry_run } = await req.json().catch(() => ({}));
 
-    // The cron authenticates with the service-role key (public.cron_invoke). Anyone else must be
-    // a signed-in admin or curator.
-    const fromCron = bearer !== "" && bearer === serviceKey;
-    if (!fromCron) {
-      const caller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: `Bearer ${bearer}` } },
-      });
-      const { data: u } = await caller.auth.getUser();
-      if (!u?.user?.id) return json({ ok: false, error: "Not authenticated" }, 401);
-      const { data: roles } = await caller.from("user_roles").select("role").eq("user_id", u.user.id);
-      if (!(roles || []).some((r: { role: string }) => r.role === "admin" || r.role === "curator")) {
-        return json({ ok: false, error: "Admin or curator only" }, 403);
-      }
-    }
+    const denied = await requireCuratorOrService(req, corsHeaders);
+    if (denied) return denied;
 
     const db = createClient(url, serviceKey);
     const { data: rows, error } = await db.from("onboarding_pipeline")

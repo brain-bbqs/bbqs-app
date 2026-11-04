@@ -17,14 +17,6 @@ type NodeRef = {
 type PathStep = { node: NodeRef; relation_in: string | null; hop: number; score: number };
 type Path = PathStep[];
 
-function isInternalServiceCall(req: Request): boolean {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceKey) return false;
-  const bearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-  const apikey = req.headers.get("apikey");
-  return bearer === serviceKey || apikey === serviceKey;
-}
-
 // ─────────────────────── Embeddings ───────────────────────
 async function embed(text: string, key: string): Promise<number[] | null> {
   if (!text) return null;
@@ -392,10 +384,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   // harvester-tick calls in with the service key; anyone else must be a curator, since every run
   // spends LLM and scraping calls and sign-in alone is open to whole institutions.
-  if (!isInternalServiceCall(req)) {
-    const denied = await requireCuratorOrService(req, cors);
-    if (denied) return denied;
-  }
+  const denied = await requireCuratorOrService(req, cors);
+  if (denied) return denied;
 
   let requestBody: any = {};
   try { requestBody = await req.json(); } catch { requestBody = {}; }

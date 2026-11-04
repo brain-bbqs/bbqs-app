@@ -44,7 +44,7 @@ async function summarize(mech: Mech, abstracts: string[]): Promise<string> {
 Deno.serve(async (req) => {
   const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
   if (req.method === "OPTIONS") return new Response(null, { headers });
-  const denied = requireService(req, headers);
+  const denied = await requireService(req, headers);
   if (denied) return denied;
   try {
     const url = Deno.env.get("SUPABASE_URL")!;

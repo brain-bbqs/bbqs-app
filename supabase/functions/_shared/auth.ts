@@ -133,6 +133,40 @@ export async function requireAdmin(
   return result;
 }
 
+export function bearerOf(req: Request): string {
+  return (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+}
+
+/** The role claim, unverified. Only ever used to skip asking the platform about a token that
+ *  cannot be the service role; it never grants anything. */
+function unverifiedRole(token: string): string | null {
+  try {
+    const p = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(p + "=".repeat((4 - (p.length % 4)) % 4))).role ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `bearer` is this project's service-role credential, as the platform decides: only the
+ * service role may list auth users. The injected SUPABASE_SERVICE_ROLE_KEY is one such credential
+ * but not the only one — on this project it is not the key the dashboard shows and the vault holds,
+ * so byte equality alone refused every cron and DB-trigger call (2026-11-04;
+ * tests/guards/service-role-check).
+ */
+export async function isServiceRole(bearer: string): Promise<boolean> {
+  if (!bearer) return false;
+  if (bearer === (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "")) return true;
+  const secretKey = bearer.startsWith("sb_secret_");
+  if (!secretKey && unverifiedRole(bearer) !== "service_role") return false;
+  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users?page=1&per_page=1`, {
+    headers: secretKey ? { apikey: bearer } : { apikey: bearer, Authorization: `Bearer ${bearer}` },
+  });
+  await res.body?.cancel();
+  return res.ok;
+}
+
 /**
  * For functions that act on the consortium's behalf (send email, write the KG): the service-role key
  * (cron and DB triggers via cron_invoke) or a signed-in admin/curator. Returns the rejection to send,
@@ -143,9 +177,7 @@ export async function requireCuratorOrService(
   headers: Record<string, string>,
 ): Promise<Response | null> {
   const authHeader = req.headers.get("Authorization") || "";
-  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (bearer && bearer === serviceKey) return null;
+  if (await isServiceRole(bearerOf(req))) return null;
 
   const deny = (status: number, error: string) =>
     new Response(JSON.stringify({ error }), { status, headers: { ...headers, "Content-Type": "application/json" } });
@@ -156,10 +188,8 @@ export async function requireCuratorOrService(
 }
 
 /** For functions only cron or the database call: the service-role key, nothing else. */
-export function requireService(req: Request, headers: Record<string, string>): Response | null {
-  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (bearer && bearer === serviceKey) return null;
+export async function requireService(req: Request, headers: Record<string, string>): Promise<Response | null> {
+  if (await isServiceRole(bearerOf(req))) return null;
   return new Response(JSON.stringify({ error: "Service role only" }), {
     status: 401, headers: { ...headers, "Content-Type": "application/json" },
   });

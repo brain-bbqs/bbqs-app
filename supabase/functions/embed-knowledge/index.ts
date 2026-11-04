@@ -112,7 +112,7 @@ async function buildCandidates(supabase: any, want: (t: string) => boolean): Pro
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const denied = requireService(req, corsHeaders);
+  const denied = await requireService(req, corsHeaders);
   if (denied) return denied;
   const json = (b: unknown, s = 200) =>
     new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });

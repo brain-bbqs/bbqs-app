@@ -13,7 +13,7 @@
 // (POST { "grant_number": "U24MH136628" }) or all consortium grants (no body).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, requireAdmin } from "../_shared/auth.ts";
+import { bearerOf, getCorsHeaders, isServiceRole, requireAdmin } from "../_shared/auth.ts";
 
 // ─── NIH / iCite / PubMed fetch helpers ────────────────────────
 // Mirrors the logic in `nih-grants` so the publications we import are exactly
@@ -258,9 +258,7 @@ Deno.serve(async (req) => {
   //   SELECT public.cron_invoke('import-grant-publications', '{}'::jsonb);
   // requireAdmin resolves a user via getUser(), which the service-role key is not — without this
   // the function was deployed, gated, and reachable by nothing: no UI calls it and no cron could.
-  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  const isServiceRole = bearer.length > 0 && bearer === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!isServiceRole) {
+  if (!(await isServiceRole(bearerOf(req)))) {
     const auth = await requireAdmin(req, corsHeaders);
     if (auth.error) return auth.error;
   }
