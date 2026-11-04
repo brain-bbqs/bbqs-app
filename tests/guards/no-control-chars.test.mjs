@@ -17,7 +17,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, extname, relative } from "node:path";
+import { basename, join, extname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // fileURLToPath, not url.pathname: this repo lives under "MIT Dropbox", and pathname keeps the
@@ -32,6 +32,9 @@ const ALLOWED = new Set([0x09, 0x0a, 0x0d]);
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
     if (SKIP_DIRS.has(entry)) continue;
+    // Other checkouts of this repo, not its source; under Dropbox their files may be online-only
+    // and a read stalls 60 s before failing.
+    if (entry === "worktrees" && basename(dir) === ".claude") continue;
     const p = join(dir, entry);
     let st;
     try { st = statSync(p); } catch { continue; }
