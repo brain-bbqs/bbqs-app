@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
+import { requireCuratorOrService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,6 +64,8 @@ async function listDandisets(): Promise<DandisetSummary[]> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const denied = await requireCuratorOrService(req, corsHeaders);
+  if (denied) return denied;
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,

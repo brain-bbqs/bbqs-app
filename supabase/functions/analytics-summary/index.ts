@@ -19,15 +19,6 @@ function pct(curr: number, prev: number) {
   return Math.round(((curr - prev) / prev) * 100);
 }
 
-function isPreviewOrigin(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  if (/^https:\/\/[a-z0-9-]*preview[a-z0-9-]*\.lovable\.app$/.test(origin)) return true;
-  if (/\.lovableproject\.com$/.test(origin)) return true;
-  if (/\.sandbox\.lovable\.dev$/.test(origin)) return true;
-  if (origin.startsWith("http://localhost:")) return true;
-  return false;
-}
-
 async function callerIsAdminOrCurator(req: Request, url: string, anon: string): Promise<boolean> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return false;
@@ -72,8 +63,8 @@ Deno.serve(async (req) => {
   const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  const allowed =
-    isPreviewOrigin(req) || (await callerIsAdminOrCurator(req, url, anon));
+  // Origin is caller-controlled (curl sends any), so it is never a credential.
+  const allowed = await callerIsAdminOrCurator(req, url, anon);
   if (!allowed) {
     return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers });
   }

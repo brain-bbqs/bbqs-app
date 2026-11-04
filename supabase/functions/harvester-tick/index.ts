@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { getCorsHeaders } from "../_shared/auth.ts";
+import { getCorsHeaders, requireService } from "../_shared/auth.ts";
 
 /**
  * harvester-tick — cron-driven worker. Picks the next eligible seed from
@@ -10,6 +10,8 @@ import { getCorsHeaders } from "../_shared/auth.ts";
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const denied = requireService(req, cors);
+  if (denied) return denied;
   const jsonHeaders = { ...cors, "Content-Type": "application/json" };
   let body: any = {};
   try { body = await req.json(); } catch { /* GET / cron has no body */ }

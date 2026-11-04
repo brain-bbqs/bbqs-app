@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
+import { requireService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,8 @@ function jaccard(a: string[], b: string[]): number {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const denied = requireService(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

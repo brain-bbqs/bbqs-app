@@ -2,7 +2,7 @@
 // (R61 / R34) from every grant abstract in that mechanism. Cached in
 // public.cohort_summaries so we only hit the LLM once per refresh.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/auth.ts";
+import { getCorsHeaders, requireService } from "../_shared/auth.ts";
 
 const MECH = ["R61", "R34"] as const;
 type Mech = typeof MECH[number];
@@ -44,6 +44,8 @@ async function summarize(mech: Mech, abstracts: string[]): Promise<string> {
 Deno.serve(async (req) => {
   const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
   if (req.method === "OPTIONS") return new Response(null, { headers });
+  const denied = requireService(req, headers);
+  if (denied) return denied;
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

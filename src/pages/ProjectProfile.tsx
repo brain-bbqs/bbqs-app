@@ -21,7 +21,7 @@ export default function ProjectProfile() {
   const { user, loading: authLoading } = useAuth();
   const { canEdit, isLoading: permLoading } = useCanEditProject(grantNumber || null);
   // Any consortium member (tier 3 and up) may READ a project profile. Editing still needs canEdit.
-  const { isMember, isLoading: tierLoading } = useUserTier();
+  const { isMember, isCurator, isLoading: tierLoading } = useUserTier();
 
   const editor = useProjectProfileEditor(grantNumber || null, canEdit);
   const { data, isLoading, completeness } = editor;
@@ -100,7 +100,8 @@ export default function ProjectProfile() {
         <TeamRosterEditor grantId={data.grant.id} canEdit={canEdit} />
 
         {/* EMBER datasets linked by award number */}
-        <EmberDandisetsPanel grantId={data.grant.id} canSync={canEdit} />
+        {/* The sync is consortium-wide and the function accepts curators only; PIs get it from the daily cron. */}
+        <EmberDandisetsPanel grantId={data.grant.id} canSync={isCurator} />
 
         {/* Questionnaire — the same component the card tab renders */}
         <ProjectQuestionnaireBody

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { getCorsHeaders, requireAuth } from "../_shared/auth.ts";
+import { getCorsHeaders, requireCuratorOrService } from "../_shared/auth.ts";
 
 // ─────────────────────── External APIs ───────────────────────
 const REPORTER = "https://api.reporter.nih.gov/v2";
@@ -390,9 +390,12 @@ function mergeExtract(llm: any, hints: any) {
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-  const internalServiceCall = isInternalServiceCall(req);
-  const auth = internalServiceCall ? { user: { id: "service_role" } } : await requireAuth(req, cors);
-  if ("error" in auth && auth.error) return auth.error;
+  // harvester-tick calls in with the service key; anyone else must be a curator, since every run
+  // spends LLM and scraping calls and sign-in alone is open to whole institutions.
+  if (!isInternalServiceCall(req)) {
+    const denied = await requireCuratorOrService(req, cors);
+    if (denied) return denied;
+  }
 
   let requestBody: any = {};
   try { requestBody = await req.json(); } catch { requestBody = {}; }

@@ -155,6 +155,16 @@ export async function requireCuratorOrService(
   return roles.includes("admin") || roles.includes("curator") ? null : deny(403, "Admin or curator only");
 }
 
+/** For functions only cron or the database call: the service-role key, nothing else. */
+export function requireService(req: Request, headers: Record<string, string>): Response | null {
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (bearer && bearer === serviceKey) return null;
+  return new Response(JSON.stringify({ error: "Service role only" }), {
+    status: 401, headers: { ...headers, "Content-Type": "application/json" },
+  });
+}
+
 /** Escape text interpolated into an HTML email. */
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

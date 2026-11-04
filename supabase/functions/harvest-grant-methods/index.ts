@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { getCorsHeaders, requireAuth } from "../_shared/auth.ts";
+import { getCorsHeaders, requireCuratorOrService } from "../_shared/auth.ts";
 
 // ───────────────────────── Config ─────────────────────────
 const MAX_DEPTH = 2;
@@ -154,8 +154,9 @@ Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const auth = await requireAuth(req, cors);
-  if (auth.error) return auth.error;
+  // Every run spends LLM calls; sign-in alone is open to whole institutions.
+  const denied = await requireCuratorOrService(req, cors);
+  if (denied) return denied;
 
   try {
     const { seedGrantNumber } = await req.json();

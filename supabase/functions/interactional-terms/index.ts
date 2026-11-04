@@ -2,7 +2,7 @@
 // and returns shared vocabulary + bigrams — the raw substrate of the
 // "interactional" (linguistic entrainment) layer of the Social Force Field.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/auth.ts";
+import { getCorsHeaders, requireService } from "../_shared/auth.ts";
 
 const STOP = new Set(`the a an and or of to in for on with by from at as is are was were be been being this that these those we our their they them it its into using use used study studies research project projects proposal aim aims will can may than then which who what how such more most many both other also each new novel data analysis analyses model models based approach approaches method methods result results between across within upon during over under about only same different high low large small key core role roles include including include includes provide provides provided understand understanding investigate investigating identify identifying develop developing developed developments significant significantly propose proposes proposed toward towards has have had does do done not no yet still further work working works well among per due via one two three type types level levels critical important effect effects s`.split(/\s+/));
 
@@ -17,6 +17,8 @@ function tokenize(text: string): string[] {
 Deno.serve(async (req) => {
   const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
   if (req.method === "OPTIONS") return new Response(null, { headers });
+  const denied = requireService(req, headers);
+  if (denied) return denied;
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

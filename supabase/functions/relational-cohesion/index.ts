@@ -2,7 +2,7 @@
 // species / approaches / sensors / data modalities / analysis methods /
 // keywords. Powers the Relational (macro) layer of the Social Force Field.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/auth.ts";
+import { getCorsHeaders, requireService } from "../_shared/auth.ts";
 
 function jaccard(a: string[], b: string[]): number {
   if (!a?.length || !b?.length) return 0;
@@ -17,6 +17,8 @@ function jaccard(a: string[], b: string[]): number {
 Deno.serve(async (req) => {
   const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
   if (req.method === "OPTIONS") return new Response(null, { headers });
+  const denied = requireService(req, headers);
+  if (denied) return denied;
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

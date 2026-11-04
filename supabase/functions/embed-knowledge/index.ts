@@ -24,6 +24,7 @@
 // knowledge_embeddings is a derived index (regenerable) — safe to truncate.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireService } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,6 +112,8 @@ async function buildCandidates(supabase: any, want: (t: string) => boolean): Pro
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const denied = requireService(req, corsHeaders);
+  if (denied) return denied;
   const json = (b: unknown, s = 200) =>
     new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   try {

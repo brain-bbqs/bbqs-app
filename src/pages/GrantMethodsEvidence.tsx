@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageMeta } from "@/components/PageMeta";
+import { useUserTier } from "@/hooks/useUserTier";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function GrantMethodsEvidence() {
   const { grantNumber = "" } = useParams();
+  const { isCurator } = useUserTier();
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState<"depth2" | "multihop">("depth2");
 
@@ -74,7 +76,8 @@ export default function GrantMethodsEvidence() {
             Seed grant: <span className="font-mono">{grantNumber}</span>. Walks NIH RePORTER similar-project graph and extracts Methods sections from linked publications.
           </p>
         </div>
-        <div className="flex gap-2 items-center">
+        {/* Each run spends LLM calls; the harvest functions accept curators only. */}
+        {isCurator && <div className="flex gap-2 items-center">
           <Select value={mode} onValueChange={(v) => setMode(v as any)}>
             <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -86,7 +89,7 @@ export default function GrantMethodsEvidence() {
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             {rows.length ? "Re-run harvest" : "Run harvest"}
           </Button>
-        </div>
+        </div>}
       </div>
 
       {isLoading && <p className="text-muted-foreground">Loading…</p>}

@@ -21,7 +21,7 @@ const functions = readdirSync(FUNCS, { withFileTypes: true })
 // Mailers whose recipient is fixed in code, so the worst a caller can do is send the admins a copy.
 const FIXED_RECIPIENT_MAILERS = new Set(["notify-access-request", "security-audit", "report-critical-error"]);
 const checksCaller = (s) =>
-  /requireCuratorOrService\(|requireAdmin\(/.test(s) ||
+  /requireCuratorOrService\(|requireAdmin\(|requireService\(|requireAuth\(|callerIsAdminOrCurator\(|is_curator_or_admin/.test(s) ||
   /SUPABASE_SERVICE_ROLE_KEY[\s\S]{0,800}(Unauthorized|status: 401|, 401\))/.test(s);
 
 test("a function that sends email to a caller-chosen address checks the caller", () => {
@@ -67,6 +67,22 @@ test("no new function turns off JWT verification without review", () => {
   const off = [...toml.matchAll(/\[functions\.([a-z0-9-]+)\][^[]*?verify_jwt\s*=\s*false/g)].map((m) => m[1]);
   const added = off.filter((f) => !NO_JWT_REVIEWED.has(f));
   assert.deepEqual(added, [], `verify_jwt=false added without review: ${added.join(", ")}`);
+});
+
+// Reachable with no key at all and holding the service-role key: the function must check its caller
+// itself. Exceptions are public by design and answer only public data.
+const PUBLIC_SERVICE_READS = new Set([
+  "globus-auth",   // the sign-in endpoint itself
+  "bbqs-mcp",      // no service key; its own tier gate (see the tier test below)
+  "nih-grants",    // bare GET is the public Projects page; ?action= is gated (test above)
+]);
+
+test("a no-JWT function holding the service-role key checks its caller", () => {
+  const toml = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
+  const off = [...toml.matchAll(/\[functions\.([a-z0-9-]+)\][^[]*?verify_jwt\s*=\s*false/g)].map((m) => m[1]);
+  const open = off.filter((f) => existsSync(join(FUNCS, f, "index.ts")) && !PUBLIC_SERVICE_READS.has(f))
+    .filter((f) => /SUPABASE_SERVICE_ROLE_KEY/.test(src(f)) && !checksCaller(src(f)));
+  assert.deepEqual(open, [], `service-role functions open to anyone: ${open.join(", ")}`);
 });
 
 test("every bbqs-mcp tool is in exactly one tier (an unlisted tool would be public)", () => {
