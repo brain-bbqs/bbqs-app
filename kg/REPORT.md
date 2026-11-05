@@ -92,8 +92,8 @@ them yet (#421).
 
 ### F5 — the graph is mostly unlinked, so most checks had nothing to check
 
-**Update 2026-10-21 (#421):** the exporter now writes these links. 180 of 747 nodes (24%) are
-isolated, 16 of 19 questions are answered, and 12 of 16 shapes have data to check. What stays
+**Update 2026-10-21 (#421):** the exporter now writes these links. 180 of 747 nodes (24%) were
+isolated (189 of 808 on 2026-11-04), 16 of 19 questions are answered, and 12 of 16 shapes have data to check. What stays
 isolated is mostly records with nothing to link to: datasets and tools with no project, and
 people with no role, affiliation or working group on record. The text below is the 2026-09-30
 finding.

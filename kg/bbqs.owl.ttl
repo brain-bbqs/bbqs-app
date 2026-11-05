@@ -28,10 +28,10 @@
 bbqs:Algorithm a owl:Class ;
     rdfs:label "Algorithm" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom bbqs:Species ;
             owl:onProperty bbqs:studies_species ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Species ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:studies_species ],
         bbqs:CreativeWork,
         bbqs:Entity ;
@@ -42,32 +42,32 @@ bbqs:Algorithm a owl:Class ;
 bbqs:Announcement a owl:Class ;
     rdfs:label "Announcement" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:link_text ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:posted_by ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:link ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
             owl:onProperty bbqs:is_external_link ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:link ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:content ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:link ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
             owl:onProperty bbqs:is_external_link ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:Investigator ;
             owl:onProperty bbqs:posted_by ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:link_text ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:content ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:link_text ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:link ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:link ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:boolean ;
             owl:onProperty bbqs:is_external_link ],
@@ -76,16 +76,16 @@ bbqs:Announcement a owl:Class ;
             owl:onProperty bbqs:link_text ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:link_text ],
+            owl:onProperty bbqs:content ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:posted_by ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:posted_by ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:content ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:content ],
+            owl:onProperty bbqs:link ],
         bbqs:CreativeWork,
         bbqs:Entity ;
     skos:definition "A consortium news post or announcement. `news`, funding blurbs, etc." ;
@@ -104,11 +104,11 @@ bbqs:Consortium a owl:Class ;
             owl:allValuesFrom bbqs:FundingAgency ;
             owl:onProperty bbqs:funder ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Investigator ;
-            owl:onProperty bbqs:members ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:funder ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Investigator ;
+            owl:onProperty bbqs:members ],
         bbqs:Entity,
         bbqs:Organization ;
     skos:definition "The BBQS Consortium itself — a multi-institution NIH-funded collective." ;
@@ -119,36 +119,36 @@ bbqs:Event a owl:Class ;
     rdfs:label "Event" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:end_date ],
+            owl:onProperty bbqs:start_date ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:date ;
             owl:onProperty bbqs:start_date ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:attendees ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:Investigator ;
             owl:onProperty bbqs:attendees ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:start_date ],
+            owl:onProperty bbqs:end_date ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:venue ],
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:end_date ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:venue ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:venue ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:date ;
             owl:onProperty bbqs:end_date ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:end_date ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
             owl:onProperty bbqs:venue ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:attendees ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:start_date ],
         bbqs:Entity,
         bbqs:EventAnchor ;
@@ -159,131 +159,131 @@ bbqs:Event a owl:Class ;
 bbqs:FundingOpportunity a owl:Class ;
     rdfs:label "FundingOpportunity" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:fon ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:budget_ceiling ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:budget_floor ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:url ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:participating_orgs ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:open_date ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:purpose ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:budget_floor ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:relevance_tags ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:status ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:posted_date ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:eligible_activity_codes ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:due_dates ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:date ;
-            owl:onProperty bbqs:open_date ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:float ;
-            owl:onProperty bbqs:budget_floor ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:fon ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:status ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:purpose ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:due_dates ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:budget_ceiling ],
+            owl:onProperty bbqs:opportunity_type ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:opportunity_type ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:expiration_date ],
+            owl:onProperty bbqs:fon ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:activity_code ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:fon ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:fon ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:url ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:status ],
+            owl:onProperty bbqs:url ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:float ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:budget_ceiling ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:open_date ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:purpose ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:posted_date ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:date ;
+            owl:onProperty bbqs:expiration_date ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:date ;
+            owl:onProperty bbqs:open_date ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:url ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:activity_code ],
+            owl:onProperty bbqs:expiration_date ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:status ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:opportunity_type ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:status ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:float ;
+            owl:onProperty bbqs:budget_ceiling ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:posted_date ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:open_date ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:date ;
-            owl:onProperty bbqs:expiration_date ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:fon ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:budget_floor ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:opportunity_type ],
+            owl:onProperty bbqs:participating_orgs ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:purpose ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:due_dates ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:eligible_activity_codes ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:purpose ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:activity_code ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:eligible_activity_codes ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
             owl:onProperty bbqs:due_dates ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:activity_code ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:opportunity_type ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:expiration_date ],
+            owl:onProperty bbqs:relevance_tags ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:participating_orgs ],
+            owl:onProperty bbqs:status ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:budget_floor ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:activity_code ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:float ;
+            owl:onProperty bbqs:budget_floor ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:due_dates ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:eligible_activity_codes ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:relevance_tags ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:expiration_date ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:date ;
             owl:onProperty bbqs:posted_date ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:relevance_tags ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:activity_code ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:budget_ceiling ],
         bbqs:Entity ;
     skos:definition "An NIH (or other) funding call — the \"funding calls\" surface (funding_opportunities: fon/activity_code/due_dates…). resource_type=funding. NB: table needs resource_id backfill to enter the spine." ;
     skos:exactMatch <http://schema.org/CreativeWork> ;
@@ -293,19 +293,88 @@ bbqs:Job a owl:Class ;
     rdfs:label "Job" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:application_url ],
+            owl:onProperty bbqs:job_type ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:contact_name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:department ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:description_text ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:application_url ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:expires_at ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:department ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:posted_by ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:contact_name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:job_type ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:expires_at ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:posted_by ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:job_institution ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:location ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:department ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:location ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
             owl:onProperty bbqs:is_active ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Investigator ;
-            owl:onProperty bbqs:posted_by ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:job_type ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:contact_email ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:contact_email ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:job_institution ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:is_active ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:application_url ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:description_text ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:is_active ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:job_institution ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:application_url ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:contact_email ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:location ],
@@ -313,82 +382,13 @@ bbqs:Job a owl:Class ;
             owl:allValuesFrom xsd:dateTime ;
             owl:onProperty bbqs:expires_at ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:expires_at ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:description_text ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:is_active ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:department ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:description_text ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:job_type ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:contact_name ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:contact_email ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:expires_at ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:job_type ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:boolean ;
-            owl:onProperty bbqs:is_active ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:job_institution ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:location ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:posted_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:job_type ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:contact_email ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:application_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:contact_email ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:department ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:contact_name ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:department ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:job_institution ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:allValuesFrom bbqs:Investigator ;
             owl:onProperty bbqs:posted_by ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:contact_name ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:location ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:description_text ],
         bbqs:Entity,
         bbqs:JobPosting ;
@@ -399,22 +399,22 @@ bbqs:Job a owl:Class ;
 bbqs:MLModel a owl:Class ;
     rdfs:label "MLModel" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Dataset ;
-            owl:onProperty bbqs:trained_on ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:repo_url ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:evaluated_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Benchmark ;
             owl:onProperty bbqs:evaluated_by ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:repo_url ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:trained_on ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Benchmark ;
+            owl:onProperty bbqs:evaluated_by ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:repo_url ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Dataset ;
             owl:onProperty bbqs:trained_on ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
@@ -428,16 +428,16 @@ bbqs:MLModel a owl:Class ;
 bbqs:Protocol a owl:Class ;
     rdfs:label "Protocol" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:uses_device ],
-        [ a owl:Restriction ;
             owl:allValuesFrom bbqs:BehavioralConstruct ;
             owl:onProperty bbqs:measures_construct ],
         [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Device ;
+            owl:onProperty bbqs:uses_device ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:measures_construct ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Device ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:uses_device ],
         bbqs:CreativeWork,
         bbqs:Entity ;
@@ -449,77 +449,44 @@ bbqs:Protocol a owl:Class ;
 bbqs:Publication a owl:Class ;
     rdfs:label "Publication" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:citations ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:authors ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:journal ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:pmid ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:pmid ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:keywords ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:journal ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:rcr ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:journal ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:keywords ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:authors ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:rcr ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:pubmed_link ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:authors ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:pubmed_link ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
             owl:onProperty bbqs:author_orcids ],
         [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:journal ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:authors ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:integer ;
-            owl:onProperty bbqs:citations ],
+            owl:onProperty bbqs:year ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:pubmed_link ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:year ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:float ;
             owl:onProperty bbqs:rcr ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:year ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:doi ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:pubmed_link ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:doi ],
+            owl:onProperty bbqs:journal ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:rcr ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:citations ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:author_orcids ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:doi ],
+            owl:onProperty bbqs:journal ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:pmid ],
@@ -527,14 +494,47 @@ bbqs:Publication a owl:Class ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:citations ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:integer ;
-            owl:onProperty bbqs:year ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:pmid ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:authors ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:rcr ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:pubmed_link ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:pmid ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:doi ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:year ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:keywords ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:keywords ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:pubmed_link ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:integer ;
+            owl:onProperty bbqs:citations ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:doi ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:author_orcids ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:doi ],
         bbqs:CreativeWork,
         bbqs:Entity ;
     skos:exactMatch <http://schema.org/ScholarlyArticle> ;
@@ -544,49 +544,49 @@ bbqs:SoftwareTool a owl:Class ;
     rdfs:label "SoftwareTool" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:language ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:software_license ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:repo_url ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:version ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:docs_url ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:software_license ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:software_license ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:repo_url ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:version ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:language ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:language ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:version ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:docs_url ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:repo_url ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:docs_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:language ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:version ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:software_license ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:software_license ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:language ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:language ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:software_license ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:version ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:docs_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:repo_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:repo_url ],
         bbqs:CreativeWork,
         bbqs:Entity ;
     skos:definition "A software package, pipeline, or analysis library released by BBQS." ;
@@ -597,47 +597,47 @@ bbqs:SoftwareTool a owl:Class ;
 bbqs:Standard a owl:Class ;
     rdfs:label "Standard" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:docs_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:repo_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:version ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:license ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:docs_url ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:award_numbers ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:version ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:award_numbers ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:version ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:license ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:repo_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:license ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:license ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:docs_url ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:repo_url ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:version ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:docs_url ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:license ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:version ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:license ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:docs_url ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:repo_url ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:version ],
         bbqs:CreativeWork,
         bbqs:Entity ;
     skos:definition "A data or metadata standard (resource_type standard), e.g. Psych-DS for behavioral datasets. Not a BBQS award: an award that funds it is recorded in award_numbers, never as a Project." ;
@@ -655,10 +655,10 @@ bbqs:Tool a owl:Class ;
 bbqs:Benchmark a owl:Class ;
     rdfs:label "Benchmark" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom bbqs:Entity ;
             owl:onProperty bbqs:evaluates ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Entity ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:evaluates ],
         bbqs:Dataset ;
     skos:closeMatch OBI:0000070 ;
@@ -669,56 +669,29 @@ bbqs:Benchmark a owl:Class ;
 bbqs:Dandiset a owl:Class ;
     rdfs:label "Dandiset" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:draft_url ],
         [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:size_bytes ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:neurosift_url ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:file_count ],
+            owl:onProperty bbqs:dandi_instance ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:dandiset_id ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:api_url ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:dandi_instance ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:dandi_instance ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:integer ;
-            owl:onProperty bbqs:file_count ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:dandiset_id ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:neurosift_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:neurosift_url ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:draft_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:dandi_instance ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:award_numbers ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:draft_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:size_bytes ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:file_count ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:size_bytes ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:integer ;
             owl:onProperty bbqs:size_bytes ],
@@ -729,14 +702,41 @@ bbqs:Dandiset a owl:Class ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:award_numbers ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:neurosift_url ],
+            owl:allValuesFrom xsd:integer ;
+            owl:onProperty bbqs:file_count ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:size_bytes ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:draft_url ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:api_url ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:dandiset_id ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:file_count ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:api_url ],
+            owl:onProperty bbqs:dandi_instance ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:neurosift_url ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:dandiset_id ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:draft_url ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:file_count ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:award_numbers ],
         bbqs:Dataset ;
     skos:definition "A DANDI-archived dataset (NWB). Linked to grants via award_numbers[]." ;
     skos:exactMatch <http://schema.org/Dataset>,
@@ -767,6 +767,14 @@ bbqs:ProjectAnchor a owl:Class ;
     skos:exactMatch <http://schema.org/Project> ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
 
+<https://brain-bbqs.org/schema#ProjectRoleEnum#PI> a owl:Class ;
+    rdfs:label "PI" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
+<https://brain-bbqs.org/schema#ProjectRoleEnum#admin> a owl:Class ;
+    rdfs:label "admin" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
 <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator> a owl:Class ;
     rdfs:label "co-investigator" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
@@ -779,6 +787,10 @@ bbqs:ProjectAnchor a owl:Class ;
     rdfs:label "contact_pi" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
 
+<https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager> a owl:Class ;
+    rdfs:label "data_manager" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
 <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student> a owl:Class ;
     rdfs:label "graduate_student" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
@@ -787,8 +799,20 @@ bbqs:ProjectAnchor a owl:Class ;
     rdfs:label "mpi" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
 
+<https://brain-bbqs.org/schema#ProjectRoleEnum#nih_program> a owl:Class ;
+    rdfs:label "nih_program" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
+<https://brain-bbqs.org/schema#ProjectRoleEnum#other> a owl:Class ;
+    rdfs:label "other" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
 <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc> a owl:Class ;
     rdfs:label "postdoc" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum .
+
+<https://brain-bbqs.org/schema#ProjectRoleEnum#project_manager> a owl:Class ;
+    rdfs:label "project_manager" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
 
 <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff> a owl:Class ;
@@ -802,140 +826,140 @@ bbqs:ProjectAnchor a owl:Class ;
 bbqs:ProvenanceRecord a owl:Class ;
     rdfs:label "ProvenanceRecord" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_source_ref ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_entity_id ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_entity_column ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_evidence ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_authored_at ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:prov_value_text ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_model_id ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_evidence ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_value_text ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_recorded_by ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_entity_id ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:prov_activity ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_model_id ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_evidence ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_agent_id ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_agent_label ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:prov_recorded_by ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_evidence ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
             owl:onProperty bbqs:prov_source_class ],
         [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_model_id ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_confidence ],
+            owl:onProperty bbqs:prov_authored_at ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_agent_label ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_recorded_at ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_evidence ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_source_ref ],
+            owl:onProperty bbqs:prov_recorded_at ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:prov_entity_column ],
         [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_source_ref ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:prov_entity_table ],
         [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_source_class ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_confidence ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:dateTime ;
+            owl:onProperty bbqs:prov_authored_at ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_entity_id ],
+            owl:onProperty bbqs:prov_agent_label ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:dateTime ;
+            owl:onProperty bbqs:prov_recorded_at ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_source_ref ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_source_ref ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:prov_activity ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:prov_activity ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:SourceClass ;
             owl:onProperty bbqs:prov_source_class ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_activity ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_model_id ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_evidence ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_model_id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_authored_at ],
+            owl:onProperty bbqs:prov_confidence ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_activity ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_source_ref ],
+            owl:onProperty bbqs:prov_entity_table ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_recorded_at ],
+            owl:onProperty bbqs:prov_recorded_by ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:prov_agent_id ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_entity_column ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_entity_column ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:float ;
             owl:onProperty bbqs:prov_confidence ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_entity_id ],
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:prov_value_text ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:prov_agent_id ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_recorded_at ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_agent_label ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_authored_at ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_value_text ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_recorded_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_entity_table ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_source_class ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_agent_label ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_agent_label ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_model_id ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_agent_id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:prov_value_text ],
+            owl:onProperty bbqs:prov_entity_column ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:prov_entity_id ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:prov_recorded_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:dateTime ;
-            owl:onProperty bbqs:prov_authored_at ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:dateTime ;
-            owl:onProperty bbqs:prov_recorded_at ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_entity_table ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:prov_confidence ] ;
+            owl:onProperty bbqs:prov_entity_table ] ;
     skos:definition "Field-level provenance (field_provenance): one assertion that a given (entity_table, entity_column, entity_id) value was generated by an activity, attributed to an agent, from a graded source_class, with confidence/evidence. Reifies PROV onto individual cell writes." ;
     skos:exactMatch prov:Activity ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
@@ -1048,59 +1072,59 @@ bbqs:ProvenanceRecord a owl:Class ;
 bbqs:SourceClass a owl:Class ;
     rdfs:label "SourceClass" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:is_verified ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:description ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:agent_kind ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:agent_kind ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:description ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:description ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:source_code ],
-        [ a owl:Restriction ;
             owl:allValuesFrom xsd:integer ;
             owl:onProperty bbqs:grade ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:label ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
+            owl:onProperty bbqs:is_verified ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:agent_kind ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:source_code ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:label ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:is_verified ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:source_code ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:source_code ],
+            owl:onProperty bbqs:description ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:is_verified ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:grade ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:label ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:agent_kind ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:grade ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:source_code ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:agent_kind ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:grade ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:grade ],
-        [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:label ],
+            owl:onProperty bbqs:description ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:label ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:label ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:boolean ;
-            owl:onProperty bbqs:is_verified ] ;
+            owl:onProperty bbqs:description ] ;
     skos:definition "A provenance source category (source_classes) graded by reliability — whether the who/what behind a value is human, agent, harvester, RePORTER, etc., and how much it is trusted." ;
     skos:exactMatch skos:Concept ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
@@ -1280,44 +1304,44 @@ bbqs:CognitiveTask a owl:Class ;
 bbqs:DeviceCategory a owl:Class ;
     rdfs:label "DeviceCategory" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:category_key ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:category_key ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:measures ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:typical_use_cases ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:schema_org_type ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:label ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:schema_org_type ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:category_key ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:typical_use_cases ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:label ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:label ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:schema_org_type ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:measures ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:typical_use_cases ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:category_key ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:schema_org_type ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:schema_org_type ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:schema_org_type ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:typical_use_cases ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:label ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:category_key ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:label ],
         bbqs:Entity ;
     skos:definition "One of the ~32 canonical BBQS device categories (device_categories: key/label/measures[]/typical_use_cases[]). A SKOS concept scheme; each maps to a schema.org type and (via device_class_crosswalk) to external classes." ;
     skos:exactMatch skos:Concept ;
@@ -1326,29 +1350,29 @@ bbqs:DeviceCategory a owl:Class ;
 bbqs:DeviceManufacturer a owl:Class ;
     rdfs:label "DeviceManufacturer" ;
     rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:country ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:country ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:homepage_url ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:country ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:aliases ],
+            owl:onProperty bbqs:homepage_url ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:aliases ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:homepage_url ],
+            owl:onProperty bbqs:aliases ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:country ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:homepage_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:country ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:country ],
         bbqs:Entity,
         bbqs:Organization ;
     skos:definition "A maker of neural/behavioral/physiological instruments. Sourced from device_manufacturers (NB: needs resource_id backfill to enter the spine)." ;
@@ -1374,16 +1398,16 @@ bbqs:ResearchOrganization a owl:Class ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:ror_id ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:ror_id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom bbqs:Investigator ;
             owl:onProperty bbqs:members ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:ror_id ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Investigator ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:ror_id ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:members ],
         bbqs:Entity,
         bbqs:Organization ;
@@ -1996,44 +2020,53 @@ bbqs:FundingAgency a owl:Class ;
 bbqs:MarrModel a owl:Class ;
     rdfs:label "MarrModel" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Project ;
-            owl:onProperty bbqs:describes_project ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:implementational_level ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:describes_project ],
+            owl:onProperty bbqs:implementational_level ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:algorithmic_level ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:computational_level ],
+            owl:allValuesFrom bbqs:AnatomicalSite ;
+            owl:onProperty bbqs:about_anatomy ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:ExperimentalData ;
             owl:onProperty bbqs:has_experimental_data ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:has_experimental_data ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:computational_level ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:implementational_level ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:implementational_level ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
             owl:onProperty bbqs:describes_project ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:about_anatomy ],
+            owl:onProperty bbqs:about_task ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:AnatomicalSite ;
-            owl:onProperty bbqs:about_anatomy ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:algorithmic_level ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:computational_level ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:implementational_level ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:algorithmic_level ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Project ;
+            owl:onProperty bbqs:describes_project ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:CognitiveTask ;
             owl:onProperty bbqs:about_task ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:about_task ],
+            owl:onProperty bbqs:about_anatomy ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:BehavioralConstruct ;
             owl:onProperty bbqs:about_construct ],
@@ -2041,20 +2074,11 @@ bbqs:MarrModel a owl:Class ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:about_construct ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:implementational_level ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:computational_level ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:algorithmic_level ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:algorithmic_level ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:has_experimental_data ],
+            owl:onProperty bbqs:describes_project ],
         bbqs:Entity ;
     skos:definition "RESERVED STUB. The BBQS-Marr object: the causal / conceptual-neuroscience graph for a project, spanning Marr's computational, algorithmic, and implementational levels. Developed separately (Nader's causal-KG) and NOT ready — modeled here only as a node Project.has_model can point at, plus the hooks below. Do not flesh out until the causal-KG lands." ;
     skos:exactMatch bbqs:MarrModel ;
@@ -2069,35 +2093,35 @@ bbqs:ProjectRole a owl:Class ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:role_source ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Project ;
-            owl:onProperty bbqs:on_project ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:project_role ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:on_project ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Investigator ;
-            owl:onProperty bbqs:held_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:ProjectRoleEnum ;
             owl:onProperty bbqs:project_role ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:RoleSourceEnum ;
             owl:onProperty bbqs:role_source ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:role_source ],
+            owl:onProperty bbqs:on_project ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Investigator ;
+            owl:onProperty bbqs:held_by ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:project_role ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:project_role ],
+            owl:onProperty bbqs:on_project ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:role_source ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:held_by ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:on_project ] ;
+            owl:allValuesFrom bbqs:Project ;
+            owl:onProperty bbqs:on_project ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:ProjectRoleEnum ;
+            owl:onProperty bbqs:project_role ] ;
     skos:definition "Reified project↔investigator role (grant_investigators). THE authority for \"role on this project\" — canonical tokens only (trg_normalize_grant_role), with role_source provenance. A scalar on Investigator cannot express a role that varies per project (issue #283)." ;
     skos:exactMatch prov:Association ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
@@ -2148,23 +2172,11 @@ bbqs:BehavioralConstruct a owl:Class ;
 bbqs:Dataset a owl:Class ;
     rdfs:label "Dataset" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:license ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Species ;
-            owl:onProperty bbqs:dataset_species ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:access ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:license ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:measurement_technique ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:access ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:access ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:Device ;
             owl:onProperty bbqs:measurement_technique ],
@@ -2172,11 +2184,23 @@ bbqs:Dataset a owl:Class ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:license ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom bbqs:Species ;
             owl:onProperty bbqs:dataset_species ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:measurement_technique ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:license ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:access ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:access ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:dataset_species ],
         bbqs:CreativeWork,
         bbqs:Entity ;
     skos:definition "A released dataset. Distinct from a project's Marr-layer ExperimentalData." ;
@@ -2189,91 +2213,91 @@ bbqs:Device a owl:Class ;
     rdfs:label "Device" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:manufacturer ],
+            owl:onProperty bbqs:device_category ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:manual_urls ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:device_category ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:model_name ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:output_signals ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:DeviceManufacturer ;
             owl:onProperty bbqs:manufacturer ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:manual_urls ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:sampling_rate_hz ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:DeviceCategory ;
-            owl:onProperty bbqs:device_category ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:product_url ],
+            owl:onProperty bbqs:sdk_urls ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:manufacturer ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:device_category ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:regulatory_class ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:product_url ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:sampling_rate_hz ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:output_signals ],
+            owl:onProperty bbqs:regulatory_class ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:float ;
             owl:onProperty bbqs:sampling_rate_hz ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:model_name ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:regulatory_class ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:price_tier ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:regulatory_class ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:model_name ],
-        [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:sdk_urls ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:aliases ],
+            owl:onProperty bbqs:manual_urls ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:output_signals ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:price_tier ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:product_url ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:output_signals ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:aliases ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:regulatory_class ],
+            owl:onProperty bbqs:price_tier ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:model_name ],
+            owl:onProperty bbqs:aliases ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:price_tier ],
         [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:product_url ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:sdk_urls ],
+            owl:onProperty bbqs:manufacturer ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:model_name ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:sampling_rate_hz ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:model_name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:sampling_rate_hz ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:aliases ],
+            owl:onProperty bbqs:regulatory_class ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:DeviceCategory ;
+            owl:onProperty bbqs:device_category ],
         bbqs:Entity,
         bbqs:Product ;
     skos:definition "A physical instrument model used in BBQS data collection (device_models). Its kind is a DeviceCategory (the ~32 canonical categories), NOT a subclass tree. NB: device_models needs resource_id backfill to enter the spine." ;
@@ -2289,173 +2313,173 @@ bbqs:Organization a owl:Class ;
 bbqs:Project a owl:Class ;
     rdfs:label "Project" ;
     rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Entity ;
+            owl:onProperty bbqs:produced ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:has_project_role ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:float ;
+            owl:onProperty bbqs:metadata_completeness ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:keywords ],
+        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:has_model ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:study_scope ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:studies_species ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:MarrModel ;
+            owl:onProperty bbqs:has_model ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:nih_link ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:website ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:reporter_project_num ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:keywords ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:reporter_project_num ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:onboarding_status ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Species ;
+            owl:onProperty bbqs:studies_species ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:onboarding_status ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:has_model ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:fiscal_year ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:study_scope ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:FundingAgency ;
+            owl:onProperty bbqs:funder ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:mechanism ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:title ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:grant_number ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:metadata_completeness ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:studies_species_name ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:boolean ;
+            owl:onProperty bbqs:studies_human ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:grant_number ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:abstract ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:mechanism ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:float ;
+            owl:onProperty bbqs:award_amount ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:funder ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:award_amount ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:nih_link ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:funded_datasets ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:mechanism ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:abstract ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:integer ;
             owl:onProperty bbqs:fiscal_year ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:Dandiset ;
             owl:onProperty bbqs:funded_datasets ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:FundingAgency ;
-            owl:onProperty bbqs:funder ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:keywords ],
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:fiscal_year ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:onboarding_status ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:website ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:metadata_completeness ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:float ;
-            owl:onProperty bbqs:metadata_completeness ],
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:title ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:reporter_project_num ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:website ],
+            owl:onProperty bbqs:studies_human ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:has_model ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:mechanism ],
+            owl:onProperty bbqs:studies_human ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:grant_number ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:grant_number ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:reporter_project_num ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:studies_human ],
+            owl:onProperty bbqs:nih_link ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:funder ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:abstract ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:produced ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:boolean ;
-            owl:onProperty bbqs:studies_human ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:title ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:float ;
-            owl:onProperty bbqs:award_amount ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:title ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:abstract ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:fiscal_year ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:has_project_role ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:MarrModel ;
-            owl:onProperty bbqs:has_model ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:onboarding_status ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:website ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:studies_species ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:study_scope ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:study_scope ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:award_amount ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:reporter_project_num ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:mechanism ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:award_amount ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:nih_link ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:onboarding_status ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:nih_link ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:abstract ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:studies_human ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:integer ;
-            owl:onProperty bbqs:fiscal_year ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:abstract ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:metadata_completeness ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:funded_datasets ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:studies_species_name ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:studies_species_name ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:has_model ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:nih_link ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:title ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:funder ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Entity ;
-            owl:onProperty bbqs:produced ],
+            owl:onProperty bbqs:website ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:ProjectRole ;
             owl:onProperty bbqs:has_project_role ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:mechanism ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Species ;
-            owl:onProperty bbqs:studies_species ],
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:title ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:grant_number ],
+            owl:onProperty bbqs:studies_species_name ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:keywords ],
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:website ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:award_amount ],
         bbqs:Entity,
         bbqs:ProjectAnchor ;
     skos:definition "A BBQS project — the funded scientific work and its NIH award as one node, keyed by grant_number. The Marr/causal model plugs in via has_model." ;
@@ -2478,16 +2502,16 @@ bbqs:WorkingGroup a owl:Class ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:dashboard_widgets ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
+            owl:allValuesFrom bbqs:Investigator ;
             owl:onProperty bbqs:members ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:dashboard_widgets ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:dashboard_widgets ],
         [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Investigator ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:dashboard_widgets ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:members ],
         bbqs:Entity ;
     skos:definition "A BBQS working group. Currently stored as a controlled tag on investigators.working_groups[] + canonical_working_group(); promoted here to a first-class node. Membership is the inverse of Investigator.member_of_group." ;
@@ -2498,64 +2522,64 @@ bbqs:Species a owl:Class ;
     rdfs:label "Species" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:minCardinality 0 ;
+            owl:onProperty bbqs:aliases ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:taxonomy_family ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:common_name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:taxonomy_order ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:ncbi_taxon_id ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:ncbi_taxon_id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:taxonomy_family ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:taxonomy_order ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:taxonomy_order ],
+            owl:onProperty bbqs:taxonomy_class ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:aliases ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:taxonomy_class ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:aliases ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:common_name ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:taxonomy_class ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:ncbi_taxon_id ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:taxonomy_family ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:taxonomy_family ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:taxonomy_order ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
             owl:onProperty bbqs:taxonomy_genus ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:common_name ],
+            owl:onProperty bbqs:taxonomy_class ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:taxonomy_genus ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:taxonomy_family ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:taxonomy_order ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:taxonomy_family ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:taxonomy_class ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:taxonomy_genus ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
             owl:onProperty bbqs:common_name ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:common_name ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:taxonomy_genus ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:ncbi_taxon_id ],
         bbqs:Entity,
         bbqs:Taxon ;
     skos:definition "A species studied in a BBQS project. Align identifiers to NCBITaxon." ;
@@ -2614,20 +2638,6 @@ bbqs:repo_url a owl:DatatypeProperty ;
     rdfs:range xsd:anyURI ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
 
-bbqs:ProjectRoleEnum a owl:Class ;
-    rdfs:label "project_role_enum" ;
-    owl:unionOf ( <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator> <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc> <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student> <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff> ) ;
-    skos:definition "Per-project role tokens actually present in grant_investigators.role (live 2026-09-21). Mixes PI roles (contact_pi/co_pi/mpi) with trainee/staff roles. NB: the separator is inconsistent in the data -- co-investigator is hyphenated while co_pi/contact_pi use underscores." ;
-    skos:inScheme <https://brain-bbqs.org/schema/bbqs> ;
-    linkml:permissible_values <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff>,
-        <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> .
-
 bbqs:Thing a owl:Class ;
     rdfs:label "Thing" ;
     rdfs:subClassOf [ owl:unionOf ( bbqs:Agent bbqs:AnatomicalSite bbqs:BehavioralConstruct bbqs:CognitiveTask bbqs:CreativeWork bbqs:EventAnchor bbqs:JobPosting bbqs:Product bbqs:ProjectAnchor bbqs:Taxon ) ] ;
@@ -2637,100 +2647,120 @@ bbqs:Thing a owl:Class ;
 bbqs:Investigator a owl:Class ;
     rdfs:label "Investigator" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:skills ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:reporter_profile_id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:orcid ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:held_project_roles ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:research_areas ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:WorkingGroup ;
-            owl:onProperty bbqs:requested_groups ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:scholar_id ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:WorkingGroup ;
-            owl:onProperty bbqs:member_of_group ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:research_areas ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:member_of_group ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:scholar_id ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:secondary_emails ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:consortium_role ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:orcid ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:institution ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:skills ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:integer ;
             owl:onProperty bbqs:reporter_profile_id ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:email ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:member_of_group ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:email ],
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:held_project_roles ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:orcid ],
+            owl:allValuesFrom bbqs:ProjectRole ;
+            owl:onProperty bbqs:held_project_roles ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:requested_groups ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:allValuesFrom xsd:anyURI ;
             owl:onProperty bbqs:orcid ],
         [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:email ],
+        [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:institution ],
+            owl:onProperty bbqs:scholar_id ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:institution ],
         [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:research_areas ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:scholar_id ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
             owl:onProperty bbqs:institution ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:orcid ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:skills ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:WorkingGroup ;
+            owl:onProperty bbqs:member_of_group ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:WorkingGroup ;
+            owl:onProperty bbqs:requested_groups ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:consortium_role ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:email ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:research_areas ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:secondary_emails ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:skills ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:consortium_role ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:consortium_role ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:consortium_role ],
+            owl:onProperty bbqs:reporter_profile_id ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:reporter_profile_id ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:email ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:ProjectRole ;
-            owl:onProperty bbqs:held_project_roles ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:scholar_id ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:email ],
         bbqs:Entity,
         bbqs:Person ;
     skos:definition "A consortium member. May be a PI, co-I, trainee, collaborator, or a member who is on NO project (III. Live State — membership is not project-derived). Per-project role lives on the ProjectRole edge, NOT here (issue #283)." ;
     skos:exactMatch <http://schema.org/Person> ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .
+
+bbqs:ProjectRoleEnum a owl:Class ;
+    rdfs:label "project_role_enum" ;
+    owl:unionOf ( <https://brain-bbqs.org/schema#ProjectRoleEnum#PI> <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator> <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc> <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student> <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff> <https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#project_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#nih_program> <https://brain-bbqs.org/schema#ProjectRoleEnum#admin> <https://brain-bbqs.org/schema#ProjectRoleEnum#other> ) ;
+    skos:definition "Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql) can store in grant_investigators.role, plus trainee, which it deliberately passes through unmapped. tests/guards/role-vocabulary-parity holds the two equal. NB: the separator is inconsistent -- co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case." ;
+    skos:inScheme <https://brain-bbqs.org/schema/bbqs> ;
+    linkml:permissible_values <https://brain-bbqs.org/schema#ProjectRoleEnum#PI>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#admin>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#nih_program>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#other>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#project_manager>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> .
 
 bbqs:ResourceTypeEnum a owl:Class ;
     rdfs:label "resource_type_enum" ;
@@ -2762,71 +2792,50 @@ bbqs:ResourceTypeEnum a owl:Class ;
 bbqs:Entity a owl:Class ;
     rdfs:label "Entity" ;
     rdfs:subClassOf [ a owl:Restriction ;
-            owl:minCardinality 1 ;
-            owl:onProperty bbqs:id ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:dateTime ;
-            owl:onProperty bbqs:updated_at ],
-        [ a owl:Restriction ;
             owl:maxCardinality 1 ;
-            owl:onProperty bbqs:part_of_org ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:Agent ;
-            owl:onProperty bbqs:was_attributed_to ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:description ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:resource_type ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:description ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:external_url ],
+            owl:onProperty bbqs:metadata ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:ResearchOrganization ;
             owl:onProperty bbqs:part_of_org ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty bbqs:resource_type ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
             owl:onProperty bbqs:metadata ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:was_attributed_to ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:updated_at ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:created_at ],
+        [ a owl:Restriction ;
+            owl:minCardinality 1 ;
+            owl:onProperty bbqs:id ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:resource_type ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:description ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:ProvenanceRecord ;
+            owl:onProperty bbqs:was_generated_by ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:was_generated_by ],
         [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:name ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:updated_at ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:updated_at ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:name ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:external_url ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:external_url ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:name ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:id ],
-        [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:metadata ],
-        [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:created_at ],
         [ a owl:Restriction ;
+            owl:allValuesFrom xsd:dateTime ;
+            owl:onProperty bbqs:updated_at ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
-            owl:onProperty bbqs:dc_source ],
+            owl:onProperty bbqs:id ],
         [ a owl:Restriction ;
             owl:allValuesFrom bbqs:ResourceTypeEnum ;
             owl:onProperty bbqs:resource_type ],
@@ -2834,36 +2843,57 @@ bbqs:Entity a owl:Class ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:part_of_org ],
         [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:metadata ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:name ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom bbqs:Agent ;
+            owl:onProperty bbqs:was_attributed_to ],
+        [ a owl:Restriction ;
             owl:allValuesFrom xsd:dateTime ;
             owl:onProperty bbqs:created_at ],
         [ a owl:Restriction ;
-            owl:minCardinality 0 ;
-            owl:onProperty bbqs:description ],
-        [ owl:unionOf ( bbqs:Algorithm bbqs:Announcement bbqs:Consortium bbqs:Dataset bbqs:Device bbqs:DeviceCategory bbqs:DeviceManufacturer bbqs:Event bbqs:ExperimentalData bbqs:FundingAgency bbqs:FundingOpportunity bbqs:Investigator bbqs:Job bbqs:MLModel bbqs:MarrModel bbqs:Project bbqs:Protocol bbqs:Publication bbqs:ResearchOrganization bbqs:SoftwareTool bbqs:Species bbqs:Standard bbqs:Tool bbqs:WorkingGroup ) ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom bbqs:ProvenanceRecord ;
-            owl:onProperty bbqs:was_generated_by ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom xsd:string ;
-            owl:onProperty bbqs:metadata ],
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:external_url ],
         [ a owl:Restriction ;
             owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:dc_source ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty bbqs:id ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:name ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:was_attributed_to ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:description ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:description ],
+        [ a owl:Restriction ;
+            owl:minCardinality 0 ;
+            owl:onProperty bbqs:external_url ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
             owl:onProperty bbqs:dc_source ],
+        [ owl:unionOf ( bbqs:Algorithm bbqs:Announcement bbqs:Consortium bbqs:Dataset bbqs:Device bbqs:DeviceCategory bbqs:DeviceManufacturer bbqs:Event bbqs:ExperimentalData bbqs:FundingAgency bbqs:FundingOpportunity bbqs:Investigator bbqs:Job bbqs:MLModel bbqs:MarrModel bbqs:Project bbqs:Protocol bbqs:Publication bbqs:ResearchOrganization bbqs:SoftwareTool bbqs:Species bbqs:Standard bbqs:Tool bbqs:WorkingGroup ) ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:string ;
+            owl:onProperty bbqs:name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty bbqs:part_of_org ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom xsd:anyURI ;
+            owl:onProperty bbqs:external_url ],
         [ a owl:Restriction ;
             owl:minCardinality 0 ;
-            owl:onProperty bbqs:was_attributed_to ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:resource_type ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:was_attributed_to ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty bbqs:created_at ] ;
+            owl:onProperty bbqs:updated_at ] ;
     skos:definition "Anything with a row in the `resources` spine — the abstract base of every first-class BBQS node. IRI = resources.id; class = resources.resource_type." ;
     skos:exactMatch <http://schema.org/Thing> ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> .

@@ -692,10 +692,12 @@ enums:
 
   project_role_enum:
     description: >-
-      Per-project role tokens actually present in grant_investigators.role (live 2026-09-21). Mixes
-      PI roles (contact_pi/co_pi/mpi) with trainee/staff roles. NB: the separator is inconsistent in
-      the data -- co-investigator is hyphenated while co_pi/contact_pi use underscores.
+      Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql) can store in
+      grant_investigators.role, plus trainee, which it deliberately passes through unmapped.
+      tests/guards/role-vocabulary-parity holds the two equal. NB: the separator is inconsistent --
+      co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case.
     permissible_values:
+      PI: {}
       contact_pi: {}
       co_pi: {}
       mpi: {}
@@ -704,6 +706,11 @@ enums:
       postdoc: {}
       graduate_student: {}
       research_staff: {}
+      data_manager: {}
+      project_manager: {}
+      nih_program: {}
+      admin: {}
+      other: {}
 
   role_source_enum:
     description: Provenance of a ProjectRole assignment (grant_investigators.role_source; live 2026-09-21).
