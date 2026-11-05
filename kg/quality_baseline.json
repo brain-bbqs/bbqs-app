@@ -1,10 +1,5 @@
 {
-  "violations": {
-    "ProjectIdentifiersAgreeShape": 2,
-    "ProjectIsAnAwardShape": 1,
-    "StudiesSpeciesResolvesShape": 6,
-    "UrlFieldsAreUrlsShape": 2
-  },
+  "violations": {},
   "warnings": {
     "AuthorOrcidResolvesShape": 147
   },
@@ -40,6 +35,6 @@
     "StudiesSpeciesResolvesShape",
     "UrlFieldsAreUrlsShape"
   ],
-  "isolated": 180,
-  "nodes": 747
+  "isolated": 189,
+  "nodes": 808
 }

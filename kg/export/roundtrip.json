@@ -1,32 +1,32 @@
 {
  "data_file": "bbqs.ttl",
- "cells": 5774,
- "carried": 4249,
- "pct": 73.6,
+ "cells": 6283,
+ "carried": 4505,
+ "pct": 71.7,
  "tables": [
   {
    "table": "resources",
    "readable": true,
-   "rows": 636,
-   "noded": 636,
-   "cells": 2132,
-   "carried": 1706,
-   "pct": 80.0,
+   "rows": 680,
+   "noded": 680,
+   "cells": 2314,
+   "carried": 1843,
+   "pct": 79.6,
    "columns": {
     "description": {
-     "cells": 153,
-     "carried": 153,
+     "cells": 178,
+     "carried": 178,
      "pct": 100.0,
      "examples": []
     },
     "external_url": {
-     "cells": 281,
-     "carried": 281,
+     "cells": 305,
+     "carried": 305,
      "pct": 100.0,
      "examples": []
     },
     "metadata": {
-     "cells": 426,
+     "cells": 471,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -35,14 +35,14 @@
      ]
     },
     "name": {
-     "cells": 636,
-     "carried": 636,
+     "cells": 680,
+     "carried": 680,
      "pct": 100.0,
      "examples": []
     },
     "resource_type": {
-     "cells": 636,
-     "carried": 636,
+     "cells": 680,
+     "carried": 680,
      "pct": 100.0,
      "examples": []
     }
@@ -107,8 +107,8 @@
    "rows": 33,
    "noded": 33,
    "cells": 224,
-   "carried": 160,
-   "pct": 71.4,
+   "carried": 159,
+   "pct": 71.0,
    "columns": {
     "grant_number": {
      "cells": 33,
@@ -123,7 +123,7 @@
      "examples": []
     },
     "metadata": {
-     "cells": 31,
+     "cells": 32,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -157,33 +157,27 @@
      "carried": 31,
      "pct": 100.0,
      "examples": []
-    },
-    "website": {
-     "cells": 1,
-     "carried": 1,
-     "pct": 100.0,
-     "examples": []
     }
    }
   },
   {
    "table": "grant_investigators",
    "readable": true,
-   "rows": 111,
-   "noded": 111,
-   "cells": 222,
-   "carried": 222,
+   "rows": 128,
+   "noded": 128,
+   "cells": 256,
+   "carried": 256,
    "pct": 100.0,
    "columns": {
     "role": {
-     "cells": 111,
-     "carried": 111,
+     "cells": 128,
+     "carried": 128,
      "pct": 100.0,
      "examples": []
     },
     "role_source": {
-     "cells": 111,
-     "carried": 111,
+     "cells": 128,
+     "carried": 128,
      "pct": 100.0,
      "examples": []
     }
@@ -192,24 +186,24 @@
   {
    "table": "investigators_public",
    "readable": true,
-   "rows": 249,
-   "noded": 249,
-   "cells": 780,
-   "carried": 770,
-   "pct": 98.7,
+   "rows": 250,
+   "noded": 248,
+   "cells": 791,
+   "carried": 775,
+   "pct": 98.0,
    "columns": {
     "name": {
-     "cells": 249,
-     "carried": 246,
-     "pct": 98.8,
+     "cells": 250,
+     "carried": 244,
+     "pct": 97.6,
      "examples": [
       "Joseph Neimat",
-      "Laura Yenisa Cabrera Trujillo"
+      "Joel White"
      ]
     },
     "orcid": {
-     "cells": 113,
-     "carried": 111,
+     "cells": 114,
+     "carried": 112,
      "pct": 98.2,
      "examples": [
       "MARABAYLIS",
@@ -226,12 +220,12 @@
      ]
     },
     "profile_url": {
-     "cells": 25,
+     "cells": 26,
      "carried": 22,
-     "pct": 88.0,
+     "pct": 84.6,
      "examples": [
-      "https://www.pesaranlab.org",
-      "https://jreiling1.github.io/"
+      "https://arishalreja.github.io/",
+      "https://www.pesaranlab.org"
      ]
     },
     "research_areas": {
@@ -241,14 +235,17 @@
      "examples": []
     },
     "role": {
-     "cells": 206,
-     "carried": 206,
-     "pct": 100.0,
-     "examples": []
+     "cells": 212,
+     "carried": 210,
+     "pct": 99.1,
+     "examples": [
+      "Research Staff (Scientist and others)",
+      "Postdoc/Grad Student"
+     ]
     },
     "scholar_id": {
-     "cells": 3,
-     "carried": 3,
+     "cells": 4,
+     "carried": 4,
      "pct": 100.0,
      "examples": []
     },
@@ -259,8 +256,8 @@
      "examples": []
     },
     "working_groups": {
-     "cells": 149,
-     "carried": 149,
+     "cells": 150,
+     "carried": 150,
      "pct": 100.0,
      "examples": []
     }
@@ -269,15 +266,15 @@
   {
    "table": "organizations",
    "readable": true,
-   "rows": 37,
-   "noded": 37,
-   "cells": 38,
-   "carried": 38,
+   "rows": 57,
+   "noded": 57,
+   "cells": 58,
+   "carried": 58,
    "pct": 100.0,
    "columns": {
     "name": {
-     "cells": 37,
-     "carried": 37,
+     "cells": 57,
+     "carried": 57,
      "pct": 100.0,
      "examples": []
     },
@@ -384,14 +381,14 @@
   {
    "table": "dandisets",
    "readable": true,
-   "rows": 31,
-   "noded": 31,
-   "cells": 408,
-   "carried": 93,
-   "pct": 22.8,
+   "rows": 51,
+   "noded": 51,
+   "cells": 668,
+   "carried": 153,
+   "pct": 22.9,
    "columns": {
     "access": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -400,12 +397,12 @@
      ]
     },
     "api_url": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "https://api-dandi.emberarchive.org/api/dandisets/000564/versions/0.261015.2324/",
-      "https://api-dandi.emberarchive.org/api/dandisets/000398/versions/draft/"
+      "https://api-dandi.emberarchive.org/api/dandisets/000551/versions/draft/",
+      "https://api-dandi.emberarchive.org/api/dandisets/000607/versions/draft/"
      ]
     },
     "award_numbers": {
@@ -415,40 +412,40 @@
      "examples": []
     },
     "contact_name": {
-     "cells": 31,
+     "cells": 50,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "Pereira, Talmo",
-      "Bezold, Grace"
+      "Krishna, D Gopal ",
+      "Wilbrecht, Linda"
      ]
     },
     "description": {
-     "cells": 31,
-     "carried": 29,
-     "pct": 93.5,
+     "cells": 51,
+     "carried": 49,
+     "pct": 96.1,
      "examples": [
       "This dataset contains automated contributions of bounding boxes for subjects fro",
       "This dataset contains 1,132 one-hour open field video recordings of mice, collec"
      ]
     },
     "draft_url": {
-     "cells": 31,
-     "carried": 31,
+     "cells": 51,
+     "carried": 51,
      "pct": 100.0,
      "examples": []
     },
     "file_count": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "2352",
-      "5"
+      "0",
+      "9"
      ]
     },
     "instance": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
@@ -457,56 +454,56 @@
      ]
     },
     "last_synced_at": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "2026-10-21T04:17:05.3+00:00",
-      "2026-10-21T04:17:02.444+00:00"
+      "2026-10-28T04:17:08.057+00:00",
+      "2026-11-04T04:17:04.404+00:00"
      ]
     },
     "license": {
-     "cells": 25,
+     "cells": 46,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "spdx:CC-BY-NC-SA-4.0",
+      "spdx:CC-BY-4.0",
       "spdx:CC0-1.0"
      ]
     },
     "name": {
-     "cells": 31,
-     "carried": 30,
-     "pct": 96.8,
+     "cells": 51,
+     "carried": 50,
+     "pct": 98.0,
      "examples": [
       "Pozu: Bounding Box"
      ]
     },
     "neurosift_url": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "https://neurosift.app/dandiset/000564?dandisetVersion=0.261015.2324&staging=embe",
-      "https://neurosift.app/dandiset/000398?dandisetVersion=draft&staging=ember"
+      "https://neurosift.app/dandiset/000551?dandisetVersion=draft&staging=ember",
+      "https://neurosift.app/dandiset/000607?dandisetVersion=draft&staging=ember"
      ]
     },
     "raw": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "{'id': 'EMBER-DANDI:000564/0.261015.2324', 'doi': '10.60533/ember-dandi.000564/0",
-      "{'id': 'EMBER-DANDI:000398/draft', 'url': 'https://dandi.emberarchive.org/dandis"
+      "{'id': 'EMBER-DANDI:000551/draft', 'url': 'https://dandi.emberarchive.org/dandis",
+      "{'id': 'EMBER-DANDI:000607/draft', 'url': 'https://dandi.emberarchive.org/dandis"
      ]
     },
     "size_bytes": {
-     "cells": 31,
+     "cells": 51,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "200849687225",
-      "707178439"
+      "0",
+      "3414513"
      ]
     },
     "species": {
@@ -715,7 +712,7 @@
      "pct": 0.0,
      "examples": [
       "True",
-      "False"
+      "True"
      ]
     },
     "link": {
@@ -732,8 +729,8 @@
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "Learn more & participate",
-      "View on Job Board"
+      "Subscribe to listserv",
+      "BRAIN Initiative website"
      ]
     },
     "title": {
@@ -750,8 +747,8 @@
    "rows": 15,
    "noded": 15,
    "cells": 87,
-   "carried": 36,
-   "pct": 41.4,
+   "carried": 37,
+   "pct": 42.5,
    "columns": {
     "common_name": {
      "cells": 15,
@@ -784,8 +781,8 @@
     },
     "taxonomy_family": {
      "cells": 14,
-     "carried": 0,
-     "pct": 0.0,
+     "carried": 1,
+     "pct": 7.1,
      "examples": [
       "Muridae",
       "Muridae"
@@ -976,7 +973,7 @@
   {
    "table": "investigator_organizations",
    "readable": true,
-   "rows": 95,
+   "rows": 137,
    "noded": 0,
    "cells": 0,
    "carried": 0,
@@ -996,19 +993,19 @@
   {
    "table": "grant_dandisets",
    "readable": true,
-   "rows": 2,
+   "rows": 4,
    "noded": 0,
-   "cells": 4,
+   "cells": 6,
    "carried": 0,
    "pct": 0.0,
    "columns": {
     "match_source": {
-     "cells": 2,
+     "cells": 4,
      "carried": 0,
      "pct": 0.0,
      "examples": [
-      "award_number",
-      "award_number"
+      "curator",
+      "curator"
      ]
     },
     "matched_award": {

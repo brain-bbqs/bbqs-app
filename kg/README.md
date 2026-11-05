@@ -16,7 +16,7 @@ This table is the running status of the whole effort, updated as each phase land
 | 0 | Foundations & decisions — consistency-not-enrichment; LinkML master = source of truth; `resources` spine = node backbone; SHACL-first then OWL; Project=Grant; ontology alignments chosen | — | **done** |
 | 1 | Schema authored — `bbqs.linkml.yaml`, DB-grounded, 31 classes, Marr stubbed | — | **done** (v0.3 — keep-list from #397: schema hygiene + `Algorithm`; `title`/DANDI kept, device/SOSA deferred) |
 | 2 | Consistency invariants — the 19-row catalogue below; RED/GREEN fixtures; schema↔DB drift guard | — | **done** (16 shapes + 2 guards; on the anon export 7 shapes have data to check — see [QA](#quality-evaluation)) |
-| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done**: 4,737 triples, 771 links of ten kinds; 180 of 747 nodes (24%) still isolated, mostly records with nothing to link to (#421) |
+| 3 | Exporter — `resources` spine → instance TTL; grants⋈projects; ProjectRole; `species_aliases` resolver; `field_provenance`→PROV | **A** | **done**: 5,039 triples, 868 links of ten kinds; 189 of 808 nodes (23%) still isolated, mostly records with nothing to link to (#421) |
 | 4 | Generate OWL + boilerplate SHACL from the LinkML (`gen-owl`/`gen-shacl`) | **B** | **done**, with a gap: generated SHACL uses `slot_uri` IRIs the export doesn't, so it targets nothing (#422); `disjoint_with` → `owl:disjointWith` didn't emit |
 | 5 | Backfill migration — extend `resource_type` + add `resource_id` (species/devices/working-groups/funding/events/orgs/pubs) | **C** | **in progress** (backfill landed via #386; exporter now spine-sources every entity and the `project` double-node is resolved; remaining: orphan cleanup, `types.ts` regen → promote the 6 enum values, insert trigger) |
 | QA | Quality evaluation — the six [QA steps](#qa-steps): competency questions, structure, conformance, consistency, accuracy, coverage | — | **in progress** (steps 1, 2 and shape coverage live in `quality.py`, #420; 3 → #422; 5 and 6 planned) |
@@ -198,7 +198,7 @@ built one at a time, and each gets a board issue under #386 while it's in progre
 | 2 | **Structural metrics** | Is it one graph or a pile of records? | Nodes and links per class, isolated nodes, connected pieces, dangling links, and the class→predicate→class link matrix. | **live** (`quality.py`) |
 | 3 | **Cross-artifact conformance** | Do the export, the OWL and the generated SHACL use the same terms? | Every predicate and class the export emits must be declared in `bbqs.owl.ttl` *and* be a path in `bbqs.shapes.gen.ttl`. Today they disagree: the export and OWL use `bbqs:<slot>`, gen-shacl uses the mapped `slot_uri` (`schema:*`, `prov:*`), so the generated shapes target nothing. | planned (needs one IRI convention) |
 | 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL consistency shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
-| 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 73.6% of fact cells carried, anon) |
+| 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 71.7% of fact cells carried, anon) |
 | 6 | **Coverage** | How much of each record made it in? | Per-class fill rates and external-ID coverage (ORCID, DOI, NCBITaxon). Informational only: it guides enrichment and is not a consistency goal. | planned |
 
 Steps 1, 2 and 4 are one pass:
@@ -233,7 +233,7 @@ shows up after `dev` → `main`.
 
 | Measure | Result |
 |---|---|
-| Structure | 747 nodes, 771 links. **180 isolated (24%)**, in 202 connected pieces (largest 472). Links: `member_of_group` 266, `held_by` 111, `on_project` 111, `members` 95, `produced` 89, `manufacturer` 35, `device_category` 35, `studies_species` 24, `part_of_org` 3, `funded_datasets` 2. On 2026-09-30 it was 453 of 693 isolated (65%), with only the last four kinds. |
+| Structure | 808 nodes, 868 links. **189 isolated (23%)**, in 214 connected pieces (largest 516). Links: `member_of_group` 268, `members` 136, `on_project` 128, `held_by` 126, `produced` 89, `manufacturer` 35, `device_category` 35, `studies_species` 32, `part_of_org` 15, `funded_datasets` 4. On 2026-09-30 it was 453 of 693 isolated (65%), with only the last four kinds. |
 | Competency questions | **16 of 19 answered** (was 6), 2 n/a on anon (jobs, provenance), 1 unmodeled (CQ14) |
 | Shape coverage | **12 of 16 shapes have data to check** (was 7). The other 4 need what anon can't read: `email` (#15) and provenance (#12, #18, #19). |
 | Violations | 11: #7 ×6 (species), #20 ×2 and #1 ×1 (project identity), #10 ×2 (URLs). Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
@@ -263,7 +263,7 @@ node, every column a slot, every edge table a set of links, and DB → KG → DB
 `python kg/roundtrip.py <fresh export>` measures it cell by cell, with no mapping spec to trust.
 Run it on a fresh export: an older file makes every value edited since look dropped.
 
-**2026-10-21, anon, fresh export: 4,249 of 5,774 fact cells carried (73.6%)**, up from 63% on 2026-09-30. A
+**2026-11-04, anon, fresh export: 4,505 of 6,283 fact cells carried (71.7%)**; 73.6% on 2026-10-21 and 63% on 2026-09-30. The dip is the 20 dandisets rows added 2026-11-03, a table the graph carries at 23%; no table's own rate fell by more than a point. A
 cell the exporter writes as a link (`working_groups` → `member_of_group`, an ORCID → its orcid.org IRI)
 counts as carried when the linked node's name, or the IRI's id, equals the value.
 

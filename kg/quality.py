@@ -232,15 +232,19 @@ class KGQuality:
                 targets = sum(1 for _ in self.graph.subjects(RDF.type, target))
             else:
                 targets = len({s for p in subjects_of for s in self.graph.subjects(p, None)})
-            terms = set()
+            paths = set()
             for ps in sg.objects(shape, SH.property):
                 path = sg.value(ps, SH.path)
                 if path is not None and str(path).startswith(str(BBQS)):
-                    terms.add(local(path))
-            for sp in sg.objects(shape, SH.sparql):
-                select = str(sg.value(sp, SH.select) or "")
-                terms |= set(re.findall(r"\bbbqs:(\w+)", select))
+                    paths.add(local(path))
+            # Each constraint stands alone: a shape is checking something when one property path is
+            # present, or one SPARQL constraint has every term it names.
+            queries = [set(re.findall(r"\bbbqs:(\w+)", str(sg.value(sp, SH.select) or "")))
+                       for sp in sg.objects(shape, SH.sparql)]
+            terms = paths.union(*queries)
             missing = sorted(t for t in terms if not self._present(t))
+            checking = (any(self._present(t) for t in paths)
+                        or any(all(self._present(t) for t in q) for q in queries))
             out.append({
                 "shape": local(shape),
                 "target_class": local(target) if target is not None else (
@@ -248,7 +252,7 @@ class KGQuality:
                 "targets": targets,
                 "checks": sorted(terms),
                 "missing_inputs": missing,
-                "exercised": bool(targets) and not missing,
+                "exercised": bool(targets) and checking,
             })
         return out
 
@@ -368,8 +372,9 @@ class KGQuality:
             lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
         lines += ["", f"shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
         for sh in report["shapes"]:
-            state = "exercised" if sh["exercised"] else (
-                f"vacuous (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else "vacuous (no targets)")
+            absent = f" (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else ""
+            state = ("exercised" + absent if sh["exercised"] else
+                     "vacuous" + absent if sh["missing_inputs"] else "vacuous (no targets)")
             lines.append(f"  {sh['shape']:<40} targets={sh['targets']:<4} {state}")
         return "\n".join(lines)
 
