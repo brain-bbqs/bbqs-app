@@ -120,16 +120,23 @@ Deno.serve(async (req) => {
           .map((s) => s.name || "")
           .filter(Boolean);
 
-        // Upsert dandiset row
-        const { data: existing } = await admin
+        // select("*"): `hidden` exists only once 20261105120000 is applied, and naming it before then
+        // would fail the query. A failed lookup must not fall through to creating a second resource.
+        const { data: existing, error: exErr } = await admin
           .from("dandisets")
-          .select("id, resource_id")
+          .select("*")
           .eq("instance", "ember")
           .eq("dandiset_id", ds.identifier)
           .maybeSingle();
+        if (exErr) throw exErr;
 
+        // A dandiset becomes a resource only when a curator has not hidden it (set_dandiset_hidden)
+        // and it holds at least one file. EMBER is also where people test uploads (#506).
+        const hidden = existing?.hidden === true;
+        const fileCount = v.assetsSummary?.numberOfFiles ?? 0;
         let resourceId = existing?.resource_id || null;
-        if (!resourceId) {
+        const resource = resourceId ? "kept" : hidden ? "hidden" : fileCount > 0 ? "created" : "empty";
+        if (resource === "created") {
           const { data: res } = await admin
             .from("resources")
             .insert({
@@ -199,6 +206,7 @@ Deno.serve(async (req) => {
 
         results.push({
           dandiset: ds.identifier,
+          resource,
           awards: awardCores,
           linked_grants: awardCores.filter((c) => grantByCore.has(c)),
         });
