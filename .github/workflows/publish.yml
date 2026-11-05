@@ -58,6 +58,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          # Fetches the WG-Standards documents (scripts/fetch-standards-docs.mjs). Only needed
+          # while brain-bbqs/bbqs-standards is private; unset is fine once it is public.
+          BBQS_STANDARDS_TOKEN: ${{ secrets.BBQS_STANDARDS_TOKEN }}
 
       # KG Graph Inspector -> dist/kg/inspector/index.html (unlisted: noindex, not in the sitemap or
       # nav). Built from a fresh ANON export only -- never a stronger key, since the page embeds every
