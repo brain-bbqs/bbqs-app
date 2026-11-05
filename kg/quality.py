@@ -237,14 +237,14 @@ class KGQuality:
                 path = sg.value(ps, SH.path)
                 if path is not None and str(path).startswith(str(BBQS)):
                     paths.add(local(path))
-            # A SPARQL constraint needs every term it names; property constraints stand alone, so
-            # one present path is enough for the shape to be checking something.
+            # Each constraint stands alone: a shape is checking something when one property path is
+            # present, or one SPARQL constraint has every term it names.
             queries = [set(re.findall(r"\bbbqs:(\w+)", str(sg.value(sp, SH.select) or "")))
                        for sp in sg.objects(shape, SH.sparql)]
             terms = paths.union(*queries)
             missing = sorted(t for t in terms if not self._present(t))
-            checking = (all(self._present(t) for q in queries for t in q)
-                        and (not paths or any(self._present(t) for t in paths)))
+            checking = (any(self._present(t) for t in paths)
+                        or any(all(self._present(t) for t in q) for q in queries))
             out.append({
                 "shape": local(shape),
                 "target_class": local(target) if target is not None else (
