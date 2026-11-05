@@ -59,7 +59,7 @@ const CURATOR_TOOLS = new Set([
   "set_onboarding_step", "offboard_member", "add_funding_opportunity", "refresh_grant_from_reporter",
   "create_grant", "repoint_grant", "detect_grant_renumbers", "confirm_species_candidate",
   "add_resource", "set_suggestion_status", "import_questionnaire_response", "onboarding_digest",
-  "revoke_role",
+  "revoke_role", "set_dandiset_hidden",
 ]);
 
 type Caller = { id: string; email: string; roles: string[]; isCurator: boolean };
@@ -631,6 +631,28 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
         `feature_suggestions?github_issue_number=in.(${nums.join(",")})&select=github_issue_number,title,status`,
         { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: a.status }) },
       ));
+    },
+  });
+
+  T("set_dandiset_hidden", {
+    description: "[curator] Hide or unhide EMBER dandisets, by dandiset id. A hidden dandiset stays in the mirror (dandisets) but loses its resources row, so it leaves the Resources page, search and the knowledge graph, and the nightly ember-dandiset-sync will not recreate it. Use it for test uploads, smoke tests and placeholders. Unhiding recreates the resource at once. A reason is required to hide. THE tool for \"take these datasets off the Resources page\" — do not write SQL.",
+    parameters: obj({
+      dandiset_ids: { type: "array", items: { type: "string" }, description: "six-digit EMBER ids, e.g. ['000559', '000560']" },
+      hidden: { type: "boolean", description: "true (default) hides; false unhides" },
+      reason: { type: "string", description: "why, e.g. 'IDP integration test upload'; required to hide" },
+    }, ["dandiset_ids"]),
+    handler: async (a: { dandiset_ids: unknown; hidden?: boolean | string; reason?: string }) => {
+      const ids = coerceArray(a.dandiset_ids).map((x) => String(x).trim()).filter(Boolean);
+      if (!ids.length) throw new Error("dandiset_ids must contain at least one id");
+      const bad = ids.filter((x) => !/^\d{6}$/.test(x));
+      if (bad.length) throw new Error(`Not six-digit dandiset ids: ${bad.join(", ")}`);
+      return text(await rpcC("set_dandiset_hidden", {
+        _dandiset_ids: ids,
+        // Only an explicit false unhides, as with confirm_species_candidate's replace.
+        _hidden: !(a.hidden === false || a.hidden === "false"),
+        _reason: a.reason ?? null,
+        _instance: "ember",
+      }));
     },
   });
 
