@@ -37,7 +37,7 @@ END $$;
 -- 2. project_name_is_grant_number: one convention for project spine names, the grant number.
 UPDATE public.resources r SET name = g.grant_number, updated_at = now()
   FROM public.grants g
- WHERE r.id = g.resource_id AND r.name IS DISTINCT FROM g.grant_number;
+ WHERE r.id = g.resource_id AND g.created_at < '2026-11-04' AND r.name IS DISTINCT FROM g.grant_number;
 
 -- 3. BARD.CC (grant f959e79e-...). On 2026-09-21 repoint_grant renumbered U24MH136628 -> U24DA064429 (an IC
 --    transfer, #385); no migration records that call, so it is recorded here. On 11-03 repoint_grant was re-run
@@ -48,6 +48,10 @@ UPDATE public.projects SET grant_number = 'U24DA064429' WHERE grant_number = 'U2
 UPDATE public.grants SET nih_link = 'https://reporter.nih.gov/project-details/U24DA064429', updated_at = now()
  WHERE id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca'
    AND nih_link IS DISTINCT FROM 'https://reporter.nih.gov/project-details/U24DA064429';
+UPDATE public.resources r SET name = g.grant_number, updated_at = now()
+  FROM public.grants g
+ WHERE g.id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca' AND r.id = g.resource_id
+   AND r.name IS DISTINCT FROM g.grant_number;
 UPDATE public.resources r SET external_url = g.nih_link, updated_at = now()
   FROM public.grants g
  WHERE g.id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca' AND r.id = g.resource_id
@@ -117,7 +121,7 @@ UPDATE public.resources r SET organization_id = j.organization_id, updated_at = 
    AND r.organization_id IS DISTINCT FROM j.organization_id;
 UPDATE public.resources r SET organization_id = a.organization_id, updated_at = now()
   FROM public.announcements a JOIN public.organizations o ON o.id = a.organization_id
- WHERE r.id = a.resource_id AND r.organization_id IS DISTINCT FROM a.organization_id
+ WHERE r.id = a.resource_id AND a.created_at < '2026-11-04' AND r.organization_id IS DISTINCT FROM a.organization_id
    AND (o.name ILIKE 'National Institutes of Health' OR o.name ILIKE 'National Science Foundation');
 
 -- 9. link_people_to_grant_rosters: the high-confidence, roster-backed rows of the curated people list, with the
@@ -170,7 +174,10 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.investigator_organizations (investigator_id, organization_id)
 SELECT i.id, o.id FROM public.investigators i
   JOIN public.organizations o ON lower(btrim(o.name)) = lower(btrim(i.institution))
- WHERE i.created_at < '2026-11-04'
+ WHERE i.created_at < '2026-11-04' AND o.created_at < '2026-11-04'
+   -- ran before the typo fixes in block 12, so these three never matched on 11-03
+   AND i.id NOT IN ('589278f9-9638-4d92-9b4d-dc10f3f5f0a0', 'c1f28505-ffa5-4873-8ef8-4efee625ae7a',
+                    '1ff27c7d-e3a6-45a9-9ed4-c577e6a1e572')
    AND NOT EXISTS (SELECT 1 FROM public.investigator_organizations io WHERE io.investigator_id = i.id)
 ON CONFLICT DO NOTHING;
 
