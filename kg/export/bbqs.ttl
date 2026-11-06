@@ -1491,9 +1491,6 @@ bid:bea2a223-4980-44da-b8da-807ac4301bc6 a bbqs:SoftwareTool ;
     bbqs:name "Open Ephys" ;
     bbqs:repo_url "https://open-ephys.org/"^^xsd:anyURI .
 
-bid:bef104b2-a9a9-41d3-a585-6575449c2966 a bbqs:Investigator ;
-    bbqs:name "Suliman Sharif (sulstice@standardseedcorp.com)" .
-
 bid:c04b3bcd-d1db-4b3c-9dc6-a4c97039cad6 a bbqs:ResearchOrganization ;
     bbqs:members bid:223a91b2-1ffb-49e6-9cd7-d97f6f2beece,
         bid:bcdcd220-fa82-47d4-9c1b-7a8da03dadd8,
