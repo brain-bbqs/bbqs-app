@@ -15,10 +15,14 @@ name: Sandbox QA (clone prod -> build -> sandbox repo)
 #                     (brain-bbqs/bbqs-app-sandbox), which serves it from its own GitHub
 #                     Pages site and URL. Production Pages is never touched.
 #
-# Auto-triggers (push/PR) are intentionally absent; add `push: branches: [dev]` once
-# the manual loop is green.
+# A push to `dev` runs ONLY stages 4-5 (build the new code against the sandbox
+# database, publish to sandbox.brain-bbqs.org, smoke it), so every change is live in
+# the sandbox as it lands in dev. Stages 1-3 (schema/data clone from production) stay
+# manual: run this workflow by hand after a migration, or to refresh the data.
 
 on:
+  push:
+    branches: [dev]
   workflow_dispatch:
     inputs:
       allow_drift:
@@ -53,6 +57,7 @@ jobs:
   # 1 ── Production must match the repo before anything downstream runs.
   verify-prod:
     name: 1. Verify production schema
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       drift: ${{ steps.drift.outputs.drift }}
@@ -121,6 +126,7 @@ jobs:
   approve:
     name: 2. Approval
     needs: verify-prod
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     environment: sandbox-approval
     steps:
@@ -130,6 +136,7 @@ jobs:
   sandbox:
     name: 3. Migrate + clone sandbox
     needs: [verify-prod, approve]
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -221,6 +228,8 @@ jobs:
   build-deploy:
     name: 4. Build + publish to sandbox repo
     needs: sandbox
+    # `sandbox` is skipped on push; a failed or cancelled clone still blocks the deploy.
+    if: ${{ !cancelled() && (needs.sandbox.result == 'success' || needs.sandbox.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -308,7 +317,7 @@ jobs:
       # production.
       # Requires secret SANDBOX_GITHUB_PAT with `repo` scope on the target repo.
       - name: Publish to the sandbox repository
-        if: ${{ inputs.deploy_pages }}
+        if: ${{ inputs.deploy_pages || github.event_name == 'push' }}
         env:
           TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-app-sandbox' }}
           TARGET_BRANCH: ${{ vars.SANDBOX_PAGES_BRANCH || 'gh-pages' }}
@@ -338,7 +347,7 @@ jobs:
       # supabase/, config, workflows) onto the sandbox repo's default branch so it is a
       # complete clone of this repository, not just a build artifact.
       - name: Mirror application source to the sandbox repository
-        if: ${{ inputs.deploy_pages }}
+        if: ${{ inputs.deploy_pages || github.event_name == 'push' }}
         env:
           TARGET_REPO: ${{ vars.SANDBOX_PAGES_REPO || 'brain-bbqs/bbqs-app-sandbox' }}
           SOURCE_BRANCH: ${{ vars.SANDBOX_SOURCE_BRANCH || 'main' }}
@@ -371,7 +380,7 @@ jobs:
   smoke:
     name: 5. Sandbox smoke QA
     needs: build-deploy
-    if: ${{ inputs.run_smoke }}
+    if: ${{ !cancelled() && needs.build-deploy.result == 'success' && (inputs.run_smoke || github.event_name == 'push') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -417,14 +426,14 @@ jobs:
       # A deploy_pages run tests the live sandbox site; a build-only run serves the
       # artifact locally so the suite still means something.
       - name: Download build artifact
-        if: ${{ !inputs.deploy_pages }}
+        if: ${{ !(inputs.deploy_pages || github.event_name == 'push') }}
         uses: actions/download-artifact@v4
         with:
           name: sandbox-dist
           path: dist
 
       - name: Serve build locally
-        if: ${{ !inputs.deploy_pages }}
+        if: ${{ !(inputs.deploy_pages || github.event_name == 'push') }}
         run: |
           npx --yes serve -s dist -l 4173 > /tmp/serve.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:4173/ && break; sleep 1; done
@@ -432,7 +441,7 @@ jobs:
 
       # Never grade a stale deploy: wait until Pages serves the hash we just built.
       - name: Wait for the sandbox site to serve this build
-        if: ${{ inputs.deploy_pages }}
+        if: ${{ inputs.deploy_pages || github.event_name == 'push' }}
         env:
           SITE: https://${{ vars.SANDBOX_DOMAIN || 'sandbox.brain-bbqs.org' }}
         run: |
