@@ -1,12 +1,14 @@
--- Records the data edits Sulstice made by hand in the SQL editor on 2026-11-03, so a database rebuilt from
--- supabase/migrations (e.g. the sandbox, #474) ends in the same state as production. Each block below is the
--- statement that ran, keyed to the set_actor label it ran under in data_audit_log (#513).
---
--- Idempotent: every write is guarded, so on production (where all of it already ran) this changes nothing.
+-- Records the data edits Sulstice made by hand in the SQL editor on 2026-11-03 (#513), so the repo holds every
+-- change made to production. Each block is the statement that ran, keyed to the set_actor label it ran under in
+-- data_audit_log, and pinned to the rows it changed. Nothing needs to apply it: it is already live. Every write is
+-- guarded, so running it on production changes nothing (dry run: wrap it in BEGIN; ... ROLLBACK;). Most source
+-- rows (jobs, announcements, people, datasets) are not created by any migration, so on a migrations-only
+-- database most blocks match nothing; the sandbox clones production instead (sandbox-qa.yml).
+-- Depends on #512 (20261103130000 creates the 'National Science Foundation' organization block 7 links to).
 -- Recorded elsewhere, so NOT repeated here:
 --   funding_opportunity_orgs, project_software_tools  -> 20261103130000 / 20261103140000 (#512)
 --   Psych-DS as a standard                             -> 20260930120000 / 20260930120100
---   repoint_grant spine sync for BARD.CC (function)    -> 20260930130000; its effect on the row is block 3
+--   repoint_grant (the function)                       -> 20260930130000; what it did on 09-21 and 11-03 is block 3
 --   the duplicate-person merge                         -> 20261106130000 (#514); the interim rename to
 --                                                         'Suliman Sharif (alt)' (scrub_sharif_stub_name) is superseded
 --   publication full text                              -> 20261103153000 (#505)
@@ -37,24 +39,32 @@ UPDATE public.resources r SET name = g.grant_number, updated_at = now()
   FROM public.grants g
  WHERE r.id = g.resource_id AND r.name IS DISTINCT FROM g.grant_number;
 
--- 3. repoint_grant('U24DA064429','U24DA064429'): BARD.CC's spine row carries its current RePORTER link.
+-- 3. BARD.CC (grant f959e79e-...). On 2026-09-21 repoint_grant renumbered U24MH136628 -> U24DA064429 (an IC
+--    transfer, #385); no migration records that call, so it is recorded here. On 11-03 repoint_grant was re-run
+--    for the same number, which reset grants.nih_link and synced the spine row's external_url.
+UPDATE public.grants SET grant_number = 'U24DA064429', updated_at = now()
+ WHERE id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca' AND grant_number = 'U24MH136628';
+UPDATE public.projects SET grant_number = 'U24DA064429' WHERE grant_number = 'U24MH136628';
+UPDATE public.grants SET nih_link = 'https://reporter.nih.gov/project-details/U24DA064429', updated_at = now()
+ WHERE id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca'
+   AND nih_link IS DISTINCT FROM 'https://reporter.nih.gov/project-details/U24DA064429';
 UPDATE public.resources r SET external_url = g.nih_link, updated_at = now()
   FROM public.grants g
- WHERE g.grant_number = 'U24DA064429' AND r.id = g.resource_id
+ WHERE g.id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca' AND r.id = g.resource_id
    AND r.external_url ~ '^https?://reporter\.nih\.gov/project-details/'
    AND r.external_url IS DISTINCT FROM g.nih_link;
 
 -- 4. fix_malformed_urls: a job with two links in one field keeps the first; an empty job link becomes NULL;
---    a project website holding a sentence keeps the URL inside it, or becomes NULL if it has none.
+--    EMBER's project website held a sentence: it keeps the URL inside it, or becomes NULL if it has none.
 UPDATE public.resources SET external_url = btrim(split_part(external_url, ';', 1)), updated_at = now()
  WHERE id = 'ca41ad35-92a2-4391-95c3-0db49351b9a5' AND external_url LIKE '%;%';
 UPDATE public.resources SET external_url = NULL, updated_at = now()
  WHERE id = '12234308-3c6b-4d75-a135-f8fb127d4389' AND external_url = '';
 UPDATE public.projects SET website = substring(website from 'https?://[^\s,;)]+')
- WHERE website IS NOT NULL AND website !~ '^https?://[^\s]+$'
+ WHERE grant_number = 'R24MH136632' AND website IS NOT NULL AND website !~ '^https?://[^\s]+$'
    AND substring(website from 'https?://[^\s,;)]+') IS NOT NULL;
 UPDATE public.projects SET website = NULL
- WHERE website IS NOT NULL AND website !~ '^https?://[^\s]+$'
+ WHERE grant_number = 'R24MH136632' AND website IS NOT NULL AND website !~ '^https?://[^\s]+$'
    AND substring(website from 'https?://[^\s,;)]+') IS NULL;
 
 -- 5. The four organizations created by hand (link_jobs_to_organizations, announcement_orgs_bbqs_sfn),
@@ -78,7 +88,7 @@ END $$;
 -- 6. link_jobs_to_organizations: all 6 jobs, by their institution text.
 UPDATE public.jobs j SET organization_id = o.id
   FROM public.organizations o
- WHERE j.organization_id IS NULL AND (
+ WHERE j.organization_id IS NULL AND j.created_at < '2026-11-04' AND (
        (btrim(j.institution) LIKE 'International Brain Laboratory%' AND o.name = 'INTERNATIONAL BRAIN LABORATORY')
     OR (btrim(j.institution) = 'McGill University'                  AND o.name = 'MCGILL UNIVERSITY')
     OR (btrim(j.institution) = 'NYU'                                AND o.name = 'NEW YORK UNIVERSITY')
@@ -87,7 +97,7 @@ UPDATE public.jobs j SET organization_id = o.id
 -- 7. link_announcements_to_orgs and announcement_orgs_bbqs_sfn: all 12 announcements, by title.
 UPDATE public.announcements a SET organization_id = o.id
   FROM public.organizations o
- WHERE a.organization_id IS NULL AND (
+ WHERE a.organization_id IS NULL AND a.created_at < '2026-11-04' AND (
        (o.name ILIKE 'National Institutes of Health'
           AND (a.title ILIKE 'BRAIN NeuroAI%' OR a.title ILIKE 'BRAIN Conference%'
                OR a.title ILIKE 'BRAIN Initiative Research Roadmap%' OR a.title ILIKE 'NIH Common Fund PRIMED-AI%'))
@@ -98,13 +108,17 @@ UPDATE public.announcements a SET organization_id = o.id
        OR a.title ILIKE 'Children''s Speech Recognition%' OR a.title ILIKE 'Canada Impact+%'
        OR a.title ILIKE 'In the news:%')));
 
--- 8. sync_spine_organization_id: the jobs' and announcements' spine rows carry the same organization.
+-- 8. sync_spine_organization_id: 12 spine rows, the 6 jobs and the 6 NIH/NSF announcements linked by then. (The 6
+--    announcements linked afterwards by announcement_orgs_bbqs_sfn were not synced; the exporter reads the
+--    announcement's own organization_id, #512.)
 UPDATE public.resources r SET organization_id = j.organization_id, updated_at = now()
   FROM public.jobs j
- WHERE r.id = j.resource_id AND j.organization_id IS NOT NULL AND r.organization_id IS DISTINCT FROM j.organization_id;
+ WHERE r.id = j.resource_id AND j.organization_id IS NOT NULL AND j.created_at < '2026-11-04'
+   AND r.organization_id IS DISTINCT FROM j.organization_id;
 UPDATE public.resources r SET organization_id = a.organization_id, updated_at = now()
-  FROM public.announcements a
- WHERE r.id = a.resource_id AND a.organization_id IS NOT NULL AND r.organization_id IS DISTINCT FROM a.organization_id;
+  FROM public.announcements a JOIN public.organizations o ON o.id = a.organization_id
+ WHERE r.id = a.resource_id AND r.organization_id IS DISTINCT FROM a.organization_id
+   AND (o.name ILIKE 'National Institutes of Health' OR o.name ILIKE 'National Science Foundation');
 
 -- 9. link_people_to_grant_rosters: the high-confidence, roster-backed rows of the curated people list, with the
 --    neutral role 'other' (the list gave no roles). 15 of these 26 were new on 11-03; the rest were already on.
@@ -139,6 +153,7 @@ FROM (VALUES
   ('719874ac-d2e2-4d8b-886a-a7d83906063d','U24DA064429')   -- Melissa Kline Struhl
 ) AS v(inv, gn)
 JOIN public.grants g ON g.grant_number = v.gn
+                     OR (v.gn = 'U24DA064429' AND g.id = 'f959e79e-ab2b-4ba1-b12d-2a34b8e637ca')
 JOIN public.investigators i ON i.id = v.inv::uuid
 ON CONFLICT (grant_id, investigator_id) DO NOTHING;
 
@@ -155,11 +170,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.investigator_organizations (investigator_id, organization_id)
 SELECT i.id, o.id FROM public.investigators i
   JOIN public.organizations o ON lower(btrim(o.name)) = lower(btrim(i.institution))
- WHERE NOT EXISTS (SELECT 1 FROM public.investigator_organizations io WHERE io.investigator_id = i.id)
+ WHERE i.created_at < '2026-11-04'
+   AND NOT EXISTS (SELECT 1 FROM public.investigator_organizations io WHERE io.investigator_id = i.id)
 ON CONFLICT DO NOTHING;
 
 -- 12. people_small_fixes: delete the 'Jane Doe' test record, fix three institution typos, and give NIH
---     program staff their consortium label where it was empty (4 people on 11-03). The label change fires
+--     program staff their consortium label where it was empty (4 people changed on 11-03; only they are listed). The label change fires
 --     trg_sync_member_groups (nih@, dcaic-all@, consortium@), as designed for NIH program staff.
 DO $$
 DECLARE _id constant uuid := '7040e06c-adca-4319-bfa6-d80009b4cfd4'; _res uuid; _u uuid; _n int;
@@ -185,13 +201,10 @@ UPDATE public.investigators SET institution = 'Columbia University / Mount Sinai
 
 UPDATE public.investigators SET role = 'NIH program staff', updated_at = now()
  WHERE (role IS NULL OR btrim(role) = '') AND id IN (
-  'e26d868f-f252-4306-8def-0023da48868a', '38db2a70-c62c-4c2b-9a61-7a580156039f',
-  '754f6bf7-9bc1-47e4-ad68-b47562e0d01f', 'c3c235c0-42ea-4bb0-83fb-d183ab602263',
-  '82cab64f-83e0-4467-8d85-6bd5beb4921b', 'b08d83c8-bd53-4e65-a5b7-194aeb8110d7',
-  '1e22ec9a-d957-46a7-868e-e1b8f25a901a', 'ea888d2a-5eb1-43fc-af88-891a8b325afd',
-  '203fd2b8-7e20-4acd-97f2-0bf787fdfbb3', 'f9f24553-c42a-42c0-bf47-4a394251e1b0',
-  '017f3522-7288-4efc-8e32-4ecec7d6d7ed', 'f66e5087-aa21-4f12-b9e6-c25796a7d415',
-  '92647fd1-ec09-488c-9dbf-e8f8d06b2df9', '03fb31a2-688f-4168-97a3-f0e20da2d189');
+  '38db2a70-c62c-4c2b-9a61-7a580156039f',  -- Ashlee Van't Veer
+  '754f6bf7-9bc1-47e4-ad68-b47562e0d01f',  -- Christina Hatch
+  '92647fd1-ec09-488c-9dbf-e8f8d06b2df9',  -- Lizzy Ankudowich
+  'c3c235c0-42ea-4bb0-83fb-d183ab602263'); -- Christina Liu
 
 -- 13. Species confirmed by a curator on 11-03 (#429). In production these went through
 --     confirm_species_candidate(), which records the evidence quote under the curator's name; a rebuild
