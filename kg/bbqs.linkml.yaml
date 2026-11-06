@@ -206,6 +206,7 @@ classes:
       # --- graph edges ---
       - has_project_role     # → ProjectRole (project ↔ investigator + role)
       - funded_datasets      # grant_dandisets → Dandiset
+      - uses_software        # project_software_tools → SoftwareTool
       - has_model            # → MarrModel  (RESERVED stub)
       - produced             # → any Artifact (dataset/software/publication/model…)
 
@@ -364,7 +365,7 @@ classes:
       NB: table needs resource_id backfill to enter the spine.
     slots: [fon, activity_code, eligible_activity_codes, opportunity_type,
             budget_floor, budget_ceiling, due_dates, open_date, posted_date,
-            expiration_date, participating_orgs, purpose, relevance_tags, status, url]
+            expiration_date, participating_orgs, purpose, relevance_tags, status, url, funding_org]
 
   Event:
     is_a: Entity
@@ -516,6 +517,8 @@ slots:
   nih_link:    { slot_uri: schema:url, range: uriorcurie }
   mechanism:   { slot_uri: bbqs:mechanism, description: "R61/R34/RF1/U01… — DERIVED from grant_number, not stored." }
   funded_datasets: { range: Dandiset, multivalued: true }
+  uses_software: { slot_uri: bbqs:uses_software, range: SoftwareTool, multivalued: true, description: "project_software_tools: software a project uses, named by its PI or curated. Only evidenced links; a ticked questionnaire category is not evidence." }
+  funding_org: { slot_uri: bbqs:funding_org, range: ResearchOrganization, multivalued: true, description: "funding_opportunity_orgs: the organizations behind a call, resolved from participating_orgs through an explicit acronym map." }
 
   # ---- ProjectRole (reified role) ------------------------------------------
   on_project:  { slot_uri: prov:hadPlan, range: Project, inverse: has_project_role }
