@@ -327,7 +327,9 @@ class BBQSKnowledgeGraph:
 
         # An announcement's or job's organization lives on its own table; the spine row's organization_id is
         # not always in step with it (curators fill the detail table), so the edge reads the detail column too.
-        for tbl in ("announcements", "jobs"):
+        # Jobs come from the public_jobs view: the jobs table itself is hidden from the anon key the
+        # published export uses, so reading it would add nothing there.
+        for tbl in ("announcements", "public_jobs"):
             for row in self.fetch(tbl):
                 if row.get("resource_id") and row.get("organization_id") in org_node:
                     g.add((BID[row["resource_id"]], BBQS["part_of_org"], org_node[row["organization_id"]]))
@@ -367,6 +369,8 @@ class BBQSKnowledgeGraph:
                 g.add((call, BBQS["funding_org"], org))
         for ps in self.fetch("project_software_tools"):
             proj, tool = proj_node.get(ps.get("project_id")), tool_node.get(ps.get("software_tool_id"))
+            if (ps.get("relation") or "uses") != "uses":   # 'develops' has no slot yet; don't call it 'uses'
+                continue
             if proj is not None and tool is not None:
                 g.add((proj, BBQS["uses_software"], tool))
         for pp in self.fetch("project_publications"):
