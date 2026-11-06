@@ -703,7 +703,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
     parameters: obj({
       name: { type: "string" },
       category: { type: "string", enum: Object.keys(RESOURCE_CATEGORY_TYPE) },
-      url: { type: "string", description: "Homepage or docs URL" },
+      url: { type: "string", description: "Homepage or docs URL (aliases accepted: link, website, homepage, external_url)" },
       description: { type: "string", description: "One line: what it does" },
       repo_url: { type: "string" },
       version: { type: "string" },
@@ -715,6 +715,12 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       containerized: { type: "boolean" },
     }, ["name", "category"]),
     handler: async (a: Record<string, any>) => {
+      // Clients guess the link field name; accept common aliases rather than silently dropping the link (#501).
+      if (a.url == null) {
+        for (const k of ["external_url", "link", "website", "homepage", "homepage_url", "docs_url"]) {
+          if (a[k] != null && String(a[k]).trim()) { a.url = a[k]; break; }
+        }
+      }
       const resource_type = RESOURCE_CATEGORY_TYPE[a.category];
       if (!resource_type) throw new Error(`category must be one of: ${Object.keys(RESOURCE_CATEGORY_TYPE).join(", ")}`);
       const meta: Record<string, unknown> = { category: a.category };
@@ -741,7 +747,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
         });
         // RLS filters a forbidden UPDATE to zero rows instead of erroring; say so rather than "updated".
         if (!Array.isArray(rows) || !rows.length) {
-          throw new Error(`"${name}" exists (id ${row.id}) but RLS did not let this account update it; nothing changed.`);
+          throw new Error(`"${name}" exists (id ${row.id}) but RLS did not let this account update it; nothing changed. Ask an admin to apply the edit.`);
         }
         return text({ action: "updated", rows });
       }
