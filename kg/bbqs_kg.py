@@ -298,11 +298,13 @@ class BBQSKnowledgeGraph:
             self.add(n, "journal", pub.get("journal"))
             self.add(n, "year", pub.get("year"), cast=None)
 
+        tool_node = {}
         for st in self.fetch("software_tools"):
             rid = st.get("resource_id")
             if not rid:
                 continue
             n = BID[rid]
+            tool_node[st["id"]] = n
             self.add(n, "repo_url", st.get("repo_url"), datatype=XSD.anyURI)
             self.add(n, "docs_url", st.get("docs_url"), datatype=XSD.anyURI)
             self.add(n, "language", st.get("language"))
@@ -363,6 +365,10 @@ class BBQSKnowledgeGraph:
             call, org = fund_node.get(fo_org.get("funding_opportunity_id")), org_node.get(fo_org.get("organization_id"))
             if call is not None and org is not None:
                 g.add((call, BBQS["funding_org"], org))
+        for ps in self.fetch("project_software_tools"):
+            proj, tool = proj_node.get(ps.get("project_id")), tool_node.get(ps.get("software_tool_id"))
+            if proj is not None and tool is not None:
+                g.add((proj, BBQS["uses_software"], tool))
         for pp in self.fetch("project_publications"):
             proj, pub = proj_node.get(pp.get("project_id")), pub_node.get(pp.get("publication_id"))
             if proj is not None and pub is not None:
@@ -455,7 +461,7 @@ class BBQSKnowledgeGraph:
 
         edges = []
         asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
-                                "device_category", "manufacturer", "funding_org"}
+                                "device_category", "manufacturer", "funding_org", "uses_software"}
         for s, p, o in g:
             local = str(p).rsplit("#", 1)[-1]
             if local in asserted_predicates and not isinstance(o, Literal):
