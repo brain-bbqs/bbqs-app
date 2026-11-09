@@ -55,6 +55,14 @@ jobs:
         if: steps.scope.outputs.run == 'true'
         run: python kg/ci_check.py --check-generated
 
+      # kg/mcp_server.py: the traversal answers, the read-only guarantee, and the protocol itself
+      # (a real server process over stdio and HTTP). Adds the MCP SDK to the environment above.
+      - name: MCP server tests
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          pip install -r kg/requirements-mcp.txt
+          python kg/test_mcp_server.py
+
       - name: Quality summary
         if: steps.scope.outputs.run == 'true' && always()
         run: |
