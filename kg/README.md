@@ -141,6 +141,9 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `explorer.py` | Builds `bbqs_explorer.json` for `explorer/index.html`: `BBQSKnowledgeGraph.export_explorer_json()` CLI. |
 | `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views. |
 | `explorer/index.html` | **BBQS Explorer** — single-file D3 v7 app: draggable globe → US map → triple/relationship panel. No build step. |
+| `mcp_server.py` | **MCP server**: read-only traversal of an exported graph for AI clients, over stdio or HTTP. No database, no credentials (see [MCP server](#mcp-server-read-the-graph-from-an-ai-client)). |
+| `test_mcp_server.py` | Its tests: a hand-built graph with known answers, the competency questions through the server, cross-file guards, and the protocol over stdio and HTTP. |
+| `requirements-mcp.txt` | Pinned deps for the server alone: `rdflib` and the MCP SDK. |
 
 ## The three validation layers
 
@@ -280,6 +283,142 @@ differs from the spine's `resources.name` for 11 of 15 species ("Mouse" vs "Hous
 investigator, dandiset and software names or descriptions differ between their detail table and the
 spine. On an anon key this covers the public projection only; RLS-hidden rows and columns need a
 full-access run.
+
+## MCP server: read the graph from an AI client
+
+`mcp_server.py` puts the exported graph behind the Model Context Protocol, so Claude (or any MCP
+client) can search it, walk it and ask how two things are connected. It loads one Turtle file into
+memory and answers from that. Nothing else is involved: no Supabase, no edge function, no sign-in,
+no key, and no write path.
+
+It is a different thing from `supabase/functions/bbqs-mcp`, and shares no code with it:
+
+| | `bbqs-mcp` (edge function) | `kg/mcp_server.py` |
+|---|---|---|
+| Reads | the live database, as the signed-in caller | an exported graph (a snapshot) |
+| Writes | yes: member self-service and curator tools | never |
+| Sign-in | on demand (OAuth) | none, so it is only given data anyone may read |
+| Runs on | Supabase | anywhere Python runs |
+
+### Run it
+
+```bash
+pip install -r kg/requirements-mcp.txt
+python kg/mcp_server.py --check        # load the graph, print what it holds, exit
+python kg/mcp_server.py                # serve over stdio
+```
+
+With [uv](https://docs.astral.sh/uv/) there is nothing to install; the script header names its
+dependencies:
+
+```bash
+uv run kg/mcp_server.py --check
+```
+
+Claude Code (give the absolute path to your checkout):
+
+```bash
+claude mcp add bbqs-kg -- uv run /path/to/bbqs-app/kg/mcp_server.py
+```
+
+Claude Desktop and other clients that take a JSON entry:
+
+```json
+{ "mcpServers": { "bbqs-kg": { "command": "uv", "args": ["run", "/path/to/bbqs-app/kg/mcp_server.py"] } } }
+```
+
+A client that cannot start a local process (claude.ai connectors) needs a URL. `--http` serves
+streamable HTTP at `/mcp`, with `/health` beside it; put it behind HTTPS on any host:
+
+```bash
+python kg/mcp_server.py --http --host 0.0.0.0 --port 8000 --no-sparql
+```
+
+No such host is set up; nothing in this repo deploys it.
+
+### Tools
+
+All six are reads, and say so to the client (`readOnlyHint`). Every answer carries `snapshot`:
+which copy of the graph it came from, that copy's date, and its age in days.
+
+| Tool | What it answers |
+|---|---|
+| `describe_graph` | The map: node types with counts and how full each property is, link types with their endpoints, and which copy of the graph is being served and how old it is. With a `type`, that type in full: the schema's definition of it and of each property, the values a property takes when they are few, and its links. |
+| `search_nodes` | Find nodes by text (names, grant numbers, ORCID, DOI, abstracts, keywords), or list them by type and exact property values. |
+| `get_node` | One node in full: every property, and every link grouped by type and direction. |
+| `get_neighbors` | Everything within 1 to 4 links of a node, nearest first, each with the link that reached it. Filter by link type, direction and the type of node returned. Does not walk through hubs unless asked. |
+| `find_paths` | How two nodes are connected: the shortest chains first, then longer ones. |
+| `sparql_query` | SPARQL `SELECT` / `ASK` over the graph as exported, for counts and aggregates. |
+
+A node can be named by the short id another tool returned, its IRI, or an exact name, grant
+number, ORCID, DOI or PMID, so `find_paths("House Mouse", "WG-Devices")` works without a search
+first. An ambiguous name comes back as an error listing the candidates.
+
+### What a hop is
+
+Nodes are the typed resources in the export; a link is a triple between two of them. The server
+changes two things, so that a hop means something:
+
+- **The roster is folded.** A `ProjectRole` record is one `grant_investigators` row, exported as a
+  node between a person and a project. Here it is one `has_role` link from the person to the
+  project, carrying the role and where it came from. It stays the only authority for a role on a
+  project (#283); `consortium_role` is shown as the free-text label it is.
+- **A shared outside identifier is a node.** When two or more nodes carry the same ORCID iD (an
+  investigator, and a paper's author list), that iD becomes an `External` node joining them. This
+  is the only authorship link the graph has today: 23 shared iDs in the export of 2026-11-05, 3 of
+  them a BBQS investigator's. An iD only one node carries stays a property.
+
+Hubs get the same care in both walking tools, because "both are in WG-Analytics" is true of over a
+hundred people and says little:
+
+- `get_neighbors` reaches a hub (a node with more than 30 links; today, the four working groups)
+  but does not walk through it, and lists it in the reply. Two links from a linked investigator is
+  a median of 9 nodes this way, against 114 (export of 2026-11-05). Naming the links to follow
+  (`edge`) or setting `through_hubs` walks through.
+- `find_paths` leaves out any chain that goes the long way round a direct link, and among equally
+  short chains puts the one through less-connected nodes first. `avoid_edges` drops a link type
+  altogether.
+
+A link to a node the export does not contain is shown as an `Unresolved` node rather than dropped,
+and a roster record with an end missing is counted in `describe_graph`'s notes (2 in the export of
+2026-11-05).
+
+`sparql_query` sees the graph exactly as exported, with neither change. It refuses everything that
+is not a read of the loaded graph (updates, `CONSTRUCT`, `DESCRIBE`, `SERVICE`, `FROM`) and stops a
+query after 10 seconds. `--no-sparql` leaves the tool out, which is the safer choice for an endpoint
+anyone can reach: a stopped query still cost 10 seconds of CPU.
+
+### Which graph, and how old
+
+`--source` (or `BBQS_KG_SOURCE`) takes a path or a URL. With neither, the server reads the copy
+`publish.yml` puts at `https://brain-bbqs.org/kg/bbqs.ttl` whenever its live export succeeds (every
+deploy of `main`, and once a day), and falls back to the committed `export/bbqs.ttl`. It re-reads
+the source every `--refresh` hours (default 1), and keeps the graph it has when a re-read fails or
+comes back with most of the graph missing.
+
+Either way it is a copy, not the database. `describe_graph` reports the source, its date and its
+age in days, and says so when it is serving the fallback, so a stale answer is visible. The
+committed export is dated by its commit: a checkout stamps every file with the time of the
+checkout.
+
+It serves whatever file it is given and has no access control of its own. Give it an anon export
+unless every client is entitled to more.
+
+### Tests
+
+```bash
+pip install -r kg/requirements.txt -r kg/requirements-mcp.txt
+python kg/test_mcp_server.py
+```
+
+The KG gate runs them on every PR that touches `kg/`. They cover a hand-built graph whose answers
+were worked out by hand; every competency question the baseline says is answered, asked through
+the server; the walking tools against SPARQL on the committed export; and the protocol itself, by a
+raw JSON-RPC client against a real process over stdio and over HTTP. Three guards hold across files:
+every schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in
+the script header match `requirements*.txt`, and no call that writes to a graph appears outside
+the one that loads it. The suite was shown able to fail: the server was broken 28 ways in a scratch
+copy, one at a time, and every break turned it red.
 
 ## Not yet built
 
