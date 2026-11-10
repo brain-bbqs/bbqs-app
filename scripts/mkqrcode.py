@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "numpy",
+#     "qrcode[pil]",
+#     "pillow",
+#     "pyzbar",
+#     "scipy",
+# ]
+# ///
+
 
 import argparse
 import logging
