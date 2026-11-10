@@ -6,9 +6,11 @@
 Four layers, each catching what the others cannot:
 
   the view      -- a small hand-built graph whose every answer was worked out by hand: folding the
-                   roster, shared identifiers, references, search, neighbours, paths, SPARQL.
+                   roster, shared identifiers, references, search, neighbours, relatedness, paths,
+                   SPARQL.
   the export    -- the committed graph: every competency question the baseline says is answered
-                   comes back through sparql_query, and the walking tools agree with SPARQL.
+                   comes back through sparql_query, the walking tools agree with SPARQL, and the
+                   ranking is the natural process it is named after, and earns its keep.
   the guards    -- cross-file invariants: schema terms the server names exist in the TBox, the
                    pinned dependencies agree, and no tool can change the graph.
   the protocol  -- the server as a client sees it: a real process, raw JSON-RPC over stdio and
@@ -29,6 +31,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from fractions import Fraction
 from pathlib import Path
 from unittest import mock
 
@@ -118,6 +121,37 @@ def fixture_kg() -> m.KG:
 
 def ids(rows) -> list[str]:
     return [row["id"] for row in rows]
+
+
+def small_kg(turtle: str) -> m.KG:
+    """A few lines of Turtle as a graph, for a case the fixture does not hold."""
+    prefixes = "@prefix bbqs: <https://brain-bbqs.org/schema#> .\n@prefix bid: <https://brain-bbqs.org/id/> .\n"
+    return m.KG(m._BudgetedGraph().parse(data=prefixes + turtle, format="turtle"))
+
+
+def first_arrivals(kg: m.KG, start: m.Node, avoid=()) -> dict:
+    """Activation spreading with nothing left out, written without the server's shortcuts: one unit
+    leaves `start` along each link, and from then on every node, every tick, splits all it holds
+    equally among all its links, the one it came by included. Returns node -> (the first tick it
+    held anything, how much it held then)."""
+    def walked(node):
+        return [link for link in node.links if link.edge not in avoid]
+
+    holding = {start.iri: Fraction(len(walked(start)))}        # so that one unit goes down each link
+    arrived = {start.iri: None}
+    for tick in range(1, len(kg.nodes) + 1):
+        moved: dict = {}
+        for iri, amount in holding.items():
+            links = walked(kg.nodes[iri])
+            for link in links:
+                moved[link.other] = moved.get(link.other, 0) + amount / len(links)
+        new = {iri: (tick, amount) for iri, amount in moved.items() if iri not in arrived}
+        if not new:
+            break
+        arrived.update(new)
+        holding = moved
+    del arrived[start.iri]
+    return arrived
 
 
 class TheView(unittest.TestCase):
@@ -342,6 +376,188 @@ class TheView(unittest.TestCase):
         self.assertIn("direction", self.err(self.kg.neighbors, ADA, direction="up"))
         self.assertIn("depth", self.err(self.kg.neighbors, ADA, depth=m.MAX_DEPTH + 1))
 
+    # -- what is related: spreading activation --
+
+    def strengths(self, start, **options) -> dict:
+        """What the wave from `start` brings to every node it reaches: id -> (hops, strength, routes)."""
+        wave = self.kg._wave(self.kg.resolve(start), **options)
+        return {self.kg.nodes[iri].id: (found.hops, str(found.strength), found.routes)
+                for iri, found in wave.items() if found.hops}
+
+    def test_strength_is_what_the_hand_calculation_gives(self):
+        # From Ada, who has 4 links. One unit leaves her along each; every node passes on what it
+        # received divided by its number of links; what arrives together adds up; a node is read
+        # when it is first reached.
+        #   1 link away   WG-Devices, P1, the university and her ORCID iD: 1 each.
+        #   2             Bob: 1/2 from WG-Devices (2 links) + 1/6 from P1 (6 links) = 2/3.
+        #                 The paper: 1/6 from P1 + 1/2 from the iD (2 links) = 2/3.
+        #                 Sam Twin: 1/3 from the university (3 links). Mouse and the dataset: 1/6 from P1.
+        #   3             Bob (4 links) passes 2/3 / 4 = 1/6 to WG-Analytics and to P2; Mouse (2) passes 1/12 to P3.
+        #   4             Cyd: 1/6 / 2 from WG-Analytics + 1/6 / 4 from P2 (4 links) = 1/8.
+        #                 Zebrafish and "Fish at scale": 1/24 from P2.
+        #   5, 6          the iD two papers share: 1/48; then the unattached preprint: 1/96.
+        self.assertEqual(self.strengths(ADA), {
+            WGD: (1, "1", 1), P1: (1, "1", 1), ORG: (1, "1", 1), "ext:" + O1: (1, "1", 1),
+            BOB: (2, "2/3", 2), PUB1: (2, "2/3", 2), TWIN1: (2, "1/3", 1), MOUSE: (2, "1/6", 1), DS1: (2, "1/6", 1),
+            WGA: (3, "1/6", 2), P2: (3, "1/6", 2), P3: (3, "1/12", 1),
+            CYD: (4, "1/8", 4), ZEBRA: (4, "1/24", 2), PUB2: (4, "1/24", 2),
+            "ext:" + O4: (5, "1/48", 2), PUB3: (6, "1/96", 2)})
+        self.assertEqual(self.strengths(DEE), {})                     # no links: nothing to spread along
+
+    def test_strength_is_the_same_from_either_end(self):
+        linked = [node for node in self.kg.nodes.values() if node.links]
+        waves = {node.iri: self.kg._wave(node) for node in linked}
+        pairs = [(a, b) for a in waves for b in waves[a] if a != b]
+        self.assertGreater(len(pairs), 250)
+        for a, b in pairs:
+            self.assertEqual(waves[a][b].strength, waves[b][a].strength, (a, b))
+            self.assertEqual((waves[a][b].hops, waves[a][b].routes), (waves[b][a].hops, waves[b][a].routes), (a, b))
+
+    def test_the_code_is_the_process_it_is_named_after(self):
+        # Spreading with nothing left out (every node, every tick, splits all it holds among all its
+        # links, backwards too) delivers to each node, the first time anything reaches it, exactly
+        # the strength, on the tick that is its distance.
+        for start in (node for node in self.kg.nodes.values() if node.links):
+            for avoid in ((), ("member_of_group",), ("has_role", "orcid")):
+                wave = self.kg._wave(start, set(avoid))
+                self.assertEqual({iri: (found.hops, found.strength) for iri, found in wave.items() if found.hops},
+                                 first_arrivals(self.kg, start, avoid), (start.id, avoid))
+
+    def test_related_ranks_each_type_on_its_own_nearest_first_then_strongest(self):
+        found = self.kg.related(ADA)
+        self.assertEqual(found["start"], [{"id": ADA, "type": "Investigator", "label": "Ada Lovelace", "links": 4}])
+        listed = {group["type"]: [(n["id"], n["hops"], n["strength"]) for n in group["nodes"]]
+                  for group in found["related"]}
+        # types in the order of their best node: four hold a direct link, then 2/3, then 1/6 at two links
+        self.assertEqual(list(listed), ["External", "Project", "ResearchOrganization", "WorkingGroup",
+                                        "Investigator", "Publication", "Dataset", "Species"])
+        self.assertEqual(listed["Investigator"], [(BOB, 2, 0.6667), (TWIN1, 2, 0.3333), (CYD, 4, 0.125)])
+        self.assertEqual(listed["Project"], [(P1, 1, 1), (P2, 3, 0.1667), (P3, 3, 0.08333)])
+        self.assertEqual(listed["Publication"], [(PUB1, 2, 0.6667), (PUB2, 4, 0.04167), (PUB3, 6, 0.01042)])
+        self.assertEqual(listed["WorkingGroup"], [(WGD, 1, 1), (WGA, 3, 0.1667)])
+        self.assertEqual(listed["Species"], [(MOUSE, 2, 0.1667), (ZEBRA, 4, 0.04167)])
+        self.assertEqual({group["type"]: group["reached"] for group in found["related"]},
+                         {"External": 2, "Project": 3, "ResearchOrganization": 1, "WorkingGroup": 2,
+                          "Investigator": 3, "Publication": 3, "Dataset": 1, "Species": 2})
+        # never the starting node itself, a node with no links, or one in another piece of the graph
+        self.assertFalse({n for rows in listed.values() for n, _, _ in rows} & {ADA, DEE, TWIN2, DEV, CAT, MAN})
+        only = self.kg.related(ADA, type=["species", "Dataset"])
+        self.assertEqual([group["type"] for group in only["related"]], ["Dataset", "Species"])
+
+    def test_related_puts_a_nearer_node_before_a_stronger_one_farther_away(self):
+        # s is in a group of ten, so each fellow member is tied by 1/10, two links away. Through
+        # her one project there is a chain of nodes with two links each to f, four links away:
+        # 1/2 * 1/2 * 1/2 = 1/8. Stronger, and farther: the nearer ones still come first.
+        members = "".join(f'bid:n{i} a bbqs:Investigator ; bbqs:name "N{i}" ; bbqs:member_of_group bid:g .\n'
+                          for i in range(9))
+        kg = small_kg(members + """
+            bid:g a bbqs:WorkingGroup ; bbqs:name "G" .
+            bid:s a bbqs:Investigator ; bbqs:name "S" ; bbqs:member_of_group bid:g ; bbqs:leads bid:p .
+            bid:p a bbqs:Project ; bbqs:name "P" . bid:q a bbqs:Project ; bbqs:name "Q" .
+            bid:x a bbqs:Investigator ; bbqs:name "X" ; bbqs:leads bid:p, bid:q .
+            bid:f a bbqs:Investigator ; bbqs:name "F" ; bbqs:leads bid:q .""")
+        people = kg.related("S", type="Investigator", limit=25)["related"][0]["nodes"]
+        self.assertEqual([(n["label"], n["hops"], n["strength"]) for n in people],
+                         [("X", 2, 0.5)] + [(f"N{i}", 2, 0.1) for i in range(9)] + [("F", 4, 0.125)])
+
+    def test_related_shows_the_strongest_route_and_how_much_of_the_strength_it_brings(self):
+        bob, twin, cyd = self.kg.related(ADA, type="Investigator")["related"][0]["nodes"]
+        self.assertEqual([(step["id"], step["type"], step["links"]) for step in bob["through"]],
+                         [(WGD, "WorkingGroup", 2)])
+        self.assertEqual((bob["routes"], bob["carries"]), (2, 0.75))        # 1/2 of his 2/3 came through WG-Devices
+        self.assertEqual(ids(twin["through"]), [ORG])
+        self.assertFalse({"routes", "carries"} & set(twin))                 # one route: nothing to share out
+        self.assertEqual(ids(cyd["through"]), [WGD, BOB, WGA])              # 1/2 * 1/4 * 1/2 = 1/16 of her 1/8
+        self.assertEqual((cyd["routes"], cyd["carries"]), (4, 0.5))
+        project = self.kg.related(ADA, type="Project")["related"][0]["nodes"][0]
+        self.assertEqual(project["link"], {"edge": "has_role", "direction": "out", "role": "contact_pi",
+                                           "role_source": "reporter"})    # a direct link is its own reason
+        self.assertNotIn("through", project)
+        seen_from_p1 = self.kg.related(P1, type="Investigator")["related"][0]["nodes"][0]
+        self.assertEqual((seen_from_p1["id"], seen_from_p1["link"]["direction"]), (ADA, "in"))
+
+    def test_related_to_several_nodes_is_what_every_one_of_them_reaches(self):
+        # Ada and Cyd. The wave from Cyd (2 links): WG-Analytics and P2 are direct; Bob gets 1/2 + 1/4
+        # = 3/4; he passes 3/16 to WG-Devices and to P1; and so on. A node counts by its farthest
+        # starting node and then by the weaker of its two ties.
+        found = self.kg.related([ADA, CYD])
+        self.assertEqual(ids(found["start"]), [ADA, CYD])
+        listed = {group["type"]: [(n["id"], n["hops"], n["strength"]) for n in group["nodes"]]
+                  for group in found["related"]}
+        self.assertEqual(list(listed), ["Investigator", "Project", "WorkingGroup", "Publication", "Species",
+                                        "Dataset", "ResearchOrganization", "External"])
+        # Bob is two links from both. Sam Twin is two from Ada (1/3) but five from Cyd (1/96).
+        self.assertEqual(listed["Investigator"], [(BOB, 2, 0.6667), (TWIN1, 5, 0.01042)])
+        # P1 is Ada's own and three links from Cyd (3/16); P2 the other way round (1/6); P3 is far from both.
+        self.assertEqual(listed["Project"], [(P1, 3, 0.1875), (P2, 3, 0.1667), (P3, 5, 0.01562)])
+        self.assertEqual(listed["WorkingGroup"], [(WGD, 3, 0.1875), (WGA, 3, 0.1667)])
+        self.assertEqual(listed["Species"], [(ZEBRA, 4, 0.04167), (MOUSE, 4, 0.03125)])
+        bob = found["related"][0]["nodes"][0]
+        self.assertEqual([(tie["start"], tie["hops"], tie["strength"], tie["carries"], ids(tie["through"]))
+                          for tie in bob["from"]], [(ADA, 2, 0.6667, 0.75, [WGD]), (CYD, 2, 0.75, 0.6667, [WGA])])
+        self.assertFalse({"link", "through", "routes"} & set(bob))          # per starting node, under `from`
+        swapped = self.kg.related([CYD, ADA])                # the order asked in changes nothing but `from`
+        self.assertEqual([(g["type"], ids(g["nodes"])) for g in swapped["related"]],
+                         [(g["type"], ids(g["nodes"])) for g in found["related"]])
+        three = self.kg.related([ADA, CYD, MOUSE], type="Investigator")["related"][0]["nodes"]
+        self.assertEqual([(n["id"], n["hops"], n["strength"]) for n in three], [(BOB, 2, 0.1667), (TWIN1, 5, 0.01042)])
+
+    def test_related_says_when_a_list_was_cut_among_equals(self):
+        # Mouse is studied by P1 and P3, both direct; P2 is three links away.
+        first = self.kg.related(MOUSE, type="Project", limit=1)["related"][0]
+        self.assertEqual((first["reached"], ids(first["nodes"])), (3, [P1]))
+        self.assertEqual(first["tied"], {"hops": 1, "strength": 1, "count": 2, "listed": 1})
+        self.assertNotIn("tied", self.kg.related(MOUSE, type="Project", limit=2)["related"][0])   # cut between levels
+        second = self.kg.related(MOUSE, type="Project", limit=1, offset=1)["related"][0]
+        self.assertEqual(ids(second["nodes"]), [P3])
+        self.assertNotIn("tied", second)                                    # the tie ends on this page
+        self.assertEqual(ids(self.kg.related(MOUSE, type="Project", limit=10_000)["related"][0]["nodes"]), [P1, P3, P2])
+
+    def test_related_can_leave_links_out_and_then_a_node_splits_among_the_rest(self):
+        # Without the working groups Bob is tied to Ada through P1 alone (1/6), and has 2 links left
+        # to split among instead of 4, so P2 gets 1/6 / 2 = 1/12.
+        without = self.strengths(ADA, avoid={"member_of_group"})
+        self.assertEqual((without[BOB], without[P2], without[CYD]), ((2, "1/6", 1), (3, "1/12", 1), (4, "1/48", 1)))
+        self.assertFalse({WGD, WGA} & set(without))
+        reply = self.kg.related(ADA, type="Project", avoid_edges="member_of_group")
+        self.assertEqual(reply["avoided"], ["member_of_group"])
+        p2 = reply["related"][0]["nodes"][1]
+        self.assertEqual((p2["id"], p2["strength"]), (P2, 0.08333))
+        self.assertEqual([(step["id"], step["links"], step.get("walked")) for step in p2["through"]],
+                         [(P1, 6, None), (BOB, 4, 2)])
+        self.assertNotIn("avoided", self.kg.related(ADA, type="Project"))
+
+    def test_related_takes_its_starting_nodes_however_they_arrive(self):
+        one, pair = self.kg.related(ADA), self.kg.related([ADA, CYD])
+        for shape in ([ADA], "Ada Lovelace", f'["{ADA}"]', [ADA, "ada lovelace"], (ADA,)):   # the same node twice: one
+            self.assertEqual(self.kg.related(shape), one, shape)
+        for shape in (f"{ADA}, {CYD}", f'["{ADA}", "{CYD}"]', ["Ada Lovelace", CYD]):
+            self.assertEqual(self.kg.related(shape), pair, shape)
+        # a name with a comma in it is one node, not two
+        kg = small_kg("""bid:u a bbqs:ResearchOrganization ; bbqs:name "University of Testing, West" ;
+                             bbqs:members bid:a . bid:a a bbqs:Investigator ; bbqs:name "A" .""")
+        self.assertEqual(kg.related("University of Testing, West")["start"][0]["type"], "ResearchOrganization")
+
+    def test_related_says_what_it_cannot_answer(self):
+        self.assertIn("No node matches 'nobody at all'", self.err(self.kg.related, "nobody at all"))
+        self.assertIn("No node matches 'Ada Lovelace, nobody'", self.err(self.kg.related, "Ada Lovelace, nobody"))
+        self.assertIn("names 2 nodes", self.err(self.kg.related, "Sam Twin"))
+        self.assertIn("No node given", self.err(self.kg.related, []))
+        self.assertIn("Investigator", self.err(self.kg.related, ADA, type="Person"))
+        self.assertIn("has_role", self.err(self.kg.related, ADA, avoid_edges="knows"))
+        self.assertIn(f"at most {m.MAX_SEEDS}", self.err(self.kg.related, [ADA, BOB, CYD, P1, P2, P3]))
+        alone = self.kg.related(DEE)
+        self.assertEqual(alone["related"], [])
+        self.assertIn("No links are recorded for " + DEE, alone["note"])
+        cut_off = self.kg.related(DEV, avoid_edges=["manufacturer", "device_category"])
+        self.assertIn("No links without device_category, manufacturer are recorded", cut_off["note"])
+        apart = self.kg.related([ADA, DEV])                                 # two pieces of the graph
+        self.assertEqual(apart["related"], [])
+        self.assertIn("No chain of links joins", apart["note"])
+        self.assertEqual(self.kg.related(DEV, type="Investigator")["related"],
+                         [{"type": "Investigator", "reached": 0, "nodes": []}])    # asked for and none: said so
+        self.assertNotIn("note", self.kg.related(DEV, type="Investigator"))
+
     # -- paths --
 
     def test_paths_shortest_first_and_less_connected_first_among_equals(self):
@@ -357,9 +573,44 @@ class TheView(unittest.TestCase):
                          'Investigator "Cyd  Charisse"')
         self.assertNotIn("more", found)
 
+    def test_paths_carry_their_strength_and_the_shortest_add_up_to_the_tie(self):
+        found = self.kg.paths(ADA, CYD)
+        # what is left after WG-Devices (2 links), Bob (4) and WG-Analytics (2) have each split it: 1/16; and so on
+        self.assertEqual([p["strength"] for p in found["paths"]], [0.0625, 0.03125, 0.02083, 0.01042])
+        self.assertEqual(found["tie"], {"routes": 4, "strength": 0.125})    # 1/16 + 1/32 + 1/48 + 1/96 = 1/8
+        cyd = self.kg.related(ADA, type="Investigator")["related"][0]["nodes"][2]
+        self.assertEqual((cyd["id"], cyd["hops"], cyd["routes"], cyd["strength"]), (CYD, found["shortest"], 4, 0.125))
+        direct = self.kg.paths(ADA, P1)
+        self.assertEqual(([p["strength"] for p in direct["paths"]], direct["tie"]), ([1], {"routes": 1, "strength": 1}))
+
     def test_paths_can_leave_edges_out(self):
         found = self.kg.paths(ADA, CYD, avoid_edges="member_of_group")
         self.assertEqual([p["nodes"] for p in found["paths"]], [[ADA, P1, BOB, P2, CYD]])
+        # Bob has 2 links left to split among, not 4: 1 / (6 * 2 * 4)
+        self.assertEqual((found["paths"][0]["strength"], found["tie"]), (0.02083, {"routes": 1, "strength": 0.02083}))
+
+    def test_paths_read_the_same_from_either_end(self):
+        linked = sorted((node for node in self.kg.nodes.values() if node.links), key=lambda node: node.iri)
+        joined = 0
+        for a in linked:
+            for b in linked:
+                if a.iri < b.iri:
+                    there = self.kg.paths(a.iri, b.iri, max_hops=m.MAX_HOPS, limit=2)
+                    back = self.kg.paths(b.iri, a.iri, max_hops=m.MAX_HOPS, limit=2)
+                    self.assertEqual([(p["strength"], p["nodes"]) for p in there["paths"]],
+                                     [(p["strength"], p["nodes"][::-1]) for p in back["paths"]], (a.id, b.id))
+                    self.assertEqual((there.get("tie"), there.get("more")), (back.get("tie"), back.get("more")))
+                    joined += bool(there["paths"])
+        self.assertGreater(joined, 100)
+        # Two equally strong routes whose links sort one way from a and the other way from b: the
+        # cut at one path must fall in the same place from both ends.
+        kg = small_kg("""bid:a a bbqs:Investigator ; bbqs:name "A" ; bbqs:alpha bid:x ; bbqs:beta bid:y .
+                         bid:b a bbqs:Investigator ; bbqs:name "B" .
+                         bid:x a bbqs:Project ; bbqs:name "X" ; bbqs:zeta bid:b .
+                         bid:y a bbqs:Project ; bbqs:name "Y" ; bbqs:gamma bid:b .""")
+        there, back = kg.paths("A", "B", limit=1), kg.paths("B", "A", limit=1)
+        self.assertEqual((there["tie"], there["more"]), ({"routes": 2, "strength": 1}, True))
+        self.assertEqual(there["paths"][0]["nodes"], back["paths"][0]["nodes"][::-1])
 
     def test_paths_have_no_detours(self):
         # ada-org-p1 is a real chain, but ada is on p1 directly: the longer way round adds nothing.
@@ -477,6 +728,7 @@ class ReadOnly(unittest.TestCase):
             lambda: kg.describe(), lambda: kg.search("mouse"),
             lambda: kg.search(type="Project", where={"mechanism": "R34"}),
             lambda: kg.node(P1), lambda: kg.neighbors(ADA, depth=m.MAX_DEPTH), lambda: kg.paths(ADA, CYD, limit=25),
+            lambda: kg.related([ADA, CYD], limit=25), lambda: kg.related(P1, avoid_edges="has_role"),
             lambda: kg.sparql("SELECT * WHERE { ?s ?p ?o }", limit=m.MAX_ROWS),
             lambda: kg.sparql("INSERT DATA { <urn:a> <urn:b> <urn:c> }"),
             lambda: kg.sparql("DELETE WHERE { ?s ?p ?o }"), lambda: kg.sparql("DROP ALL"),
@@ -593,6 +845,108 @@ class TheExport(unittest.TestCase):
         self.assertEqual(sorted(self.kg.resolve(n["id"]).iri for n in walked["nodes"]), expected)
         self.assertTrue(expected)
 
+    def test_on_the_export_too_the_code_is_the_process_it_is_named_after(self):
+        linked = sorted((node for node in self.kg.nodes.values() if node.links), key=lambda node: node.iri)
+        for start in linked[::25]:
+            wave = self.kg._wave(start)
+            self.assertEqual({iri: (found.hops, found.strength) for iri, found in wave.items() if found.hops},
+                             first_arrivals(self.kg, start), start.id)
+        self.assertGreater(len(linked[::25]), 15)
+
+    def test_the_paths_between_two_nodes_account_for_the_whole_of_their_tie(self):
+        # find_paths lists the shortest routes one at a time and find_related adds them up. The sum
+        # is redone here from nothing but the ids on each path and those nodes' link counts.
+        checked = 0
+        for start in ("House Mouse", "WG-Devices", "R34DA059723"):
+            for group in self.kg.related(start, limit=3)["related"]:
+                for row in group["nodes"]:
+                    found = self.kg.paths(start, row["id"], max_hops=row["hops"], limit=25)
+                    self.assertEqual((found["shortest"], found["tie"]["strength"], found["tie"]["routes"]),
+                                     (row["hops"], row["strength"], row.get("routes", 1)), (start, row["id"]))
+                    if found["tie"]["routes"] > 25:
+                        continue                                    # more routes than one reply lists
+                    self.assertEqual(found["found"], found["tie"]["routes"])
+                    total = Fraction(0)
+                    for path in found["paths"]:
+                        left = Fraction(1)
+                        for between in path["nodes"][1:-1]:
+                            left /= len(self.kg.resolve(between).links)
+                        self.assertEqual(path["strength"], m._shown(left))
+                        total += left
+                    wave = self.kg._wave(self.kg.resolve(start))
+                    self.assertEqual(wave[self.kg.resolve(row["id"]).iri].strength, total)
+                    checked += 1
+        self.assertGreater(checked, 40)
+
+    def test_strength_finds_a_hidden_link_better_than_distance_alone(self):
+        # What the ranking was chosen on, kept as a regression measure. Hide one real link, start at
+        # one of its ends, and see where the other end lands among the nodes of its own type that
+        # the start is not already linked to. Ties share the middle of the places they take up.
+        kg = m.GraphSource(str(EXPORT)).current()         # a graph of its own: links are taken out and put back
+        cases, by_strength, by_distance, top_strength, top_distance = 0, 0.0, 0.0, 0, 0
+        for node in sorted((n for n in kg.nodes.values() if n.links), key=lambda n: n.iri):
+            for link in [l for l in node.links if l.out]:
+                other = kg.nodes[link.other]
+                back = next(l for l in other.links
+                            if (l.other, l.edge, l.out, l.attrs) == (node.iri, link.edge, False, link.attrs))
+                i, j = node.links.index(link), other.links.index(back)
+                del node.links[i], other.links[j]
+                for start, hidden in ((node, other), (other, node)):
+                    if not start.links:
+                        continue                                    # it was the start's only link: nothing to go on
+                    cases += 1
+                    wave = kg._wave(start)
+                    if hidden.iri not in wave:
+                        continue                                    # counts as not found, for both orderings
+                    known = {l.other for l in start.links}
+                    rivals = [found for iri, found in wave.items()
+                              if found.hops and iri not in known and kg.nodes[iri].type == hidden.type]
+
+                    def place(key):
+                        mine = key(wave[hidden.iri])
+                        return sum(key(r) < mine for r in rivals) + (sum(key(r) == mine for r in rivals) + 1) / 2
+
+                    ranked = place(lambda found: (found.hops, -found.strength))
+                    by_hops = place(lambda found: found.hops)
+                    by_strength, by_distance = by_strength + 1 / ranked, by_distance + 1 / by_hops
+                    top_strength, top_distance = top_strength + (ranked <= 10), top_distance + (by_hops <= 10)
+                node.links.insert(i, link)
+                other.links.insert(j, back)
+        self.assertGreater(cases, 1000)
+        # 2026-11-05: mean reciprocal rank 0.53 against 0.27, and in the first ten 65% of the time against 39%.
+        self.assertGreater(by_strength, 1.5 * by_distance, (by_strength / cases, by_distance / cases))
+        self.assertGreater(top_strength, 1.3 * top_distance, (top_strength / cases, top_distance / cases))
+
+    def test_a_working_group_is_not_cut_off_it_just_passes_on_little(self):
+        # The fan effect in place of a cut-off: two members of a big working group are tied through it
+        # by exactly 1/members. The route is found and listed, and it is faint.
+        group = max((node for node in self.kg.nodes.values() if node.type == "WorkingGroup"),
+                    key=lambda node: (len(node.links), node.iri))
+        members = len(group.links)
+        self.assertGreater(members, m.HUB_LINKS)
+        a, b = sorted((self.kg.nodes[link.other] for link in group.links), key=lambda n: (len(n.links), n.iri))[:2]
+        found = self.kg.paths(a.iri, b.iri, max_hops=2, limit=25)
+        through = [path for path in found["paths"] if path["nodes"] == [a.id, group.id, b.id]]
+        self.assertEqual([path["strength"] for path in through], [m._shown(Fraction(1, members))])
+        self.assertLess(through[0]["strength"], 1 / m.HUB_LINKS)
+        self.assertEqual(found["shortest"], 2)
+        self.assertGreaterEqual(found["tie"]["strength"], through[0]["strength"])    # that route, plus any other
+
+    def test_related_lists_are_capped_paged_and_say_how_many_tie(self):
+        group = max((node for node in self.kg.nodes.values() if node.type == "WorkingGroup"),
+                    key=lambda node: (len(node.links), node.iri))
+        members = len(group.links)
+        asked_for_all = self.kg.related(group.iri, type="Investigator", limit=10_000)["related"][0]
+        self.assertEqual(len(asked_for_all["nodes"]), 25)                      # the most one type is given in one reply
+        self.assertEqual(asked_for_all["tied"], {"hops": 1, "strength": 1, "count": members, "listed": 25})
+        self.assertGreater(asked_for_all["reached"], members)                  # people outside the group are reached
+        next_page = self.kg.related(group.iri, type="Investigator", limit=25, offset=25)["related"][0]
+        self.assertFalse(set(ids(asked_for_all["nodes"])) & set(ids(next_page["nodes"])))
+        beyond = self.kg.related(group.iri, type="Investigator", limit=3, offset=members)["related"][0]
+        self.assertTrue(all(n["hops"] == 3 for n in beyond["nodes"]))          # past the members: three links away
+        strengths = [n["strength"] for n in beyond["nodes"]]
+        self.assertEqual(strengths, sorted(strengths, reverse=True))
+
     def test_every_shown_id_leads_back_to_its_node(self):
         for node in self.kg.nodes.values():
             self.assertIs(self.kg.resolve(node.id), node)
@@ -602,7 +956,9 @@ class TheExport(unittest.TestCase):
     def test_answers_come_out_in_the_same_order_every_time(self):
         again = m.GraphSource(str(EXPORT)).current()
         for call in (lambda kg: kg.search("behavior", limit=50), lambda kg: kg.neighbors("WG-Analytics", limit=200),
-                     lambda kg: kg.paths("House Mouse", "WG-Devices", limit=10), lambda kg: kg.describe()["edge_types"]):
+                     lambda kg: kg.paths("House Mouse", "WG-Devices", limit=10), lambda kg: kg.describe()["edge_types"],
+                     lambda kg: kg.related(["House Mouse", "WG-Devices"], limit=25),
+                     lambda kg: kg.related("WG-Analytics", limit=25)):
             self.assertEqual(json.dumps(call(self.kg)), json.dumps(call(again)))
 
     def test_the_committed_export_is_dated_by_its_commit_not_by_the_checkout(self):
@@ -796,7 +1152,8 @@ class Guards(unittest.TestCase):
 
     def test_every_tool_is_declared_read_only(self):
         self.assertEqual(sorted(t.name for t in self.tools),
-                         ["describe_graph", "find_paths", "get_neighbors", "get_node", "search_nodes", "sparql_query"])
+                         ["describe_graph", "find_paths", "find_related", "get_neighbors", "get_node", "search_nodes",
+                          "sparql_query"])
         for tool in self.tools:
             self.assertTrue(tool.annotations.read_only_hint, tool.name)
             self.assertFalse(tool.annotations.destructive_hint, tool.name)
@@ -892,10 +1249,11 @@ class OverStdio(unittest.TestCase):
         self.assertIn("describe_graph first", self.hello["instructions"])
         self.assertIn("tools", self.hello["capabilities"])
 
-    def test_it_lists_six_read_only_tools_with_schemas(self):
+    def test_it_lists_seven_read_only_tools_with_schemas(self):
         tools = self.client.ask("tools/list")["result"]["tools"]
         self.assertEqual(sorted(t["name"] for t in tools),
-                         ["describe_graph", "find_paths", "get_neighbors", "get_node", "search_nodes", "sparql_query"])
+                         ["describe_graph", "find_paths", "find_related", "get_neighbors", "get_node", "search_nodes",
+                          "sparql_query"])
         for tool in tools:
             self.assertIs(tool["annotations"]["readOnlyHint"], True, tool["name"])
             self.assertEqual(tool["inputSchema"]["type"], "object")
@@ -903,6 +1261,9 @@ class OverStdio(unittest.TestCase):
         paths = next(t for t in tools if t["name"] == "find_paths")["inputSchema"]
         self.assertEqual(sorted(paths["required"]), ["source_node", "target_node"])
         self.assertIn("description", paths["properties"]["avoid_edges"])
+        related = next(t for t in tools if t["name"] == "find_related")
+        self.assertEqual(related["inputSchema"]["required"], ["nodes"])
+        self.assertIn("splits what it received equally among its own links", related["description"])   # the rule itself
 
     def test_every_tool_answers_in_compact_json(self):
         failed, text = self.client.call("describe_graph")
@@ -921,6 +1282,12 @@ class OverStdio(unittest.TestCase):
         _, text = self.client.call("find_paths", source_node="Ada Lovelace", target_node="Fish at scale",
                                    avoid_edges=["member_of_group"])
         self.assertEqual(json.loads(text)["paths"][0]["nodes"], [ADA, P1, BOB, P2, PUB2])
+        _, text = self.client.call("find_related", nodes=["Ada Lovelace", "Cyd Charisse"], type="Investigator")
+        self.assertEqual([(n["id"], n["strength"]) for n in json.loads(text)["related"][0]["nodes"]],
+                         [(BOB, 0.6667), (TWIN1, 0.01042)])
+        _, text = self.client.call("find_related", nodes="House Mouse", type="Investigator", limit=1)
+        self.assertEqual(json.loads(text)["related"][0]["tied"],
+                         {"hops": 2, "strength": 0.1667, "count": 2, "listed": 1})
         _, text = self.client.call("sparql_query", query="SELECT (COUNT(?p) AS ?n) WHERE { ?p a bbqs:Project }")
         counted = json.loads(text)
         self.assertEqual((counted["columns"], counted["rows"]), (["n"], [[3]]))
@@ -938,6 +1305,9 @@ class OverStdio(unittest.TestCase):
                  ("get_node", {"node": ADA}, kg.node(ADA)),
                  ("get_neighbors", {"node": ADA, "depth": 2}, kg.neighbors(ADA, depth=2)),
                  ("find_paths", {"source_node": ADA, "target_node": CYD}, kg.paths(ADA, CYD)),
+                 ("find_related", {"nodes": ADA}, kg.related(ADA)),
+                 ("find_related", {"nodes": [ADA, CYD], "type": "Project", "avoid_edges": "member_of_group"},
+                  kg.related([ADA, CYD], type="Project", avoid_edges="member_of_group")),
                  ("sparql_query", {"query": "SELECT ?s WHERE { ?s a bbqs:Species }"},
                   kg.sparql("SELECT ?s WHERE { ?s a bbqs:Species }")),
                  ("sparql_query", {"query": "ASK { ?s ?p ?o }"}, {"answer": True})]
@@ -965,6 +1335,10 @@ class OverStdio(unittest.TestCase):
         self.assertEqual(json.loads(as_string), json.loads(as_object))
         _, comma = self.client.call("get_neighbors", node=ADA, edge="has_role, member_of_group")
         self.assertEqual(json.loads(comma)["total"], 2)
+        _, as_list = self.client.call("find_related", nodes=[ADA, CYD], type=["Investigator"])
+        for shape in (f"{ADA}, {CYD}", json.dumps([ADA, CYD])):
+            _, as_text = self.client.call("find_related", nodes=shape, type="Investigator")
+            self.assertEqual(json.loads(as_text), json.loads(as_list), shape)
 
     def test_a_mistake_comes_back_as_an_error_the_model_can_act_on(self):
         failed, text = self.client.call("get_node", node="nobody at all")
@@ -980,6 +1354,9 @@ class OverStdio(unittest.TestCase):
         failed, text = self.client.call("find_paths", source_node=ADA)
         self.assertTrue(failed)
         self.assertIn("target_node", text)
+        failed, text = self.client.call("find_related", nodes=[ADA, "nobody at all"])
+        self.assertTrue(failed)
+        self.assertIn("No node matches 'nobody at all'", text)
         _, text = self.client.call("describe_graph")
         self.assertEqual(json.loads(text)["links"], 23)        # and it is still serving the same graph
 
@@ -1039,11 +1416,16 @@ class OverHttp(unittest.TestCase):
         self.assertEqual(hello["serverInfo"]["name"], "bbqs-kg")
         tools = self.post(_request(2, "tools/list"))["result"]["tools"]
         self.assertEqual(sorted(t["name"] for t in tools),
-                         ["describe_graph", "find_paths", "get_neighbors", "get_node", "search_nodes"])   # --no-sparql
+                         ["describe_graph", "find_paths", "find_related", "get_neighbors", "get_node",
+                          "search_nodes"])                                               # --no-sparql
         reply = self.post(_request(3, "tools/call", {"name": "find_paths", "arguments": {
             "source_node": "House Mouse", "target_node": "Zebrafish"}}))["result"]
         self.assertEqual(json.loads(reply["content"][0]["text"])["paths"][0]["nodes"], [MOUSE, P1, BOB, P2, ZEBRA])
-        refused = self.post(_request(4, "tools/call", {"name": "sparql_query", "arguments": {"query": "ASK {}"}}))
+        reply = self.post(_request(4, "tools/call", {"name": "find_related", "arguments": {
+            "nodes": "House Mouse", "type": "Species"}}))["result"]
+        self.assertEqual([(n["id"], n["hops"]) for n in json.loads(reply["content"][0]["text"])["related"][0]["nodes"]],
+                         [(ZEBRA, 4)])
+        refused = self.post(_request(5, "tools/call", {"name": "sparql_query", "arguments": {"query": "ASK {}"}}))
         self.assertTrue("error" in refused or refused["result"].get("isError"))
 
 
@@ -1063,6 +1445,23 @@ class TheCommandLine(unittest.TestCase):
         self.assertIn("No knowledge graph could be loaded", done.stderr)
         self.assertIn("definitely-not-here.ttl", done.stderr)
         self.assertEqual(done.stdout, "")
+
+    def test_answers_do_not_depend_on_how_this_process_happens_to_hash(self):
+        # Sets and dicts of strings order differently from one process to the next. Nothing a tool
+        # returns may follow that order: the same question, asked of three processes, reads the same.
+        asks = ("import json, sys; sys.path.insert(0, sys.argv[1]); import mcp_server as m; "
+                "kg = m.GraphSource(sys.argv[2], 0).current(); "
+                "print(json.dumps([kg.related(['House Mouse', 'WG-Devices'], limit=25), kg.related('WG-Analytics'), "
+                "kg.paths('House Mouse', 'WG-Devices', limit=25), kg.neighbors('R34DA059723', depth=2), "
+                "kg.search('behavior', limit=50)], sort_keys=True))")
+        said = set()
+        for seed in ("0", "1", "4242"):
+            done = subprocess.run([sys.executable, "-c", asks, str(HERE), str(EXPORT)], capture_output=True, text=True,
+                                  timeout=60, env={**os.environ, "PYTHONHASHSEED": seed})
+            self.assertEqual(done.returncode, 0, done.stderr)
+            said.add(done.stdout)
+        self.assertEqual(len(said), 1)
+        self.assertGreater(len(said.pop()), 10_000)
 
     def test_the_source_can_come_from_the_environment(self):
         done = subprocess.run([sys.executable, str(SERVER), "--check"], capture_output=True, text=True, timeout=60,

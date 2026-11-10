@@ -287,7 +287,8 @@ full-access run.
 ## MCP server: read the graph from an AI client
 
 `mcp_server.py` puts the exported graph behind the Model Context Protocol, so Claude (or any MCP
-client) can search it, walk it and ask how two things are connected. It loads one Turtle file into
+client) can search it, walk it, and ask what is most closely tied to something and how two things
+are connected. It loads one Turtle file into
 memory and answers from that. Nothing else is involved: no Supabase, no edge function, no sign-in,
 no key, and no write path.
 
@@ -338,7 +339,7 @@ No such host is set up; nothing in this repo deploys it.
 
 ### Tools
 
-All six are reads, and say so to the client (`readOnlyHint`). Every answer carries `snapshot`:
+All seven are reads, and say so to the client (`readOnlyHint`). Every answer carries `snapshot`:
 which copy of the graph it came from, that copy's date, and its age in days.
 
 | Tool | What it answers |
@@ -346,8 +347,9 @@ which copy of the graph it came from, that copy's date, and its age in days.
 | `describe_graph` | The map: node types with counts and how full each property is, link types with their endpoints, and which copy of the graph is being served and how old it is. With a `type`, that type in full: the schema's definition of it and of each property, the values a property takes when they are few, and its links. |
 | `search_nodes` | Find nodes by text (names, grant numbers, ORCID, DOI, abstracts, keywords), or list them by type and exact property values. |
 | `get_node` | One node in full: every property, and every link grouped by type and direction. |
-| `get_neighbors` | Everything within 1 to 4 links of a node, nearest first, each with the link that reached it. Filter by link type, direction and the type of node returned. Does not walk through hubs unless asked. |
-| `find_paths` | How two nodes are connected: the shortest chains first, then longer ones. |
+| `get_neighbors` | Everything within 1 to 4 links of a node, nearest first, each with the link that reached it. Filter by link type, direction and the type of node returned. Does not walk through hubs unless asked. It lists; it does not rank. |
+| `find_related` | What is most closely tied to a node, or to several at once (what they have in common), each type of node ranked on its own. See [how it decides](#how-it-decides-what-is-related). |
+| `find_paths` | How two nodes are connected: the shortest chains first, then longer ones; among equally short, the strongest first. |
 | `sparql_query` | SPARQL `SELECT` / `ASK` over the graph as exported, for counts and aggregates. |
 
 A node can be named by the short id another tool returned, its IRI, or an exact name, grant
@@ -368,16 +370,102 @@ changes two things, so that a hop means something:
   is the only authorship link the graph has today: 23 shared iDs in the export of 2026-11-05, 3 of
   them a BBQS investigator's. An iD only one node carries stays a property.
 
-Hubs get the same care in both walking tools, because "both are in WG-Analytics" is true of over a
+Hubs get care in every tool that walks, because "both are in WG-Analytics" is true of over a
 hundred people and says little:
 
 - `get_neighbors` reaches a hub (a node with more than 30 links; today, the four working groups)
   but does not walk through it, and lists it in the reply. Two links from a linked investigator is
   a median of 9 nodes this way, against 114 (export of 2026-11-05). Naming the links to follow
   (`edge`) or setting `through_hubs` walks through.
-- `find_paths` leaves out any chain that goes the long way round a direct link, and among equally
-  short chains puts the one through less-connected nodes first. `avoid_edges` drops a link type
-  altogether.
+- `find_related` and `find_paths` cut nothing off. A hub passes on little, by the rule in the next
+  section, so what lies behind it is found and ranks low. `find_paths` also leaves out any chain
+  that goes the long way round a direct link. `avoid_edges` drops a link type altogether, in both.
+
+### How it decides what is related
+
+`find_related` and `find_paths` rank by **spreading activation**, the account in psychology of how
+one idea brings up another: think of *doctor*, and *nurse* comes to mind faster. It was chosen
+because it is a theory about a network of concepts, which is what this graph is, and because a
+person can state the rule and check any answer by hand.
+
+Activation starts at one node and spreads outward. Three rules, each a published finding:
+
+1. **It moves one link at a time**, so what is nearer is reached sooner (Collins & Quillian 1969).
+2. **A node splits what it received equally among all its links.** This is the fan effect: the more
+   a concept is linked to, the less each link carries (Anderson 1974). A project with 5 links
+   passes on a fifth along each. A working group with 114 members passes on 1/114.
+3. **Amounts that arrive together add up** (Collins & Loftus 1975), so two routes to a node count
+   for more than one.
+
+The number that comes out is **strength**: 1 for a direct link, and otherwise the sum, over the
+shortest routes, of 1/links for each node in between, multiplied along the route. There is nothing
+to tune. Worked by hand, for a species studied by two projects, one with 5 links and one with 2:
+
+| Node | How activation gets there | Strength |
+|---|---|---|
+| The two projects | a direct link each | 1 |
+| A person on both projects | 1/5 through the first, 1/2 through the second | 0.7 |
+| A person on the first project only | 1/5 | 0.2 |
+
+The person on both ranks first for two reasons the arithmetic keeps apart: two routes instead of
+one, and one of them through a project with little else attached to it. On the real graph (export
+of 2026-11-05), `find_related("House Mouse", type="Investigator")` puts first the one person on two
+House Mouse projects, which have 6 and 9 links (1/6 + 1/9 = 0.28), then the three people on its
+smallest project, which has 4 (0.25 each).
+
+How answers are ordered:
+
+- **Each type of node is ranked on its own**: people against people, projects against projects.
+  Size goes with type. A working group collects activation from a hundred members and a paper from
+  one project, so a single list of both mostly sorts them by size.
+- **Nearest first, then strongest.** A node three links away never comes before one two links away
+  of the same type, however much reaches it.
+- **Several starting nodes** ask what they have in common. Only nodes that every one of them
+  reaches are returned, ordered by the farthest starting node and then by the weakest tie.
+- **Ties are said, not hidden.** When a list is cut among equals (all 66 members of a working group
+  are tied to it equally), `tied` gives how many there are and how many were listed.
+
+Each row carries `through`, the strongest route, and `carries`, the share of the strength it
+brings. `find_paths` lists every route between two nodes with its own strength, and its `tie`
+gives their number and sum, which is the strength `find_related` shows for the pair. The two tools
+are one calculation read two ways, and the same from either end.
+
+What it is without the name: a breadth-first search that carries one number, the chance that a
+random walker leaving the starting node stands on a given node after that many steps, times the
+starting node's links. Two links out it is the Resource Allocation index used to predict missing
+links (Zhou, Lü & Zhang 2009). The psychology supplies the reasons and the vocabulary. The
+arithmetic is ordinary.
+
+What it does not do:
+
+- **Only the first wave is read.** In the full theory activation keeps spreading and echoing until
+  it settles. Here a node is read once, when it is first reached, so longer ways round add nothing.
+  That keeps every number checkable by hand. Letting it settle was tried, and mostly promoted the
+  big working groups: in one list of everything, a working group the person is not in came into
+  the first ten for 150 of 210 people, against 15 when read at the first wave.
+- **All link types count the same.** A role on a project and membership of a working group are one
+  link each.
+- **Strength reads the data as recorded.** A node in the middle with a record missing has fewer
+  links and so passes on more: a person with a project and a working group passes on 1/2, and 1/3
+  once their organization is recorded too. 87 of the 210 linked investigators have no organization
+  recorded (export of 2026-11-05). Read a difference of that size as noise.
+- **It is a ranking rule, not a claim about anyone's memory.** Whether activation really spreads
+  across several links in people is still argued over (Ratcliff & McKoon 1988).
+
+How it was chosen. Five natural processes were built and run on the real graph: spreading
+activation, an animal foraging from a home base, slime-mould tubes, ant trails, and a pulse on a
+spider's web. Three reviewers scored them separately and a fourth tried to break the winner. The
+first-wave reading won as the only one that is exact by hand, has nothing to tune, and never put a
+far or merely popular node ahead of a near one. The test that settled the details, and now runs
+with the others: hide one real link, start from one of its ends, and see where the other end lands
+among the nodes of its type. Strength puts it in the first ten 65% of the time. Distance alone,
+which is what `get_neighbors` goes by, does so 39% of the time.
+
+Sources: Quillian (1967), *Behavioral Science* 12, 410-430, where a connection between two
+concepts is found where the waves from each meet. Collins & Quillian (1969), *J. Verbal Learning
+and Verbal Behavior* 8, 240-247. Anderson (1974), *Cognitive Psychology* 6, 451-474. Collins &
+Loftus (1975), *Psychological Review* 82, 407-428. Ratcliff & McKoon (1988), *Psychological
+Review* 95, 385-408. Zhou, Lü & Zhang (2009), *European Physical Journal B* 71, 623-630.
 
 A link to a node the export does not contain is shown as an `Unresolved` node rather than dropped,
 and a roster record with an end missing is counted in `describe_graph`'s notes (2 in the export of
@@ -412,13 +500,16 @@ python kg/test_mcp_server.py
 ```
 
 The KG gate runs them on every PR that touches `kg/`. They cover a hand-built graph whose answers
-were worked out by hand; every competency question the baseline says is answered, asked through
-the server; the walking tools against SPARQL on the committed export; and the protocol itself, by a
-raw JSON-RPC client against a real process over stdio and over HTTP. Three guards hold across files:
+were worked out by hand, strengths included; every competency question the baseline says is
+answered, asked through the server; the walking tools against SPARQL on the committed export; and
+the protocol itself, by a raw JSON-RPC client against a real process over stdio and over HTTP. The
+ranking has three checks of its own: the code gives exactly what spreading with nothing left out
+delivers first (a second, slower version of the process, written without the shortcuts); the paths
+between two nodes add up to the strength shown for them; and the hidden-link measure above. Three guards hold across files:
 every schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in
 the script header match `requirements*.txt`, and no call that writes to a graph appears outside
-the one that loads it. The suite was shown able to fail: the server was broken 28 ways in a scratch
-copy, one at a time, and every break turned it red.
+the one that loads it. The suite was shown able to fail: the server was broken 62 ways in a scratch
+copy, one at a time (34 of them in the ranking), and every break turned it red.
 
 ## Not yet built
 

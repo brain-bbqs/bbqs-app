@@ -26,6 +26,12 @@ them. Two things are done so that a hop means something:
   * an outside identifier that two or more nodes carry (the same ORCID iD on an investigator and
     in a paper's author list) becomes a node, so that match can be walked.
 sparql_query sees the graph exactly as exported, without either.
+
+How "related" is decided. find_related and find_paths rank by spreading activation, the account in
+psychology of how one idea brings up another: activation leaves the starting node along every link,
+each node it reaches splits what it received equally among its own links, and amounts that arrive
+together add up. It is three lines of arithmetic with nothing to tune; KG._wave is all of it, and
+kg/README.md works an example by hand.
 """
 import argparse
 import bisect
@@ -42,14 +48,15 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
-from collections import Counter, defaultdict, deque
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from datetime import time as clock_time
 from decimal import Decimal
 from email.utils import parsedate_to_datetime
+from fractions import Fraction
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NamedTuple
 from typing import Literal as OneOf
 
 from rdflib import BNode, Graph, Literal, URIRef
@@ -58,7 +65,7 @@ from rdflib.plugins.sparql import prepareQuery
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.util import guess_format
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 HERE = Path(__file__).resolve().parent
 BUNDLED_EXPORT = HERE / "export" / "bbqs.ttl"
@@ -88,6 +95,7 @@ MIN_ID = 8               # shortest id shown; longer where two ids start alike
 MAX_DEPTH = 4            # get_neighbors
 HUB_LINKS = 30           # get_neighbors does not walk through a node with more links than this
 MAX_HOPS = 8             # find_paths
+MAX_SEEDS = 5            # find_related: starting nodes in one question
 PATH_STEPS = 50_000      # find_paths stops exploring after this many steps
 SPARQL_SECONDS = 10.0    # time budget for one sparql_query
 MAX_ROWS = 1000
@@ -228,6 +236,12 @@ def _algebra_names(node) -> set[str]:
     return names
 
 
+def _shown(strength: Fraction):
+    """A strength as sent: a whole number as it is, anything else to four significant digits.
+    Ordering never uses this; it uses the exact fraction."""
+    return int(strength) if strength.denominator == 1 else float(f"{float(strength):.4g}")
+
+
 def _iso(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -282,6 +296,16 @@ class Node:
     props: dict = field(default_factory=dict)   # property -> sorted list of values
     links: list = field(default_factory=list)   # every Link touching this node
     names: list = field(default_factory=list)   # its names and identifiers, as _key() forms
+
+
+class Reached(NamedTuple):
+    """What the first wave of activation brings to one node (see KG._wave)."""
+    hops: int                   # links from the starting node
+    strength: Fraction          # how much arrives; 1 = one direct link
+    routes: int                 # how many shortest routes brought it
+    strongest: Fraction         # what the strongest single one of them brought
+    before: str | None = None   # the node before this one on that route
+    link: Link | None = None    # ... and the link taken from it
 
 
 class KG:
@@ -533,6 +557,13 @@ class KG:
                 f"In sparql_query the roster is still records, not links: ?r a bbqs:{kind} ; bbqs:{rule['from']} "
                 f"?person ; bbqs:{rule['to']} ?project{slots} ."
                 + (f" Every other link is a triple of the same name, e.g. ?a bbqs:{plain} ?b ." if plain else ""))
+        notes.append(
+            "find_related and find_paths rank by strength, which comes from spreading activation: activation leaves "
+            "the starting node along every link, each node it reaches splits what it received equally among its own "
+            "links, and amounts arriving together add up. 1 is a direct link; one node with 5 links in between "
+            "leaves 0.2; two such routes make 0.4. Nearest first, then strongest. Strength says how exclusive the "
+            "nodes in between look in the data as recorded, so where links are still missing a tie can look "
+            "stronger than it is.")
         if EXTERNAL in by_type:
             via = sorted({f"{source} -{edge}->" for (source, edge, target) in self.edge_counts if target == EXTERNAL})
             notes.append(f"{EXTERNAL} nodes are outside identifiers (such as ORCID iDs) that two or more nodes carry "
@@ -720,6 +751,160 @@ class KG:
             reply["hubs_not_walked_through"] = [self.brief(hub) for hub in hubs]
         return reply
 
+    # -- spreading activation: what find_related and find_paths rank by --
+
+    def _wave(self, start: Node, avoid=frozenset()) -> dict:
+        """The first wave of activation spreading from `start`: iri -> Reached, for every node it
+        gets to. Three rules, each a finding about how one concept brings another to mind:
+          * it travels one link at a time, so what is nearer is reached sooner;
+          * a node splits what it received equally among all its links (the fan effect): a project
+            with 5 links passes 1/5 along each, a working group of 114 members 1/114;
+          * amounts that arrive at a node together add up.
+        A node is read once, when the wave first reaches it, so only the shortest routes count:
+        strength = the sum, over the shortest routes from `start`, of the product of 1/links over
+        the nodes in between. That is 1 for a direct link and the same from either end, and it is
+        worked in exact fractions, so equal things tie exactly and nothing is ordered by rounding.
+        Without the name: a breadth-first search that carries one number, the chance that a random
+        walker leaving `start` stands on the node after that many steps, times the links of
+        `start`. Two links out it is the Resource Allocation index of link prediction.
+        `avoid` names link types the wave does not travel; a node then splits among what is left."""
+        def fan(node: Node) -> int:
+            return sum(1 for link in node.links if link.edge not in avoid) if avoid else len(node.links)
+
+        reached = {start.iri: Reached(0, Fraction(1), 1, Fraction(1))}
+        ring, hops = [start.iri], 0
+        while ring:
+            hops += 1
+            arriving: dict = {}                    # iri -> [strength, routes, strongest, before, link]
+            for iri in ring:                       # in a fixed order, so the route called strongest is too
+                node, here = self.nodes[iri], reached[iri]
+                share = Fraction(1, 1 if node is start else fan(node))
+                amount, best = here.strength * share, here.strongest * share
+                for link in node.links:
+                    if link.edge in avoid or link.other in reached:
+                        continue
+                    entry = arriving.get(link.other)
+                    if entry is None:
+                        arriving[link.other] = [amount, here.routes, best, iri, link]
+                    else:
+                        entry[0] += amount
+                        entry[1] += here.routes
+                        if best > entry[2]:
+                            entry[2:] = best, iri, link
+            reached.update((iri, Reached(hops, *entry)) for iri, entry in arriving.items())
+            ring = sorted(arriving)
+        return reached
+
+    def related(self, references, type=None, limit: int = 5, offset: int = 0, avoid_edges=None) -> dict:
+        seeds = self._seeds(references)
+        kinds = self._pick(type, self.types, "node type")
+        avoid = self._pick(avoid_edges, self.edges, "edge") or set()
+        limit, offset = _page(limit, 25), _page(offset, 10 ** 6, 0)
+        waves = [self._wave(seed, avoid) for seed in seeds]
+        started = {seed.iri for seed in seeds}
+        # Each type is ranked on its own: a working group collects activation from a hundred
+        # members and a paper from one project, so one list of both mostly ranks them by size.
+        ranked: dict = {kind: [] for kind in kinds or ()}       # a type asked for and not reached is listed, empty
+        for iri in waves[0]:
+            if iri in started or not all(iri in wave for wave in waves[1:]):
+                continue                                         # with several starting nodes: only what each reaches
+            node, found = self.nodes[iri], [wave[iri] for wave in waves]
+            if kinds is None or node.type in kinds:              # nearest first (by the farthest start), then the
+                ranked.setdefault(node.type, []).append(         # strongest (by the weakest tie)
+                    (max(r.hops for r in found), -min(r.strength for r in found), _fold(node.label), iri))
+        groups = []
+        for rows in ranked.values():
+            rows.sort()
+        for kind, rows in sorted(ranked.items(), key=lambda kv: (not kv[1], kv[1][0][:2] if kv[1] else (), kv[0])):
+            page = rows[offset: offset + limit]
+            group = {"type": kind, "reached": len(rows),
+                     "nodes": [self._related_row(seeds, waves, row[3], avoid) for row in page]}
+            if page and len(rows) > offset + limit and rows[offset + limit][:2] == page[-1][:2]:
+                level = page[-1][:2]                             # the list was cut among equals: say how many
+                group["tied"] = {"hops": level[0], "strength": _shown(-level[1]),
+                                 "count": sum(1 for row in rows if row[:2] == level),
+                                 "listed": sum(1 for row in page if row[:2] == level)}
+            groups.append(group)
+        reply = {"start": [self.brief(seed) for seed in seeds], "related": groups}
+        without = f" without {', '.join(sorted(avoid))}" if avoid else ""
+        if avoid:
+            reply["avoided"] = sorted(avoid)
+        alone = [seed for seed, wave in zip(seeds, waves) if len(wave) == 1]
+        apart = [seed for seed in seeds[1:] if seed.iri not in waves[0]]
+        if alone:
+            reply["note"] = (f"No links{without} are recorded for {self._listing(alone)}, so nothing is tied to "
+                             f"{'it' if len(alone) == 1 else 'them'}. A missing link means 'not recorded'.")
+        elif apart:
+            reply["note"] = (f"No chain of links{without} joins {self._listing(seeds[:1])} and "
+                             f"{self._listing(apart)}, so nothing is tied to all of them.")
+        return reply
+
+    def _seeds(self, references) -> list:
+        """The starting nodes of find_related: one reference, or several however the client sent
+        them. A name may hold a comma, so a string is split only if it is not a node as it stands."""
+        if isinstance(references, str):
+            text = references.strip()
+            listed = None
+            if text.startswith("["):
+                try:
+                    listed = json.loads(text)
+                except ValueError:
+                    pass
+            if isinstance(listed, list):
+                references = listed
+            else:
+                try:
+                    references = [self.resolve(text)]
+                except KGError as whole:
+                    parts = [part for part in (p.strip() for p in text.split(",")) if part]
+                    if len(parts) < 2:
+                        raise
+                    try:
+                        references = [self.resolve(part) for part in parts]
+                    except KGError:
+                        raise whole from None
+        elif not isinstance(references, (list, tuple)):
+            references = [references]
+        nodes = [r if isinstance(r, Node) else self.resolve(r) for r in references]
+        seeds = list({node.iri: node for node in nodes}.values())
+        if not seeds:
+            raise KGError("No node given. Pass an id from search_nodes, or an exact name or grant number.")
+        if len(seeds) > MAX_SEEDS:
+            raise KGError(f"{len(seeds)} starting nodes given; at most {MAX_SEEDS} at a time.")
+        return seeds
+
+    def _related_row(self, seeds: list, waves: list, iri: str, avoid) -> dict:
+        node = self.nodes[iri]
+        ties = [self._tie(seed, wave, iri, avoid) for seed, wave in zip(seeds, waves)]
+        if len(seeds) == 1:
+            return {**self.brief(node), **ties[0]}
+        return {**self.brief(node), "hops": max(wave[iri].hops for wave in waves),
+                "strength": _shown(min(wave[iri].strength for wave in waves)),
+                "from": [{"start": seed.id, **tie} for seed, tie in zip(seeds, ties)]}
+
+    def _tie(self, seed: Node, wave: dict, iri: str, avoid) -> dict:
+        """How one starting node reaches one node: how far, how strongly, and mostly by which route."""
+        found = wave[iri]
+        tie = {"hops": found.hops, "strength": _shown(found.strength)}
+        if found.routes > 1:                       # `carries`: the share of the strength the route shown brings
+            tie.update(routes=found.routes, carries=_shown(found.strongest / found.strength))
+        if found.hops == 1:
+            tie["link"] = {"edge": found.link.edge, "direction": "out" if found.link.out else "in",
+                           **dict(found.link.attrs)}
+            return tie
+        between, at = [], found.before
+        while at != seed.iri:
+            between.append(self.nodes[at])
+            at = wave[at].before
+        tie["through"] = []
+        for node in reversed(between):
+            step = {"id": node.id, "type": node.type, "label": _clip(node.label, 48), "links": len(node.links)}
+            walked = sum(1 for link in node.links if link.edge not in avoid)
+            if walked != len(node.links):          # with links left out, it split among the rest
+                step["walked"] = walked
+            tie["through"].append(step)
+        return tie
+
     def paths(self, source, target, max_hops: int = 6, limit: int = 5, avoid_edges=None) -> dict:
         a, b = self.resolve(source), self.resolve(target)
         max_hops, limit = _bounded(max_hops, 1, MAX_HOPS, "max_hops"), _page(limit, 25)
@@ -727,37 +912,51 @@ class KG:
         reply = {"source": self.brief(a), "target": self.brief(b), "found": 0, "paths": []}
         if a is b:
             return {**reply, "note": "source and target are the same node."}
-        distance = {b.iri: 0}                     # hops to the target, over the links allowed
-        queue = deque([b.iri])
-        while queue:
-            current = queue.popleft()
-            for link in self.nodes[current].links:
-                if link.edge not in avoid and link.other not in distance:
-                    distance[link.other] = distance[current] + 1
-                    queue.append(link.other)
+        wave = self._wave(b, avoid)               # from the target: how far each node is from it, by the links allowed
         without = f" without {', '.join(sorted(avoid))}" if avoid else ""
-        if a.iri not in distance:
+        if a.iri not in wave:
             return {**reply, "note": f"Not connected{without}: no chain of links joins these two nodes."}
-        shortest = distance[a.iri]
+        shortest = wave[a.iri].hops
         if shortest > max_hops:
             return {**reply, "shortest": shortest,
                     "note": f"The shortest connection{without} is {shortest} hops; max_hops is {max_hops}."}
+        fans: dict = {}
+
+        def strength(path) -> Fraction:
+            """What is left of one unit after each node between the two ends has split it among its
+            links. The shortest paths' strengths add up to the strength of the tie (see _wave)."""
+            left = Fraction(1)
+            for link in path[:-1]:
+                if link.other not in fans:
+                    fans[link.other] = sum(1 for l in self.nodes[link.other].links if l.edge not in avoid)
+                left /= fans[link.other]
+            return left
+
+        def either_way(path) -> tuple:
+            """One key for a path and for the same path walked back, so that a tie is cut the same
+            way whichever end the question starts from."""
+            nodes = [a.iri] + [link.other for link in path]
+            forward = tuple((link.edge, link.other) for link in path)
+            backward = tuple((path[i].edge, nodes[i]) for i in range(len(path) - 1, -1, -1))
+            return min(forward, backward)
+
         steps_left, found = [PATH_STEPS], []
         for length in range(shortest, max_hops + 1):
             level: list = []
-            self._walk(a.iri, b.iri, length, distance, avoid, [a.iri], [], level, steps_left)
-            level.sort(key=lambda path: (sum(math.log2(1 + len(self.nodes[l.other].links)) for l in path[:-1]),
-                                         [(l.edge, l.other) for l in path]))
-            found.extend(level)
+            self._walk(a.iri, b.iri, length, wave, avoid, [a.iri], [], level, steps_left)
+            found.extend(sorted(((strength(path), path) for path in level),
+                                key=lambda scored: (-scored[0], either_way(scored[1]))))
             if len(found) >= limit or steps_left[0] <= 0:
                 break
+        tie = wave[a.iri]
         reply.update(found=min(len(found), limit), shortest=shortest,
-                     paths=[self._path(a, path) for path in found[:limit]])
+                     tie={"routes": tie.routes, "strength": _shown(tie.strength)},
+                     paths=[self._path(a, path, strong) for strong, path in found[:limit]])
         if len(found) > limit or steps_left[0] <= 0:
             reply["more"] = True
         return reply
 
-    def _walk(self, current, target, remaining, distance, avoid, trail, links, out, steps_left):
+    def _walk(self, current, target, remaining, wave, avoid, trail, links, out, steps_left):
         """Every path of exactly `remaining` more links from `current` to `target` that takes no
         detour: no node on it is linked to an earlier one except the one just before it. A path
         with such a shortcut is a shorter path plus padding, and says nothing the shorter one
@@ -769,18 +968,18 @@ class KG:
             if steps_left[0] <= 0:
                 return
             nxt = link.other
-            if link.edge in avoid or nxt in trail or distance.get(nxt, MAX_HOPS + 1) > remaining - 1 \
+            if link.edge in avoid or nxt in trail or nxt not in wave or wave[nxt].hops > remaining - 1 \
                     or (nxt == target and remaining != 1) \
                     or any(self._adjacent[nxt].get(earlier, set()) - avoid for earlier in trail[:-1]):
                 continue
             steps_left[0] -= 1
             trail.append(nxt)
             links.append(link)
-            self._walk(nxt, target, remaining - 1, distance, avoid, trail, links, out, steps_left)
+            self._walk(nxt, target, remaining - 1, wave, avoid, trail, links, out, steps_left)
             trail.pop()
             links.pop()
 
-    def _path(self, start: Node, links: list) -> dict:
+    def _path(self, start: Node, links: list, strength: Fraction) -> dict:
         def show(node):
             return f'{node.type} "{_clip(node.label, 70)}"'
 
@@ -789,7 +988,7 @@ class KG:
             detail = link.edge + "".join(f" {value}" for name, value in link.attrs if name == "role")
             text += (f" -[{detail}]-> " if link.out else f" <-[{detail}]- ") + show(self.nodes[link.other])
             ids.append(self.nodes[link.other].id)
-        return {"hops": len(links), "text": text, "nodes": ids}
+        return {"hops": len(links), "strength": _shown(strength), "text": text, "nodes": ids}
 
     def sparql(self, query: str, limit: int = 100) -> dict:
         limit = _page(limit, MAX_ROWS)
@@ -946,9 +1145,10 @@ INSTRUCTIONS = (
     "Read-only access to the BBQS consortium knowledge graph: projects (NIH awards), investigators and their "
     "roles on projects, organizations, working groups, species, publications, datasets, devices, software and "
     "funding opportunities. Call describe_graph first: it lists the node types, the link types and how "
-    "complete each is. Find a starting node with search_nodes, then walk with get_node, get_neighbors and "
-    "find_paths; use sparql_query for counts and aggregates. The data is a public snapshot of a graph that is "
-    "still being linked, so a missing link means 'not recorded', not 'no'."
+    "complete each is. Find a starting node with search_nodes. Then get_node gives its record, find_related "
+    "what is most closely tied to it (or to several nodes at once), find_paths how two nodes are connected, and "
+    "get_neighbors everything within a few links; use sparql_query for counts and aggregates. The data is a "
+    "public snapshot of a graph that is still being linked, so a missing link means 'not recorded', not 'no'."
 )
 NODE = "A node: an id returned by another tool, a full IRI, or an exact name, grant number, ORCID, DOI or PMID."
 
@@ -1037,9 +1237,35 @@ def build_server(source: GraphSource, sparql: bool = True):
         that reached it. `type` filters what is returned, not what is walked through, so depth 2 from a
         species with type Investigator gives the people on the projects that study it. A hub (a node with
         a great many links, such as a working group) is returned but not walked through, and listed in
-        the reply, so two links from a person is not everyone in the same working group."""
+        the reply, so two links from a person is not everyone in the same working group. This tool lists;
+        it does not rank. For what is most closely tied to a node, use find_related."""
         kg = source.current()
         return kg.answered(kg.neighbors(node, edge, direction, type, depth, limit, offset, through_hubs))
+
+    @tool
+    def find_related(
+        nodes: Annotated[str | list[str], Field(description="The starting node, or a list of up to "
+                                                f"{MAX_SEEDS} to ask what they have in common. Each is: " + NODE)],
+        type: Annotated[str | list[str] | None, Field(description="Only these node types, e.g. Investigator "
+                                                      "for 'which people'. Default: every type, each ranked on "
+                                                      "its own.")] = None,
+        limit: Annotated[int, Field(description="Nodes per type, 1-25.")] = 5,
+        offset: Annotated[int, Field(description="Nodes to skip per type, for the next page.")] = 0,
+        avoid_edges: Annotated[str | list[str] | None, Field(description="Link types not to spread along, e.g. "
+                                                             "member_of_group to leave working groups out of "
+                                                             "it.")] = None,
+    ) -> dict:
+        """What is most closely tied to a node, or to several nodes at once, ranked the way one idea brings up
+        another (spreading activation). Activation leaves each starting node along every link; each node it
+        reaches splits what it received equally among its own links; amounts that arrive together add up. So
+        strength 1 is a direct link, a tie through one node with 5 links is 0.2, and two such routes make 0.4:
+        more routes, and routes through less-connected nodes, are a closer tie. Each node type is ranked on its
+        own, nearest first and then strongest. With several starting nodes, only what every one of them reaches
+        is returned, by its farthest starting node and then its weakest tie. `through` is the strongest route
+        and `carries` its share of the strength (find_paths lists every route); `tied` says a list was cut
+        among equals."""
+        kg = source.current()
+        return kg.answered(kg.related(nodes, type, limit, offset, avoid_edges))
 
     @tool
     def find_paths(
@@ -1053,8 +1279,10 @@ def build_server(source: GraphSource, sparql: bool = True):
     ) -> dict:
         """How two nodes are connected: the shortest chains of links between them, then longer ones up to
         max_hops. A chain that goes the long way round a direct link is left out. Among equally short
-        paths, those through less-connected nodes come first, since a path through a hub (a working
-        group with a hundred members) says less."""
+        paths the strongest comes first. A path's strength is what is left of one unit after every node
+        in between has split it equally among its links, so a path through a hub (a working group with a
+        hundred members) is weak. `tie` counts the shortest paths and adds up their strength: the same
+        number find_related gives for the pair."""
         kg = source.current()
         return kg.answered(kg.paths(source_node, target_node, max_hops, limit, avoid_edges))
 
