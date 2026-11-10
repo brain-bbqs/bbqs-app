@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -eu
+
+ember_logo=$(dirname $0)/../src/assets/ember-logo+halo.png
+
+set -x
+
+$(dirname "$0")/mkqrcode.py -i "$ember_logo" -c H "$@"
