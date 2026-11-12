@@ -1798,7 +1798,7 @@ bid:wgd a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
 bid:wga a bbqs:WorkingGroup ; bbqs:name "WG-Analysis" .
 bid:mouse a bbqs:Species ; bbqs:name "Mus musculus" ; bbqs:common_name "House Mouse" ; bbqs:taxonomy_class "Mammalia" .
 bid:rat a bbqs:Species ; bbqs:name "Rattus norvegicus" ; bbqs:common_name "Brown Rat" ; bbqs:taxonomy_class "Mammalia" .
-bid:pub1 a bbqs:Publication ; bbqs:name "A paper" ; bbqs:title "A paper" .
+bid:pub1 a bbqs:Publication ; bbqs:name "Paper 2025" ; bbqs:title "A paper" .
 bid:ds1 a bbqs:Dataset ; bbqs:name "Dataset one" .
 bid:ds2 a bbqs:Dataset ; bbqs:name "Dataset two" .
 bid:ds3 a bbqs:Dataset ; bbqs:name "Dataset three" .
@@ -1847,7 +1847,10 @@ MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06":
 #   - a property given twice (Ann's name, q2's grant number, a job's title, a source's grade), or
 #     not at all (Cy's name, Bo's role, q3's grant number: it only carries q1's as its name)
 #   - two things answering to one name: two species called "House Mouse" (and one "house mouse",
-#     which is not the same text), two groups called WG-Devices
+#     which is not the same text), two groups called WG-Devices, two species called "Mus spretus"
+#     that one project studies, two jobs called Technician at one institution
+#   - a project that carries R34DA059723 only as its name (q3), with a person on it; so Bo is on
+#     two projects of which one has no grant number
 #   - dates on the first and last day of CQ39's window, on the day either side, and on CQ17's day
 AWKWARD = PREFIXES + """
 bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ;
@@ -1855,12 +1858,13 @@ bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ;
 bid:q2 a bbqs:Project ; bbqs:grant_number "U01DA000002", "U01DA000002-S1" ; bbqs:funded_datasets bid:gone2 ;
     bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_name "marmoset" .
 bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2 .
-bid:q4 a bbqs:Project ; bbqs:grant_number "R61DA000005" ; bbqs:studies_species bid:m3 .
+bid:q4 a bbqs:Project ; bbqs:grant_number "R61DA000005" ; bbqs:studies_species bid:m3, bid:m4 .
 bid:d1 a bbqs:Dataset ; bbqs:name "D one" .
 bid:d2 a bbqs:Dataset ; bbqs:name "D two" .
 bid:m1 a bbqs:Species ; bbqs:name "Mus musculus" ; bbqs:common_name "House Mouse" ; bbqs:aliases "Mus musculus", "mouse" .
 bid:m2 a bbqs:Species ; bbqs:name "Mus musculus domesticus" ; bbqs:common_name "House Mouse" .
 bid:m3 a bbqs:Species ; bbqs:name "Mus spretus" ; bbqs:common_name "house mouse" .
+bid:m4 a bbqs:Species ; bbqs:name "Mus spretus" .
 bid:ann a bbqs:Investigator ; bbqs:name "Ann A", "A. Ann" ; bbqs:member_of_group bid:w1 .
 bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:w2 .
 bid:cy a bbqs:Investigator ; bbqs:member_of_group bid:w1 .
@@ -1868,6 +1872,7 @@ bid:s1 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs
 bid:s2 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs:project_role "key_personnel" .
 bid:s3 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q1 .
 bid:s4 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q2 ; bbqs:project_role "co_pi" .
+bid:s5 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q3 ; bbqs:project_role "co_pi" .
 bid:o1 a bbqs:ResearchOrganization ; bbqs:name "ONE" ; bbqs:members bid:ann, bid:nobody1 .
 bid:o2 a bbqs:ResearchOrganization ; bbqs:name "TWO" ; bbqs:members bid:nobody1 .
 bid:o3 a bbqs:ResearchOrganization ; bbqs:name "THREE" .
@@ -1884,6 +1889,7 @@ bid:j1 a bbqs:Job ; bbqs:name "Postdoc", "Postdoctoral fellow" ; bbqs:job_instit
 bid:j2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" ; bbqs:job_type "staff" ;
     bbqs:posted_by bid:nobody2 .
 bid:j3 a bbqs:Job ; bbqs:name "Engineer" ; bbqs:job_type "staff" ; bbqs:posted_by bid:nobody1 .
+bid:j4 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" .
 bid:f1 a bbqs:FundingOpportunity ; bbqs:name "First day" ; bbqs:expiration_date "2026-10-14"^^xsd:date .
 bid:f2 a bbqs:FundingOpportunity ; bbqs:name "Last day" ; bbqs:expiration_date "2027-04-14"^^xsd:date .
 bid:f3 a bbqs:FundingOpportunity ; bbqs:name "Day before" ; bbqs:expiration_date "2026-10-13"^^xsd:date .
@@ -1902,12 +1908,18 @@ bid:v4 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "q3" ; bbqs:prov_entity_col
 bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_column "name" ; bbqs:prov_value_text "D two" .
 """
 # Rows per question, by hand; a question not named has none. Some of the working:
-#   CQ04   q1 alone has the grant number (q3 only has it as a name). Ann's two records, each under
-#          her two names; Bo's record has no role: 4.
+#   CQ04   q1 alone has the grant number (q3 only has it as a name, so Bo's role there does not
+#          count). Ann's two records on q1, each under her two names; Bo's record has no role: 4.
+#   CQ05   Ann on q1 and q2, under two names; Bo on q1 and q3: 3.
 #   CQ13   the dataset q1 both funded and produced: 2.
+#   CQ18   one job under two titles, and two called Technician: 4.
 #   CQ19   v1 gives two values from a source nothing describes: 2. v2 gives one value from that
 #          source and from one graded twice: 3. v4 is about q3: 0. So 5.
+#   CQ20   Ann (two names) is on two numbered projects, q2 under two numbers; Bo's second project
+#          has no number: 2.
 #   CQ25   m1 fits by its name, its common name and an alias, m2 by its common name: q1, 4 times.
+#   CQ26   three names; "Mus spretus" is two species, both studied by q4, which is one project: 3.
+#   CQ35   ONE advertises four titles (j1 under two, and the two Technicians): 1 row, counting 4.
 #   CQ30   d1 has a sourced record; d2's record names no source: 1.
 #   CQ32   ONE has Ann and somebody not exported, TWO that somebody, THREE nobody, FOUR somebody
 #          else not exported: 4 rows.
@@ -1916,8 +1928,8 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #   CQ38   q2's one output was not exported, but it has one; q3 has no grant number; so q4 alone: 1.
 #   CQ41   q1: three datasets, two of them not exported, each with Ann (contact_pi) under two names:
 #          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names: 4. So 10.
-AWKWARD_ROWS = {"CQ01": 4, "CQ04": 4, "CQ05": 2, "CQ06": 2, "CQ08": 3, "CQ09": 2, "CQ13": 2, "CQ15": 1, "CQ17": 4,
-                "CQ18": 3, "CQ19": 5, "CQ20": 2, "CQ21": 3, "CQ22": 2, "CQ23": 9, "CQ24": 2, "CQ25": 4, "CQ26": 3,
+AWKWARD_ROWS = {"CQ01": 4, "CQ04": 4, "CQ05": 3, "CQ06": 2, "CQ08": 3, "CQ09": 2, "CQ13": 2, "CQ15": 1, "CQ17": 4,
+                "CQ18": 4, "CQ19": 5, "CQ20": 2, "CQ21": 3, "CQ22": 2, "CQ23": 9, "CQ24": 2, "CQ25": 4, "CQ26": 3,
                 "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 1,
                 "CQ39": 2, "CQ40": 2, "CQ41": 10, "CQ42": 1}
 
@@ -2010,6 +2022,11 @@ class TheBenchmark(unittest.TestCase):
                          sorted([["First", "bid:nosource", None], ["The first", "bid:nosource", None],
                                  ["1st", "bid:nosource", None], ["1st", "bid:c2", 1], ["1st", "bid:c2", 2]], key=str))
         self.assertEqual(bench.WALKS["CQ13"][0](client), [["R34DA059723", "D one"]] * 2)
+        self.assertEqual(sorted(bench.WALKS["CQ26"][0](client)), [["Mus musculus", 1], ["Mus musculus domesticus", 1],
+                                                                  ["Mus spretus", 1]])
+        self.assertEqual([row[:2] for row in bench.WALKS["CQ35"][0](client)], [["ONE", 4]])
+        both = "R34DA059723, U01DA000002, U01DA000002-S1"                  # q2 is under two numbers
+        self.assertEqual(sorted(bench.WALKS["CQ20"][0](client)), [["A. Ann", both], ["Ann A", both]])
 
     def test_a_graph_with_next_to_nothing_in_it_is_asked_everything_all_the_same(self):
         # no species, no R34DA059723, no working group: nothing for a walk to start from

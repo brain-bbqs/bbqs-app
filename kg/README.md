@@ -589,7 +589,8 @@ linked twice, two things with one name), each of which once led a walk astray. T
 schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
 script header match `requirements*.txt`, and no call that writes to a graph appears outside the
 one that loads it. The suite was shown able to fail: the server was broken 128 ways in a
-scratch copy, one at a time (100 of them in the ranking), and every break turned it red.
+scratch copy, one at a time (100 of them in the ranking), and every break turned it red. The
+benchmark's walks were broken 62 ways in the same way, and its tests caught every one.
 
 ## Not yet built
 
