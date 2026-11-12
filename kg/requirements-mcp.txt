@@ -1,0 +1,5 @@
+# The MCP server (mcp_server.py): the graph library, at the version the harness pins in
+# requirements.txt, and the MCP SDK. The same two pins are in the script header of mcp_server.py,
+# for `uv run`; test_mcp_server.py fails if the three places disagree.
+mcp==2.3.0
+rdflib==7.6.0

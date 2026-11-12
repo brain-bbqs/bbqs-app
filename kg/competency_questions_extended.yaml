@@ -1,0 +1,274 @@
+# Competency questions CQ20-CQ42: the extended set proposed in issue #441, with its SPARQL as written
+# there. They are NOT part of competency_questions.yaml yet: that file (CQ01-CQ19) is what
+# quality.py scores and the KG gate counts, and #441 decides which of these are adopted into it, and
+# how a "which X has no Y" question should be reported while Y is still being linked.
+#
+# Until then they are kept here so that kg/bench_mcp_server.py can ask all 42 of the MCP server.
+# Same layout as competency_questions.yaml. `access` follows #441: jobs and provenance are not in
+# the public (anon) export, so those questions need a full one.
+#
+# Reading the answers: a question of the form "which X has no Y" (CQ21, CQ27, CQ30, CQ33, CQ38,
+# CQ42) lists every X for which no Y is RECORDED. In a graph that is still being linked that is not
+# the same as "has none".
+
+prefixes:
+  bbqs: https://brain-bbqs.org/schema#
+  bid: https://brain-bbqs.org/id/
+  xsd: http://www.w3.org/2001/XMLSchema#
+
+questions:
+  # ── Investigators and membership ────────────────────────────────────────────
+  - id: CQ20
+    area: people
+    question: Which investigators are on more than one project, and which projects?
+    access: anon
+    sparql: |
+      SELECT ?name (GROUP_CONCAT(DISTINCT ?grant; separator=", ") AS ?projects) WHERE {
+        ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .
+        ?person bbqs:name ?name . ?project bbqs:grant_number ?grant .
+      } GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY ?name
+
+  - id: CQ21
+    area: people
+    question: Which investigators have no ORCID recorded?
+    access: anon
+    sparql: |
+      SELECT ?name WHERE {
+        ?person a bbqs:Investigator ; bbqs:name ?name .
+        FILTER NOT EXISTS { ?person bbqs:orcid ?o }
+      } ORDER BY ?name
+
+  - id: CQ22
+    area: people
+    question: Which organization is each investigator tied to, directly or through a project?
+    access: anon
+    sparql: |
+      SELECT DISTINCT ?name ?org_name WHERE {
+        ?person a bbqs:Investigator ; bbqs:name ?name .
+        { ?org bbqs:members ?person }
+        UNION
+        { ?pr bbqs:held_by ?person ; bbqs:on_project ?p . ?p bbqs:part_of_org ?org }
+        ?org bbqs:name ?org_name .
+      } ORDER BY ?org_name ?name
+
+  - id: CQ23
+    area: working_groups
+    question: Who is in each working group, and on which projects are they?
+    access: anon
+    sparql: |
+      SELECT ?wg_name ?name ?grant WHERE {
+        ?wg a bbqs:WorkingGroup ; bbqs:name ?wg_name .
+        ?person bbqs:member_of_group ?wg ; bbqs:name ?name .
+        OPTIONAL { ?pr bbqs:held_by ?person ; bbqs:on_project ?p . ?p bbqs:grant_number ?grant }
+      } ORDER BY ?wg_name ?name
+
+  - id: CQ24
+    area: people
+    question: Which investigators hold more than one kind of role?
+    access: anon
+    sparql: |
+      SELECT ?name (GROUP_CONCAT(DISTINCT ?role; separator=", ") AS ?roles) WHERE {
+        ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:project_role ?role .
+        ?person bbqs:name ?name .
+      } GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?role) > 1) ORDER BY ?name
+
+  # ── Species ─────────────────────────────────────────────────────────────────
+  - id: CQ25
+    area: species
+    question: Which projects study the house mouse, whichever of its names is used?
+    access: anon
+    sparql: |
+      SELECT ?grant ?title WHERE {
+        ?sp a bbqs:Species .
+        { ?sp bbqs:name "Mus musculus" } UNION { ?sp bbqs:common_name "House Mouse" } UNION { ?sp bbqs:aliases "Mus musculus" }
+        ?project bbqs:studies_species ?sp ; bbqs:grant_number ?grant .
+        OPTIONAL { ?project bbqs:title ?title }
+      } ORDER BY ?grant
+
+  - id: CQ26
+    area: species
+    question: How many projects study each species?
+    access: anon
+    sparql: |
+      SELECT ?species (COUNT(DISTINCT ?project) AS ?projects) WHERE {
+        ?project a bbqs:Project ; bbqs:studies_species ?sp .
+        ?sp bbqs:name ?species .
+      } GROUP BY ?species ORDER BY DESC(?projects)
+
+  - id: CQ27
+    area: species
+    question: Which projects name a species in free text that is not resolved to a species node?
+    access: anon
+    sparql: |
+      SELECT ?grant ?raw WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:studies_species_name ?raw .
+        FILTER NOT EXISTS { ?project bbqs:studies_species ?sp }
+      } ORDER BY ?grant
+
+  # ── Outputs ─────────────────────────────────────────────────────────────────
+  - id: CQ28
+    area: products
+    question: How many publications, datasets, tools and models did each project produce?
+    access: anon
+    sparql: |
+      SELECT ?grant
+        (COUNT(DISTINCT ?pub) AS ?publications) (COUNT(DISTINCT ?ds) AS ?datasets)
+        (COUNT(DISTINCT ?tool) AS ?tools) (COUNT(DISTINCT ?model) AS ?models) WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant .
+        OPTIONAL { ?project bbqs:produced ?pub   . ?pub   a bbqs:Publication }
+        OPTIONAL { ?project bbqs:produced ?ds    . ?ds    a bbqs:Dataset }
+        OPTIONAL { ?project bbqs:produced ?tool  . ?tool  a bbqs:SoftwareTool }
+        OPTIONAL { ?project bbqs:produced ?model . ?model a bbqs:MLModel }
+      } GROUP BY ?grant ORDER BY ?grant
+
+  - id: CQ29
+    area: products
+    question: How many publications came out of each investigator's projects, and which projects?
+    access: anon
+    sparql: |
+      SELECT ?name (COUNT(DISTINCT ?pub) AS ?publications) (GROUP_CONCAT(DISTINCT ?grant; separator=", ") AS ?projects) WHERE {
+        ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .
+        ?person bbqs:name ?name . ?project bbqs:grant_number ?grant ; bbqs:produced ?pub .
+        ?pub a bbqs:Publication .
+      } GROUP BY ?person ?name ORDER BY DESC(?publications)
+
+  - id: CQ30
+    area: provenance
+    question: Which produced datasets have no provenance recorded?
+    access: full
+    sparql: |
+      SELECT ?ds ?name WHERE {
+        ?project bbqs:produced ?ds . ?ds a bbqs:Dataset ; bbqs:name ?name .
+        BIND(STRAFTER(STR(?ds), "https://brain-bbqs.org/id/") AS ?localId)
+        FILTER NOT EXISTS { ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId ; bbqs:prov_source_class ?sc }
+      }
+
+  - id: CQ31
+    area: products
+    question: Which benchmarks is each ML model evaluated by, and which project produced it?
+    access: anon
+    sparql: |
+      SELECT ?model_name ?bench_name ?grant WHERE {
+        ?model a bbqs:MLModel ; bbqs:name ?model_name .
+        { ?model bbqs:evaluated_by ?bench } UNION { ?bench bbqs:evaluates ?model }
+        ?bench a bbqs:Benchmark ; bbqs:name ?bench_name .
+        OPTIONAL { ?project bbqs:produced ?model ; bbqs:grant_number ?grant }
+      }
+
+  # ── Organizations ───────────────────────────────────────────────────────────
+  - id: CQ32
+    area: organizations
+    question: How many members does each organization have?
+    access: anon
+    sparql: |
+      SELECT ?org_name (COUNT(DISTINCT ?person) AS ?members) WHERE {
+        ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name .
+        OPTIONAL { ?org bbqs:members ?person }
+      } GROUP BY ?org ?org_name ORDER BY DESC(?members)
+
+  - id: CQ33
+    area: organizations
+    question: Which organizations have no members recorded?
+    access: anon
+    sparql: |
+      SELECT ?org_name WHERE {
+        ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name .
+        FILTER NOT EXISTS { ?org bbqs:members ?p }
+      } ORDER BY ?org_name
+
+  - id: CQ34
+    area: organizations
+    question: Which organizations have investigators on more than one project?
+    access: anon
+    sparql: |
+      SELECT ?org_name (COUNT(DISTINCT ?project) AS ?projects) WHERE {
+        ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name ; bbqs:members ?person .
+        ?pr bbqs:held_by ?person ; bbqs:on_project ?project .
+      } GROUP BY ?org ?org_name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY DESC(?projects)
+
+  # ── Jobs ────────────────────────────────────────────────────────────────────
+  - id: CQ35
+    area: announcements
+    question: Which jobs does each institution advertise?
+    access: full
+    sparql: |
+      SELECT ?institution (COUNT(?job) AS ?jobs) (GROUP_CONCAT(?title; separator="; ") AS ?titles) WHERE {
+        ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .
+      } GROUP BY ?institution ORDER BY DESC(?jobs)
+
+  - id: CQ36
+    area: announcements
+    question: Which kinds of role are being advertised?
+    access: full
+    sparql: |
+      SELECT ?job_type (COUNT(?job) AS ?postings) WHERE {
+        ?job a bbqs:Job ; bbqs:job_type ?job_type .
+      } GROUP BY ?job_type ORDER BY DESC(?postings)
+
+  - id: CQ37
+    area: announcements
+    question: Who posted each job?
+    access: full
+    sparql: |
+      SELECT ?title ?poster WHERE { ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?poster }
+
+  # ── Data quality and diagnostics ────────────────────────────────────────────
+  - id: CQ38
+    area: diagnostics
+    question: Which projects have no outputs recorded?
+    access: anon
+    sparql: |
+      SELECT ?grant WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant .
+        FILTER NOT EXISTS { ?project bbqs:produced ?o }
+      } ORDER BY ?grant
+
+  - id: CQ39
+    area: announcements
+    question: Which funding opportunities expire between 2026-10-14 and 2027-04-14?
+    access: anon
+    sparql: |
+      SELECT ?title ?expires WHERE {
+        VALUES (?today ?horizon) { ("2026-10-14"^^xsd:date "2027-04-14"^^xsd:date) }
+        ?fo a bbqs:FundingOpportunity ; bbqs:name ?title ; bbqs:expiration_date ?expires .
+        FILTER (?expires >= ?today && ?expires <= ?horizon)
+      } ORDER BY ?expires
+
+  - id: CQ40
+    area: provenance
+    question: How many values come from a source graded below 3, by source and table?
+    access: full
+    sparql: |
+      SELECT ?source ?grade ?type (COUNT(?prov) AS ?records) WHERE {
+        ?prov a bbqs:ProvenanceRecord ; bbqs:prov_source_class ?source .
+        ?source bbqs:grade ?grade .
+        OPTIONAL { ?prov bbqs:prov_entity_table ?type }
+        FILTER (?grade < 3)
+      } GROUP BY ?source ?grade ?type ORDER BY ?grade
+
+  - id: CQ41
+    area: products
+    question: Which datasets did each grant fund, and who are its PIs?
+    access: anon
+    sparql: |
+      SELECT ?grant ?ds_name ?pi WHERE {
+        ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:funded_datasets ?ds .
+        OPTIONAL { ?ds bbqs:name ?ds_name }
+        OPTIONAL {
+          ?pr bbqs:on_project ?project ; bbqs:project_role ?role ; bbqs:held_by ?person .
+          ?person bbqs:name ?pi . FILTER (CONTAINS(LCASE(STR(?role)), "pi"))
+        }
+      } ORDER BY ?grant
+
+  - id: CQ42
+    area: diagnostics
+    question: Which working groups have no member with a role on any project?
+    access: anon
+    sparql: |
+      SELECT ?wg_name WHERE {
+        ?wg a bbqs:WorkingGroup ; bbqs:name ?wg_name .
+        FILTER NOT EXISTS {
+          ?person bbqs:member_of_group ?wg .
+          ?pr bbqs:held_by ?person ; bbqs:on_project ?p .
+        }
+      }

@@ -128,6 +128,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
+| `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. Not scored by `quality.py` until #441 adopts them; `bench_mcp_server.py` asks them. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
@@ -141,6 +142,10 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `explorer.py` | Builds `bbqs_explorer.json` for `explorer/index.html`: `BBQSKnowledgeGraph.export_explorer_json()` CLI. |
 | `explorer_geocode.py` | Curated `org name -> (lat, lng)` table for the Explorer's globe/map views. |
 | `explorer/index.html` | **BBQS Explorer** — single-file D3 v7 app: draggable globe → US map → triple/relationship panel. No build step. |
+| `mcp_server.py` | **MCP server**: read-only traversal of an exported graph for AI clients, over stdio or HTTP. No database, no credentials (see [MCP server](#mcp-server-read-the-graph-from-an-ai-client)). |
+| `test_mcp_server.py` | Its tests: a hand-built graph with known answers, the competency questions through the server, cross-file guards, and the protocol over stdio and HTTP. |
+| `requirements-mcp.txt` | Pinned deps for the server alone: `rdflib` and the MCP SDK. |
+| `bench_mcp_server.py` | Benchmark for the server: all 42 competency questions asked over MCP, as SPARQL and without it; the ranking against distance alone; the speed. Writes the results block in the main `README.md`. |
 
 ## The three validation layers
 
@@ -280,6 +285,371 @@ differs from the spine's `resources.name` for 11 of 15 species ("Mouse" vs "Hous
 investigator, dandiset and software names or descriptions differ between their detail table and the
 spine. On an anon key this covers the public projection only; RLS-hidden rows and columns need a
 full-access run.
+
+## MCP server: read the graph from an AI client
+
+`mcp_server.py` puts the exported graph behind the Model Context Protocol, so Claude (or any MCP
+client) can search it, walk it, and ask what is most closely tied to something and how two things
+are connected. It loads one Turtle file into
+memory and answers from that. Nothing else is involved: no Supabase, no edge function, no sign-in,
+no key, and no write path.
+
+It is a different thing from `supabase/functions/bbqs-mcp`, and shares no code with it:
+
+| | `bbqs-mcp` (edge function) | `kg/mcp_server.py` |
+|---|---|---|
+| Reads | the live database, as the signed-in caller | an exported graph (a snapshot) |
+| Writes | yes: member self-service and curator tools | never |
+| Sign-in | on demand (OAuth) | none, so it is only given data anyone may read |
+| Runs on | Supabase | anywhere Python runs |
+
+### Run it
+
+```bash
+pip install -r kg/requirements-mcp.txt
+python kg/mcp_server.py --check        # load the graph, print what it holds, exit
+python kg/mcp_server.py                # serve over stdio
+```
+
+With [uv](https://docs.astral.sh/uv/) there is nothing to install; the script header names its
+dependencies:
+
+```bash
+uv run kg/mcp_server.py --check
+```
+
+Claude Code (give the absolute path to your checkout):
+
+```bash
+claude mcp add bbqs-kg -- uv run /path/to/bbqs-app/kg/mcp_server.py
+```
+
+Claude Desktop and other clients that take a JSON entry:
+
+```json
+{ "mcpServers": { "bbqs-kg": { "command": "uv", "args": ["run", "/path/to/bbqs-app/kg/mcp_server.py"] } } }
+```
+
+No checkout is needed: the script names its own dependencies, so uv runs it from GitHub, and it
+then reads the export the site publishes, or the one committed to `main`:
+
+```bash
+claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/mcp_server.py
+```
+
+### On a public URL
+
+A client that cannot start a local process (a claude.ai connector) needs a URL. GitHub Pages
+serves files and cannot run it, so it needs a host that runs a Python process from the repository.
+There: install `kg/requirements-mcp.txt`, and start it with
+
+```bash
+python kg/mcp_server.py --http --host 0.0.0.0 --no-sparql --allow-host neuromcp.brain-bbqs.org
+```
+
+It serves MCP at `/mcp` and a health check at `/health`, on `$PORT` (8000 if the host sets none).
+Point a CNAME record for `neuromcp` at the address the host gives, let the host provide HTTPS, and
+add `https://neuromcp.brain-bbqs.org/mcp` as a connector. Nothing in this repo deploys it.
+
+There is no sign-in: anyone who can reach it can read whatever the served file holds, which is why
+it should only ever serve the public export (see below), and why SPARQL is left off. `--allow-host`
+(or `BBQS_KG_ALLOWED_HOSTS`, comma-separated) names the public host names; it keeps the MCP SDK
+checking each request to `/mcp` for its `Host` and `Origin`, which stops a page on another site, or
+one using DNS rebinding, from calling it through a browser. Without it the SDK checks only when the
+server listens on `127.0.0.1` (the default), `localhost` or `::1`, and then a request forwarded by a
+proxy or a tunnel for the public name is refused. `/health` is never checked.
+
+### Tools
+
+All seven are reads, and say so to the client (`readOnlyHint`). Every answer carries `snapshot`:
+which copy of the graph it came from, that copy's date, and its age in days.
+
+| Tool | What it answers |
+|---|---|
+| `describe_graph` | The map: node types with counts and how full each property is, link types with their endpoints, and which copy of the graph is being served and how old it is. With a `type`, that type in full: the schema's definition of it and of each property, the values a property takes when they are few, and its links. |
+| `search_nodes` | Find nodes by text (names, grant numbers, ORCID, DOI, abstracts, keywords), or list them by type and exact property values. |
+| `get_node` | One node in full: every property, and every link grouped by type and direction. |
+| `get_neighbors` | Everything within 1 to 4 links of a node, nearest first, each with the link that reached it. Filter by link type, direction and the type of node returned. Does not walk through hubs unless asked. It lists; it does not rank. |
+| `find_related` | What is most closely tied to a node, or to several at once (what they have in common), each type of node ranked on its own, up to four links away unless asked. See [how it decides](#how-it-decides-what-is-related). |
+| `find_paths` | How two nodes are connected: the shortest chains first, strongest first among them, then longer ones, a page at a time. |
+| `sparql_query` | SPARQL `SELECT` / `ASK` over the graph as exported, for counts and aggregates. |
+
+A node can be named by the short id another tool returned, its IRI, or an exact name, grant
+number, ORCID, DOI or PMID, so `find_paths("House Mouse", "WG-Devices")` works without a search
+first. An ambiguous name comes back as an error listing the candidates, however it was written
+(quoted, bracketed, or in a list). An argument a tool does not take is refused, not dropped: a
+misspelt `max_hop` would otherwise answer a different question without a word. So is a list that
+names nothing, such as `type: "["`.
+
+### What a hop is
+
+Nodes are the typed resources in the export; a link is a triple between two of them. The server
+changes two things, so that a hop means something:
+
+- **The roster is folded.** A `ProjectRole` record is one `grant_investigators` row, exported as a
+  node between a person and a project. Here it is one `has_role` link from the person to the
+  project, carrying the role and where it came from. It stays the only authority for a role on a
+  project (#283); `consortium_role` is shown as the free-text label it is.
+- **A shared outside identifier is a node.** When two or more nodes carry the same ORCID iD (an
+  investigator, and a paper's author list), that iD becomes an `External` node joining them. This
+  is the only authorship link the graph has today: 23 shared iDs in the export of 2026-11-05, 3 of
+  them a BBQS investigator's. An iD only one node carries stays a property.
+
+Hubs get care in every tool that walks, because "both are in WG-Analytics" is true of over a
+hundred people and says little:
+
+- `get_neighbors` reaches a hub (a node with more than 30 links; today, the four working groups)
+  but does not walk through it, and lists it in the reply. Two links from a linked investigator is
+  a median of 9 nodes this way, against 114 (export of 2026-11-05). Naming the links to follow
+  (`edge`) or setting `through_hubs` walks through.
+- `find_related` and `find_paths` walk through hubs. A hub passes on little, by the rule in the
+  next section, so what lies behind it comes after anything at the same distance that is reached by
+  a more exclusive route. What limits them is distance: `max_hops`, 4 by default for `find_related`
+  and 6 for `find_paths`, at most 8. Where a working group is all a person has, its members are the list, all
+  equal, and the reply says so. `find_paths` also leaves out any chain that goes the long way round
+  a direct link. `avoid_edges` drops a link type altogether, in both.
+
+### How it decides what is related
+
+Put plainly: nodes are still listed by how many links away they are, as `get_neighbors` lists
+them. What is new is the order among nodes equally far away, and a number that says why.
+
+That order comes from **spreading activation**, the account in psychology of how one idea brings
+up another: think of *doctor*, and *nurse* comes to mind faster. It is used here because it is a
+theory about a network of concepts, which is what this graph is, and because the rule is short
+enough to state and to check.
+
+Activation starts at one node and spreads outward. Three rules, each from the published theory:
+
+1. **It moves one link at a time**, so what is nearer is reached sooner (Collins & Quillian 1969
+   found that people take longer the more links lie between two concepts).
+2. **A node splits what it received equally among the nodes it is linked to.** This is the usual
+   account of the fan effect: the more a concept is linked to, the less each link carries
+   (Anderson 1974). A project with 5 neighbours passes on a fifth to each. A working group with
+   114 members passes on 1/114.
+3. **Amounts that arrive together add up** (Collins & Loftus 1975), so two routes to a node count
+   for more than one.
+
+The number that comes out is **strength**. A direct link is 1. Otherwise it is the sum, over the
+shortest routes, of 1/neighbours for each node in between, multiplied along the route. There is
+nothing to tune. Worked by hand, for a species studied by two projects, one with 5 neighbours and
+one with 2:
+
+| Node | How activation gets there | Strength |
+|---|---|---|
+| The two projects | a direct link each | 1 |
+| A person on both projects | 1/5 through the first, 1/2 through the second | 0.7 |
+| A person on the first project only | 1/5 | 0.2 |
+
+The person on both ranks first for two reasons the arithmetic keeps apart: two routes instead of
+one, and one of them through a project with little else attached to it. On the real graph (export
+of 2026-11-05), `find_related("House Mouse", type="Investigator")` puts first the one person on two
+House Mouse projects, which have 6 and 9 neighbours (1/6 + 1/9 = 0.28), then the three people on
+its smallest project, which has 4 (0.25 each).
+
+Strength is a sum, so it has no ceiling. WG-Analytics and WG-Devices share 57 members and are tied
+by 17.8, two links apart. That does not make them closer than a direct link: strength compares
+nodes the same distance away, and distance comes first.
+
+How answers are ordered:
+
+- **Each type of node is ranked on its own**: people against people, projects against projects.
+  Size goes with type. A working group collects activation from a hundred members and a paper from
+  one project, so a single list of both mostly sorts them by size.
+- **Nearest first, as in `get_neighbors`, then strongest.** A node three links away never comes
+  before one two links away of the same type, however much reaches it. This is the server's rule,
+  not the theory's, and it is what keeps the big working groups in their place: ordered by amount
+  alone, in one list of everything, a working group the person is not in reaches the first ten for
+  172 of 210 people, and nearest first holds that to 15.
+- **Four links away, unless asked.** `max_hops` goes up to 8. Per type, `within` counts the
+  nodes within reach and `beyond` those farther, which are counted, not listed.
+- **Up to 25 per type** when up to three types are named, 10 otherwise: every type at once is
+  twenty lists, and at 25 each a reply came to 72 kB.
+- **Several starting nodes** ask what they have in common. Only nodes that every one of them
+  reaches are returned, each placed by its worst tie (the farthest starting node, and of those the
+  weakest), then by its next worst.
+- **Ties are said, not hidden.** When a list is cut among equals, `tied` gives how many there are
+  and how many were listed, and within a tie the order is by name and means nothing. With several
+  starting nodes, two nodes are equals when their worst ties are equal, then their next worst, and
+  so on, whichever starting node each tie is to. It is common:
+  274 of the 421 default lists of people end that way (export of 2026-11-05), because everyone who
+  shares only a working group with someone is tied to them equally.
+- **Two nodes are one tie**, however many links record it. A person recorded on a grant twice is
+  not twice as close to it.
+
+What a reply carries. A row one link away has `link`, the link itself. A row farther away has
+`through`, the strongest route to it (the path `find_paths` lists first), each node on it with
+`splits`, the number of neighbours it divided among; where there is more than one route the row
+also has `routes`, how many, and `share`, the part of the strength the route shown brings. Where
+two nodes are joined by more than one link, `link` is one and `also` the others, each with its own
+direction. With several starting nodes a row has `per_start` instead, one tie per starting node.
+`find_paths` lists the paths between two nodes shortest first, and
+the strongest first among paths of one length (a longer path can be stronger than a shorter one), up
+to 25 at a time (`offset` for the next page) and up to 8 links long, each with its own strength;
+its `routes` and `strength` are the number and the sum of the shortest ones, which are the figures
+`find_related` shows for the pair, `shortest` is their length and `listed` the paths on the page.
+A path's `text` draws each link the way it points. A page so deep that finding it would take more
+than 50,000 steps is cut short and says `partial`. The two tools are one calculation read two ways, and give the
+same answer whichever end the question starts from.
+
+So a nearby answer can be redone by hand from what the reply shows. A far one adds up hundreds of
+routes, and `routes` says how many.
+
+For those who know the names: this is a breadth-first search that carries one number, the chance
+that a random walker leaving the starting node stands on a given node after as many steps as it is links away, times
+the starting node's neighbours. Two links out it is the Resource Allocation index used to predict
+missing links (Zhou, Lü & Zhang 2009). The psychology supplies the reasons and the vocabulary. The
+arithmetic is ordinary.
+
+What it does not do:
+
+- **Only the first wave is read.** In the full theory activation keeps spreading and echoing until
+  it settles, fades a little with every link, and the starting concept divides its own activation
+  too. Here a node is read once, when it is first reached, with nothing fading. That buys exact
+  fractions and no fading constant or stopping point to choose. It does not buy a better ranking:
+  type by type, letting it settle finds hidden ties about as often (64% against 65%).
+- **Nearest first is not in the theory**, where what is most active comes to mind first.
+- **All link types count the same.** A role on a project and membership of a working group are one
+  link each.
+- **Strength reads the data as recorded.** A node in the middle with a record missing has fewer
+  neighbours and so passes on more: a person with a project and a working group passes on 1/2, and
+  1/3 once their organization is recorded too. 87 of the 210 linked investigators have no
+  organization recorded (export of 2026-11-05). Read a difference of that size as noise.
+- **It is a ranking rule, not a claim about anyone's memory.** Whether activation really spreads
+  across several links in people is still argued over (Ratcliff & McKoon 1988).
+
+How it was chosen. Five natural processes were built and run on the real graph: spreading
+activation left to settle, an animal foraging from a home base, slime-mould tubes, ant trails, and
+a pulse travelling a spider's web. Three reviewers scored them separately and a fourth tried to
+break the winner. The web pulse scored highest, with two of the three: it was exact by hand, had
+nothing to tune, and never put a far or merely popular node ahead of a near one. Spreading
+activation as built came second, because its lists could not be redone by hand and the working
+groups rose in them. What is here is the web pulse's arithmetic (a node passing on 1/neighbours
+where a junction of threads passes 2/threads, which orders nodes the same way), told as the first
+wave of spreading activation, because that is the theory that is about networks of concepts.
+
+Whether it earns its place is measured, and the measure runs with the tests: hide one real tie,
+start from one of its ends, ask for nodes of the hidden end's type, and see whether the hidden end
+is among the first ten listed after the ones the start is still linked to directly (those come
+first in either tool, and are not news). `find_related` has it there 62% of the time (65% when
+asked to look up to eight links away). `get_neighbors`, asked for the same type, 45 to 47%. That shows strength is worth
+having over distance alone. It does not defend the details of the rule: the hand-worked tests do.
+
+Sources: Quillian (1967), *Behavioral Science* 12, 410-430, where a connection between two
+concepts is found where the waves from each meet. Collins & Quillian (1969), *J. Verbal Learning
+and Verbal Behavior* 8, 240-247. Anderson (1974), *Cognitive Psychology* 6, 451-474. Collins &
+Loftus (1975), *Psychological Review* 82, 407-428. Ratcliff & McKoon (1988), *Psychological
+Review* 95, 385-408. Zhou, Lü & Zhang (2009), *European Physical Journal B* 71, 623-630.
+
+A link to a node the export does not contain is shown as an `Unresolved` node rather than dropped,
+and a roster record with an end missing is counted in `describe_graph`'s notes (2 in the export of
+2026-11-05).
+
+`sparql_query` sees the graph exactly as exported, with neither change. It refuses everything that
+is not a read of the loaded graph (updates, `CONSTRUCT`, `DESCRIBE`, `SERVICE`, `FROM`) and stops a
+query after 10 seconds. `--no-sparql` leaves the tool out, which is the safer choice for an endpoint
+anyone can reach: a stopped query still cost 10 seconds of CPU. Nothing the server tells a client
+then mentions SPARQL.
+
+What the view leaves out, it mostly counts in `describe_graph`'s notes rather than dropping in
+silence: a roster record with an end missing, or with a person, project, role or role's source
+given more than once (no link is made of it); a link to a roster record, and what a record says
+besides those, its other types included (records are folded into links, not kept as nodes); a
+node's second type (it is listed under the first); and blank nodes, which are not nodes here. Two
+things are dropped without a count: a text's language tag, and a value's datatype (the text is
+kept). Of all these, the export of 2026-11-05 has two roster records with an end missing, and
+datatypes: `xsd:anyURI` on 477 values and `xsd:date` on 27, which no question tells apart.
+
+### Which graph, and how old
+
+`--source` (or `BBQS_KG_SOURCE`) takes a path or a URL. With neither, the server reads the copy
+`publish.yml` puts at `https://brain-bbqs.org/kg/bbqs.ttl` whenever its live export succeeds (every
+deploy of `main`, and once a day), and falls back to the committed `export/bbqs.ttl`. It re-reads
+the source every `--refresh` hours (default 1), and keeps the graph it has when a re-read fails or
+comes back with most of the graph missing.
+
+Either way it is a copy, not the database. `describe_graph` reports the source, its date and its
+age in days, and says so when it is serving the fallback, so a stale answer is visible. The
+committed export is dated by its commit: a checkout stamps every file with the time of the
+checkout.
+
+It serves whatever file it is given and has no access control of its own. Give it an anon export
+unless every client is entitled to more.
+
+### Benchmark
+
+```bash
+python kg/bench_mcp_server.py
+```
+
+This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it 42
+competency questions: the 19 in `competency_questions.yaml` that the graph is scored on, and the 23
+in `competency_questions_extended.yaml` that #441 proposes adding. Each is asked twice: as SPARQL
+through `sparql_query`, and without SPARQL through `search_nodes`, `get_node` and `find_related`.
+Both must return the rows the export gives when it is queried directly, and the command fails if
+either does not. Questions that return nothing are compared too, and must return nothing both ways. It then measures the ranking
+(the hidden-tie measure above, with the tools' real output) and the speed of each tool. The results
+are in the main [`README.md`](../README.md#benchmark); `--update README.md` rewrites them there.
+`--show CQ04` prints one question's rows each way, `--only questions` leaves the measurements out,
+and `--source` takes another export (with `--access full` if it is a full one, so that a question
+with no rows there is not reported as needing the full export). The reference is the file queried
+directly by rdflib, with each cell written out by the benchmark's own rules, so a fault in how the
+server writes a value would show as a difference. Four things are evened out because they are not
+part of an answer: numbers, whole or not, are compared to 12 significant digits (a sum's last digits
+depend on the order it is taken in); an IRI and the same text compare equal, however each is
+written (`<urn:x>`, `bbqs:Foo`), because the graph tools give an IRI that is not a node as text;
+blank nodes compare equal, because each reading of a file labels them afresh; and the order of the
+parts of a cell that joins several. CQ17 and CQ39 compare dates as ISO text, which is what an
+`xsd:date` is. A question with rows counts as answered even if it uses a term the schema does not
+declare; one the export queried directly refuses (text where a sum needs a number, say) is shown
+apart, as could not be asked, and fails the run.
+
+On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
+provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
+asks for a link the schema does not have (CQ14). Five are understood and have nothing to list
+today: nobody holds two kinds of role (CQ24), every free-text species is also resolved (CQ27), no
+model has a benchmark linked (CQ31), no funding call expires in CQ39's window, and every working
+group has a member with a role (CQ42). A question of the form "which X has no Y" (CQ21, CQ27,
+CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is
+not the same as having none.
+
+A walk without SPARQL sees the graph as the server shows it, which differs from the file where the
+view leaves something out (above): a roster record it could not fold or a link to one, a second
+type, a blank node, a language tag or datatype. SPARQL reads the file as it is, so a question that
+can tell is reported as different, which is right. The export of 2026-11-05 has two roster records with an end missing,
+and no question can tell. A question that cannot be walked in full (a node with more than 500 links
+of one kind, more than `get_node` lists at once) fails on its own and says why; the others are
+still asked.
+
+### Tests
+
+```bash
+pip install -r kg/requirements.txt -r kg/requirements-mcp.txt
+python kg/test_mcp_server.py
+```
+
+The KG gate runs them on every PR that touches `kg/`. They cover a hand-built graph whose answers
+were worked out by hand, strengths included; every competency question the baseline says is
+answered, asked through the server; the walking tools against SPARQL on the committed export; and
+the protocol itself, by a raw JSON-RPC client against a real process over stdio and over HTTP. The
+ranking has checks of its own: the code gives exactly what spreading with nothing left out
+delivers first (a second, slower version of the process, written without the shortcuts); the paths
+between two nodes add up to the strength shown for them; the worked example in the tool
+descriptions is built and run, so what a client is told is what the server does; replies stay a
+size a client can take; and the hidden-tie measure above. Every argument of every tool is shown to
+reach the graph: each is set away from its default, the answer compared with the method called
+directly, and shown to change when that argument alone is reset. The benchmark's 42 questions are
+run here too: on the committed export; on a graph in miniature in which every one of them has
+rows, the number of rows worked out by hand; and on one built from the shapes an export could take
+and today's does not (ids nothing describes, a property given twice or not at all, the same two
+nodes linked twice, two things with one name, amounts with cents), each of which once led a walk
+astray. The benchmark's own measure is run on a graph whose every case was worked out by hand,
+and its command line end to end. Three guards hold across files: every
+schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
+script header match `requirements*.txt`, and no call that writes to a graph appears outside the
+one that loads it. The suite was shown able to fail: the server was broken 128 ways in a
+scratch copy, one at a time (100 of them in the ranking), and every break turned it red. The
+benchmark's walks were broken 62 ways in the same way, and its tests caught every one.
 
 ## Not yet built
 

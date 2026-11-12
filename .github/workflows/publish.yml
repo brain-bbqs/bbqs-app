@@ -77,6 +77,11 @@ jobs:
           pip install -r kg/requirements.txt
           if python kg/export.py /tmp/live.ttl; then
             data=/tmp/live.ttl; src="live anon export (daily build)"
+            # The graph itself -> dist/kg/bbqs.ttl, the default source of kg/mcp_server.py. The same
+            # anon export the Inspector embeds, so it publishes nothing that page does not. Only a
+            # live export goes out: the file's date is how a reader knows the age of the data, and
+            # the committed fallback would carry today's date on old data.
+            mkdir -p dist/kg && cp "$data" dist/kg/bbqs.ttl || echo "::warning::kg/bbqs.ttl was not published"
           else
             data=kg/export/bbqs.ttl; src="committed kg/export/bbqs.ttl (live export failed)"
           fi
