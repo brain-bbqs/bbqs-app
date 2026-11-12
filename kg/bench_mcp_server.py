@@ -15,10 +15,12 @@
 
 It starts the real server as a client would (a process, JSON-RPC over stdio) and has three parts.
 
-  questions  Every competency question in competency_questions.yaml, asked twice over MCP: as SPARQL
-             through sparql_query, and without SPARQL through the graph tools (search_nodes,
-             get_node, find_related). Each way must return the rows the export gives when it is
-             queried directly, with no server in between. Exit code 1 if any does not.
+  questions  Every competency question, asked twice over MCP: as SPARQL through sparql_query, and
+             without SPARQL through the graph tools (search_nodes, get_node, find_related). Each
+             way must return the rows the export gives when it is queried directly, with no server
+             in between. Exit code 1 if any does not. The questions are the 19 the KG is scored
+             on (competency_questions.yaml) and the 23 proposed in issue #441
+             (competency_questions_extended.yaml): 42 in all.
   ranking    Is the order find_related gives worth having? Hide one real tie, start at one of its
              ends, ask for nodes of the hidden end's type, and see whether the hidden end is among
              the first ten returned that the start is not already tied to. The same for
@@ -50,7 +52,8 @@ sys.path.insert(0, str(HERE))
 import mcp_server as m  # noqa: E402
 
 SERVER = HERE / "mcp_server.py"
-QUESTIONS = HERE / "competency_questions.yaml"
+QUESTION_FILES = {"adopted": HERE / "competency_questions.yaml",             # CQ01-CQ19: what quality.py scores
+                  "proposed": HERE / "competency_questions_extended.yaml"}   # CQ20-CQ42: issue #441, not adopted yet
 START, END = "<!-- kg-mcp-benchmark:start -->", "<!-- kg-mcp-benchmark:end -->"
 PARTS = ("questions", "ranking", "speed")
 
@@ -116,23 +119,41 @@ class Client:
 
     # -- what the graph tools give, in the shapes the questions need --
 
+    def listed(self, **arguments) -> list:
+        """Every node search_nodes lists for these arguments, a page at a time; none when the graph
+        has no such type of node or no such property."""
+        found, total = [], None
+        while total is None or len(found) < total:
+            page, error, _, _ = self.timed("search_nodes", limit=100, offset=len(found), **arguments)
+            if error:
+                if nothing_of_the_kind(error):
+                    return []
+                raise SystemExit(f"bench: search_nodes({arguments}) was refused: {error}")
+            total = page["total"]
+            found += page["results"]
+            if not page["results"]:
+                break
+        return found
+
     def all_of(self, kind: str) -> list:
-        """Every node of one type (search_nodes, a page at a time); none if the graph has no such type."""
+        """Every node of one type."""
         if ("all", kind) not in self.cache:
-            found, total = [], None
-            while total is None or len(found) < total:
-                page, error, _, _ = self.timed("search_nodes", type=kind, limit=100, offset=len(found))
-                if error:                                   # "Unknown node type": nothing of that kind was exported
-                    break
-                total = page["total"]
-                found += page["results"]
-            self.cache["all", kind] = found
+            self.cache["all", kind] = self.listed(type=kind)
         return self.cache["all", kind]
 
+    def where(self, kind: str, **wanted) -> list:
+        """Every node of one type holding exactly these property values. search_nodes ignores case
+        and accents in a value, a question does not, so each node found is read to make sure."""
+        return [node for node in self.listed(type=kind, where=wanted)
+                if all(value in self.values(node["id"], name) for name, value in wanted.items())]
+
     def node(self, node_id: str) -> dict:
-        """One node in full (get_node): its properties, and how many links of each kind it has."""
+        """One node in full (get_node): its properties, and every link with the node at its other end."""
         if ("node", node_id) not in self.cache:
-            self.cache["node", node_id] = self.call("get_node", node=node_id, edge_limit=0)
+            full = self.call("get_node", node=node_id, edge_limit=500)
+            if any("more" in group for group in full["edges"]):
+                raise SystemExit(f"bench: {node_id} has more links of one kind than get_node lists at once")
+            self.cache["node", node_id] = full
         return self.cache["node", node_id]
 
     def values(self, node_id: str, name: str) -> list:
@@ -140,14 +161,37 @@ class Client:
         value = self.node(node_id)["properties"].get(name, [])
         return value if isinstance(value, list) else [value]
 
+    def linked(self, node_id: str, edge: str, direction: str) -> list:
+        """The nodes at the other end of one kind of link, one entry per link (get_node). `direction`
+        is "out" for links pointing away from the node and "in" for links pointing at it. An entry
+        carries what its link carries, e.g. the role."""
+        return [row for group in self.node(node_id)["edges"]
+                if group["edge"] == edge and group["direction"] == direction for row in group["nodes"]]
+
+    def pointed(self, node_id: str, name: str) -> list:
+        """Everything a node points at through one property, one entry for each: a node (as get_node
+        lists it) where the other end is one, otherwise the value itself. An identifier that two or
+        more nodes share is both a value and a node in the server's view; here it is the node."""
+        rows = self.linked(node_id, name, "out")
+        shared = {row["id"][4:] if row["type"] == m.EXTERNAL else self.node(row["id"])["iri"]
+                  for row in rows if row["type"] in (m.EXTERNAL, m.UNRESOLVED)}
+        return rows + [value for value in self.values(node_id, name) if value not in shared]
+
+    def has(self, node_id: str, name: str) -> bool:
+        """Whether a node says anything at all under one property, as a link or as a value."""
+        return bool(self.linked(node_id, name, "out")) or name in self.node(node_id)["properties"]
+
     def tied(self, node: str, kind: str, edges: set) -> list:
         """The nodes of one type directly tied to `node` by one of `edges` (find_related, one link away,
-        a page at a time), each with the link that ties it."""
+        a page at a time), each with the link that ties it. One entry per node, however many links
+        tie it: where the number of links matters, `linked` is the one to use."""
         found, reached = [], None
         while reached is None or len(found) < reached:
             reply, error, _, _ = self.timed("find_related", nodes=node, type=kind, max_hops=1, limit=25, offset=len(found))
-            if error:                                       # no such type in this graph
-                return []
+            if error:
+                if nothing_of_the_kind(error):
+                    return []
+                raise SystemExit(f"bench: find_related({node}, {kind}) was refused: {error}")
             group = reply["related"][0]
             reached = group["reached"]
             found += group["nodes"]
@@ -156,14 +200,37 @@ class Client:
         return [row for row in found if {row["link"]["edge"], *row["link"].get("also", ())} & edges]
 
 
+def nothing_of_the_kind(error: str) -> bool:
+    """A refusal that says only that the graph holds no such type of node, or no such property: an
+    empty answer, not a failure."""
+    return "Unknown node type" in error or "has a property" in error
+
+
 def bid(node_id: str) -> str:
-    """A node, as sparql_query writes one in a cell."""
-    return "bid:" + node_id
+    """A node, as sparql_query writes one in a cell: bid:<id>, or its address when the node is not
+    one of this graph's own ids."""
+    if node_id.startswith("ext:"):
+        return node_id[4:]
+    return node_id if "://" in node_id else "bid:" + node_id
+
+
+def cell(entry):
+    """What sparql_query writes for something a node points at (see Client.pointed)."""
+    return bid(entry["id"]) if isinstance(entry, dict) else entry
 
 
 # ---- the questions, without SPARQL -----------------------------------------------------------------
 # Each takes the client and returns the rows the question's SPARQL would, in the same column order,
 # using only search_nodes, get_node and find_related. `how` says in a few words which.
+#
+# They are written for any export the exporter could write, not only today's: a property may be
+# missing or given twice, a link may point at an id nothing describes, the same two nodes may be
+# linked twice. What they take for granted is the schema: a link ends at the type its range names.
+#
+# One thing a walk cannot see: a roster record with an end missing. The server makes a link of a
+# record only when both its ends are nodes (describe_graph counts the rest), while SPARQL still reads
+# the half that is there. Today's export has two such records and no question can tell; if one ever
+# could (CQ05, CQ24, CQ34, CQ42), the comparison below would say DIFFERENT, as it should.
 
 def cq01(c):
     return [[bid(p["id"]), number, mechanism] for p in c.all_of("Project")
@@ -187,8 +254,9 @@ def cq03(c):
 
 
 def cq04(c):
-    return [[name, person["link"]["role"]] for person in c.tied("R34DA059723", "Investigator", {"has_role"})
-            if "role" in person["link"] for name in c.values(person["id"], "name")]
+    return [[name, person["role"]] for p in c.where("Project", grant_number="R34DA059723")
+            for person in c.linked(p["id"], "has_role", "in") if "role" in person
+            for name in c.values(person["id"], "name")]
 
 
 def cq05(c):
@@ -206,40 +274,33 @@ def cq06(c):
 
 
 def cq07(c):
-    return [[name, f"<{orcid}>"] for person in c.all_of("Investigator")
+    return [[name, orcid] for person in c.all_of("Investigator")
             for name in c.values(person["id"], "name") for orcid in c.values(person["id"], "orcid")]
 
 
 def cq08(c):
-    return [[name] for person in c.tied("WG-Devices", "Investigator", {"member_of_group"})
+    return [[name] for group in c.where("WorkingGroup", name="WG-Devices")
+            for person in c.tied(group["id"], "Investigator", {"member_of_group"})
             for name in c.values(person["id"], "name")]
 
 
 def cq09(c):
-    return [[bid(p["id"]), number] for p in c.tied("House Mouse", "Project", {"studies_species"})
+    return [[bid(p["id"]), number] for species in c.where("Species", common_name="House Mouse")
+            for p in c.tied(species["id"], "Project", {"studies_species"})
             for number in c.values(p["id"], "grant_number")]
 
 
 def cq10(c):
-    mammals, found = [], None
-    while found is None or len(mammals) < found:
-        page = c.call("search_nodes", type="Species", where={"taxonomy_class": "Mammalia"}, limit=100, offset=len(mammals))
-        found = page["total"]
-        mammals += page["results"]
-    rows = {(bid(p["id"]), number) for species in mammals for p in c.tied(species["id"], "Project", {"studies_species"})
+    rows = {(bid(p["id"]), number) for species in c.where("Species", taxonomy_class="Mammalia")
+            for p in c.tied(species["id"], "Project", {"studies_species"})
             for number in c.values(p["id"], "grant_number")}
     return [list(row) for row in rows]
 
 
 def cq11(c):
-    rows = []
-    for p in c.all_of("Project"):
-        full = c.node(p["id"])
-        if "studies_species" in full["properties"] or any(e["edge"] == "studies_species" for e in full["edges"]):
-            continue                                        # it names a species, resolved to a node or not
-        rows += [[bid(p["id"]), number, scope] for number in c.values(p["id"], "grant_number")
-                 for scope in c.values(p["id"], "study_scope") or [None]]
-    return rows
+    return [[bid(p["id"]), number, scope] for p in c.all_of("Project")
+            if not c.has(p["id"], "studies_species")        # it names no species, resolved to a node or not
+            for number in c.values(p["id"], "grant_number") for scope in c.values(p["id"], "study_scope") or [None]]
 
 
 def cq12(c):
@@ -249,7 +310,8 @@ def cq12(c):
 
 def cq13(c):
     return [[number, name] for p in c.all_of("Project")
-            for dataset in c.tied(p["id"], "Dataset", {"funded_datasets", "produced"})
+            for edge in ("funded_datasets", "produced")     # a dataset both funded and produced is two rows
+            for dataset in c.linked(p["id"], edge, "out") if dataset["type"] == "Dataset"
             for number in c.values(p["id"], "grant_number") for name in c.values(dataset["id"], "name")]
 
 
@@ -262,7 +324,7 @@ def cq14(c):
 def cq15(c):
     rows = []
     for device in c.all_of("Device"):
-        categories = [bid(row["id"]) for row in c.tied(device["id"], "DeviceCategory", {"device_category"})] or [None]
+        categories = [cell(category) for category in c.pointed(device["id"], "device_category")] or [None]
         rows += [[name, model, category] for maker in c.tied(device["id"], "DeviceManufacturer", {"manufacturer"})
                  for name in c.values(maker["id"], "name") for model in c.values(device["id"], "model_name")
                  for category in categories]
@@ -284,30 +346,235 @@ def cq18(c):
             for name in c.values(job["id"], "name") for institution in c.values(job["id"], "job_institution")]
 
 
+def _local(c, node_id: str) -> str:
+    """A node's own id in full, as a provenance record names it."""
+    return c.node(node_id)["iri"].partition(m.ID_NS)[2]
+
+
 def cq19(c):
-    local = c.node("R34DA059723")["iri"].rsplit("/", 1)[-1]     # the project's own id, as the records name it
+    wanted = {_local(c, p["id"]) for p in c.where("Project", grant_number="R34DA059723")}
     rows = []
-    for record in c.all_of("ProvenanceRecord"):
-        if local not in c.values(record["id"], "prov_entity_id") or "title" not in c.values(record["id"], "prov_entity_column"):
+    for record in c.all_of("ProvenanceRecord") if wanted else ():
+        about = wanted & set(c.values(record["id"], "prov_entity_id"))
+        if not about or "title" not in c.values(record["id"], "prov_entity_column"):
             continue
-        sources = [(bid(source["id"]), c.values(source["id"], "grade") or [None])
-                   for source in c.tied(record["id"], "SourceClass", {"prov_source_class"})]
-        sources += [(f"<{iri}>", [None]) for iri in c.values(record["id"], "prov_source_class")]   # named, not exported
-        rows += [[value, source, grade] for value in c.values(record["id"], "prov_value_text")
-                 for source, grades in sources for grade in grades]
+        for source in c.pointed(record["id"], "prov_source_class"):
+            grades = (c.values(source["id"], "grade") if isinstance(source, dict) else []) or [None]
+            rows += [[value, cell(source), grade] for _ in about for value in c.values(record["id"], "prov_value_text")
+                     for grade in grades]
     return rows
+
+
+# -- the 23 proposed in issue #441 --
+
+def _roles_of(c) -> dict:
+    """person id -> [(project, the role on the link or None), ...], one entry per roster record."""
+    held = defaultdict(list)
+    for p in c.all_of("Project"):
+        for person in c.linked(p["id"], "has_role", "in"):
+            held[person["id"]].append((p["id"], person.get("role")))
+    return held
+
+
+def cq20(c):
+    rows = []
+    for person, held in _roles_of(c).items():
+        numbers = {p: c.values(p, "grant_number") for p, _ in held}
+        if sum(1 for found in numbers.values() if found) > 1:        # a project with no number does not count
+            grants = sorted({number for found in numbers.values() for number in found})
+            rows += [[name, ", ".join(grants)] for name in c.values(person, "name")]
+    return rows
+
+
+def cq21(c):
+    return [[name] for person in c.all_of("Investigator") if not c.has(person["id"], "orcid")
+            for name in c.values(person["id"], "name")]
+
+
+def cq22(c):
+    rows = set()
+    for person in c.all_of("Investigator"):
+        orgs = [org["id"] for org in c.linked(person["id"], "members", "in")]
+        orgs += [org["id"] for p in c.linked(person["id"], "has_role", "out") for org in c.linked(p["id"], "part_of_org", "out")]
+        rows |= {(name, org_name) for name in c.values(person["id"], "name") for org in orgs for org_name in c.values(org, "name")}
+    return [list(row) for row in rows]
+
+
+def cq23(c):
+    rows = []
+    for group in c.all_of("WorkingGroup"):
+        for person in c.linked(group["id"], "member_of_group", "in"):
+            grants = [number for p in c.linked(person["id"], "has_role", "out") for number in c.values(p["id"], "grant_number")]
+            rows += [[group_name, name, grant] for group_name in c.values(group["id"], "name")
+                     for name in c.values(person["id"], "name") for grant in grants or [None]]
+    return rows
+
+
+def cq24(c):
+    rows = []
+    for person, held in _roles_of(c).items():
+        roles = sorted({role for _, role in held if role})
+        if len(roles) > 1:
+            rows += [[name, ", ".join(roles)] for name in c.values(person, "name")]
+    return rows
+
+
+def cq25(c):
+    rows = []
+    for species in c.all_of("Species"):
+        named = sum(wanted in c.values(species["id"], name) for name, wanted in
+                    (("name", "Mus musculus"), ("common_name", "House Mouse"), ("aliases", "Mus musculus")))
+        for p in c.linked(species["id"], "studies_species", "in") * named:      # once for each name that fits
+            rows += [[number, title] for number in c.values(p["id"], "grant_number")
+                     for title in c.values(p["id"], "title") or [None]]
+    return rows
+
+
+def cq26(c):
+    studied = defaultdict(set)
+    for p in c.all_of("Project"):
+        for species in c.linked(p["id"], "studies_species", "out"):
+            for name in c.values(species["id"], "name"):
+                studied[name].add(p["id"])
+    return [[name, len(projects)] for name, projects in studied.items()]
+
+
+def cq27(c):
+    return [[number, raw] for p in c.all_of("Project") if not c.has(p["id"], "studies_species")
+            for number in c.values(p["id"], "grant_number") for raw in c.values(p["id"], "studies_species_name")]
+
+
+def cq28(c):
+    kinds = ("Publication", "Dataset", "SoftwareTool", "MLModel")
+    made = defaultdict(lambda: {kind: set() for kind in kinds})
+    for p in c.all_of("Project"):
+        for number in c.values(p["id"], "grant_number"):
+            made[number]                                            # a project that produced nothing still has a row
+            for output in c.linked(p["id"], "produced", "out"):
+                if output["type"] in kinds:
+                    made[number][output["type"]].add(output["id"])
+    return [[number] + [len(made[number][kind]) for kind in kinds] for number in made]
+
+
+def cq29(c):
+    papers, grants = defaultdict(set), defaultdict(set)
+    for p in c.all_of("Project"):
+        produced = {output["id"] for output in c.linked(p["id"], "produced", "out") if output["type"] == "Publication"}
+        numbers = c.values(p["id"], "grant_number")
+        if produced and numbers:
+            for person in c.linked(p["id"], "has_role", "in"):
+                papers[person["id"]] |= produced
+                grants[person["id"]] |= set(numbers)
+    return [[name, len(papers[person]), ", ".join(sorted(grants[person]))] for person in papers for name in c.values(person, "name")]
+
+
+def cq30(c):
+    sourced = {entity for record in c.all_of("ProvenanceRecord") if c.has(record["id"], "prov_source_class")
+               for entity in c.values(record["id"], "prov_entity_id")}
+    return [[bid(dataset["id"]), name] for dataset in c.all_of("Dataset") if _local(c, dataset["id"]) not in sourced
+            for _ in c.linked(dataset["id"], "produced", "in") for name in c.values(dataset["id"], "name")]
+
+
+def cq31(c):
+    rows = []
+    for model in c.all_of("MLModel"):
+        benches = c.linked(model["id"], "evaluated_by", "out") + c.linked(model["id"], "evaluates", "in")
+        grants = [number for p in c.linked(model["id"], "produced", "in") for number in c.values(p["id"], "grant_number")]
+        rows += [[name, bench_name, grant] for bench in benches if bench["type"] == "Benchmark"
+                 for name in c.values(model["id"], "name") for bench_name in c.values(bench["id"], "name")
+                 for grant in grants or [None]]
+    return rows
+
+
+def cq32(c):
+    return [[name, len(c.pointed(org["id"], "members"))] for org in c.all_of("ResearchOrganization")
+            for name in c.values(org["id"], "name")]
+
+
+def cq33(c):
+    return [[name] for org in c.all_of("ResearchOrganization") if not c.has(org["id"], "members")
+            for name in c.values(org["id"], "name")]
+
+
+def cq34(c):
+    rows = []
+    for org in c.all_of("ResearchOrganization"):
+        projects = {p["id"] for person in c.linked(org["id"], "members", "out") for p in c.linked(person["id"], "has_role", "out")}
+        if len(projects) > 1:
+            rows += [[name, len(projects)] for name in c.values(org["id"], "name")]
+    return rows
+
+
+def cq35(c):
+    titles = defaultdict(list)
+    for job in c.all_of("Job"):
+        for title in c.values(job["id"], "name"):
+            for institution in c.values(job["id"], "job_institution"):
+                titles[institution].append(title)
+    return [[institution, len(found), "; ".join(found)] for institution, found in titles.items()]
+
+
+def cq36(c):
+    postings = defaultdict(int)
+    for job in c.all_of("Job"):
+        for kind in c.values(job["id"], "job_type"):
+            postings[kind] += 1
+    return [[kind, count] for kind, count in postings.items()]
+
+
+def cq37(c):
+    return [[title, cell(poster)] for job in c.all_of("Job") for title in c.values(job["id"], "name")
+            for poster in c.pointed(job["id"], "posted_by")]
+
+
+def cq38(c):
+    return [[number] for p in c.all_of("Project") if not c.has(p["id"], "produced")
+            for number in c.values(p["id"], "grant_number")]
+
+
+def cq39(c):
+    return [[name, expires] for call in c.all_of("FundingOpportunity") for name in c.values(call["id"], "name")
+            for expires in c.values(call["id"], "expiration_date") if "2026-10-14" <= expires <= "2027-04-14"]
+
+
+def cq40(c):
+    records = defaultdict(int)
+    for record in c.all_of("ProvenanceRecord"):
+        for source in c.linked(record["id"], "prov_source_class", "out"):
+            for grade in c.values(source["id"], "grade"):
+                if isinstance(grade, (int, float)) and grade < 3:
+                    for table in c.values(record["id"], "prov_entity_table") or [None]:
+                        records[bid(source["id"]), grade, table] += 1
+    return [[*key, count] for key, count in records.items()]
+
+
+def cq41(c):
+    rows = []
+    for p in c.all_of("Project"):
+        leads = [name for person in c.linked(p["id"], "has_role", "in") if "pi" in person.get("role", "").lower()
+                 for name in c.values(person["id"], "name")] or [None]
+        for dataset in c.pointed(p["id"], "funded_datasets"):
+            names = (c.values(dataset["id"], "name") if isinstance(dataset, dict) else []) or [None]
+            rows += [[number, name, lead] for number in c.values(p["id"], "grant_number") for name in names for lead in leads]
+    return rows
+
+
+def cq42(c):
+    return [[name] for group in c.all_of("WorkingGroup")
+            if not any(c.linked(person["id"], "has_role", "out") for person in c.linked(group["id"], "member_of_group", "in"))
+            for name in c.values(group["id"], "name")]
 
 
 WALKS = {
     "CQ01": (cq01, "list the projects; read each one's properties"),
     "CQ02": (cq02, "list the projects; add up their awards by mechanism"),
     "CQ03": (cq03, "from each project, the organization one link away"),
-    "CQ04": (cq04, "from the project, the people one link away, with the role on the link"),
+    "CQ04": (cq04, "find the project by grant number; its people, with the role on each link"),
     "CQ05": (cq05, "from each project, its people; count the projects per person"),
     "CQ06": (cq06, "from each organization, the people one link away"),
     "CQ07": (cq07, "list the investigators; read each one's ORCID"),
-    "CQ08": (cq08, "from the working group, the people one link away"),
-    "CQ09": (cq09, "from the species, the projects one link away"),
+    "CQ08": (cq08, "find the working group by name; from it, the people one link away"),
+    "CQ09": (cq09, "find the species by its common name; from it, the projects one link away"),
     "CQ10": (cq10, "find the mammal species; from each, its projects"),
     "CQ11": (cq11, "list the projects; keep those with no species named"),
     "CQ12": (cq12, "from each project, the publications one link away"),
@@ -318,36 +585,86 @@ WALKS = {
     "CQ17": (cq17, "list the funding calls; keep those still open"),
     "CQ18": (cq18, "list the jobs; read each one's institution"),
     "CQ19": (cq19, "list the provenance records; keep the project's title; read the source's grade"),
+    "CQ20": (cq20, "from each project, its people; keep those on more than one"),
+    "CQ21": (cq21, "list the investigators; keep those with no ORCID"),
+    "CQ22": (cq22, "from each person, their organization, and their projects' organizations"),
+    "CQ23": (cq23, "from each working group, its members; from each member, their projects"),
+    "CQ24": (cq24, "from each project, its people and the role on each link"),
+    "CQ25": (cq25, "find the species by any of its names; from it, its projects"),
+    "CQ26": (cq26, "from each project, its species; count the projects per species"),
+    "CQ27": (cq27, "list the projects; keep those naming a species only in free text"),
+    "CQ28": (cq28, "from each project, count what it produced, by type"),
+    "CQ29": (cq29, "from each project, its people and its publications"),
+    "CQ30": (cq30, "list the datasets; keep the produced ones no provenance record names"),
+    "CQ31": (cq31, "from each model, its benchmarks and the project that produced it"),
+    "CQ32": (cq32, "from each organization, count the members one link away"),
+    "CQ33": (cq33, "list the organizations; keep those with no member"),
+    "CQ34": (cq34, "from each organization, its members; from each member, their projects"),
+    "CQ35": (cq35, "list the jobs; group them by institution"),
+    "CQ36": (cq36, "list the jobs; count them by kind"),
+    "CQ37": (cq37, "list the jobs; read who posted each"),
+    "CQ38": (cq38, "list the projects; keep those that produced nothing"),
+    "CQ39": (cq39, "list the funding calls; keep those expiring in the window"),
+    "CQ40": (cq40, "list the provenance records; read each source's grade"),
+    "CQ41": (cq41, "from each project, the datasets it funded and its PIs"),
+    "CQ42": (cq42, "from each working group, its members; see whether any has a project"),
 }
 
 
-def same(rows) -> list:
-    """Rows in one order and one spelling, so two ways of asking can be compared."""
-    def cell(value):
+def joined_cells(sparql: str) -> dict:
+    """The columns in which a query joins several values into one cell (GROUP_CONCAT), read from its
+    SELECT clause: column -> separator. SPARQL leaves the order inside such a cell open."""
+    select = sparql[:re.search(r"\bWHERE\b|\{", sparql).start()]
+    columns = re.findall(r"\((?:[^()]|\([^()]*\))*\)|\?\w+", select)
+    return {at: (re.search(r'separator\s*=\s*"([^"]*)"', column) or [None, " "])[1]
+            for at, column in enumerate(columns) if "GROUP_CONCAT" in column.upper()}
+
+
+def same(rows, joined: dict | None = None) -> list:
+    """Rows in one order and one spelling, so that two ways of asking can be compared. Duplicate rows
+    count. Two things are evened out, because neither is part of the answer: the order of the values
+    in a cell that joins several (`joined`, from joined_cells), and whether a web address came back
+    as an IRI (in angle brackets) or as text, which the graph tools do not tell apart."""
+    def cell(value, column):
         if isinstance(value, float) and value.is_integer():
             return int(value)
+        if isinstance(value, str) and column in (joined or {}):
+            return (joined[column]).join(sorted(value.split(joined[column])))
+        if isinstance(value, str) and re.fullmatch(r"<https?://[^<>\s]*>", value):
+            return value[1:-1]
         return value
-    return sorted(json.dumps([cell(v) for v in row], sort_keys=True, default=str, ensure_ascii=False) for row in rows)
+    return sorted(json.dumps([cell(value, column) for column, value in enumerate(row)], sort_keys=True, default=str,
+                             ensure_ascii=False) for row in rows)
+
+
+def load_questions() -> tuple:
+    """Every question, each marked with the set it belongs to, and the prefixes its SPARQL assumes."""
+    questions, prologue = [], ""
+    for name, path in QUESTION_FILES.items():
+        spec = yaml.safe_load(path.read_text(encoding="utf8"))
+        prologue = "".join(f"PREFIX {k}: <{v}>\n" for k, v in spec["prefixes"].items())
+        questions += [{**question, "set": name} for question in spec["questions"]]
+    return questions, prologue
 
 
 def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None, fresh: bool = True) -> dict:
     """Every question, three ways: the export queried directly (the reference), sparql_query over MCP,
     and the graph tools over MCP. `fresh` forgets, before each question, what earlier ones fetched."""
-    spec = yaml.safe_load(QUESTIONS.read_text(encoding="utf8"))
-    prologue = "".join(f"PREFIX {k}: <{v}>\n" for k, v in spec["prefixes"].items())
+    questions, prologue = load_questions()
     plain = Graph().parse(source, format="turtle")            # the export itself, with no server in between
     schema = {str(s)[len(m.SCHEMA_NS):] for s in Graph().parse(str(m.SCHEMA_FILE), format="turtle").subjects()
               if str(s).startswith(m.SCHEMA_NS)} if m.SCHEMA_FILE.exists() else None
     rows_out = []
-    for question in spec["questions"]:
-        direct = same([kg._cell(cell) for cell in row] for row in plain.query(prologue + question["sparql"]))
+    for question in questions:
+        joined = joined_cells(question["sparql"])
+        direct = same(([kg._cell(cell) for cell in row] for row in plain.query(prologue + question["sparql"])), joined)
         reply, error, sparql_seconds, _ = client.timed("sparql_query", query=question["sparql"], limit=m.MAX_ROWS)
-        by_sparql = same(reply["rows"]) if reply else None
+        by_sparql = same(reply["rows"], joined) if reply else None
         walk, how = WALKS[question["id"]]
         if fresh:
             client.cache = {}                                 # each question from scratch, as a client would ask it
         calls, began = client.calls, time.perf_counter()
-        by_tools = same(walk(client))
+        by_tools = same(walk(client), joined)
         walk_seconds, calls = time.perf_counter() - began, client.calls - calls
         terms = set(re.findall(r"\bbbqs:(\w+)", question["sparql"]))
         if schema is not None and terms - schema:
@@ -357,12 +674,12 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
         elif question["access"] == "full":
             status = "needs the full export"                  # its source rows are not public
         else:
-            status = "empty"
-        rows_out.append({"id": question["id"], "question": question["question"], "area": question["area"],
-                         "status": status, "rows": len(direct), "sparql_agrees": by_sparql == direct,
-                         "tools_agree": by_tools == direct, "how": how, "tool_calls": calls,
-                         "sparql_ms": round(sparql_seconds * 1000, 1), "tools_ms": round(walk_seconds * 1000, 1),
-                         **({"error": error} if error else {})})
+            status = "none in this export"                    # asked and understood: there is nothing of the kind to list
+        rows_out.append({"id": question["id"], "set": question["set"], "question": question["question"],
+                         "area": question["area"], "status": status, "rows": len(direct),
+                         "sparql_agrees": by_sparql == direct, "tools_agree": by_tools == direct, "how": how,
+                         "tool_calls": calls, "sparql_ms": round(sparql_seconds * 1000, 1),
+                         "tools_ms": round(walk_seconds * 1000, 1), **({"error": error} if error else {})})
         if show == question["id"]:
             print(f"{question['id']}  {question['question']}\n  status: {status}; {len(direct)} rows from the export queried directly")
             for name, got in (("sparql_query", by_sparql or []), (f"graph tools ({how})", by_tools)):
@@ -371,11 +688,18 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
                     print("    " + row)
                 for row in sorted(set(direct) - set(got))[:20]:
                     print("    MISSING " + row)
-    answered = [r for r in rows_out if r["rows"]]
-    return {"asked": len(rows_out), "answered": len(answered),
-            "need_the_full_export": sum(r["status"] == "needs the full export" for r in rows_out),
-            "not_modelled": sum(r["status"] == "not modelled" and not r["rows"] for r in rows_out),
+    answered, silent = [r for r in rows_out if r["rows"]], [r for r in rows_out if not r["rows"]]
+    adopted = [r for r in rows_out if r["set"] == "adopted"]
+
+    def count(status):
+        return sum(r["status"] == status for r in silent)
+
+    return {"asked": len(rows_out), "adopted": len(adopted), "answered": len(answered),
+            "answered_adopted": sum(1 for r in adopted if r["rows"]),
+            "need_the_full_export": count("needs the full export"), "none_in_this_export": count("none in this export"),
+            "not_modelled": count("not modelled"),
             "sparql_agree": sum(r["sparql_agrees"] for r in answered), "tools_agree": sum(r["tools_agree"] for r in answered),
+            "silent_agree": sum(r["sparql_agrees"] and r["tools_agree"] for r in silent),
             "all_agree": all(r["sparql_agrees"] and r["tools_agree"] for r in rows_out), "questions": rows_out}
 
 
@@ -491,18 +815,23 @@ def report(results: dict) -> str:
                f"{snapshot['source']}" + (f", dated {snapshot['dated']}" if snapshot.get("dated") else ""))
     if "questions" in results:
         q = results["questions"]
-        out.append(f"\nQUESTIONS  {q['asked']} asked; {q['answered']} have an answer in this export. Of those, the same rows as "
-                   f"the export queried directly: {q['sparql_agree']} through sparql_query, {q['tools_agree']} through the "
-                   "graph tools. The rest return nothing either way" + ("." if q["all_agree"] else ": NOT SO, see below."))
+        proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"]
+        out.append(f"\nQUESTIONS  {q['asked']} asked ({q['adopted']} the KG is scored on, {proposed} proposed in issue #441); "
+                   f"{q['answered']} return rows on this export. Of those, the same rows as the export queried directly: "
+                   f"{q['sparql_agree']} through sparql_query, {q['tools_agree']} through the graph tools. Of the other "
+                   f"{silent}, {q['silent_agree']} return nothing either way" + ("." if q["all_agree"] else ": NOT ALL AGREE, see below."))
         for r in q["questions"]:
             def mark(ok, rows=r["rows"]):
                 return "DIFFERENT" if not ok else "same" if rows else "none"
+            if r["set"] == "proposed" and r["id"] == next(x["id"] for x in q["questions"] if x["set"] == "proposed"):
+                out.append("  -- proposed in issue #441, not adopted yet --")
             out.append(f"  {r['id']}  {r['rows']:4d} rows  sparql {mark(r['sparql_agrees']):9s} {r['sparql_ms']:7.1f} ms   "
                        f"tools {mark(r['tools_agree']):9s} {r['tools_ms']:7.1f} ms {r['tool_calls']:4d} calls   "
                        f"{r['status']:21s} {r['question']}")
     if "ranking" in results:
         r = results["ranking"]
-        out.append(f"\nRANKING  {r['cases']} cases: one real tie hidden, the other end looked for among the first ten of its type")
+        out.append(f"\nRANKING  {r['cases']} cases: one real tie hidden, the other end looked for among the first ten of its type "
+                   "listed after the start's direct ties")
         for name, share in r["in_first_ten"].items():
             out.append(f"  {name:30s} {share:5.1f}%")
         out.append(f"  strengths exactly equal to the slow version of the rule: {r['starts_exactly_equal']} of "
@@ -524,19 +853,26 @@ def markdown(results: dict) -> str:
     out = [START, f"Graph: {results['nodes']} nodes, {results['links']} links"
            + (f", export of {snapshot['dated']}" if snapshot.get("dated") else "") + f". Server {results['server']}.", ""]
     if q:
+        proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"]
         rest = [f"{q[key]} {what}" for key, what in (("need_the_full_export", "need the full export"),
+                                                     ("none_in_this_export", "find none in this export"),
                                                      ("not_modelled", "not modelled yet")) if q[key]]
         out += ["| | Result |", "|---|---|",
-                f"| Competency questions with an answer in this export | **{q['answered']} of {q['asked']}**"
-                + (f" ({', '.join(rest)})" if rest else "") + " |",
+                f"| Competency questions that return rows on this export | **{q['answered']} of {q['asked']}**: "
+                f"{q['answered_adopted']} of the {q['adopted']} the KG is scored on"
+                + (f", {q['answered'] - q['answered_adopted']} of the {proposed} proposed in #441" if proposed else "") + " |",
                 f"| Those {q['answered']}, asked as SPARQL through the server: same rows as the export queried directly | "
                 f"**{q['sparql_agree']} of {q['answered']}** |",
                 f"| Those {q['answered']}, asked without SPARQL through the graph tools: same rows again | "
                 f"**{q['tools_agree']} of {q['answered']}** |"]
+        if silent:
+            out.append(f"| The other {silent}" + (f" ({', '.join(rest)})" if rest else "") + ": no rows either way | "
+                       f"**{q['silent_agree']} of {silent}** |")
     if r:
         first = r["in_first_ten"]
-        out += [f"| A hidden tie is in the first ten `find_related` returns ({r['cases']:,} cases) | "
-                f"**{first['find_related']:.0f}%** ({first['find_related, up to 8 links']:.0f}% looking up to 8 links) |",
+        out += [f"| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties "
+                f"({r['cases']:,} cases) | **{first['find_related']:.0f}%** "
+                f"({first['find_related, up to 8 links']:.0f}% looking up to 8 links) |",
                 f"| The same for `get_neighbors`, which lists by distance alone | {first['get_neighbors']:.0f}% "
                 f"({first['get_neighbors, through hubs']:.0f}% walking through hubs) |",
                 f"| Strengths equal to a slow second version of the rule, exactly | **{r['starts_exactly_equal']} of "
@@ -546,17 +882,26 @@ def markdown(results: dict) -> str:
         out += [f"| A `find_related` call (median; 95th percentile) | {t['find_related']['median_ms']:.0f} ms; "
                 f"{t['find_related']['p95_ms']:.0f} ms |",
                 f"| A `find_paths` call | {t['find_paths']['median_ms']:.0f} ms; {t['find_paths']['p95_ms']:.0f} ms |",
-                f"| A `find_related` reply (median; largest) | {t['find_related']['median_bytes'] / 1000:.1f} kB; "
-                f"{t['find_related']['largest_bytes'] / 1000:.1f} kB |"]
+                f"| A `find_related` reply (median; largest of the {t['find_related']['calls']} timed) | "
+                f"{t['find_related']['median_bytes'] / 1000:.1f} kB; {t['find_related']['largest_bytes'] / 1000:.1f} kB |"]
     if q:
-        out += ["", "<details><summary>Every question, both ways</summary>", "",
+        out += ["", f"<details><summary>All {q['asked']} questions, both ways</summary>", "",
                 "| | Question | Rows | As SPARQL | Without SPARQL | How, without SPARQL |", "|---|---|---:|:---:|:---:|---|"]
+        first_proposed = next((row["id"] for row in q["questions"] if row["set"] == "proposed"), None)
         for row in q["questions"]:
+            if row["id"] == first_proposed:
+                out.append("| | **Proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441), not adopted yet** | | | | |")
             note = "" if row["status"] == "answered" else f" *({row['status']})*"
             cells = ["**differs**" if not ok else "same" if row["rows"] else "none"
                      for ok in (row["sparql_agrees"], row["tools_agree"])]
             out.append(f"| {row['id']} | {row['question']}{note} | {row['rows']} | {cells[0]} | {cells[1]} | {row['how']} |")
-        out += ["", "</details>"]
+        out += ["", f"The first {q['adopted']} are the questions the knowledge graph is scored on "
+                    "([`kg/competency_questions.yaml`](kg/competency_questions.yaml))."
+                    + (" The rest are the extended set proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441) "
+                       "([`kg/competency_questions_extended.yaml`](kg/competency_questions_extended.yaml)); they count toward "
+                       "nothing until that issue adopts them." if first_proposed else "")
+                    + " A question of the form \"which X has no Y\" lists every X with no Y *recorded*, which in a graph "
+                    "still being linked is not the same as having none.", "", "</details>"]
     if s:
         out += ["", f"Times are over stdio on one machine ({s['machine']}) and will differ on yours. Everything else is the "
                     "same wherever it is run."]
@@ -595,8 +940,7 @@ def main(argv=None) -> int:
             results["questions"] = ask_questions(client, kg, args.source, args.show)
         if "speed" in parts:
             say("speed: timing calls on real nodes")
-            questions = yaml.safe_load(QUESTIONS.read_text(encoding="utf8"))["questions"]
-            results["speed"] = measure_speed(client, kg, questions)
+            results["speed"] = measure_speed(client, kg, load_questions()[0])
     finally:
         client.close()
     if "ranking" in parts:

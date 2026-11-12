@@ -128,6 +128,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
+| `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. Not scored by `quality.py` until #441 adopts them; `bench_mcp_server.py` asks them. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
@@ -144,7 +145,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `mcp_server.py` | **MCP server**: read-only traversal of an exported graph for AI clients, over stdio or HTTP. No database, no credentials (see [MCP server](#mcp-server-read-the-graph-from-an-ai-client)). |
 | `test_mcp_server.py` | Its tests: a hand-built graph with known answers, the competency questions through the server, cross-file guards, and the protocol over stdio and HTTP. |
 | `requirements-mcp.txt` | Pinned deps for the server alone: `rdflib` and the MCP SDK. |
-| `bench_mcp_server.py` | Benchmark for the server: every competency question asked over MCP, as SPARQL and without it; the ranking against distance alone; the speed. Writes the results block in the main `README.md`. |
+| `bench_mcp_server.py` | Benchmark for the server: all 42 competency questions asked over MCP, as SPARQL and without it; the ranking against distance alone; the speed. Writes the results block in the main `README.md`. |
 
 ## The three validation layers
 
@@ -378,9 +379,10 @@ hundred people and says little:
   but does not walk through it, and lists it in the reply. Two links from a linked investigator is
   a median of 9 nodes this way, against 114 (export of 2026-11-05). Naming the links to follow
   (`edge`) or setting `through_hubs` walks through.
-- `find_related` and `find_paths` cut nothing off. A hub passes on little, by the rule in the next
-  section, so what lies behind it comes after anything at the same distance that is reached by a
-  more exclusive route. Where a working group is all a person has, its members are the list, all
+- `find_related` and `find_paths` walk through hubs. A hub passes on little, by the rule in the
+  next section, so what lies behind it comes after anything at the same distance that is reached by
+  a more exclusive route. What limits them is distance: `max_hops`, 4 by default for `find_related`
+  and 6 for `find_paths`, at most 8. Where a working group is all a person has, its members are the list, all
   equal, and the reply says so. `find_paths` also leaves out any chain that goes the long way round
   a direct link. `avoid_edges` drops a link type altogether, in both.
 
@@ -452,7 +454,8 @@ What a reply carries. A row one link away has `link`, the link itself. A row far
 `through`, the strongest route to it (the path `find_paths` lists first), each node on it with
 `splits`, the number of neighbours it divided among; where there is more than one route the row
 also has `routes`, how many, and `share`, the part of the strength the route shown brings. With several starting nodes a row has `ties`
-instead, one per starting node. `find_paths` lists the paths between two nodes strongest first, up
+instead, one per starting node. `find_paths` lists the paths between two nodes shortest first, and
+the strongest first among paths of one length (a longer path can be stronger than a shorter one), up
 to 25 at a time (`offset` for the next page) and up to 8 links long, each with its own strength;
 its `routes` and `strength` are the number and the sum of the shortest ones, which are the figures
 `find_related` shows for the pair. The two tools are one calculation read two ways, and give the
@@ -495,9 +498,10 @@ where a junction of threads passes 2/threads, which orders nodes the same way), 
 wave of spreading activation, because that is the theory that is about networks of concepts.
 
 Whether it earns its place is measured, and the measure runs with the tests: hide one real tie,
-start from one of its ends, and see whether the other end is among the first ten of its type that
-the tool returns. `find_related` has it there 62% of the time (65% when asked to look up to eight
-links away). `get_neighbors`, asked for the same type, 45 to 47%. That shows strength is worth
+start from one of its ends, ask for nodes of the hidden end's type, and see whether the hidden end
+is among the first ten listed after the ones the start is still linked to directly (those come
+first in either tool, and are not news). `find_related` has it there 62% of the time (65% when
+asked to look up to eight links away). `get_neighbors`, asked for the same type, 45 to 47%. That shows strength is worth
 having over distance alone. It does not defend the details of the rule: the hand-worked tests do.
 
 Sources: Quillian (1967), *Behavioral Science* 12, 410-430, where a connection between two
@@ -537,15 +541,30 @@ unless every client is entitled to more.
 python kg/bench_mcp_server.py
 ```
 
-This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it every
-question in `competency_questions.yaml` twice: as SPARQL through `sparql_query`, and without SPARQL
-through `search_nodes`, `get_node` and `find_related`. Both must return the rows the export gives
-when it is queried directly, and the command fails if either does not. It then measures the ranking
+This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it 42
+competency questions: the 19 in `competency_questions.yaml` that the graph is scored on, and the 23
+in `competency_questions_extended.yaml` that #441 proposes adding. Each is asked twice: as SPARQL
+through `sparql_query`, and without SPARQL through `search_nodes`, `get_node` and `find_related`.
+Both must return the rows the export gives when it is queried directly, and the command fails if
+either does not. Questions that return nothing are compared too, and must return nothing both ways. It then measures the ranking
 (the hidden-tie measure above, with the tools' real output) and the speed of each tool. The results
 are in the main [`README.md`](../README.md#benchmark); `--update README.md` rewrites them there.
 `--show CQ04` prints one question's rows each way, `--only questions` leaves the measurements out,
-and `--source` takes another export, such as a full-access one, where the three questions the
-public export cannot answer have rows too.
+and `--source` takes another export.
+
+On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
+provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
+asks for a link the schema does not have (CQ14). Five are understood and have nothing to list
+today: nobody holds two kinds of role (CQ24), every free-text species is also resolved (CQ27), no
+model has a benchmark linked (CQ31), no funding call expires in CQ39's window, and every working
+group has a member with a role (CQ42). A question of the form "which X has no Y" (CQ21, CQ27,
+CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is
+not the same as having none.
+
+A walk without SPARQL sees the graph as the server shows it, and in one respect that differs from
+the file: a roster record with an end missing makes no link, while SPARQL still reads the half that
+is there. The export of 2026-11-05 has two such records and no question can tell; a question that
+could would be reported as different, which is right.
 
 ### Tests
 
@@ -562,8 +581,11 @@ ranking has checks of its own: the code gives exactly what spreading with nothin
 delivers first (a second, slower version of the process, written without the shortcuts); the paths
 between two nodes add up to the strength shown for them; the worked example in the tool
 descriptions is built and run, so what a client is told is what the server does; replies stay a
-size a client can take; and the hidden-tie measure above. The benchmark's questions are run here
-too, on the committed export and on a graph in miniature in which all nineteen have an answer. Three guards hold across files: every
+size a client can take; and the hidden-tie measure above. The benchmark's 42 questions are run
+here too: on the committed export; on a graph in miniature in which every one of them has rows,
+the number of rows worked out by hand; and on one built from the shapes an export could take and
+today's does not (ids nothing describes, a property given twice or not at all, the same two nodes
+linked twice, two things with one name), each of which once led a walk astray. Three guards hold across files: every
 schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
 script header match `requirements*.txt`, and no call that writes to a graph appears outside the
 one that loads it. The suite was shown able to fail: the server was broken 128 ways in a

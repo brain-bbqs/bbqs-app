@@ -1768,111 +1768,349 @@ class OverHttp(unittest.TestCase):
 # A whole graph in miniature in which EVERY competency question has an answer, the three the public
 # export cannot answer included (a job with its institution, a provenance record, a device category
 # on a project), so that each question's walk through the graph tools is checked against rows.
-MINIATURE = """
+PREFIXES = """
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid: <https://brain-bbqs.org/id/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+"""
 
+# A consortium in miniature, complete enough that every one of the 42 questions has rows.
+MINIATURE = PREFIXES + """
 bid:p1 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:grant_number "R34DA059723" ; bbqs:mechanism "R34" ;
     bbqs:award_amount 100 ; bbqs:title "Mouse project" ; bbqs:studies_species bid:mouse ; bbqs:part_of_org bid:org1 ;
-    bbqs:produced bid:pub1, bid:ds2 ; bbqs:funded_datasets bid:ds1 ; bbqs:uses_device_category bid:cat1 .
+    bbqs:produced bid:pub1, bid:ds2, bid:tool1, bid:model1 ; bbqs:funded_datasets bid:ds1 ;
+    bbqs:uses_device_category bid:cat1 .
 bid:p2 a bbqs:Project ; bbqs:name "U01DA000002" ; bbqs:grant_number "U01DA000002" ; bbqs:mechanism "U01" ;
-    bbqs:award_amount 250 ; bbqs:study_scope "All Species" .
+    bbqs:award_amount 250 ; bbqs:study_scope "All Species" ; bbqs:studies_species_name "zebra finch" ;
+    bbqs:funded_datasets bid:ds3 .
 bid:p3 a bbqs:Project ; bbqs:name "R34DA000003" ; bbqs:grant_number "R34DA000003" ; bbqs:mechanism "R34" ;
-    bbqs:award_amount 50 ; bbqs:studies_species bid:rat .
+    bbqs:award_amount 50 ; bbqs:studies_species bid:rat ; bbqs:produced bid:ds4 .
 bid:r1 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:p1 ; bbqs:project_role "contact_pi" .
 bid:r2 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:p1 ; bbqs:project_role "co_pi" .
 bid:r3 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:p3 ; bbqs:project_role "co_pi" .
 bid:ann a bbqs:Investigator ; bbqs:name "Ann A" ; bbqs:orcid <https://orcid.org/0000-0001-0000-0001> ;
     bbqs:member_of_group bid:wgd .
 bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:wgd .
+bid:cy a bbqs:Investigator ; bbqs:name "Cy C" ; bbqs:member_of_group bid:wga .
 bid:org1 a bbqs:ResearchOrganization ; bbqs:name "TEST UNIVERSITY" ; bbqs:members bid:ann, bid:bo .
+bid:org2 a bbqs:ResearchOrganization ; bbqs:name "EMPTY INSTITUTE" .
 bid:wgd a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
-bid:mouse a bbqs:Species ; bbqs:name "Mouse" ; bbqs:common_name "House Mouse" ; bbqs:taxonomy_class "Mammalia" .
-bid:rat a bbqs:Species ; bbqs:name "Rat" ; bbqs:common_name "Brown Rat" ; bbqs:taxonomy_class "Mammalia" .
+bid:wga a bbqs:WorkingGroup ; bbqs:name "WG-Analysis" .
+bid:mouse a bbqs:Species ; bbqs:name "Mus musculus" ; bbqs:common_name "House Mouse" ; bbqs:taxonomy_class "Mammalia" .
+bid:rat a bbqs:Species ; bbqs:name "Rattus norvegicus" ; bbqs:common_name "Brown Rat" ; bbqs:taxonomy_class "Mammalia" .
 bid:pub1 a bbqs:Publication ; bbqs:name "A paper" ; bbqs:title "A paper" .
 bid:ds1 a bbqs:Dataset ; bbqs:name "Dataset one" .
 bid:ds2 a bbqs:Dataset ; bbqs:name "Dataset two" .
+bid:ds3 a bbqs:Dataset ; bbqs:name "Dataset three" .
+bid:ds4 a bbqs:Dataset ; bbqs:name "Dataset four" .
 bid:cat1 a bbqs:DeviceCategory ; bbqs:name "Microscopes" ; bbqs:label "Microscopes" .
 bid:dev1 a bbqs:Device ; bbqs:name "Scope One" ; bbqs:model_name "Scope One" ; bbqs:manufacturer bid:man1 ;
     bbqs:device_category bid:cat1 .
 bid:dev2 a bbqs:Device ; bbqs:name "Scope Two" ; bbqs:model_name "Scope Two" ; bbqs:manufacturer bid:man1 .
 bid:man1 a bbqs:DeviceManufacturer ; bbqs:name "Lens Co" .
 bid:tool1 a bbqs:SoftwareTool ; bbqs:name "Tracker" ; bbqs:repo_url "https://github.com/example/tracker"^^xsd:anyURI .
+bid:model1 a bbqs:MLModel ; bbqs:name "Pose net" ; bbqs:evaluated_by bid:bench1 .
+bid:bench1 a bbqs:Benchmark ; bbqs:name "Pose bench" ; bbqs:evaluates bid:model1 .
 bid:fo1 a bbqs:FundingOpportunity ; bbqs:name "Open call" ; bbqs:expiration_date "2027-01-15"^^xsd:date .
 bid:fo2 a bbqs:FundingOpportunity ; bbqs:name "Closed call" ; bbqs:expiration_date "2026-01-15"^^xsd:date .
-bid:job1 a bbqs:Job ; bbqs:name "Postdoc" ; bbqs:job_institution "TEST UNIVERSITY" .
+bid:job1 a bbqs:Job ; bbqs:name "Postdoc" ; bbqs:job_institution "TEST UNIVERSITY" ; bbqs:job_type "postdoc" ;
+    bbqs:posted_by bid:ann .
+bid:job2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "TEST UNIVERSITY" ; bbqs:job_type "staff" ;
+    bbqs:posted_by bid:bo .
 bid:src1 a bbqs:SourceClass ; bbqs:name "RePORTER" ; bbqs:grade 2 .
-bid:prov1 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "p1" ; bbqs:prov_entity_column "title" ;
-    bbqs:prov_value_text "Mouse project" ; bbqs:prov_source_class bid:src1 .
+bid:src2 a bbqs:SourceClass ; bbqs:name "Self-report" ; bbqs:grade 4 .
+bid:prov1 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "p1" ; bbqs:prov_entity_table "grants" ;
+    bbqs:prov_entity_column "title" ; bbqs:prov_value_text "Mouse project" ; bbqs:prov_source_class bid:src1 .
 bid:prov2 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "p1" ; bbqs:prov_entity_column "mechanism" ;
     bbqs:prov_value_text "R34" ; bbqs:prov_source_class bid:src1 .
+bid:prov3 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "ds4" ; bbqs:prov_entity_table "datasets" ;
+    bbqs:prov_entity_column "name" ; bbqs:prov_value_text "Dataset four" ; bbqs:prov_source_class bid:src2 .
 """
+# How many rows each question has on it, worked out by hand from the graph above. For instance CQ23
+# (who is in each group, and on which projects): Ann on two projects and Bo on one in WG-Devices,
+# and Cy, on none, in WG-Analysis: 4. CQ31 (benchmarks per model): the one tie is recorded from both
+# ends, so 2. CQ40 (values from a source graded below 3): two records from the grade-2 source, with
+# and without a table; the third record's source is graded 4: 2.
+MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06": 2, "CQ07": 1, "CQ08": 2, "CQ09": 1,
+                  "CQ10": 2, "CQ11": 1, "CQ12": 1, "CQ13": 4, "CQ14": 1, "CQ15": 2, "CQ16": 1, "CQ17": 1, "CQ18": 2,
+                  "CQ19": 1, "CQ20": 1, "CQ21": 2, "CQ22": 2, "CQ23": 4, "CQ24": 1, "CQ25": 2, "CQ26": 2, "CQ27": 1,
+                  "CQ28": 3, "CQ29": 2, "CQ30": 1, "CQ31": 2, "CQ32": 2, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2,
+                  "CQ37": 2, "CQ38": 1, "CQ39": 1, "CQ40": 2, "CQ41": 3, "CQ42": 1}
+
+# Shapes an export could take and today's does not, each of which once gave a walk the wrong rows
+# (found by asking all the questions of several hundred random graphs):
+#   - ids that links point at and nothing describes: gone1, gone3, gone4, gone5, nobody2, nocat (one
+#     node points at each, so it is only a value) and gone2, nobody1, nosource (several do, so the
+#     server also makes a node of it, and it must not be counted twice)
+#   - a provenance record that names no source (v5), so says nothing of where d2 came from
+#   - the same two nodes linked twice: a dataset q1 both funded and produced; Ann on q1 in two roles
+#   - a property given twice (Ann's name, q2's grant number, a job's title, a source's grade), or
+#     not at all (Cy's name, Bo's role, q3's grant number: it only carries q1's as its name)
+#   - two things answering to one name: two species called "House Mouse" (and one "house mouse",
+#     which is not the same text), two groups called WG-Devices
+#   - dates on the first and last day of CQ39's window, on the day either side, and on CQ17's day
+AWKWARD = PREFIXES + """
+bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ;
+    bbqs:funded_datasets bid:d1, bid:gone1, bid:gone2 ; bbqs:produced bid:d1 ; bbqs:studies_species bid:m1, bid:m2 .
+bid:q2 a bbqs:Project ; bbqs:grant_number "U01DA000002", "U01DA000002-S1" ; bbqs:funded_datasets bid:gone2 ;
+    bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_name "marmoset" .
+bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2 .
+bid:q4 a bbqs:Project ; bbqs:grant_number "R61DA000005" ; bbqs:studies_species bid:m3 .
+bid:d1 a bbqs:Dataset ; bbqs:name "D one" .
+bid:d2 a bbqs:Dataset ; bbqs:name "D two" .
+bid:m1 a bbqs:Species ; bbqs:name "Mus musculus" ; bbqs:common_name "House Mouse" ; bbqs:aliases "Mus musculus", "mouse" .
+bid:m2 a bbqs:Species ; bbqs:name "Mus musculus domesticus" ; bbqs:common_name "House Mouse" .
+bid:m3 a bbqs:Species ; bbqs:name "Mus spretus" ; bbqs:common_name "house mouse" .
+bid:ann a bbqs:Investigator ; bbqs:name "Ann A", "A. Ann" ; bbqs:member_of_group bid:w1 .
+bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:w2 .
+bid:cy a bbqs:Investigator ; bbqs:member_of_group bid:w1 .
+bid:s1 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs:project_role "contact_pi" .
+bid:s2 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs:project_role "key_personnel" .
+bid:s3 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q1 .
+bid:s4 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q2 ; bbqs:project_role "co_pi" .
+bid:o1 a bbqs:ResearchOrganization ; bbqs:name "ONE" ; bbqs:members bid:ann, bid:nobody1 .
+bid:o2 a bbqs:ResearchOrganization ; bbqs:name "TWO" ; bbqs:members bid:nobody1 .
+bid:o3 a bbqs:ResearchOrganization ; bbqs:name "THREE" .
+bid:o4 a bbqs:ResearchOrganization ; bbqs:name "FOUR" ; bbqs:members bid:gone5 .
+bid:w1 a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
+bid:w2 a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
+bid:w3 a bbqs:WorkingGroup ; bbqs:name "WG-Empty" .
+bid:dev a bbqs:Device ; bbqs:model_name "Scope" ; bbqs:manufacturer bid:man ; bbqs:device_category bid:nocat .
+bid:man a bbqs:DeviceManufacturer ; bbqs:name "Lens Co" .
+bid:net a bbqs:MLModel ; bbqs:name "Pose net" ; bbqs:evaluated_by bid:bench .
+bid:bench a bbqs:Benchmark ; bbqs:name "Pose bench" ; bbqs:evaluates bid:net .
+bid:j1 a bbqs:Job ; bbqs:name "Postdoc", "Postdoctoral fellow" ; bbqs:job_institution "ONE" ; bbqs:job_type "postdoc" ;
+    bbqs:posted_by "Lab manager" .
+bid:j2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" ; bbqs:job_type "staff" ;
+    bbqs:posted_by bid:nobody2 .
+bid:j3 a bbqs:Job ; bbqs:name "Engineer" ; bbqs:job_type "staff" ; bbqs:posted_by bid:nobody1 .
+bid:f1 a bbqs:FundingOpportunity ; bbqs:name "First day" ; bbqs:expiration_date "2026-10-14"^^xsd:date .
+bid:f2 a bbqs:FundingOpportunity ; bbqs:name "Last day" ; bbqs:expiration_date "2027-04-14"^^xsd:date .
+bid:f3 a bbqs:FundingOpportunity ; bbqs:name "Day before" ; bbqs:expiration_date "2026-10-13"^^xsd:date .
+bid:f4 a bbqs:FundingOpportunity ; bbqs:name "Day after" ; bbqs:expiration_date "2027-04-15"^^xsd:date .
+bid:f5 a bbqs:FundingOpportunity ; bbqs:name "CQ17's day" ; bbqs:expiration_date "2026-09-29"^^xsd:date .
+bid:c1 a bbqs:SourceClass ; bbqs:grade 3 .
+bid:c2 a bbqs:SourceClass ; bbqs:grade 1, 2 .
+bid:v1 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "q1" ; bbqs:prov_entity_column "title" ;
+    bbqs:prov_value_text "First", "The first" ; bbqs:prov_source_class bid:nosource .
+bid:v2 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "q1" ; bbqs:prov_entity_column "title" ;
+    bbqs:prov_value_text "1st" ; bbqs:prov_source_class bid:nosource, bid:c2 .
+bid:v3 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d1" ; bbqs:prov_entity_table "datasets" ;
+    bbqs:prov_source_class bid:c1 .
+bid:v4 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "q3" ; bbqs:prov_entity_column "title" ;
+    bbqs:prov_value_text "Not it" ; bbqs:prov_source_class bid:c2 .
+bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_column "name" ; bbqs:prov_value_text "D two" .
+"""
+# Rows per question, by hand; a question not named has none. Some of the working:
+#   CQ04   q1 alone has the grant number (q3 only has it as a name). Ann's two records, each under
+#          her two names; Bo's record has no role: 4.
+#   CQ13   the dataset q1 both funded and produced: 2.
+#   CQ19   v1 gives two values from a source nothing describes: 2. v2 gives one value from that
+#          source and from one graded twice: 3. v4 is about q3: 0. So 5.
+#   CQ25   m1 fits by its name, its common name and an alias, m2 by its common name: q1, 4 times.
+#   CQ30   d1 has a sourced record; d2's record names no source: 1.
+#   CQ32   ONE has Ann and somebody not exported, TWO that somebody, THREE nobody, FOUR somebody
+#          else not exported: 4 rows.
+#   CQ37   one job under two titles, posted by a name; one by an id nothing describes; one by an id
+#          the server made a node of: 4.
+#   CQ38   q2's one output was not exported, but it has one; q3 has no grant number; so q4 alone: 1.
+#   CQ41   q1: three datasets, two of them not exported, each with Ann (contact_pi) under two names:
+#          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names: 4. So 10.
+AWKWARD_ROWS = {"CQ01": 4, "CQ04": 4, "CQ05": 2, "CQ06": 2, "CQ08": 3, "CQ09": 2, "CQ13": 2, "CQ15": 1, "CQ17": 4,
+                "CQ18": 3, "CQ19": 5, "CQ20": 2, "CQ21": 3, "CQ22": 2, "CQ23": 9, "CQ24": 2, "CQ25": 4, "CQ26": 3,
+                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 1,
+                "CQ39": 2, "CQ40": 2, "CQ41": 10, "CQ42": 1}
 
 
 class TheBenchmark(unittest.TestCase):
     """bench_mcp_server.py: the competency questions, asked over MCP as SPARQL and without it."""
 
-    def ask(self, source: str) -> dict:
+    def graph(self, turtle: str) -> str:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        path = Path(folder.name) / "graph.ttl"
+        path.write_text(turtle, encoding="utf8")
+        return str(path)
+
+    def client(self, source: str) -> bench.Client:
         client = bench.Client(source)
         self.addCleanup(client.close)
-        return bench.ask_questions(client, m.GraphSource(source, 0).current(), source, fresh=False)
+        return client
+
+    def ask(self, source: str) -> dict:
+        return bench.ask_questions(self.client(source), m.GraphSource(source, 0).current(), source, fresh=False)
+
+    @staticmethod
+    def differing(asked: dict) -> list:
+        return [(q["id"], q["sparql_agrees"], q["tools_agree"]) for q in asked["questions"]
+                if not (q["sparql_agrees"] and q["tools_agree"])]
+
+    def test_the_questions_are_the_19_adopted_and_the_23_proposed(self):
+        questions, prologue = bench.load_questions()
+        self.assertEqual([q["id"] for q in questions], [f"CQ{n:02d}" for n in range(1, 43)])
+        self.assertEqual([q["set"] for q in questions], ["adopted"] * 19 + ["proposed"] * 23)
+        self.assertEqual(set(bench.WALKS), {q["id"] for q in questions})      # no question without a walk, nor a walk without one
+        self.assertEqual({q["access"] for q in questions}, {"anon", "full"})
+        for q in questions:                                                    # each parses, with the prefixes the files give
+            Graph().query(prologue + q["sparql"])
+        # the adopted file is the one quality.py scores, and adding the second did not touch it
+        self.assertEqual([path.name for path in bench.QUESTION_FILES.values()],
+                         ["competency_questions.yaml", "competency_questions_extended.yaml"])
+        self.assertIn('DEFAULT_CQS = HERE / "competency_questions.yaml"', (HERE / "quality.py").read_text(encoding="utf8"))
 
     def test_every_question_gets_the_same_rows_three_ways_on_the_export(self):
         asked = self.ask(str(EXPORT))
-        differ = [(q["id"], q["sparql_agrees"], q["tools_agree"]) for q in asked["questions"]
-                  if not (q["sparql_agrees"] and q["tools_agree"])]
-        self.assertEqual(differ, [])                       # as SPARQL, and through the graph tools, as the file itself
-        self.assertEqual(asked["asked"], 19)
+        self.assertEqual(self.differing(asked), [])        # as SPARQL, and through the graph tools, as the file itself
+        self.assertEqual((asked["asked"], asked["adopted"]), (42, 19))
         baseline = json.loads((HERE / "quality_baseline.json").read_text(encoding="utf8"))
-        self.assertEqual(sorted(q["id"] for q in asked["questions"] if q["rows"]), sorted(baseline["answered"]))
-        self.assertEqual((asked["sparql_agree"], asked["tools_agree"], asked["all_agree"]),
-                         (asked["answered"], asked["answered"], True))
-        self.assertEqual(set(bench.WALKS), {q["id"] for q in asked["questions"]})      # no question without a walk
-
-    def miniature(self) -> str:
-        folder = tempfile.TemporaryDirectory()
-        self.addCleanup(folder.cleanup)
-        graph = Path(folder.name) / "miniature.ttl"
-        graph.write_text(MINIATURE, encoding="utf8")
-        return str(graph)
+        adopted = [q for q in asked["questions"] if q["set"] == "adopted"]
+        self.assertEqual(sorted(q["id"] for q in adopted if q["rows"]), sorted(baseline["answered"]))   # as the KG gate counts
+        self.assertEqual(asked["answered_adopted"], len(baseline["answered"]))
+        silent = asked["asked"] - asked["answered"]
+        self.assertEqual((asked["sparql_agree"], asked["tools_agree"], asked["silent_agree"], asked["all_agree"]),
+                         (asked["answered"], asked["answered"], silent, True))
+        # every question is accounted for, once, as kg/README.md accounts for them
+        status: dict = {}
+        for q in asked["questions"]:
+            status.setdefault(q["status"], []).append(q["id"])
+        self.assertEqual(status, {
+            "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 23, 25, 26,
+                                                28, 29, 32, 33, 34, 38, 41)],
+            "needs the full export": ["CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40"],
+            "not modelled": ["CQ14"],
+            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
+        self.assertEqual((asked["need_the_full_export"], asked["none_in_this_export"], asked["not_modelled"]), (7, 5, 1))
+        self.assertGreater(asked["answered"] - asked["answered_adopted"], 10)  # the proposed ones are not all silent here
 
     def test_every_question_can_be_walked_when_it_has_an_answer(self):
-        # On the public export three questions return nothing either way, which checks nothing. Here
-        # all nineteen have rows, so every walk through the graph tools is held against real ones.
-        asked = self.ask(self.miniature())
-        rows = {q["id"]: q["rows"] for q in asked["questions"]}
-        self.assertEqual([name for name, count in rows.items() if not count], [])
-        self.assertEqual((rows["CQ02"], rows["CQ05"], rows["CQ11"], rows["CQ13"], rows["CQ15"], rows["CQ17"], rows["CQ19"]),
-                         (2, 1, 1, 2, 2, 1, 1))
-        differ = [q["id"] for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])]
-        self.assertEqual(differ, [])
+        # On the public export 13 of the questions return nothing either way, which checks nothing.
+        # Here all 42 have rows, so every walk through the graph tools is held against real ones.
+        asked = self.ask(self.graph(MINIATURE))
+        self.assertEqual({q["id"]: q["rows"] for q in asked["questions"]}, MINIATURE_ROWS)
+        self.assertNotIn(0, MINIATURE_ROWS.values())
+        self.assertEqual(self.differing(asked), [])
         status = {q["id"]: q["status"] for q in asked["questions"]}
         self.assertEqual(status["CQ14"], "not modelled")   # the schema has no such link, whatever the data says
         self.assertEqual({s for name, s in status.items() if name != "CQ14"}, {"answered"})
+        self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 19, 0))
+
+    def test_shapes_an_export_could_take_and_todays_does_not(self):
+        asked = self.ask(self.graph(AWKWARD))
+        self.assertEqual({q["id"]: q["rows"] for q in asked["questions"] if q["rows"]}, AWKWARD_ROWS)
+        self.assertEqual(self.differing(asked), [])
+        # the rows themselves, for the walks that have to tell a node from a value
+        client = self.client(self.graph(AWKWARD))
+        self.assertEqual(sorted(bench.WALKS["CQ37"][0](client)),
+                         [["Engineer", "bid:nobody1"], ["Postdoc", "Lab manager"], ["Postdoctoral fellow", "Lab manager"],
+                          ["Technician", "https://brain-bbqs.org/id/nobody2"]])
+        self.assertEqual(bench.WALKS["CQ15"][0](client), [["Lens Co", "Scope", "https://brain-bbqs.org/id/nocat"]])
+        self.assertEqual(sorted(bench.WALKS["CQ32"][0](client)), [["FOUR", 1], ["ONE", 2], ["THREE", 0], ["TWO", 1]])
+        self.assertEqual(bench.WALKS["CQ30"][0](client), [["bid:d2", "D two"]])
+        self.assertEqual(sorted(bench.WALKS["CQ19"][0](client), key=str),
+                         sorted([["First", "bid:nosource", None], ["The first", "bid:nosource", None],
+                                 ["1st", "bid:nosource", None], ["1st", "bid:c2", 1], ["1st", "bid:c2", 2]], key=str))
+        self.assertEqual(bench.WALKS["CQ13"][0](client), [["R34DA059723", "D one"]] * 2)
+
+    def test_a_graph_with_next_to_nothing_in_it_is_asked_everything_all_the_same(self):
+        # no species, no R34DA059723, no working group: nothing for a walk to start from
+        asked = self.ask(self.graph(PREFIXES + 'bid:only a bbqs:Project ; bbqs:name "Alone" .\n'))
+        self.assertEqual((asked["asked"], asked["answered"], asked["silent_agree"], asked["all_agree"]), (42, 0, 42, True))
+
+    def test_the_one_thing_a_walk_cannot_see_is_a_roster_record_with_an_end_missing(self):
+        # Cy is given a role on a project nothing describes. SPARQL reads the half-record, so WG-Analysis
+        # now has a member with a role (CQ42); the server makes no link of it, and says so in describe_graph.
+        source = self.graph(MINIATURE + 'bid:r9 a bbqs:ProjectRole ; bbqs:held_by bid:cy ; bbqs:on_project bid:nowhere ; '
+                                        'bbqs:project_role "co_pi" .\n')
+        asked = self.ask(source)
+        self.assertEqual(self.differing(asked), [("CQ42", True, False)])
+        self.assertEqual((asked["all_agree"], asked["tools_agree"], asked["silent_agree"]), (False, 41, 0))
+        kg = m.GraphSource(source, 0).current()
+        self.assertEqual(dict(kg.unfolded), {"ProjectRole": 1})
+        self.assertTrue(any("1 ProjectRole" in note for note in kg.describe()["notes"]))
 
     def test_a_walk_that_went_wrong_would_be_noticed(self):
         with mock.patch.dict(bench.WALKS, {"CQ09": (lambda client: [], "nothing")}):
-            asked = self.ask(self.miniature())
+            asked = self.ask(self.graph(MINIATURE))
         wrong = [q["id"] for q in asked["questions"] if not q["tools_agree"]]
         self.assertEqual((wrong, asked["all_agree"], asked["tools_agree"]), (["CQ09"], False, asked["answered"] - 1))
 
+    def test_what_the_client_makes_of_what_the_tools_return(self):
+        client = self.client(self.graph(AWKWARD))
+        # an id nothing describes is a value; when two nodes point at it the server makes a node of it too
+        self.assertEqual(client.values("o1", "members"), ["https://brain-bbqs.org/id/nobody1"])
+        self.assertEqual(sorted(row["type"] for row in client.linked("o1", "members", "out")), ["Investigator", "Unresolved"])
+        self.assertEqual(sorted(bench.cell(entry) for entry in client.pointed("o1", "members")), ["bid:ann", "bid:nobody1"])
+        self.assertEqual([bench.cell(entry) for entry in client.pointed("j2", "posted_by")], ["https://brain-bbqs.org/id/nobody2"])
+        self.assertEqual([bench.cell(entry) for entry in client.pointed("j1", "posted_by")], ["Lab manager"])
+        self.assertEqual((client.has("q2", "produced"), client.has("q4", "produced")), (True, False))
+        # one entry per link from get_node, one per node from find_related
+        self.assertEqual([row["role"] for row in client.linked("q1", "has_role", "in") if row["id"] == "ann"],
+                         ["contact_pi", "key_personnel"])
+        self.assertEqual(sorted(ids(client.tied("q1", "Investigator", {"has_role"}))), ["ann", "bo"])
+        # search_nodes takes "house mouse" for "House Mouse"; a question does not
+        self.assertEqual(len(client.listed(type="Species", where={"common_name": "House Mouse"})), 3)
+        self.assertEqual(sorted(ids(client.where("Species", common_name="House Mouse"))), ["m1", "m2"])
+        # nothing of the kind is an empty answer; any other refusal stops the run
+        self.assertEqual((client.all_of("Nonesuch"), client.where("Species", nonesuch="x"), client.tied("q1", "Nonesuch", {"x"})),
+                         ([], [], []))
+        with self.assertRaises(SystemExit):
+            client.listed(type="Species", where={"common_name": "House Mouse"}, query=5)
+        with self.assertRaises(SystemExit):
+            client.tied("nobody-of-that-name", "Species", {"x"})
+
+    def test_how_two_answers_are_compared(self):
+        same = bench.same
+        self.assertEqual(same([["b", 2], ["a", 1]]), same([["a", 1], ["b", 2]]))             # the order of rows is not part of it
+        self.assertNotEqual(same([["a"], ["a"]]), same([["a"]]))                              # how many times a row comes is
+        self.assertEqual(same([[2.0, None]]), same([[2, None]]))
+        self.assertNotEqual(same([["2"]]), same([[2]]))
+        self.assertEqual(same([["<https://orcid.org/0000-0001>"]]), same([["https://orcid.org/0000-0001"]]))
+        self.assertNotEqual(same([["<not an address>"]]), same([["not an address"]]))
+        self.assertEqual(same([["n", "b, a"]], {1: ", "}), same([["n", "a, b"]], {1: ", "}))  # a joined cell, in any order
+        self.assertNotEqual(same([["n", "b, a"]]), same([["n", "a, b"]]))                     # any other cell, as it is
+        self.assertNotEqual(same([["n", "a, a"]], {1: ", "}), same([["n", "a"]], {1: ", "}))
+        # which cells are joined is read from the question, so a new one cannot be forgotten
+        questions, _ = bench.load_questions()
+        self.assertEqual({q["id"]: bench.joined_cells(q["sparql"]) for q in questions if "GROUP_CONCAT" in q["sparql"]},
+                         {"CQ20": {1: ", "}, "CQ24": {1: ", "}, "CQ29": {2: ", "}, "CQ35": {2: "; "}})
+        self.assertEqual(bench.joined_cells("SELECT ?a (COUNT(?b) AS ?n) (GROUP_CONCAT(?c) AS ?all) { ?a ?b ?c }"), {2: " "})
+        self.assertEqual((bench.bid("abc123"), bench.bid("ext:https://orcid.org/0000-0001"), bench.bid("https://example.org/x")),
+                         ("bid:abc123", "https://orcid.org/0000-0001", "https://example.org/x"))
+
     def test_the_results_block_is_written_between_its_markers_and_nowhere_else(self):
+        def row(name, kind, status, rows, **more):
+            return {"id": name, "set": kind, "question": f"{name}?", "status": status, "rows": rows, "sparql_agrees": True,
+                    "tools_agree": True, "how": "walk", **more}
         results = {"server": "0.0.0", "nodes": 3, "links": 2, "snapshot": {"source": "x.ttl", "dated": "2026-01-01"},
-                   "questions": {"asked": 2, "answered": 1, "need_the_full_export": 1, "not_modelled": 0, "sparql_agree": 1,
-                                 "tools_agree": 1, "all_agree": True, "questions": [
-                                     {"id": "CQ01", "question": "One?", "status": "answered", "rows": 4, "sparql_agrees": True,
-                                      "tools_agree": True, "how": "walk"},
-                                     {"id": "CQ02", "question": "Two?", "status": "needs the full export", "rows": 0,
-                                      "sparql_agrees": True, "tools_agree": True, "how": "walk"}]}}
+                   "questions": {"asked": 4, "adopted": 2, "answered": 2, "answered_adopted": 1, "need_the_full_export": 1,
+                                 "none_in_this_export": 1, "not_modelled": 0, "sparql_agree": 2, "tools_agree": 2,
+                                 "silent_agree": 2, "all_agree": True, "questions": [
+                                     row("CQ01", "adopted", "answered", 4), row("CQ02", "adopted", "needs the full export", 0),
+                                     row("CQ03", "proposed", "answered", 7), row("CQ04", "proposed", "none in this export", 0)]}}
         block = bench.markdown(results)
         self.assertTrue(block.startswith(bench.START) and block.endswith(bench.END))
-        self.assertIn("| Competency questions with an answer in this export | **1 of 2** (1 need the full export) |", block)
-        self.assertIn("| CQ01 | One? | 4 | same | same | walk |", block)
-        self.assertIn("| CQ02 | Two? *(needs the full export)* | 0 | none | none | walk |", block)
+        self.assertIn("| Competency questions that return rows on this export | **2 of 4**: 1 of the 2 the KG is scored on, "
+                      "1 of the 2 proposed in #441 |", block)
+        self.assertIn("| The other 2 (1 need the full export, 1 find none in this export): no rows either way | **2 of 2** |", block)
+        lines = block.splitlines()
+        at = {name: next(i for i, line in enumerate(lines) if line.startswith(f"| {name} |")) for name in ("CQ02", "CQ03")}
+        self.assertEqual(lines[at["CQ02"]], "| CQ02 | CQ02? *(needs the full export)* | 0 | none | none | walk |")
+        self.assertEqual(lines[at["CQ03"]], "| CQ03 | CQ03? | 7 | same | same | walk |")
+        self.assertIn("Proposed in [#441]", lines[at["CQ03"] - 1])             # the proposed ones under their own heading
+        self.assertEqual(sum("Proposed in [#441]" in line for line in lines), 1)
+        # a difference is said, in the summary and in the row
+        results["questions"].update(tools_agree=1, all_agree=False)
+        results["questions"]["questions"][2]["tools_agree"] = False
+        differs = bench.markdown(results)
+        self.assertIn("same rows again | **1 of 2** |", differs)
+        self.assertIn("| CQ03 | CQ03? | 7 | same | **differs** | walk |", differs)
+        self.assertIn("NOT ALL AGREE", bench.report({**results, "questions": {**results["questions"], "questions": [
+            {**q, "sparql_ms": 1.0, "tools_ms": 1.0, "tool_calls": 1} for q in results["questions"]["questions"]]}}))
         readme = (HERE.parent / "README.md").read_text(encoding="utf8")
         self.assertEqual((readme.count(bench.START), readme.count(bench.END)), (1, 1))     # the main README has the block
         self.assertLess(readme.index(bench.START), readme.index(bench.END))
+        for q in bench.load_questions()[0]:                                                # and it lists the questions as they stand
+            self.assertEqual(readme.count(f"| {q['id']} | {q['question']}"), 1, q["id"])
 
 
 class TheCommandLine(unittest.TestCase):
