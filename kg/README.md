@@ -348,8 +348,8 @@ which copy of the graph it came from, that copy's date, and its age in days.
 | `search_nodes` | Find nodes by text (names, grant numbers, ORCID, DOI, abstracts, keywords), or list them by type and exact property values. |
 | `get_node` | One node in full: every property, and every link grouped by type and direction. |
 | `get_neighbors` | Everything within 1 to 4 links of a node, nearest first, each with the link that reached it. Filter by link type, direction and the type of node returned. Does not walk through hubs unless asked. It lists; it does not rank. |
-| `find_related` | What is most closely tied to a node, or to several at once (what they have in common), each type of node ranked on its own. See [how it decides](#how-it-decides-what-is-related). |
-| `find_paths` | How two nodes are connected: the shortest chains first, then longer ones; among equally short, the strongest first. |
+| `find_related` | What is most closely tied to a node, or to several at once (what they have in common), each type of node ranked on its own, up to four links away unless asked. See [how it decides](#how-it-decides-what-is-related). |
+| `find_paths` | How two nodes are connected: the shortest chains first, strongest first among them, then longer ones, a page at a time. |
 | `sparql_query` | SPARQL `SELECT` / `ASK` over the graph as exported, for counts and aggregates. |
 
 A node can be named by the short id another tool returned, its IRI, or an exact name, grant
@@ -378,28 +378,36 @@ hundred people and says little:
   a median of 9 nodes this way, against 114 (export of 2026-11-05). Naming the links to follow
   (`edge`) or setting `through_hubs` walks through.
 - `find_related` and `find_paths` cut nothing off. A hub passes on little, by the rule in the next
-  section, so what lies behind it is found and ranks low. `find_paths` also leaves out any chain
-  that goes the long way round a direct link. `avoid_edges` drops a link type altogether, in both.
+  section, so what lies behind it comes after anything at the same distance that is reached by a
+  more exclusive route. Where a working group is all a person has, its members are the list, all
+  equal, and the reply says so. `find_paths` also leaves out any chain that goes the long way round
+  a direct link. `avoid_edges` drops a link type altogether, in both.
 
 ### How it decides what is related
 
-`find_related` and `find_paths` rank by **spreading activation**, the account in psychology of how
-one idea brings up another: think of *doctor*, and *nurse* comes to mind faster. It was chosen
-because it is a theory about a network of concepts, which is what this graph is, and because a
-person can state the rule and check any answer by hand.
+Put plainly: nodes are still listed by how many links away they are, as `get_neighbors` lists
+them. What is new is the order among nodes equally far away, and a number that says why.
 
-Activation starts at one node and spreads outward. Three rules, each a published finding:
+That order comes from **spreading activation**, the account in psychology of how one idea brings
+up another: think of *doctor*, and *nurse* comes to mind faster. It is used here because it is a
+theory about a network of concepts, which is what this graph is, and because the rule is short
+enough to state and to check.
 
-1. **It moves one link at a time**, so what is nearer is reached sooner (Collins & Quillian 1969).
-2. **A node splits what it received equally among all its links.** This is the fan effect: the more
-   a concept is linked to, the less each link carries (Anderson 1974). A project with 5 links
-   passes on a fifth along each. A working group with 114 members passes on 1/114.
+Activation starts at one node and spreads outward. Three rules, each from the published theory:
+
+1. **It moves one link at a time**, so what is nearer is reached sooner (Collins & Quillian 1969
+   found that people take longer the more links lie between two concepts).
+2. **A node splits what it received equally among the nodes it is linked to.** This is the usual
+   account of the fan effect: the more a concept is linked to, the less each link carries
+   (Anderson 1974). A project with 5 neighbours passes on a fifth to each. A working group with
+   114 members passes on 1/114.
 3. **Amounts that arrive together add up** (Collins & Loftus 1975), so two routes to a node count
    for more than one.
 
-The number that comes out is **strength**: 1 for a direct link, and otherwise the sum, over the
-shortest routes, of 1/links for each node in between, multiplied along the route. There is nothing
-to tune. Worked by hand, for a species studied by two projects, one with 5 links and one with 2:
+The number that comes out is **strength**. A direct link is 1. Otherwise it is the sum, over the
+shortest routes, of 1/neighbours for each node in between, multiplied along the route. There is
+nothing to tune. Worked by hand, for a species studied by two projects, one with 5 neighbours and
+one with 2:
 
 | Node | How activation gets there | Strength |
 |---|---|---|
@@ -410,56 +418,86 @@ to tune. Worked by hand, for a species studied by two projects, one with 5 links
 The person on both ranks first for two reasons the arithmetic keeps apart: two routes instead of
 one, and one of them through a project with little else attached to it. On the real graph (export
 of 2026-11-05), `find_related("House Mouse", type="Investigator")` puts first the one person on two
-House Mouse projects, which have 6 and 9 links (1/6 + 1/9 = 0.28), then the three people on its
-smallest project, which has 4 (0.25 each).
+House Mouse projects, which have 6 and 9 neighbours (1/6 + 1/9 = 0.28), then the three people on
+its smallest project, which has 4 (0.25 each).
+
+Strength is a sum, so it has no ceiling. WG-Analytics and WG-Devices share 57 members and are tied
+by 17.8, two links apart. That does not make them closer than a direct link: strength compares
+nodes the same distance away, and distance comes first.
 
 How answers are ordered:
 
 - **Each type of node is ranked on its own**: people against people, projects against projects.
   Size goes with type. A working group collects activation from a hundred members and a paper from
   one project, so a single list of both mostly sorts them by size.
-- **Nearest first, then strongest.** A node three links away never comes before one two links away
-  of the same type, however much reaches it.
+- **Nearest first, as in `get_neighbors`, then strongest.** A node three links away never comes
+  before one two links away of the same type, however much reaches it. This is the server's rule,
+  not the theory's, and it is what keeps the big working groups in their place: ordered by amount
+  alone, in one list of everything, a working group the person is not in reaches the first ten for
+  172 of 210 people, and nearest first holds that to 15.
+- **Four links away, unless asked.** `max_hops` goes up to 8. What lies farther is counted per
+  type (`beyond`), not listed.
 - **Several starting nodes** ask what they have in common. Only nodes that every one of them
-  reaches are returned, ordered by the farthest starting node and then by the weakest tie.
-- **Ties are said, not hidden.** When a list is cut among equals (all 66 members of a working group
-  are tied to it equally), `tied` gives how many there are and how many were listed.
+  reaches are returned, each placed by its worst tie (the farthest starting node, and of those the
+  weakest), then by its next worst.
+- **Ties are said, not hidden.** When a list is cut among equals, `tied` gives how many there are
+  and how many were listed, and within a tie the order is by name and means nothing. It is common:
+  274 of the 421 default lists of people end that way (export of 2026-11-05), because everyone who
+  shares only a working group with someone is tied to them equally.
+- **Two nodes are one tie**, however many links record it. A person recorded on a grant twice is
+  not twice as close to it.
 
-Each row carries `through`, the strongest route, and `carries`, the share of the strength it
-brings. `find_paths` lists every route between two nodes with its own strength, and its `tie`
-gives their number and sum, which is the strength `find_related` shows for the pair. The two tools
-are one calculation read two ways, and the same from either end.
+What a reply carries. A row one link away has `link`, the link itself. A row farther away has
+`through`, the strongest route to it (the path `find_paths` lists first), each node on it with
+`splits`, the number of neighbours it divided among; where there is more than one route the row
+also has `routes`, how many, and `share`, the part of the strength the route shown brings. With several starting nodes a row has `ties`
+instead, one per starting node. `find_paths` lists the paths between two nodes strongest first, up
+to 25 at a time (`offset` for the next page) and up to 8 links long, each with its own strength;
+its `routes` and `strength` are the number and the sum of the shortest ones, which are the figures
+`find_related` shows for the pair. The two tools are one calculation read two ways, and give the
+same answer whichever end the question starts from.
 
-What it is without the name: a breadth-first search that carries one number, the chance that a
-random walker leaving the starting node stands on a given node after that many steps, times the
-starting node's links. Two links out it is the Resource Allocation index used to predict missing
-links (Zhou, Lü & Zhang 2009). The psychology supplies the reasons and the vocabulary. The
+So a nearby answer can be redone by hand from what the reply shows. A far one adds up hundreds of
+routes, and `routes` says how many.
+
+For those who know the names: this is a breadth-first search that carries one number, the chance
+that a random walker leaving the starting node stands on a given node after that many steps, times
+the starting node's neighbours. Two links out it is the Resource Allocation index used to predict
+missing links (Zhou, Lü & Zhang 2009). The psychology supplies the reasons and the vocabulary. The
 arithmetic is ordinary.
 
 What it does not do:
 
 - **Only the first wave is read.** In the full theory activation keeps spreading and echoing until
-  it settles. Here a node is read once, when it is first reached, so longer ways round add nothing.
-  That keeps every number checkable by hand. Letting it settle was tried, and mostly promoted the
-  big working groups: in one list of everything, a working group the person is not in came into
-  the first ten for 150 of 210 people, against 15 when read at the first wave.
+  it settles, fades a little with every link, and the starting concept divides its own activation
+  too. Here a node is read once, when it is first reached, with nothing fading. That buys exact
+  fractions and no fading constant or stopping point to choose. It does not buy a better ranking:
+  type by type, letting it settle finds hidden ties about as often (64% against 65%).
+- **Nearest first is not in the theory**, where what is most active comes to mind first.
 - **All link types count the same.** A role on a project and membership of a working group are one
   link each.
 - **Strength reads the data as recorded.** A node in the middle with a record missing has fewer
-  links and so passes on more: a person with a project and a working group passes on 1/2, and 1/3
-  once their organization is recorded too. 87 of the 210 linked investigators have no organization
-  recorded (export of 2026-11-05). Read a difference of that size as noise.
+  neighbours and so passes on more: a person with a project and a working group passes on 1/2, and
+  1/3 once their organization is recorded too. 87 of the 210 linked investigators have no
+  organization recorded (export of 2026-11-05). Read a difference of that size as noise.
 - **It is a ranking rule, not a claim about anyone's memory.** Whether activation really spreads
   across several links in people is still argued over (Ratcliff & McKoon 1988).
 
 How it was chosen. Five natural processes were built and run on the real graph: spreading
-activation, an animal foraging from a home base, slime-mould tubes, ant trails, and a pulse on a
-spider's web. Three reviewers scored them separately and a fourth tried to break the winner. The
-first-wave reading won as the only one that is exact by hand, has nothing to tune, and never put a
-far or merely popular node ahead of a near one. The test that settled the details, and now runs
-with the others: hide one real link, start from one of its ends, and see where the other end lands
-among the nodes of its type. Strength puts it in the first ten 65% of the time. Distance alone,
-which is what `get_neighbors` goes by, does so 39% of the time.
+activation left to settle, an animal foraging from a home base, slime-mould tubes, ant trails, and
+a pulse travelling a spider's web. Three reviewers scored them separately and a fourth tried to
+break the winner. The web pulse scored highest, with two of the three: it was exact by hand, had
+nothing to tune, and never put a far or merely popular node ahead of a near one. Spreading
+activation as built came second, because its lists could not be redone by hand and the working
+groups rose in them. What is here is the web pulse's arithmetic (a node passing on 1/neighbours
+where a junction of threads passes 2/threads, which orders nodes the same way), told as the first
+wave of spreading activation, because that is the theory that is about networks of concepts.
+
+Whether it earns its place is measured, and the measure runs with the tests: hide one real tie,
+start from one of its ends, and see whether the other end is among the first ten of its type that
+the tool returns. `find_related` has it there 62% of the time (65% when asked to look up to eight
+links away). `get_neighbors`, asked for the same type, 45 to 47%. That shows strength is worth
+having over distance alone. It does not defend the details of the rule: the hand-worked tests do.
 
 Sources: Quillian (1967), *Behavioral Science* 12, 410-430, where a connection between two
 concepts is found where the waves from each meet. Collins & Quillian (1969), *J. Verbal Learning
@@ -503,13 +541,15 @@ The KG gate runs them on every PR that touches `kg/`. They cover a hand-built gr
 were worked out by hand, strengths included; every competency question the baseline says is
 answered, asked through the server; the walking tools against SPARQL on the committed export; and
 the protocol itself, by a raw JSON-RPC client against a real process over stdio and over HTTP. The
-ranking has three checks of its own: the code gives exactly what spreading with nothing left out
+ranking has checks of its own: the code gives exactly what spreading with nothing left out
 delivers first (a second, slower version of the process, written without the shortcuts); the paths
-between two nodes add up to the strength shown for them; and the hidden-link measure above. Three guards hold across files:
-every schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in
-the script header match `requirements*.txt`, and no call that writes to a graph appears outside
-the one that loads it. The suite was shown able to fail: the server was broken 62 ways in a scratch
-copy, one at a time (34 of them in the ranking), and every break turned it red.
+between two nodes add up to the strength shown for them; the worked example in the tool
+descriptions is built and run, so what a client is told is what the server does; replies stay a
+size a client can take; and the hidden-tie measure above. Three guards hold across files: every
+schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
+script header match `requirements*.txt`, and no call that writes to a graph appears outside the
+one that loads it. The suite was shown able to fail: the server was broken 128 ways in a
+scratch copy, one at a time (100 of them in the ranking), and every break turned it red.
 
 ## Not yet built
 
