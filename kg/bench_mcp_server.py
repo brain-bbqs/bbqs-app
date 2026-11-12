@@ -41,11 +41,12 @@ import sys
 import threading
 import time
 from collections import defaultdict
+from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
 
 import yaml
-from rdflib import Graph
+from rdflib import BNode, Graph, Literal
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -148,12 +149,10 @@ class Client:
                 if all(value in self.values(node["id"], name) for name, value in wanted.items())]
 
     def node(self, node_id: str) -> dict:
-        """One node in full (get_node): its properties, and every link with the node at its other end."""
+        """One node in full (get_node): its properties, and its links with the node at the other end,
+        up to 500 of each kind (linked() says when that is not all of them)."""
         if ("node", node_id) not in self.cache:
-            full = self.call("get_node", node=node_id, edge_limit=500)
-            if any("more" in group for group in full["edges"]):
-                raise SystemExit(f"bench: {node_id} has more links of one kind than get_node lists at once")
-            self.cache["node", node_id] = full
+            self.cache["node", node_id] = self.call("get_node", node=node_id, edge_limit=500)
         return self.cache["node", node_id]
 
     def values(self, node_id: str, name: str) -> list:
@@ -165,8 +164,10 @@ class Client:
         """The nodes at the other end of one kind of link, one entry per link (get_node). `direction`
         is "out" for links pointing away from the node and "in" for links pointing at it. An entry
         carries what its link carries, e.g. the role."""
-        return [row for group in self.node(node_id)["edges"]
-                if group["edge"] == edge and group["direction"] == direction for row in group["nodes"]]
+        groups = [group for group in self.node(node_id)["edges"] if group["edge"] == edge and group["direction"] == direction]
+        if any("more" in group for group in groups):
+            raise Unwalkable(f"{node_id} has more {edge} links than get_node lists at once (500)")
+        return [row for group in groups for row in group["nodes"]]
 
     def pointed(self, node_id: str, name: str) -> list:
         """Everything a node points at through one property, one entry for each: a node (as get_node
@@ -179,7 +180,9 @@ class Client:
 
     def has(self, node_id: str, name: str) -> bool:
         """Whether a node says anything at all under one property, as a link or as a value."""
-        return bool(self.linked(node_id, name, "out")) or name in self.node(node_id)["properties"]
+        full = self.node(node_id)
+        return any(group["edge"] == name and group["direction"] == "out" for group in full["edges"]) \
+            or name in full["properties"]
 
     def tied(self, node: str, kind: str, edges: set) -> list:
         """The nodes of one type directly tied to `node` by one of `edges` (find_related, one link away,
@@ -193,11 +196,15 @@ class Client:
                     return []
                 raise SystemExit(f"bench: find_related({node}, {kind}) was refused: {error}")
             group = reply["related"][0]
-            reached = group["reached"]
+            reached = group["within"]
             found += group["nodes"]
             if not group["nodes"]:
                 break
-        return [row for row in found if {row["link"]["edge"], *row["link"].get("also", ())} & edges]
+        return [row for row in found if {row["link"]["edge"], *(link["edge"] for link in row["link"].get("also", ()))} & edges]
+
+
+class Unwalkable(Exception):
+    """A question the graph tools cannot answer here in full: it fails on its own, not the run."""
 
 
 def nothing_of_the_kind(error: str) -> bool:
@@ -207,11 +214,19 @@ def nothing_of_the_kind(error: str) -> bool:
 
 
 def bid(node_id: str) -> str:
-    """A node, as sparql_query writes one in a cell: bid:<id>, or its address when the node is not
-    one of this graph's own ids."""
-    if node_id.startswith("ext:"):
-        return node_id[4:]
-    return node_id if "://" in node_id else "bid:" + node_id
+    """A node, as sparql_query writes one in a cell: bid:<id> for one of this graph's own ids (a
+    short id never holds a colon), and any other by its address: bbqs:Name where a declared prefix
+    fits, <address> otherwise."""
+    iri = node_id[4:] if node_id.startswith("ext:") else node_id
+    return "bid:" + iri if ":" not in iri else address(iri)
+
+
+def address(iri: str) -> str:
+    """An IRI that is not one of this graph's nodes, written as a SPARQL cell writes it."""
+    for prefix, namespace in m.PREFIXES.items():
+        if prefix != "bid" and iri.startswith(namespace) and re.fullmatch(r"\w+", iri[len(namespace):]):
+            return f"{prefix}:{iri[len(namespace):]}"
+    return f"<{iri}>"
 
 
 def cell(entry):
@@ -227,10 +242,13 @@ def cell(entry):
 # missing or given twice, a link may point at an id nothing describes, the same two nodes may be
 # linked twice. What they take for granted is the schema: a link ends at the type its range names.
 #
-# One thing a walk cannot see: a roster record with an end missing. The server makes a link of a
-# record only when both its ends are nodes (describe_graph counts the rest), while SPARQL still reads
-# the half that is there. Today's export has two such records and no question can tell; if one ever
-# could (CQ05, CQ24, CQ34, CQ42), the comparison below would say DIFFERENT, as it should.
+# What a walk cannot see is what the server's view leaves out, which describe_graph counts in its
+# notes: a roster record with an end missing, or with a person, project or role given twice (no
+# link is made of it); a node's second rdf:type (it is listed under the first); a blank node (not
+# a node of the view); a language tag (the text is kept, the tag is not). SPARQL reads the file as
+# it is, so where a question can tell, the comparison below says DIFFERENT, as it should. The
+# export the exporter writes has none of these but two roster records with an end missing, which
+# no question can tell. CQ17 and CQ39 compare xsd:date values as ISO text, which is what they are.
 
 def cq01(c):
     return [[bid(p["id"]), number, mechanism] for p in c.all_of("Project")
@@ -242,6 +260,8 @@ def cq02(c):
     for p in c.all_of("Project"):
         for mechanism in c.values(p["id"], "mechanism"):
             for amount in c.values(p["id"], "award_amount"):
+                if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+                    continue                                    # not a number: SPARQL cannot add it either
                 count[mechanism] += 1
                 total[mechanism] += amount
     return [[mechanism, count[mechanism], total[mechanism]] for mechanism in count]
@@ -274,8 +294,8 @@ def cq06(c):
 
 
 def cq07(c):
-    return [[name, orcid] for person in c.all_of("Investigator")
-            for name in c.values(person["id"], "name") for orcid in c.values(person["id"], "orcid")]
+    return [[name, cell(orcid)] for person in c.all_of("Investigator")
+            for name in c.values(person["id"], "name") for orcid in c.pointed(person["id"], "orcid")]
 
 
 def cq08(c):
@@ -332,8 +352,8 @@ def cq15(c):
 
 
 def cq16(c):
-    return [[name, repo] for tool in c.all_of("SoftwareTool")
-            for name in c.values(tool["id"], "name") for repo in c.values(tool["id"], "repo_url")]
+    return [[name, cell(repo)] for tool in c.all_of("SoftwareTool")
+            for name in c.values(tool["id"], "name") for repo in c.pointed(tool["id"], "repo_url")]
 
 
 def cq17(c):
@@ -342,8 +362,8 @@ def cq17(c):
 
 
 def cq18(c):
-    return [[name, institution] for job in c.all_of("Job")
-            for name in c.values(job["id"], "name") for institution in c.values(job["id"], "job_institution")]
+    return [[name, cell(institution)] for job in c.all_of("Job")
+            for name in c.values(job["id"], "name") for institution in c.pointed(job["id"], "job_institution")]
 
 
 def _local(c, node_id: str) -> str:
@@ -509,8 +529,8 @@ def cq35(c):
     titles = defaultdict(list)
     for job in c.all_of("Job"):
         for title in c.values(job["id"], "name"):
-            for institution in c.values(job["id"], "job_institution"):
-                titles[institution].append(title)
+            for institution in c.pointed(job["id"], "job_institution"):
+                titles[cell(institution)].append(title)
     return [[institution, len(found), "; ".join(found)] for institution, found in titles.items()]
 
 
@@ -620,14 +640,38 @@ def joined_cells(sparql: str) -> dict:
             for at, column in enumerate(columns) if "GROUP_CONCAT" in column.upper()}
 
 
+def reference(term, ids: dict):
+    """One cell of the export queried directly, written out here rather than by the server, so that
+    a fault in how the server writes a value cannot hide in both the reference and its answer. The
+    rules are the ones a client is told (a number as a number, a date as ISO text, a node of this
+    graph as bid:<id>); only the short ids are the server's, because they are names, not values."""
+    if term is None:
+        return None
+    if isinstance(term, BNode):
+        return f"_:{term}"
+    if isinstance(term, Literal):
+        value = term.toPython()
+        if isinstance(value, Literal):                         # ill-typed, e.g. text in a number field
+            return str(value)
+        if isinstance(value, Decimal):
+            return int(value) if value == value.to_integral_value() else float(value)
+        if isinstance(value, (bool, int, float, str)):
+            return value
+        return value.isoformat() if hasattr(value, "isoformat") else str(value)
+    iri = str(term)
+    return "bid:" + ids[iri] if iri in ids else address(iri)
+
+
 def same(rows, joined: dict | None = None) -> list:
     """Rows in one order and one spelling, so that two ways of asking can be compared. Duplicate rows
-    count. Two things are evened out, because neither is part of the answer: the order of the values
-    in a cell that joins several (`joined`, from joined_cells), and whether a web address came back
-    as an IRI (in angle brackets) or as text, which the graph tools do not tell apart."""
+    count. Three things are evened out, because none is part of the answer: the order of the values
+    in a cell that joins several (`joined`, from joined_cells); whether a web address came back as
+    an IRI (in angle brackets) or as text, which the graph tools do not tell apart; and a number's
+    last digits, which depend on the order a sum was taken in (12 significant digits are kept)."""
     def cell(value, column):
-        if isinstance(value, float) and value.is_integer():
-            return int(value)
+        if isinstance(value, float):
+            value = float(f"{value:.12g}")
+            return int(value) if value.is_integer() else value
         if isinstance(value, str) and column in (joined or {}):
             return (joined[column]).join(sorted(value.split(joined[column])))
         if isinstance(value, str) and re.fullmatch(r"<https?://[^<>\s]*>", value):
@@ -647,46 +691,65 @@ def load_questions() -> tuple:
     return questions, prologue
 
 
-def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None, fresh: bool = True) -> dict:
+def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None, fresh: bool = True,
+                  access: str = "anon") -> dict:
     """Every question, three ways: the export queried directly (the reference), sparql_query over MCP,
-    and the graph tools over MCP. `fresh` forgets, before each question, what earlier ones fetched."""
+    and the graph tools over MCP. `fresh` forgets, before each question, what earlier ones fetched.
+    `access` is what the export is: "anon" (the public one), or "full", which holds jobs and provenance."""
     questions, prologue = load_questions()
+    ids = {iri: node.id for iri, node in kg.nodes.items() if iri.startswith(m.ID_NS)}
     plain = Graph().parse(source, format="turtle")            # the export itself, with no server in between
     schema = {str(s)[len(m.SCHEMA_NS):] for s in Graph().parse(str(m.SCHEMA_FILE), format="turtle").subjects()
               if str(s).startswith(m.SCHEMA_NS)} if m.SCHEMA_FILE.exists() else None
     rows_out = []
     for question in questions:
         joined = joined_cells(question["sparql"])
-        direct = same(([kg._cell(cell) for cell in row] for row in plain.query(prologue + question["sparql"])), joined)
+        problems = []
+        try:
+            direct = same(([reference(term, ids) for term in row] for row in plain.query(prologue + question["sparql"])),
+                          joined)
+        except Exception as exc:                              # the file itself cannot answer it, e.g. text in a sum
+            direct = None
+            problems.append("the export queried directly: " + " ".join(str(exc).split())[:200])
         reply, error, sparql_seconds, _ = client.timed("sparql_query", query=question["sparql"], limit=m.MAX_ROWS)
         by_sparql = same(reply["rows"], joined) if reply else None
         walk, how = WALKS[question["id"]]
         if fresh:
             client.cache = {}                                 # each question from scratch, as a client would ask it
         calls, began = client.calls, time.perf_counter()
-        by_tools = same(walk(client), joined)
+        try:
+            by_tools = same(walk(client), joined)
+        except Unwalkable as exc:
+            by_tools = None
+            problems.append(f"the graph tools: {exc}")
         walk_seconds, calls = time.perf_counter() - began, client.calls - calls
         terms = set(re.findall(r"\bbbqs:(\w+)", question["sparql"]))
         if schema is not None and terms - schema:
             status = "not modelled"                           # the schema has no such term: nothing can answer it yet
+        elif direct is None:
+            status = "could not be asked"
         elif direct:
             status = "answered"
-        elif question["access"] == "full":
+        elif question["access"] == "full" and access == "anon":
             status = "needs the full export"                  # its source rows are not public
         else:
             status = "none in this export"                    # asked and understood: there is nothing of the kind to list
+        if error:
+            problems.append(f"sparql_query: {error}")
         rows_out.append({"id": question["id"], "set": question["set"], "question": question["question"],
-                         "area": question["area"], "status": status, "rows": len(direct),
-                         "sparql_agrees": by_sparql == direct, "tools_agree": by_tools == direct, "how": how,
+                         "area": question["area"], "status": status, "rows": len(direct or ()),
+                         "sparql_agrees": direct is not None and by_sparql == direct,
+                         "tools_agree": direct is not None and by_tools == direct, "how": how,
                          "tool_calls": calls, "sparql_ms": round(sparql_seconds * 1000, 1),
-                         "tools_ms": round(walk_seconds * 1000, 1), **({"error": error} if error else {})})
+                         "tools_ms": round(walk_seconds * 1000, 1), **({"error": "; ".join(problems)} if problems else {})})
         if show == question["id"]:
-            print(f"{question['id']}  {question['question']}\n  status: {status}; {len(direct)} rows from the export queried directly")
-            for name, got in (("sparql_query", by_sparql or []), (f"graph tools ({how})", by_tools)):
+            print(f"{question['id']}  {question['question']}\n  status: {status}; {len(direct or ())} rows from the export "
+                  "queried directly" + "".join(f"\n  problem: {problem}" for problem in problems))
+            for name, got in (("sparql_query", by_sparql or []), (f"graph tools ({how})", by_tools or [])):
                 print(f"\n  through {name}: {len(got)} rows, {'the same' if got == direct else 'DIFFERENT'}")
                 for row in got[:200]:
                     print("    " + row)
-                for row in sorted(set(direct) - set(got))[:20]:
+                for row in sorted(set(direct or ()) - set(got))[:20]:
                     print("    MISSING " + row)
     answered, silent = [r for r in rows_out if r["rows"]], [r for r in rows_out if not r["rows"]]
     adopted = [r for r in rows_out if r["set"] == "adopted"]
@@ -697,7 +760,7 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
     return {"asked": len(rows_out), "adopted": len(adopted), "answered": len(answered),
             "answered_adopted": sum(1 for r in adopted if r["rows"]),
             "need_the_full_export": count("needs the full export"), "none_in_this_export": count("none in this export"),
-            "not_modelled": count("not modelled"),
+            "not_modelled": count("not modelled"), "could_not_be_asked": count("could not be asked"),
             "sparql_agree": sum(r["sparql_agrees"] for r in answered), "tools_agree": sum(r["tools_agree"] for r in answered),
             "silent_agree": sum(r["sparql_agrees"] and r["tools_agree"] for r in silent),
             "all_agree": all(r["sparql_agrees"] and r["tools_agree"] for r in rows_out), "questions": rows_out}
@@ -729,18 +792,32 @@ def first_arrivals(kg: m.KG, start: m.Node) -> dict:
     return arrived
 
 
-def measure_ranking(source: str, progress=None) -> dict:
-    kg = m.GraphSource(source, 0).current()                   # a graph of its own: ties are taken out and put back
+WAYS = {   # the ways of asking for nodes of one type near a start, ten at a time after `skip` of them
+    "find_related": lambda kg, start, kind, skip: kg.related(start, type=kind, limit=10, offset=skip)["related"][0]["nodes"],
+    "find_related, up to 8 links": lambda kg, start, kind, skip: kg.related(
+        start, type=kind, limit=10, offset=skip, max_hops=m.MAX_HOPS)["related"][0]["nodes"],
+    "get_neighbors": lambda kg, start, kind, skip: kg.neighbors(start, type=kind, depth=4, limit=10, offset=skip)["nodes"],
+    "get_neighbors, through hubs": lambda kg, start, kind, skip: kg.neighbors(
+        start, type=kind, depth=4, limit=10, offset=skip, through_hubs=True)["nodes"],
+}
+
+
+def look_for(kg: m.KG, start: m.Node, hidden: m.Node) -> dict:
+    """One case of the measure, with the tie between `start` and `hidden` already hidden: does each
+    way of asking list `hidden` among the first ten nodes of its type after the ones `start` is
+    still linked to directly? Those come first in either tool, and are not news."""
+    already = sum(1 for iri in start.near if kg.nodes[iri].type == hidden.type)
+    return {name: hidden.id in [row["id"] for row in ask(kg, start.id, hidden.type, already)] for name, ask in WAYS.items()}
+
+
+def measure_ranking(source: str | None = None, progress=None, kg: m.KG | None = None) -> dict:
+    """The hidden-tie measure over every tie of the graph at `source` (or of `kg`, which is left as
+    it was found: each tie is taken out and put back)."""
+    kg = kg or m.GraphSource(source, 0).current()             # a graph of its own: ties are taken out and put back
     linked = sorted((node for node in kg.nodes.values() if node.near), key=lambda node: node.iri)
     exact = sum({iri: (found.hops, found.strength) for iri, found in kg._wave(start).items() if found.hops}
                 == first_arrivals(kg, start) for start in linked)
-    ways = {"find_related": lambda start, kind, skip: kg.related(start, type=kind, limit=10, offset=skip)["related"][0]["nodes"],
-            "find_related, up to 8 links": lambda start, kind, skip: kg.related(
-                start, type=kind, limit=10, offset=skip, max_hops=m.MAX_HOPS)["related"][0]["nodes"],
-            "get_neighbors": lambda start, kind, skip: kg.neighbors(start, type=kind, depth=4, limit=10, offset=skip)["nodes"],
-            "get_neighbors, through hubs": lambda start, kind, skip: kg.neighbors(
-                start, type=kind, depth=4, limit=10, offset=skip, through_hubs=True)["nodes"]}
-    hits, cases = dict.fromkeys(ways, 0), 0
+    hits, cases = dict.fromkeys(WAYS, 0), 0
 
     def rebuild(node):                                        # the neighbours of a node, from its links
         near: dict = defaultdict(list)
@@ -759,9 +836,8 @@ def measure_ranking(source: str, progress=None) -> dict:
             if not start.near:
                 continue                                      # it was the start's only tie: nothing to go on
             cases += 1
-            already = sum(1 for iri in start.near if kg.nodes[iri].type == hidden.type)   # these head the list
-            for name, ask in ways.items():
-                hits[name] += hidden.id in [row["id"] for row in ask(start.id, hidden.type, already)]
+            for name, found in look_for(kg, start, hidden).items():
+                hits[name] += found
         node.links[:], other.links[:] = kept
         rebuild(node), rebuild(other)
         if progress and done % 100 == 0:
@@ -777,6 +853,14 @@ def measure_ranking(source: str, progress=None) -> dict:
 
 
 # ---- the speed -------------------------------------------------------------------------------------
+
+def spread(milliseconds: list, sizes: list) -> dict:
+    """How long a set of calls took and how big the replies were."""
+    ordered = sorted(milliseconds)
+    return {"calls": len(milliseconds), "median_ms": round(statistics.median(milliseconds), 1),
+            "p95_ms": round(ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))], 1),
+            "median_bytes": int(statistics.median(sizes)), "largest_bytes": max(sizes)}
+
 
 def measure_speed(client: Client, kg: m.KG, questions: list) -> dict:
     linked = sorted((node for node in kg.nodes.values() if node.near), key=lambda node: node.iri)
@@ -798,10 +882,7 @@ def measure_speed(client: Client, kg: m.KG, questions: list) -> dict:
             _, _, took, size = client.timed(tool, **arguments)
             seconds.append(took * 1000)
             sizes.append(size)
-        ordered = sorted(seconds)
-        out[name] = {"calls": len(todo), "median_ms": round(statistics.median(seconds), 1),
-                     "p95_ms": round(ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))], 1),
-                     "median_bytes": int(statistics.median(sizes)), "largest_bytes": max(sizes)}
+        out[name] = spread(seconds, sizes)
     return {"tools": out, "ready_seconds": round(client.ready_seconds, 2),
             "machine": f"{platform.system()} {platform.machine()}, Python {platform.python_version()}"}
 
@@ -827,7 +908,7 @@ def report(results: dict) -> str:
                 out.append("  -- proposed in issue #441, not adopted yet --")
             out.append(f"  {r['id']}  {r['rows']:4d} rows  sparql {mark(r['sparql_agrees']):9s} {r['sparql_ms']:7.1f} ms   "
                        f"tools {mark(r['tools_agree']):9s} {r['tools_ms']:7.1f} ms {r['tool_calls']:4d} calls   "
-                       f"{r['status']:21s} {r['question']}")
+                       f"{r['status']:21s} {r['question']}" + (f"\n        {r['error']}" if r.get("error") else ""))
     if "ranking" in results:
         r = results["ranking"]
         out.append(f"\nRANKING  {r['cases']} cases: one real tie hidden, the other end looked for among the first ten of its type "
@@ -856,7 +937,8 @@ def markdown(results: dict) -> str:
         proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"]
         rest = [f"{q[key]} {what}" for key, what in (("need_the_full_export", "need the full export"),
                                                      ("none_in_this_export", "find none in this export"),
-                                                     ("not_modelled", "not modelled yet")) if q[key]]
+                                                     ("not_modelled", "not modelled yet"),
+                                                     ("could_not_be_asked", "could not be asked")) if q.get(key)]
         out += ["| | Result |", "|---|---|",
                 f"| Competency questions that return rows on this export | **{q['answered']} of {q['asked']}**: "
                 f"{q['answered_adopted']} of the {q['adopted']} the KG is scored on"
@@ -915,6 +997,8 @@ def main(argv=None) -> int:
                         help="Turtle file to serve and to check against (default: the committed export).")
     parser.add_argument("--only", choices=PARTS, action="append", help="Run only this part (may be repeated).")
     parser.add_argument("--show", metavar="ID", help="Print the rows of one question, e.g. CQ04, each way it was asked.")
+    parser.add_argument("--access", choices=("anon", "full"), default="anon",
+                        help="What the export is: the public one (default) or a full one, with jobs and provenance.")
     parser.add_argument("--json", metavar="PATH", help="Also write the results as JSON.")
     parser.add_argument("--markdown", action="store_true", help="Print the results as the README block.")
     parser.add_argument("--update", metavar="README", help="Rewrite the block between the benchmark markers in this file.")
@@ -937,7 +1021,7 @@ def main(argv=None) -> int:
     try:
         if "questions" in parts:
             say("questions: asking each one over MCP, as SPARQL and through the graph tools")
-            results["questions"] = ask_questions(client, kg, args.source, args.show)
+            results["questions"] = ask_questions(client, kg, args.source, args.show, access=args.access)
         if "speed" in parts:
             say("speed: timing calls on real nodes")
             results["speed"] = measure_speed(client, kg, load_questions()[0])

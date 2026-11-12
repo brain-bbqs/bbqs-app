@@ -32,6 +32,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from collections import Counter
 from fractions import Fraction
 from pathlib import Path
 from unittest import mock
@@ -440,8 +441,11 @@ class TheView(unittest.TestCase):
         group = kg.related("A", type="WorkingGroup")["related"][0]["nodes"][0]
         self.assertEqual((group["links"], group["hops"], group["strength"]), (6, 1, 1))     # a direct link is 1, not 2
         self.assertIs(type(group["strength"]), int)
-        self.assertEqual(group["link"], {"edge": "member_of_group", "direction": "out", "also": ["requested_groups"]})
+        self.assertEqual(group["link"], {"edge": "member_of_group", "direction": "out",
+                                         "also": [{"edge": "requested_groups", "direction": "out"}]})
         self.assertNotIn("routes", group)
+        avoiding = kg.related("A", type="WorkingGroup", avoid_edges="member_of_group")["related"][0]["nodes"][0]
+        self.assertEqual(avoiding["link"], {"edge": "requested_groups", "direction": "out"})   # not the one avoided
         people = kg.related("A", type="Investigator")["related"][0]
         self.assertEqual([(n["label"], n["strength"], n["through"]) for n in people["nodes"]],
                          [(name, 0.3333, [{"id": kg.resolve("G").id, "label": "G", "splits": 3}]) for name in "BC"])
@@ -470,7 +474,7 @@ class TheView(unittest.TestCase):
         self.assertEqual(listed["Publication"], [(PUB1, 2, 0.6667), (PUB2, 4, 0.04167), (PUB3, 6, 0.01042)])
         self.assertEqual(listed["WorkingGroup"], [(WGD, 1, 1), (WGA, 3, 0.1667)])
         self.assertEqual(listed["Species"], [(MOUSE, 2, 0.1667), (ZEBRA, 4, 0.04167)])
-        self.assertEqual({group["type"]: group["reached"] for group in found["related"]},
+        self.assertEqual({group["type"]: group["within"] for group in found["related"]},
                          {"External": 2, "Project": 3, "ResearchOrganization": 1, "WorkingGroup": 2,
                           "Investigator": 3, "Publication": 3, "Dataset": 1, "Species": 2})
         self.assertFalse(any("beyond" in group for group in found["related"]))
@@ -478,21 +482,21 @@ class TheView(unittest.TestCase):
         self.assertFalse({n for rows in listed.values() for n, _, _ in rows} & {ADA, DEE, TWIN2, DEV, CAT, MAN})
         self.assertEqual(list(self.rows(ADA, type=["species", "Dataset"])), ["Dataset", "Species"])
         # a type that is asked for and not reached is listed last, empty, rather than left out
-        self.assertEqual([(g["type"], g["reached"]) for g in self.kg.related(ADA, type=["Device", "Species"])["related"]],
+        self.assertEqual([(g["type"], g["within"]) for g in self.kg.related(ADA, type=["Device", "Species"])["related"]],
                          [("Species", 2), ("Device", 0)])
 
     def test_related_looks_only_so_far_and_counts_what_lies_beyond(self):
         near = self.kg.related(ADA, max_hops=2)
-        self.assertEqual({g["type"]: (g["reached"], g.get("beyond", 0)) for g in near["related"]},
+        self.assertEqual({g["type"]: (g["within"], g.get("beyond", 0)) for g in near["related"]},
                          {"External": (1, 1), "Project": (1, 2), "ResearchOrganization": (1, 0), "WorkingGroup": (1, 1),
                           "Investigator": (2, 1), "Publication": (1, 2), "Dataset": (1, 0), "Species": (1, 1)})
         self.assertEqual(self.rows(ADA, max_hops=2)["Investigator"], [(BOB, 2, 0.6667), (TWIN1, 2, 0.3333)])
-        by_default = {g["type"]: (g["reached"], g.get("beyond", 0)) for g in self.kg.related(ADA)["related"]}
+        by_default = {g["type"]: (g["within"], g.get("beyond", 0)) for g in self.kg.related(ADA)["related"]}
         self.assertEqual((by_default["Publication"], by_default["External"]), ((2, 1), (1, 1)))   # four links, unless asked
         # a type with nothing near enough is still named, with how many lie beyond
         far = self.kg.related(MOUSE, max_hops=1)["related"]
-        self.assertEqual([(g["type"], g["reached"]) for g in far][0], ("Project", 2))
-        self.assertIn({"type": "Investigator", "reached": 0, "nodes": [], "beyond": 4}, far)
+        self.assertEqual([(g["type"], g["within"]) for g in far][0], ("Project", 2))
+        self.assertIn({"type": "Investigator", "within": 0, "nodes": [], "beyond": 4}, far)
         self.assertIn("max_hops", self.err(self.kg.related, ADA, max_hops=0))
         self.assertIn("max_hops", self.err(self.kg.related, ADA, max_hops=m.MAX_HOPS + 1))
 
@@ -565,7 +569,7 @@ class TheView(unittest.TestCase):
         self.assertEqual(listed["WorkingGroup"], [(WGD, 3, 0.1875), (WGA, 3, 0.1667)])
         self.assertEqual(listed["Species"], [(ZEBRA, 4, 0.04167), (MOUSE, 4, 0.03125)])
         bob = found["related"][0]["nodes"][0]
-        self.assertEqual(bob["ties"], [{"start": ADA, "hops": 2, "strength": 0.6667, "routes": 2},
+        self.assertEqual(bob["per_start"], [{"start": ADA, "hops": 2, "strength": 0.6667, "routes": 2},
                                        {"start": CYD, "hops": 2, "strength": 0.75, "routes": 2}])
         self.assertFalse({"link", "through", "routes", "share"} & set(bob))   # find_paths has the routes, pair by pair
         swapped = self.kg.related([CYD, ADA], max_hops=m.MAX_HOPS)             # the order asked in changes only `ties`
@@ -586,16 +590,16 @@ class TheView(unittest.TestCase):
         found = self.kg.related([P2, P3], type="Investigator", max_hops=m.MAX_HOPS)["related"][0]
         self.assertEqual([(n["id"], n["hops"], n["strength"]) for n in found["nodes"]],
                          [(BOB, 3, 0.08333), (ADA, 3, 0.08333), (TWIN1, 4, 0.01389), (CYD, 5, 0.01563)])
-        self.assertEqual(found["nodes"][0]["ties"], [{"start": P2, "hops": 1, "strength": 1},
+        self.assertEqual(found["nodes"][0]["per_start"], [{"start": P2, "hops": 1, "strength": 1},
                                                      {"start": P3, "hops": 3, "strength": 0.08333}])
-        self.assertEqual(found["nodes"][3]["ties"][0], {"start": P2, "hops": 1, "strength": 1})   # headed by the worse one
+        self.assertEqual(found["nodes"][3]["per_start"][0], {"start": P2, "hops": 1, "strength": 1})   # headed by the worse one
         # ...and they are not equals: a list cut between them is not a tie
         self.assertNotIn("tied", self.kg.related([P2, P3], type="Investigator", limit=1)["related"][0])
 
     def test_related_says_when_a_list_was_cut_among_equals(self):
         # Mouse is studied by P1 and P3, both direct; P2 is three links away.
         first = self.kg.related(MOUSE, type="Project", limit=1)["related"][0]
-        self.assertEqual((first["reached"], ids(first["nodes"])), (3, [P1]))
+        self.assertEqual((first["within"], ids(first["nodes"])), (3, [P1]))
         self.assertEqual(first["tied"], {"hops": 1, "strength": 1, "count": 2, "listed": 1})
         self.assertNotIn("tied", self.kg.related(MOUSE, type="Project", limit=2)["related"][0])   # cut between levels
         second = self.kg.related(MOUSE, type="Project", limit=1, offset=1)["related"][0]
@@ -647,9 +651,134 @@ class TheView(unittest.TestCase):
         self.assertIn("has_role", self.err(self.kg.related, ADA, avoid_edges="knows"))
         self.assertIn(f"at most {m.MAX_SEEDS}", self.err(self.kg.related, [ADA, BOB, CYD, P1, P2, P3]))
         self.assertEqual(len(self.kg.related([ADA, BOB, CYD, P1, P2])["start"]), m.MAX_SEEDS)
+        self.assertEqual(len(self.kg.related([ADA, ADA, BOB, CYD, P1, P2])["start"]), m.MAX_SEEDS)   # one node, named twice
+        # the part that fails is named, the first of them
+        self.assertIn("No node matches 'nobody'.", self.err(self.kg.related, "nobody, Ada Lovelace, nobody else"))
+
+    def test_an_ambiguous_name_says_what_it_names_however_it_is_written(self):
+        for spelling in ('"Sam Twin"', "Sam Twin,", '["Sam Twin"]', "[Sam Twin]"):
+            self.assertTrue(self.err(self.kg.related, spelling).startswith("'Sam Twin' names 2 nodes"), spelling)
+        for spelling in ("Sam Twin, nobody", "nobody, Sam Twin"):          # beside a part that names nothing
+            self.assertTrue(self.err(self.kg.related, spelling).startswith("Read as 2 nodes. 'Sam Twin' names 2 nodes"),
+                            spelling)
+
+    def test_an_argument_that_names_nothing_is_a_mistake_not_no_filter(self):
+        everything = self.kg.related(ADA)
+        for none in (None, "", " ", "[]", []):
+            self.assertEqual(self.kg.related(ADA, type=none), everything, repr(none))
+        for wrong in ("[", ",", "[[", '""', "[" * 1000):
+            self.assertIn("names no node type", self.err(self.kg.related, ADA, type=wrong))
+            self.assertIn("names no edge", self.err(self.kg.related, ADA, avoid_edges=wrong))
+            self.assertIn("names no edge", self.err(self.kg.neighbors, ADA, edge=wrong))
+            self.assertIn("names no node type", self.err(self.kg.search, "", type=wrong))
+        self.assertLess(len(self.err(self.kg.related, ADA, type="[" * 1000)), 400)     # and says so briefly
+        self.assertIn("No node matches", self.err(self.kg.related, "[" * 1000))          # not a RecursionError
+        self.assertIn("names no edge", self.err(self.kg.paths, ADA, BOB, avoid_edges="[" * 1000))
+
+    def test_with_several_starting_nodes_equals_are_equal_on_every_tie(self):
+        # S1 is linked to X, Y and K; S2 to H; H to X, Y and W; K to W. From the two together, X and Y
+        # have the same worst tie (2 links from S2, at 1/4) and the same next one (S1, direct); W has
+        # that worst tie too, but a weaker next one (2 links from S1, at 1/2). Cut after one, X and Y
+        # are the equals: two of them, one listed. Counting by the worst tie alone would say three.
+        kg = small_kg("""
+            bid:s1 a bbqs:Species ; bbqs:name "S1" ; bbqs:e bid:x, bid:y, bid:k .
+            bid:s2 a bbqs:Species ; bbqs:name "S2" ; bbqs:e bid:h .
+            bid:h a bbqs:Project ; bbqs:name "H" ; bbqs:e bid:x, bid:y, bid:w .
+            bid:k a bbqs:Project ; bbqs:name "K" ; bbqs:e bid:w .
+            bid:x a bbqs:Investigator ; bbqs:name "X" . bid:y a bbqs:Investigator ; bbqs:name "Y" .
+            bid:w a bbqs:Investigator ; bbqs:name "W" .""")
+        group = kg.related(["S1", "S2"], type="Investigator", limit=1)["related"][0]
+        self.assertEqual(group["tied"], {"hops": 2, "strength": 0.25, "count": 2, "listed": 1})
+        self.assertEqual([row["label"] for row in kg.related(["S1", "S2"], type="Investigator")["related"][0]["nodes"]],
+                         ["X", "Y", "W"])
+
+    def test_the_note_on_nothing_within_reach_says_how_far_and_what_was_left_out(self):
+        # A leads P and knows Q; P has R. From A and P together, Q and R are each two links from one
+        # of them: nothing is within one link of both.
+        kg = small_kg("""
+            bid:a a bbqs:Project ; bbqs:name "A" ; bbqs:leads bid:p ; bbqs:knows bid:q .
+            bid:p a bbqs:Project ; bbqs:name "P" ; bbqs:has bid:r .
+            bid:q a bbqs:Investigator ; bbqs:name "Q" . bid:r a bbqs:Dataset ; bbqs:name "R" .""")
+        near = kg.related(["A", "P"], max_hops=1)
+        self.assertEqual(near["note"], "Nothing is within 1 link of every one of these nodes.")
+        self.assertEqual({group["type"]: (group["within"], group.get("beyond")) for group in near["related"]},
+                         {"Investigator": (0, 1), "Dataset": (0, 1)})
+        self.assertEqual(kg.related(["A", "P"], avoid_edges=["knows", "has"])["note"],
+                         "Nothing is within 4 links without has, knows of every one of these nodes.")
+        self.assertNotIn("note", kg.related(["A", "P"], max_hops=2))
+
+    def test_a_node_linked_only_to_itself_has_no_links_to_other_nodes(self):
+        kg = small_kg('bid:a a bbqs:Thing ; bbqs:name "A" ; bbqs:e bid:a .')
+        alone = kg.related("A")
+        self.assertEqual(alone["start"][0]["links"], 2)                           # the link, from both ends
+        self.assertTrue(alone["note"].startswith("No links to other nodes are recorded for a (Thing: A)"), alone["note"])
+
+    def test_two_nodes_linked_both_ways_show_each_link_the_way_it_points(self):
+        kg = small_kg("""
+            bid:a a bbqs:Publication ; bbqs:name "A" ; bbqs:cites bid:b .
+            bid:b a bbqs:Publication ; bbqs:name "B" ; bbqs:cites bid:a ; bbqs:corrects bid:a .""")
+        self.assertEqual(kg.paths("A", "B")["paths"][0]["text"],
+                         'Publication "A" -[cites]-> / <-[cites + corrects]- Publication "B"')
+        self.assertEqual(kg.paths("B", "A")["paths"][0]["text"],
+                         'Publication "B" -[cites + corrects]-> / <-[cites]- Publication "A"')
+        self.assertEqual(kg.related("A")["related"][0]["nodes"][0]["link"],
+                         {"edge": "cites", "direction": "out",
+                          "also": [{"edge": "cites", "direction": "in"}, {"edge": "corrects", "direction": "in"}]})
+        # two roster records for one person on one project: both roles are shown, not one
+        kg = small_kg("""
+            bid:p a bbqs:Investigator ; bbqs:name "P" . bid:j a bbqs:Project ; bbqs:name "J" .
+            bid:r1 a bbqs:ProjectRole ; bbqs:held_by bid:p ; bbqs:on_project bid:j ; bbqs:project_role "pi" .
+            bid:r2 a bbqs:ProjectRole ; bbqs:held_by bid:p ; bbqs:on_project bid:j ; bbqs:project_role "co_investigator" .""")
+        self.assertEqual(kg.related("P")["related"][0]["nodes"][0]["link"],
+                         {"edge": "has_role", "direction": "out", "role": "co_investigator",
+                          "also": [{"edge": "has_role", "direction": "out", "role": "pi"}]})
+        self.assertEqual(kg.paths("P", "J")["paths"][0]["text"],
+                         'Investigator "P" -[has_role co_investigator + has_role pi]-> Project "J"')
+
+    def test_what_the_view_leaves_out_is_counted_and_said(self):
+        # Shapes the exporter does not write, but a hand-made export could: each is left out of the
+        # view, and describe_graph says how many, so a walk that misses one is not a silent miss.
+        kg = small_kg("""
+            bid:x a bbqs:Investigator ; bbqs:name "X" . bid:y a bbqs:Investigator ; bbqs:name "Y" .
+            bid:j a bbqs:Project ; bbqs:name "J" ; bbqs:studies_species [ bbqs:name "zebrafish" ] .
+            bid:r1 a bbqs:ProjectRole ; bbqs:held_by bid:x, bid:y ; bbqs:on_project bid:j ; bbqs:project_role "pi" .
+            bid:r2 a bbqs:ProjectRole ; bbqs:held_by bid:x ; bbqs:on_project bid:j ; bbqs:project_role "pi", "co_pi" .
+            bid:r3 a bbqs:ProjectRole ; bbqs:held_by bid:y ; bbqs:on_project bid:j ; bbqs:project_role "co_pi" .
+            bid:d a bbqs:Dataset, bbqs:Dandiset ; bbqs:name "D" .""")
+        self.assertEqual((dict(kg.repeated), dict(kg.unfolded), kg.multityped, kg.blank), ({"ProjectRole": 2}, {}, 1, 2))
+        self.assertEqual([(l.edge, l.other.rsplit("/", 1)[-1], l.attrs) for l in kg.resolve("J").links],
+                         [("has_role", "y", (("role", "co_pi"),))])                 # r3 alone is folded
+        self.assertEqual(kg.resolve("D").type, "Dandiset")
+        notes = " ".join(kg.describe()["notes"])
+        for said in ("give a person, a project or a role more than once: 2 ProjectRole",
+                     "Nodes with more than one type: 1.", "Triples with a blank node at one end: 2."):
+            self.assertIn(said, notes)
+        self.assertEqual((dict(self.kg.repeated), self.kg.multityped, self.kg.blank), ({}, 0, 0))   # none in the fixture
+
+    def test_every_id_shown_leads_back_whatever_it_looks_like(self):
+        kg = small_kg("""
+            bid:project-r34da059723 a bbqs:Project ; bbqs:name "P" ; bbqs:e bid:investigator-ann .
+            bid:investigator-ann a bbqs:Investigator ; bbqs:name "Ann" .
+            bid:ABCDEF12-0000-0000-0000-000000000001 a bbqs:Dataset ; bbqs:name "Upper" .
+            bid:abcdef99-0000-0000-0000-000000000002 a bbqs:Dataset ; bbqs:name "Lower" .""")
+        self.assertEqual(sorted(node.id for node in kg.nodes.values()), ["ABCDEF12", "abcdef99", "investig", "project-"])
+        for node in kg.nodes.values():
+            self.assertIs(kg.resolve(node.id), node)
+            self.assertIs(kg.resolve("bid:" + node.id), node)
+        self.assertEqual((kg.resolve("abcdef12").label, kg.resolve("ABCDEF9").label), ("Upper", "Lower"))   # any case
+
+    def test_equals_are_listed_by_name_ignoring_case_and_a_repeated_start_keeps_its_place(self):
+        kg = small_kg("""bid:p a bbqs:Project ; bbqs:name "P" ; bbqs:e bid:x1, bid:x2, bid:x3 .
+            bid:x1 a bbqs:Investigator ; bbqs:name "bea" . bid:x2 a bbqs:Investigator ; bbqs:name "Abe" .
+            bid:x3 a bbqs:Investigator ; bbqs:name "Cy" .""")
+        self.assertEqual([n["label"] for n in kg.related("P")["related"][0]["nodes"]], ["Abe", "bea", "Cy"])
+        self.assertEqual(ids(self.kg.related([ADA, CYD, "Ada Lovelace"])["start"]), [ADA, CYD])
 
     def test_related_explains_an_empty_answer(self):
         dee = f"{DEE} (Investigator: Dee Isolated)"
+        near = self.kg.related([ADA, CYD], max_hops=1)             # nothing within one link of both, much beyond
+        self.assertEqual(near["note"], "Nothing is within 1 link of every one of these nodes.")
+        self.assertTrue(all(group["beyond"] for group in near["related"]))
         alone = self.kg.related(DEE)
         self.assertEqual(alone["related"], [])
         self.assertEqual(alone["note"], f"No links are recorded for {dee}, so nothing is tied to it. "
@@ -671,13 +800,14 @@ class TheView(unittest.TestCase):
         self.assertEqual(kg.related(["A", "P"]), {"start": [kg.brief(kg.resolve("A")), kg.brief(kg.resolve("P"))],
                                                  "related": [], "note": "Nothing is within 4 links of every one of these nodes."})
         self.assertEqual(self.kg.related(DEV, type="Investigator")["related"],
-                         [{"type": "Investigator", "reached": 0, "nodes": []}])       # asked for and none: said so
+                         [{"type": "Investigator", "within": 0, "nodes": []}])       # asked for and none: said so
         self.assertNotIn("note", self.kg.related(DEV, type="Investigator"))
         self.assertNotIn("note", self.kg.related([ADA, CYD]))
 
     def test_strength_is_rounded_as_by_hand(self):
         for exact, sent in ((Fraction(1, 64), 0.01563), (Fraction(5, 64), 0.07813), (Fraction(2, 3), 0.6667),
-                            (Fraction(1, 96), 0.01042), (Fraction(89, 5), 17.8), (Fraction(1, 3), 0.3333)):
+                            (Fraction(1, 96), 0.01042), (Fraction(89, 5), 17.8), (Fraction(1, 3), 0.3333),
+                            (Fraction(17, 160), 0.1063)):              # 0.10625 exactly; as a float, just under
             self.assertEqual(m._shown(exact), sent, exact)              # half goes up, as a person rounds
         self.assertEqual((m._shown(Fraction(3)), type(m._shown(Fraction(3)))), (3, int))
         self.assertIs(type(m._shown(Fraction(24999, 25000))), float)   # not exactly 1: not sent as the whole number 1
@@ -686,7 +816,7 @@ class TheView(unittest.TestCase):
 
     def test_paths_shortest_first_and_less_connected_first_among_equals(self):
         found = self.kg.paths(ADA, CYD)
-        self.assertEqual((found["found"], found["shortest"]), (4, 4))
+        self.assertEqual((found["listed"], found["shortest"]), (4, 4))
         self.assertEqual([p["nodes"] for p in found["paths"]],
                          [[ADA, WGD, BOB, WGA, CYD], [ADA, WGD, BOB, P2, CYD],
                           [ADA, P1, BOB, WGA, CYD], [ADA, P1, BOB, P2, CYD]])
@@ -734,14 +864,15 @@ class TheView(unittest.TestCase):
     def test_paths_say_whether_there_are_more_and_can_be_paged(self):
         # Bob to Sam Twin: one path of three links, one of four.
         first = self.kg.paths(BOB, TWIN1, limit=1)
-        self.assertEqual((first["found"], first["routes"], first["more"]), (1, 1, True))   # the longer one counts as more
+        self.assertEqual((first["listed"], first["routes"], first["more"]), (1, 1, True))   # the longer one counts as more
+        self.assertEqual([p["hops"] for p in self.kg.paths(BOB, TWIN1, max_hops=3)["paths"]], [3])   # not the 4-link one
         self.assertNotIn("more", self.kg.paths(BOB, TWIN1, limit=2))
         second = self.kg.paths(BOB, TWIN1, limit=1, offset=1)
         self.assertEqual(([p["nodes"] for p in second["paths"]], "more" in second), ([[BOB, WGD, ADA, ORG, TWIN1]], False))
         whole = self.kg.paths(ADA, CYD)["paths"]
         pages = [self.kg.paths(ADA, CYD, limit=2, offset=skip) for skip in (0, 2, 4)]
         self.assertEqual([page["paths"] for page in pages], [whole[:2], whole[2:], []])
-        self.assertEqual([(page["found"], page.get("more"), page["routes"]) for page in pages],
+        self.assertEqual([(page["listed"], page.get("more"), page["routes"]) for page in pages],
                          [(2, True, 4), (2, None, 4), (0, None, 4)])
         self.assertEqual(self.kg.paths(ADA, CYD, limit=2, offset=-3)["paths"], whole[:2])
 
@@ -753,7 +884,7 @@ class TheView(unittest.TestCase):
         self.assertNotIn("partial", self.kg.paths(BOB, TWIN1))
         with mock.patch.object(m, "PATH_STEPS", 0):                 # two linked nodes: nothing longer to look for
             linked = self.kg.paths(ADA, P1, max_hops=m.MAX_HOPS, limit=25)
-        self.assertEqual((linked["found"], linked["routes"]), (1, 1))
+        self.assertEqual((linked["listed"], linked["routes"]), (1, 1))
         self.assertFalse({"more", "partial"} & set(linked))
 
     def test_the_strongest_shortest_paths_are_found_without_listing_them_all(self):
@@ -787,6 +918,47 @@ class TheView(unittest.TestCase):
                              [nodes for _, nodes in everything[3:8]])
             self.assertEqual([p["nodes"][::-1] for p in back["paths"]], [p["nodes"] for p in there["paths"]])
             self.assertNotIn("partial", there)                    # the shortest paths never use the step budget
+        deep = kg.paths("A", "B", limit=5, offset=200)            # a page far down the list is still in order
+        self.assertEqual([[kg.resolve(n).label.lower() for n in p["nodes"]] for p in deep["paths"]],
+                         [nodes for _, nodes in everything[200:205]])
+        # Without listing them all: count how often the search asks a node for its neighbours. Listing
+        # every shortest path, or a bound that is not exact, asks over 600 times; this asks under 216,
+        # fewer than one time per shortest path.
+        asked, ways = [0], kg._ways
+        kg._ways = lambda avoid: (lambda found: (lambda iri: (asked.__setitem__(0, asked[0] + 1), found(iri))[1]))(ways(avoid))
+        kg.paths("A", "B", limit=5, offset=3)
+        del kg._ways
+        self.assertLess(asked[0], 216)
+        # A page so deep that finding it would take too long is cut short, and the reply says so.
+        with mock.patch.object(m, "SHORTEST_STEPS", 5):
+            cut = kg.paths("A", "B", limit=5, offset=100)
+        self.assertEqual((cut["partial"], cut["more"], cut["routes"]), (True, True, 216))
+        self.assertEqual(len(kg.paths("A", "B", limit=5, offset=100)["paths"]), 5)
+
+    def test_longer_paths_of_equal_strength_come_in_the_order_of_their_nodes(self):
+        # A-M-B is the shortest. A-a1-a2-B and A-z1-z2-B are as strong as each other; the one through
+        # a1 comes first, whatever the names say ("Zulu" is a1, "Alpha" is z1).
+        kg = small_kg("""
+            bid:a a bbqs:Project ; bbqs:name "A" ; bbqs:e bid:m, bid:a1, bid:z1 .
+            bid:m a bbqs:Investigator ; bbqs:name "M" ; bbqs:e bid:b .
+            bid:a1 a bbqs:Investigator ; bbqs:name "Zulu" ; bbqs:e bid:a2 .
+            bid:a2 a bbqs:Investigator ; bbqs:name "Zulu2" ; bbqs:e bid:b .
+            bid:z1 a bbqs:Investigator ; bbqs:name "Alpha" ; bbqs:e bid:z2 .
+            bid:z2 a bbqs:Investigator ; bbqs:name "Alpha2" ; bbqs:e bid:b .
+            bid:b a bbqs:Project ; bbqs:name "B" .""")
+        found = kg.paths("A", "B")["paths"]
+        self.assertEqual([[kg.resolve(n).label for n in p["nodes"]] for p in found],
+                         [["A", "M", "B"], ["A", "Zulu", "Zulu2", "B"], ["A", "Alpha", "Alpha2", "B"]])
+        self.assertEqual([p["strength"] for p in found], [0.5, 0.25, 0.25])
+
+    def test_a_long_name_on_a_route_is_clipped(self):
+        kg = small_kg("""
+            bid:a a bbqs:Project ; bbqs:name "A" ; bbqs:e bid:m .
+            bid:m a bbqs:Investigator ; bbqs:name "A middle node whose name runs on well past forty characters" ;
+                bbqs:e bid:b .
+            bid:b a bbqs:Project ; bbqs:name "B" .""")
+        step = kg.related("A", type="Project")["related"][0]["nodes"][0]["through"][0]
+        self.assertEqual((len(step["label"]), step["label"][-1]), (40, "…"))
 
     def test_paths_read_the_same_from_either_end(self):
         linked = sorted((node for node in self.kg.nodes.values() if node.links), key=lambda node: node.iri)
@@ -832,8 +1004,8 @@ class TheView(unittest.TestCase):
         kg = small_kg("""bid:a a bbqs:Publication ; bbqs:name "A" ; bbqs:cites bid:b .
                          bid:b a bbqs:Publication ; bbqs:name "B" ; bbqs:cites bid:a .""")
         there, back = kg.paths("A", "B"), kg.paths("B", "A")
-        self.assertEqual((there["found"], there["routes"], there["strength"]), (1, 1, 1))
-        self.assertEqual((back["found"], back["paths"][0]["nodes"]), (1, there["paths"][0]["nodes"][::-1]))
+        self.assertEqual((there["listed"], there["routes"], there["strength"]), (1, 1, 1))
+        self.assertEqual((back["listed"], back["paths"][0]["nodes"]), (1, there["paths"][0]["nodes"][::-1]))
 
     def test_paths_have_no_detours(self):
         # ada-org-p1 is a real chain, but ada is on p1 directly: the longer way round adds nothing.
@@ -850,7 +1022,7 @@ class TheView(unittest.TestCase):
         self.assertIn("Not connected", self.kg.paths(ADA, DEV)["note"])
         self.assertIn("Not connected", self.kg.paths(ADA, DEE)["note"])
         far = self.kg.paths(MOUSE, ZEBRA, max_hops=3)
-        self.assertEqual((far["found"], far["shortest"]), (0, 4))
+        self.assertEqual((far["listed"], far["shortest"]), (0, 4))
         self.assertIn("4 hops", far["note"])
         self.assertEqual(self.kg.paths(MOUSE, ZEBRA)["paths"][0]["nodes"], [MOUSE, P1, BOB, P2, ZEBRA])
         self.assertIn("same node", self.kg.paths(ADA, "Ada Lovelace")["note"])
@@ -859,7 +1031,7 @@ class TheView(unittest.TestCase):
 
     def test_paths_say_when_there_are_more_than_were_returned(self):
         some = self.kg.paths(ADA, CYD, limit=2)
-        self.assertEqual((some["found"], some["more"]), (2, True))
+        self.assertEqual((some["listed"], some["more"]), (2, True))
 
     # -- SPARQL --
 
@@ -1088,9 +1260,9 @@ class TheExport(unittest.TestCase):
                     self.assertEqual((found["shortest"], found["strength"], found["routes"]),
                                      (row["hops"], row["strength"], row.get("routes", 1)), (start, row["id"]))
                     if found["routes"] > 25:
-                        self.assertEqual((found["found"], found["more"]), (25, True))
+                        self.assertEqual((found["listed"], found["more"]), (25, True))
                         continue                                    # more than one page: the first is not the sum
-                    self.assertEqual(found["found"], found["routes"])
+                    self.assertEqual(found["listed"], found["routes"])
                     total = Fraction(0)
                     for path in found["paths"]:
                         left = Fraction(1)
@@ -1127,9 +1299,12 @@ class TheExport(unittest.TestCase):
         # the nodes of its own type that the start is not already tied to. Scored as the chance of
         # being in the first ten when equals fall in any order, which is what a list really shows.
         kg = m.GraphSource(str(EXPORT)).current()         # a graph of its own: ties are taken out and put back
-        cases, by_strength, by_distance = 0, 0.0, 0.0
+        cases, by_strength, by_distance, pair = 0, 0.0, 0.0, 0
         for node in sorted((n for n in kg.nodes.values() if n.links), key=lambda n: n.iri):
             for other_iri in [iri for iri in node.near if node.iri < iri]:
+                pair += 1
+                if pair % 3:
+                    continue                                        # every third tie: the measure, at a third of the cost
                 other = kg.nodes[other_iri]
                 links, back = node.near.pop(other_iri), other.near.pop(node.iri)
                 for start, hidden in ((node, other), (other, node)):
@@ -1150,9 +1325,10 @@ class TheExport(unittest.TestCase):
                     by_strength += in_first_ten(lambda found: (found.hops, -found.strength))
                     by_distance += in_first_ten(lambda found: found.hops)
                 node.near[other_iri], other.near[node.iri] = links, back
-        self.assertGreater(cases, 1000)
-        # 2026-11-05: in the first ten 65% of the time by strength, 45% by distance alone.
-        self.assertGreater(by_strength, 1.25 * by_distance, (by_strength / cases, by_distance / cases))
+        self.assertGreater(cases, 400)
+        # 2026-11-05, every third tie: in the first ten 65% of the time by strength, 45% by distance
+        # alone. Counting routes and ignoring what each brings scores 1.34 times distance; this 1.44.
+        self.assertGreater(by_strength, 1.38 * by_distance, (by_strength / cases, by_distance / cases))
         self.assertGreater(by_strength / cases, 0.5)
 
     def test_a_working_group_is_not_cut_off_it_just_passes_on_little(self):
@@ -1182,7 +1358,7 @@ class TheExport(unittest.TestCase):
         asked_for_all = people(limit=10_000)
         self.assertEqual(len(asked_for_all["nodes"]), 25)   # the most one named type is given at once
         self.assertEqual(asked_for_all["tied"], {"hops": 1, "strength": 1, "count": members, "listed": 25})
-        self.assertGreater(asked_for_all["reached"], members)   # people outside the group are reached too
+        self.assertGreater(asked_for_all["within"], members)   # people outside the group are reached too
         next_page = people(limit=25, offset=25)
         self.assertEqual(len(next_page["nodes"]), 25)
         self.assertFalse(set(ids(asked_for_all["nodes"])) & set(ids(next_page["nodes"])))
@@ -1207,6 +1383,11 @@ class TheExport(unittest.TestCase):
         self.assertLess(max(sent(node.iri) for node in linked[::7]), 20_000)
         self.assertLess(sent(["House Mouse", "WG-Devices", "WG-Analytics", "R34DA059723", "Human"]), 20_000)
         self.assertLess(max(sent(node.iri, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 60_000)
+        # Naming types lifts the cap from 10 to 25, but only for up to three of them: naming every
+        # type came to 72,000 when it lifted the cap for all.
+        every, most = list(self.kg.types), [kind for kind, _ in Counter(n.type for n in self.kg.nodes.values()).most_common(3)]
+        self.assertLess(max(sent(node.iri, type=every, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 40_000)
+        self.assertLess(max(sent(node.iri, type=most, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 45_000)
 
     def test_every_shown_id_leads_back_to_its_node(self):
         for node in self.kg.nodes.values():
@@ -1402,6 +1583,14 @@ class Guards(unittest.TestCase):
                  *fixture_kg().describe()["notes"]]
         known = set(self.schema) | {rule["edge"] for rule in m.FOLDED.values()} | {name for rule in m.FOLDED.values()
                                                                                   for name in rule["attrs"]}
+
+        def keys(value):                                  # every field name in a reply, however deep
+            if isinstance(value, dict):
+                return set(value) | {key for inner in value.values() for key in keys(inner)}
+            return {key for inner in value for key in keys(inner)} if isinstance(value, list) else set()
+        kg = fixture_kg()                                  # and the fields replies really carry
+        known |= set().union(*map(keys, (kg.related(ADA), kg.related([ADA, CYD]), kg.paths(ADA, P3),
+                                         kg.neighbors(ADA), kg.describe(), kg.node(ADA))))
         for tool in self.tools:
             known |= {tool.name, *tool.input_schema["properties"]}
             texts += [tool.description, *(p.get("description", "") for p in tool.input_schema["properties"].values())]
@@ -1442,10 +1631,29 @@ class Guards(unittest.TestCase):
         self.assertIn("its worst tie (the farthest starting node, then the weakest)", " ".join(related.split()))
         self.assertIn("strongest first, then longer ones", " ".join(paths.split()))
         self.assertIn("split it equally among the nodes it is linked to", " ".join(paths.split()))
-        for field in ("`through`", "`share`", "`tied`"):
+        said, told = " ".join(related.split()), " ".join(paths.split())
+        for phrase in ("only what every one of them reaches is returned", "`through`, the strongest route",
+                       "only nodes equal on every tie count as equals", "whose order (by name) means nothing",
+                       "`within` counts the nodes within max_hops and `beyond` those farther",
+                       "`splits`, the neighbours it divided among"):
+            self.assertIn(phrase, said)
+        for phrase in ("`more` means there are further paths", "`partial` means the search stopped early",
+                       "`shortest` is their length and `listed` the number of paths on this page"):
+            self.assertIn(phrase, told)
+        self.assertIn("how exclusive the nodes in between look", note)
+        for field in ("`through`", "`share`", "`tied`", "`per_start`", "`link`", "`also`", "`routes`"):
             self.assertIn(field, related)
         for field in ("`routes`", "`strength`", "`more`", "`partial`"):
             self.assertIn(field, paths)
+        # every field the descriptions name is one a reply carries
+        with mock.patch.object(m, "PATH_STEPS", 0):                    # a search that runs out at once
+            gave_up = fixture_kg().paths(ADA, P3)
+        replies = (kg.related("S", max_hops=3), kg.related(["S", "U"], max_hops=3), kg.paths("S", "U"),
+                   kg.related("S", type="Dataset", limit=1, max_hops=3),  # five datasets equally tied: cut
+                   fixture_kg().paths(ADA, P2, limit=1), gave_up)               # ADA to P2: two paths, one shown
+        sent = {key for reply in replies for key in re.findall(r'"(\w+)":', json.dumps(reply))}
+        self.assertEqual({field for field in re.findall(r"`(\w+)`", related + paths) if field not in sent} - {"also"},
+                         set())                                        # `also`: only between nodes linked twice
         self.assertIn("find_related", tools["get_neighbors"].description)   # the lister points to the ranker
         for tool in ("find_related", "find_paths", "get_neighbors", "get_node"):
             self.assertIn(tool, m.INSTRUCTIONS)
@@ -1455,13 +1663,90 @@ class Guards(unittest.TestCase):
         self.assertEqual((schema["limit"]["default"], schema["max_hops"]["default"], schema["offset"]["default"]),
                          (signature["limit"].default, signature["max_hops"].default, signature["offset"].default))
         self.assertEqual((schema["limit"]["default"], schema["max_hops"]["default"]), (5, 4))
-        self.assertIn("1-25 (1-10 when no type is named)", schema["limit"]["description"])
+        self.assertIn("1-25 (1-10 when no type, or more than three, are named)", schema["limit"]["description"])
         self.assertIn(f"1-{m.MAX_HOPS}", schema["max_hops"]["description"])
         self.assertIn(f"up to {m.MAX_SEEDS}", schema["nodes"]["description"])
         path_schema = tools["find_paths"].input_schema["properties"]
         path_signature = inspect.signature(m.KG.paths).parameters
         self.assertEqual({name: path_schema[name]["default"] for name in ("max_hops", "limit", "offset")},
                          {name: path_signature[name].default for name in ("max_hops", "limit", "offset")})
+        self.assertEqual(tuple(path_schema[name]["default"] for name in ("max_hops", "limit", "offset")), (6, 5, 0))
+        self.assertIn("1-25", path_schema["limit"]["description"])
+        self.assertIn(f"1-{m.MAX_HOPS}", path_schema["max_hops"]["description"])
+        self.assertIn(f"1-{m.MAX_DEPTH}", tools["get_neighbors"].input_schema["properties"]["depth"]["description"])
+        # ...and the caps are the ones applied: 25 with up to three types named, 10 with more or none
+        big = fixture_kg()
+        many = sorted({n.type for n in big.nodes.values() if n.type != "Investigator"})[:4]
+        for kinds, cap in ((None, 10), (["Investigator"], 25), (many[:3], 25), (many, 10)):
+            with mock.patch.object(m, "_page", wraps=m._page) as paged:
+                big.related(ADA, type=kinds, limit=25)
+            self.assertEqual(paged.call_args_list[0].args[:2], (25, cap), kinds)
+
+    METHODS = {"describe_graph": "describe", "search_nodes": "search", "get_node": "node", "get_neighbors": "neighbors",
+               "find_related": "related", "find_paths": "paths", "sparql_query": "sparql"}
+
+    def test_every_default_a_tool_states_is_the_one_its_method_applies(self):
+        for tool in self.tools:
+            method = inspect.signature(getattr(m.KG, self.METHODS[tool.name])).parameters
+            argued = list(tool.input_schema["properties"].items())
+            taken = [p for name, p in method.items() if name != "self"][:len(argued)]
+            self.assertEqual(len(taken), len(argued), tool.name)
+            for (name, schema), parameter in zip(argued, taken):     # passed on in this order
+                if "default" in schema and parameter.default is not inspect.Parameter.empty:
+                    self.assertEqual(schema["default"], parameter.default, (tool.name, name))
+
+    def test_every_argument_reaches_the_graph(self):
+        # Each tool called with its arguments set away from their defaults, against the method it calls,
+        # on the very graph the server holds. Each argument set is also shown to matter: resetting it
+        # alone changes the answer. Between them the calls set every argument of every tool. (Naming
+        # `edge` already walks through hubs, so get_neighbors needs two calls; find_paths two as well,
+        # because max_hops only shows on a page that reaches past the shortest paths.)
+        source = m.GraphSource(str(EXPORT), 0)
+        server, kg = m.build_server(source), source.current()
+        calls = [
+            ("search_nodes", kg.search, {"query": "behavior", "type": ["Investigator", "Publication"], "where": None,
+                                         "limit": 2, "offset": 1}),
+            ("search_nodes", kg.search, {"query": "", "type": None, "where": {"mechanism": "R34"}, "limit": 2, "offset": 1}),
+            ("get_node", kg.node, {"node": "WG-Analytics", "edge_limit": 3}),
+            ("get_neighbors", kg.neighbors, {"node": "R34DA059723", "edge": ["has_role", "studies_species"], "direction": "out",
+                                             "type": None, "depth": 1, "limit": 50, "offset": 0, "through_hubs": False}),
+            ("get_neighbors", kg.neighbors, {"node": "00618660", "edge": None, "direction": "both", "type": "Investigator",
+                                             "depth": 2, "limit": 2, "offset": 1, "through_hubs": True}),
+            ("find_related", kg.related, {"nodes": "House Mouse", "type": "Investigator", "limit": 2, "offset": 1,
+                                          "avoid_edges": "member_of_group", "max_hops": 3}),
+            ("find_paths", kg.paths, {"source_node": "R34DA059723", "target_node": "WG-Analytics", "max_hops": 3, "limit": 5,
+                                      "avoid_edges": "members", "offset": 0}),
+            ("find_paths", kg.paths, {"source_node": "R34DA059723", "target_node": "WG-Analytics", "max_hops": 6, "limit": 2,
+                                      "avoid_edges": None, "offset": 1}),
+            ("sparql_query", kg.sparql, {"query": "SELECT ?s WHERE { ?s a bbqs:Investigator } ORDER BY ?s", "limit": 2}),
+            ("describe_graph", kg.describe, {"type": "Investigator"}),
+        ]
+        defaults = {tool.name: {name: p.get("default") for name, p in tool.input_schema["properties"].items()}
+                    for tool in self.tools}
+        named = ("node", "nodes", "query", "source_node", "target_node")
+
+        def plain(reply):
+            return json.loads(json.dumps({k: v for k, v in reply.items() if k != "snapshot"}, default=str))
+
+        exercised = set()
+        for tool, method, arguments in calls:
+            self.assertEqual(list(arguments), list(defaults[tool]), tool)        # every argument, in the tool's order
+            result = asyncio.run(server.call_tool(tool, arguments))
+            text = "".join(block.text for block in result.content)
+            self.assertFalse(result.is_error, (tool, text))
+            answer = plain(method(*arguments.values()))
+            self.assertEqual(plain(json.loads(text)), answer, tool)
+            for name, value in arguments.items():
+                if name in named or value == defaults[tool][name]:
+                    continue
+                try:
+                    without = plain(method(*{**arguments, name: defaults[tool][name]}.values()))
+                except m.KGError:
+                    without = "refused"                            # without it the question cannot be asked
+                self.assertNotEqual(without, answer, (tool, name))
+                exercised.add((tool, name))
+        self.assertEqual({(tool, name) for tool, values in defaults.items() for name in values if name not in named}
+                         - exercised, set())
 
     def test_every_tool_is_declared_read_only(self):
         self.assertEqual(sorted(t.name for t in self.tools),
@@ -1472,8 +1757,16 @@ class Guards(unittest.TestCase):
             self.assertFalse(tool.annotations.destructive_hint, tool.name)
             self.assertFalse(tool.annotations.open_world_hint, tool.name)
             self.assertGreater(len(tool.description), 60, tool.name)
-        offered = asyncio.run(m.build_server(m.GraphSource(str(EXPORT)), sparql=False).list_tools())
+        bare = m.build_server(m.GraphSource(str(EXPORT)), sparql=False)
+        offered = asyncio.run(bare.list_tools())
         self.assertNotIn("sparql_query", [t.name for t in offered])
+        # ...and nothing a client reads sends it there
+        told = [bare.instructions, *(t.description for t in offered),
+                *m.GraphSource(str(EXPORT)).current().describe(sparql=False)["notes"]]
+        self.assertEqual([text[:80] for text in told if re.search(r"sparql", text, re.I)], [])
+        self.assertIn("search_nodes gives the total", bare.instructions)
+        self.assertEqual(self.server.instructions, m.INSTRUCTIONS)
+        self.assertIn("writing SPARQL", next(t.description for t in self.tools if t.name == "describe_graph"))
 
     def test_the_pins_agree_everywhere_they_are_written(self):
         header = re.search(r"^# dependencies = (\[.*\])$", SERVER.read_text(encoding="utf8"), re.M)
@@ -1600,7 +1893,7 @@ class OverStdio(unittest.TestCase):
                                    avoid_edges=["member_of_group"])
         self.assertEqual(json.loads(text)["paths"][0]["nodes"], [ADA, P1, BOB, P2, PUB2])
         _, text = self.client.call("find_related", nodes=["Ada Lovelace", "Cyd Charisse"], type="Investigator")
-        self.assertIn('"hops":2,"strength":0.6667,"ties":[{"start":"11111111","hops":2,"strength":0.6667,"routes":2},', text)
+        self.assertIn('"hops":2,"strength":0.6667,"per_start":[{"start":"11111111","hops":2,"strength":0.6667,"routes":2},', text)
         people = json.loads(text)["related"][0]
         self.assertEqual(([(n["id"], n["strength"]) for n in people["nodes"]], people["beyond"]), ([(BOB, 0.6667)], 1))
         _, text = self.client.call("find_related", nodes=["Ada Lovelace", "Cyd Charisse"], type="Investigator", max_hops=5)
@@ -1669,6 +1962,19 @@ class OverStdio(unittest.TestCase):
                          json.loads(json.dumps(kg.related(MOUSE, type="Project", limit=1, offset=1, max_hops=8))))
         _, paged = self.client.call("find_paths", source_node=ADA, target_node=CYD, limit=2, offset=2)
         self.assertEqual([p["nodes"] for p in json.loads(paged)["paths"]], [[ADA, P1, BOB, WGA, CYD], [ADA, P1, BOB, P2, CYD]])
+
+    def test_an_argument_the_tool_does_not_take_is_refused_not_dropped(self):
+        for tool in self.client.ask("tools/list")["result"]["tools"]:
+            self.assertIs(tool["inputSchema"].get("additionalProperties"), False, tool["name"])
+        for tool, arguments in (("find_related", {"nodes": ADA, "max_hop": 1}), ("find_paths", {"source_node": ADA,
+                                "target_node": BOB, "depth": 2}), ("get_node", {"node": ADA, "limit": 3})):
+            failed, text = self.client.call(tool, **arguments)
+            self.assertTrue(failed, tool)
+            self.assertIn("Extra inputs are not permitted", text)
+            self.assertIn(next(name for name in arguments if name not in ("nodes", "source_node", "target_node", "node")),
+                          text)
+        failed, _ = self.client.call("find_related", nodes=ADA, max_hops=1)    # spelt right, it answers
+        self.assertFalse(failed)
 
     def test_a_mistake_comes_back_as_an_error_the_model_can_act_on(self):
         failed, text = self.client.call("get_node", node="nobody at all")
@@ -1851,14 +2157,26 @@ MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06":
 #     that one project studies, two jobs called Technician at one institution
 #   - a project that carries R34DA059723 only as its name (q3), with a person on it; so Bo is on
 #     two projects of which one has no grant number
+#   - award amounts with cents, and one written as a double, so a sum's last digits depend on the
+#     order it is taken in
+#   - two links between a project and its organization, the one asked for sorting second (q1)
+#   - one person on two projects that share a grant number (Ann on q2 and q6), a person on a
+#     project with a paper and no grant number (Bo on q3), and a role written in capitals (MPI)
+#   - an ORCID iD that is itself described (so a node, not a value), and a device category whose
+#     address is not one of this graph's ids (bbqs:Microscope)
 #   - dates on the first and last day of CQ39's window, on the day either side, and on CQ17's day
 AWKWARD = PREFIXES + """
-bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ;
+bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ; bbqs:mechanism "R34" ;
+    bbqs:award_amount 100.10 ; bbqs:hosted_at bid:o1 ; bbqs:part_of_org bid:o1 ;
     bbqs:funded_datasets bid:d1, bid:gone1, bid:gone2 ; bbqs:produced bid:d1 ; bbqs:studies_species bid:m1, bid:m2 .
 bid:q2 a bbqs:Project ; bbqs:grant_number "U01DA000002", "U01DA000002-S1" ; bbqs:funded_datasets bid:gone2 ;
+    bbqs:mechanism "R34" ; bbqs:award_amount "0.1"^^xsd:double ;
     bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_name "marmoset" .
-bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2 .
-bid:q4 a bbqs:Project ; bbqs:grant_number "R61DA000005" ; bbqs:studies_species bid:m3, bid:m4 .
+bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2, bid:pub9 .
+bid:q6 a bbqs:Project ; bbqs:grant_number "U01DA000002" .
+bid:pub9 a bbqs:Publication ; bbqs:name "Q3 paper" .
+bid:q4 a bbqs:Project ; bbqs:grant_number "R61DA000005" ; bbqs:studies_species bid:m3, bid:m4 ;
+    bbqs:mechanism "R34" ; bbqs:award_amount 200.20 .
 bid:d1 a bbqs:Dataset ; bbqs:name "D one" .
 bid:d2 a bbqs:Dataset ; bbqs:name "D two" .
 bid:m1 a bbqs:Species ; bbqs:name "Mus musculus" ; bbqs:common_name "House Mouse" ; bbqs:aliases "Mus musculus", "mouse" .
@@ -1866,13 +2184,17 @@ bid:m2 a bbqs:Species ; bbqs:name "Mus musculus domesticus" ; bbqs:common_name "
 bid:m3 a bbqs:Species ; bbqs:name "Mus spretus" ; bbqs:common_name "house mouse" .
 bid:m4 a bbqs:Species ; bbqs:name "Mus spretus" .
 bid:ann a bbqs:Investigator ; bbqs:name "Ann A", "A. Ann" ; bbqs:member_of_group bid:w1 .
-bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:w2 .
+bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:w2 ;
+    bbqs:orcid <https://orcid.org/0000-0002-0000-0002> .
+<https://orcid.org/0000-0002-0000-0002> bbqs:name "Bo's iD" .
 bid:cy a bbqs:Investigator ; bbqs:member_of_group bid:w1 .
 bid:s1 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs:project_role "contact_pi" .
 bid:s2 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q1 ; bbqs:project_role "key_personnel" .
 bid:s3 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q1 .
 bid:s4 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q2 ; bbqs:project_role "co_pi" .
 bid:s5 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q3 ; bbqs:project_role "co_pi" .
+bid:s6 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q6 ; bbqs:project_role "co_pi" .
+bid:s7 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q2 ; bbqs:project_role "MPI" .
 bid:o1 a bbqs:ResearchOrganization ; bbqs:name "ONE" ; bbqs:members bid:ann, bid:nobody1 .
 bid:o2 a bbqs:ResearchOrganization ; bbqs:name "TWO" ; bbqs:members bid:nobody1 .
 bid:o3 a bbqs:ResearchOrganization ; bbqs:name "THREE" .
@@ -1881,6 +2203,8 @@ bid:w1 a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
 bid:w2 a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
 bid:w3 a bbqs:WorkingGroup ; bbqs:name "WG-Empty" .
 bid:dev a bbqs:Device ; bbqs:model_name "Scope" ; bbqs:manufacturer bid:man ; bbqs:device_category bid:nocat .
+bid:dev2 a bbqs:Device ; bbqs:model_name "Scope 2" ; bbqs:manufacturer bid:man ; bbqs:device_category bbqs:Microscope .
+bbqs:Microscope a bbqs:DeviceCategory ; bbqs:label "Microscopes" .
 bid:man a bbqs:DeviceManufacturer ; bbqs:name "Lens Co" .
 bid:net a bbqs:MLModel ; bbqs:name "Pose net" ; bbqs:evaluated_by bid:bench .
 bid:bench a bbqs:Benchmark ; bbqs:name "Pose bench" ; bbqs:evaluates bid:net .
@@ -1910,13 +2234,22 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 # Rows per question, by hand; a question not named has none. Some of the working:
 #   CQ04   q1 alone has the grant number (q3 only has it as a name, so Bo's role there does not
 #          count). Ann's two records on q1, each under her two names; Bo's record has no role: 4.
-#   CQ05   Ann on q1 and q2, under two names; Bo on q1 and q3: 3.
+#   CQ03   q1 is part of ONE (and also hosted at it): 1.
+#   CQ05   Ann on q1, q2 and q6, under two names; Bo on q1, q2 and q3: 3.
+#   CQ11   q6 names no species: 1 (q3 has no grant number).
 #   CQ13   the dataset q1 both funded and produced: 2.
 #   CQ18   one job under two titles, and two called Technician: 4.
+#   CQ02   q1, q2 and q4 are R34: 100.10 + 0.1 + 200.20 = 300.4, in whatever order it is added.
+#   CQ07   Bo's iD, a node of its own: 1. CQ21 then has Ann alone, under her two names: 2.
+#   CQ15   the scope whose category nothing describes, and Scope 2, filed under bbqs:Microscope: 2.
 #   CQ19   v1 gives two values from a source nothing describes: 2. v2 gives one value from that
 #          source and from one graded twice: 3. v4 is about q3: 0. So 5.
-#   CQ20   Ann (two names) is on two numbered projects, q2 under two numbers; Bo's second project
-#          has no number: 2.
+#   CQ20   Ann (two names) and Bo are each on several numbered projects; Ann's q2 and q6 share a
+#          number, which is named once: 3.
+#   CQ22   Ann's organization, under two names, and Bo's, through q1: 3.
+#   CQ23   Ann's records give 5 grant numbers (q1 twice, q2's two, q6's), under two names; Bo's give
+#          3 (q1, and q2's two; q3 has none): 13.
+#   CQ24   Ann holds three kinds of role, Bo two (co_pi and MPI): 3.
 #   CQ25   m1 fits by its name, its common name and an alias, m2 by its common name: q1, 4 times.
 #   CQ26   three names; "Mus spretus" is two species, both studied by q4, which is one project: 3.
 #   CQ35   ONE advertises four titles (j1 under two, and the two Technicians): 1 row, counting 4.
@@ -1925,13 +2258,15 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #          else not exported: 4 rows.
 #   CQ37   one job under two titles, posted by a name; one by an id nothing describes; one by an id
 #          the server made a node of: 4.
-#   CQ38   q2's one output was not exported, but it has one; q3 has no grant number; so q4 alone: 1.
+#   CQ38   q2's one output was not exported, but it has one; q3 has no grant number; q4 and q6: 2.
 #   CQ41   q1: three datasets, two of them not exported, each with Ann (contact_pi) under two names:
-#          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names: 4. So 10.
-AWKWARD_ROWS = {"CQ01": 4, "CQ04": 4, "CQ05": 3, "CQ06": 2, "CQ08": 3, "CQ09": 2, "CQ13": 2, "CQ15": 1, "CQ17": 4,
-                "CQ18": 4, "CQ19": 5, "CQ20": 2, "CQ21": 3, "CQ22": 2, "CQ23": 9, "CQ24": 2, "CQ25": 4, "CQ26": 3,
-                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 1,
-                "CQ39": 2, "CQ40": 2, "CQ41": 10, "CQ42": 1}
+#          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names and Bo (MPI): 6.
+#          So 12.
+AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 3, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
+                "CQ15": 2, "CQ17": 4,
+                "CQ18": 4, "CQ19": 5, "CQ20": 3, "CQ21": 2, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
+                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 2,
+                "CQ39": 2, "CQ40": 2, "CQ41": 12, "CQ42": 1}
 
 
 class TheBenchmark(unittest.TestCase):
@@ -1981,7 +2316,17 @@ class TheBenchmark(unittest.TestCase):
         silent = asked["asked"] - asked["answered"]
         self.assertEqual((asked["sparql_agree"], asked["tools_agree"], asked["silent_agree"], asked["all_agree"]),
                          (asked["answered"], asked["answered"], silent, True))
-        # every question is accounted for, once, as kg/README.md accounts for them
+        # every question has one status, and the counts add up
+        self.assertEqual(asked["need_the_full_export"] + asked["none_in_this_export"] + asked["not_modelled"]
+                         + asked["could_not_be_asked"], silent)
+        full = {q["id"] for q in bench.load_questions()[0] if q["access"] == "full"}
+        self.assertLessEqual({q["id"] for q in asked["questions"] if q["status"] == "needs the full export"}, full)
+        self.assertEqual(next(q["status"] for q in asked["questions"] if q["id"] == "CQ14"), "not modelled")
+
+    def test_the_readme_says_which_questions_have_no_rows_on_the_committed_export(self):
+        # kg/README.md ("Benchmark") names the questions with no rows today and why. When a new export
+        # changes which, this fails: say so there, and rerun `bench_mcp_server.py --update README.md`.
+        asked = self.ask(str(EXPORT))
         status: dict = {}
         for q in asked["questions"]:
             status.setdefault(q["status"], []).append(q["id"])
@@ -1991,7 +2336,9 @@ class TheBenchmark(unittest.TestCase):
             "needs the full export": ["CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40"],
             "not modelled": ["CQ14"],
             "none in this export": ["CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
-        self.assertEqual((asked["need_the_full_export"], asked["none_in_this_export"], asked["not_modelled"]), (7, 5, 1))
+        readme = (HERE / "README.md").read_text(encoding="utf8")
+        for name in status["needs the full export"] + status["none in this export"] + status["not modelled"]:
+            self.assertIn(name, readme)
         self.assertGreater(asked["answered"] - asked["answered_adopted"], 10)  # the proposed ones are not all silent here
 
     def test_every_question_can_be_walked_when_it_has_an_answer(self):
@@ -2005,6 +2352,8 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(status["CQ14"], "not modelled")   # the schema has no such link, whatever the data says
         self.assertEqual({s for name, s in status.items() if name != "CQ14"}, {"answered"})
         self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 19, 0))
+        # CQ14 has rows here, so it is not among the questions with none, whatever its status
+        self.assertEqual((asked["not_modelled"], asked["need_the_full_export"], asked["none_in_this_export"]), (0, 0, 0))
 
     def test_shapes_an_export_could_take_and_todays_does_not(self):
         asked = self.ask(self.graph(AWKWARD))
@@ -2015,7 +2364,11 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(sorted(bench.WALKS["CQ37"][0](client)),
                          [["Engineer", "bid:nobody1"], ["Postdoc", "Lab manager"], ["Postdoctoral fellow", "Lab manager"],
                           ["Technician", "https://brain-bbqs.org/id/nobody2"]])
-        self.assertEqual(bench.WALKS["CQ15"][0](client), [["Lens Co", "Scope", "https://brain-bbqs.org/id/nocat"]])
+        self.assertEqual(sorted(bench.WALKS["CQ15"][0](client)), [["Lens Co", "Scope", "https://brain-bbqs.org/id/nocat"],
+                                                                  ["Lens Co", "Scope 2", "bbqs:Microscope"]])
+        self.assertEqual(bench.WALKS["CQ07"][0](client), [["Bo B", "<https://orcid.org/0000-0002-0000-0002>"]])
+        [[mechanism, projects, total]] = bench.WALKS["CQ02"][0](client)
+        self.assertEqual((mechanism, projects, round(total, 9)), ("R34", 3, 300.4))
         self.assertEqual(sorted(bench.WALKS["CQ32"][0](client)), [["FOUR", 1], ["ONE", 2], ["THREE", 0], ["TWO", 1]])
         self.assertEqual(bench.WALKS["CQ30"][0](client), [["bid:d2", "D two"]])
         self.assertEqual(sorted(bench.WALKS["CQ19"][0](client), key=str),
@@ -2025,8 +2378,8 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(sorted(bench.WALKS["CQ26"][0](client)), [["Mus musculus", 1], ["Mus musculus domesticus", 1],
                                                                   ["Mus spretus", 1]])
         self.assertEqual([row[:2] for row in bench.WALKS["CQ35"][0](client)], [["ONE", 4]])
-        both = "R34DA059723, U01DA000002, U01DA000002-S1"                  # q2 is under two numbers
-        self.assertEqual(sorted(bench.WALKS["CQ20"][0](client)), [["A. Ann", both], ["Ann A", both]])
+        every = "R34DA059723, U01DA000002, U01DA000002-S1"                 # q2 under two, q6 under one of them
+        self.assertEqual(sorted(bench.WALKS["CQ20"][0](client)), [["A. Ann", every], ["Ann A", every], ["Bo B", every]])
 
     def test_a_graph_with_next_to_nothing_in_it_is_asked_everything_all_the_same(self):
         # no species, no R34DA059723, no working group: nothing for a walk to start from
@@ -2044,6 +2397,141 @@ class TheBenchmark(unittest.TestCase):
         kg = m.GraphSource(source, 0).current()
         self.assertEqual(dict(kg.unfolded), {"ProjectRole": 1})
         self.assertTrue(any("1 ProjectRole" in note for note in kg.describe()["notes"]))
+
+    def test_the_reference_is_written_out_by_the_benchmark_not_by_the_server(self):
+        # The reference is the export queried directly. Its cells are written by the benchmark's own
+        # rules, so a fault in how the server writes a value would show as a difference. Here the two
+        # writers are held against each other on every value of the export, and on odd ones.
+        kg = m.GraphSource(str(EXPORT), 0).current()
+        ids = {iri: node.id for iri, node in kg.nodes.items() if iri.startswith(m.ID_NS)}
+        checked = 0
+        for s, p, o in kg.graph:
+            for term in (s, o):
+                self.assertEqual(bench.reference(term, ids), kg._cell(term), term)
+                checked += 1
+        self.assertGreater(checked, 10_000)
+        with self.assertLogs("rdflib.term", level="WARNING"):          # rdflib says so of the ill-typed one
+            odd = Graph().parse(data="""@prefix bbqs: <https://brain-bbqs.org/schema#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            <https://brain-bbqs.org/id/a> bbqs:v "12.50"^^xsd:decimal, "7"^^xsd:decimal, "0.1"^^xsd:double, true,
+                "2026-01-02"^^xsd:date, "2026-01-02T03:04:05"^^xsd:dateTime, "a sentence"^^xsd:integer, "en"@en,
+                <urn:x>, bbqs:Microscope .""", format="turtle")
+        small = m.KG(odd)
+        small_ids = {iri: node.id for iri, node in small.nodes.items() if iri.startswith(m.ID_NS)}
+        for _, _, term in odd:
+            self.assertEqual(bench.reference(term, small_ids), small._cell(term), term)
+        self.assertEqual(sorted((bench.reference(term, small_ids) for _, _, term in odd), key=str),
+                         sorted([12.5, 7, 0.1, True, "2026-01-02", "2026-01-02T03:04:05", "a sentence", "en", "<urn:x>",
+                                 "bbqs:Microscope"], key=str))
+
+    def test_a_question_the_tools_cannot_walk_in_full_fails_alone(self):
+        # A working group of 501: more members than get_node lists at once. The questions that need
+        # every member link say so and fail; the rest are asked as usual.
+        people = "".join(f'bid:i{n:03d} a bbqs:Investigator ; bbqs:name "I{n:03d}" ; bbqs:member_of_group bid:wgd .\n'
+                         for n in range(501))
+        asked = self.ask(self.graph(PREFIXES + 'bid:wgd a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .\n' + people))
+        wrong = {q["id"]: q.get("error", "") for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])}
+        self.assertEqual(sorted(wrong), ["CQ23", "CQ42"])                  # the two that read every member link
+        for name in wrong:
+            self.assertIn("more member_of_group links than get_node lists at once (500)", wrong[name])
+        rows = {q["id"]: q["rows"] for q in asked["questions"]}
+        self.assertEqual((rows["CQ08"], rows["CQ21"], rows["CQ23"]), (501, 501, 501))   # paged through, all of them
+        self.assertFalse(asked["all_agree"])
+
+    def test_a_question_the_file_itself_cannot_answer_is_said_not_crashed_on(self):
+        source = self.graph(PREFIXES + 'bid:p a bbqs:Project ; bbqs:grant_number "R01X" ; bbqs:mechanism "R01" ; '
+                                       'bbqs:award_amount "not yet awarded" .\n')
+        asked = self.ask(source)
+        cq02 = next(q for q in asked["questions"] if q["id"] == "CQ02")
+        self.assertEqual((cq02["status"], cq02["sparql_agrees"], cq02["tools_agree"], asked["could_not_be_asked"]),
+                         ("could not be asked", False, False, 1))
+        self.assertIn("the export queried directly", cq02["error"])
+        self.assertIn("1 could not be asked", bench.markdown({"server": "0", "nodes": 1, "links": 0, "snapshot": {"source": "x"},
+                                                             "questions": asked}))
+        self.assertEqual([q["id"] for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])], ["CQ02"])
+
+    def test_with_a_full_export_no_rows_is_none_not_needs_the_full_export(self):
+        source = self.graph(PREFIXES + 'bid:only a bbqs:Project ; bbqs:name "Alone" .\n')
+        full = bench.ask_questions(self.client(source), m.GraphSource(source, 0).current(), source, fresh=False, access="full")
+        anon = self.ask(source)
+        self.assertEqual((anon["need_the_full_export"], full["need_the_full_export"]), (7, 0))
+        self.assertEqual(full["none_in_this_export"], anon["none_in_this_export"] + 7)
+        self.assertEqual({q["status"] for q in full["questions"]
+                          if q["id"] in ("CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40")}, {"none in this export"})
+
+    def test_the_ranking_measure_on_a_graph_worked_by_hand(self):
+        # S is linked to A01..A11, X and Q; Q to X. Of its 14 ties, the 11 to an A leave nothing to find
+        # it by (11 cases, all missed). S-X: from S, X is two links away through Q, first after the
+        # eleven direct people; from X, S is first after Q (2 found). S-Q: each finds the other through
+        # X (2 found). Q-X: from X, Q is found after S; from Q, X is one of twelve people two links
+        # away through S, all equal, and comes after ten of them by name (1 found). 5 of 17.
+        star = "".join(f'bid:a{n:02d} a bbqs:Investigator ; bbqs:name "A{n:02d}" .\n' for n in range(1, 12))
+        kg = small_kg(star + 'bid:s a bbqs:Project ; bbqs:name "S" ; bbqs:e '
+                      + ", ".join(f"bid:a{n:02d}" for n in range(1, 12)) + """, bid:x, bid:q .
+            bid:q a bbqs:Project ; bbqs:name "Q" ; bbqs:e bid:x .
+            bid:x a bbqs:Investigator ; bbqs:name "X" .""")
+        before = {iri: (list(node.links), dict(node.near)) for iri, node in kg.nodes.items()}
+        measured = bench.measure_ranking(kg=kg)
+        self.assertEqual({iri: (list(node.links), dict(node.near)) for iri, node in kg.nodes.items()}, before)  # put back
+        self.assertEqual(measured, {"cases": 17, "in_first_ten": dict.fromkeys(bench.WAYS, 29.4),
+                                    "starts_checked_against_the_slow_version": 14, "starts_exactly_equal": 14,
+                                    "lists_of_people": 14, "lists_of_people_cut_among_equals": 14})
+        # the one case that tells "after the start's direct ties" from "the first ten": S looking for X
+        s, x = kg.resolve("S"), kg.resolve("X")
+        s.near.pop(x.iri), x.near.pop(s.iri)
+        self.assertEqual(bench.look_for(kg, s, x), dict.fromkeys(bench.WAYS, True))
+        with mock.patch.object(bench, "look_for", lambda kg, start, hidden: {
+                name: hidden.id in [row["id"] for row in ask(kg, start.id, hidden.type, 0)] for name, ask in bench.WAYS.items()}):
+            self.assertEqual(bench.look_for(kg, s, x), dict.fromkeys(bench.WAYS, False))   # counting them in, it is not
+
+    def test_the_speed_figures_are_the_median_and_the_95th_percentile(self):
+        self.assertEqual(bench.spread([float(n) for n in range(20, 0, -1)], [5, 1, 3]),
+                         {"calls": 20, "median_ms": 10.5, "p95_ms": 20.0, "median_bytes": 3, "largest_bytes": 5})
+        self.assertEqual(bench.spread([7.0], [9])["p95_ms"], 7.0)
+
+    def test_the_whole_block_and_the_report_say_what_was_measured(self):
+        results = {"server": "0.0.0", "nodes": 3, "links": 2, "snapshot": {"source": "x.ttl", "dated": "2026-01-01"},
+                   "ranking": {"cases": 1383, "in_first_ten": {"find_related": 62.4, "find_related, up to 8 links": 64.8,
+                                                               "get_neighbors": 45.4, "get_neighbors, through hubs": 47.3},
+                               "starts_checked_against_the_slow_version": 515, "starts_exactly_equal": 514,
+                               "lists_of_people": 421, "lists_of_people_cut_among_equals": 274},
+                   "speed": {"tools": {name: {"calls": 9, "median_ms": 9.6, "p95_ms": 15.6, "median_bytes": 7643,
+                                              "largest_bytes": 12238} for name in ("find_related", "find_paths")},
+                             "ready_seconds": 1.5, "machine": "Box, Python 3"}}
+        block = bench.markdown(results).splitlines()
+        self.assertIn("| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct "
+                      "ties (1,383 cases) | **62%** (65% looking up to 8 links) |", block)
+        self.assertIn("| The same for `get_neighbors`, which lists by distance alone | 45% (47% walking through hubs) |", block)
+        self.assertIn("| Strengths equal to a slow second version of the rule, exactly | **514 of 515** starting nodes |", block)
+        self.assertIn("| A `find_related` call (median; 95th percentile) | 10 ms; 16 ms |", block)
+        self.assertIn("| A `find_paths` call | 10 ms; 16 ms |", block)
+        self.assertIn("| A `find_related` reply (median; largest of the 9 timed) | 7.6 kB; 12.2 kB |", block)
+        report = bench.report(results)
+        for said in ("RANKING  1383 cases", f"{'find_related':30s} {62.4:5.1f}%", f"{'get_neighbors, through hubs':30s} {47.3:5.1f}%",
+                     "514 of 515 starting nodes", "cut among equals: 274 of 421", "ready 1.5 s after starting",
+                     f"{'find_paths':26s} {9:4d} calls   median {9.6:6.1f} ms   95th {15.6:6.1f} ms"):
+            self.assertIn(said, report)
+
+    def test_run_from_the_command_line_it_rewrites_the_block_and_nothing_else(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        readme, out, source = Path(folder.name) / "README.md", Path(folder.name) / "out.json", self.graph(MINIATURE)
+        readme.write_text(f"before\n{bench.START}\nold\n{bench.END}\nafter\n", encoding="utf8")
+        with mock.patch("sys.stdout"), mock.patch("sys.stderr"):
+            code = bench.main(["--source", source, "--update", str(readme), "--json", str(out)])
+        self.assertEqual(code, 0)
+        text = readme.read_text(encoding="utf8")
+        self.assertTrue(text.startswith(f"before\n{bench.START}\n") and text.endswith(f"{bench.END}\nafter\n"), text[:200])
+        self.assertNotIn("\nold\n", text)
+        written = json.loads(out.read_text(encoding="utf8"))
+        self.assertEqual(sorted(written), ["links", "nodes", "questions", "ranking", "server", "snapshot", "speed"])
+        self.assertEqual(written["ranking"]["starts_exactly_equal"], written["ranking"]["starts_checked_against_the_slow_version"])
+        self.assertEqual(bench.markdown(written), text[len("before\n"):-len("\nafter\n")])
+        with mock.patch.dict(bench.WALKS, {"CQ09": (lambda client: [], "nothing")}), \
+                mock.patch("sys.stdout"), mock.patch("sys.stderr"):
+            self.assertEqual(bench.main(["--source", source, "--only", "questions"]), 1)   # a walk that disagrees fails it
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            bench.main(["--source", source, "--only", "questions", "--update", str(readme)])  # --update needs every part
 
     def test_a_walk_that_went_wrong_would_be_noticed(self):
         with mock.patch.dict(bench.WALKS, {"CQ09": (lambda client: [], "nothing")}):
@@ -2091,8 +2579,15 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual({q["id"]: bench.joined_cells(q["sparql"]) for q in questions if "GROUP_CONCAT" in q["sparql"]},
                          {"CQ20": {1: ", "}, "CQ24": {1: ", "}, "CQ29": {2: ", "}, "CQ35": {2: "; "}})
         self.assertEqual(bench.joined_cells("SELECT ?a (COUNT(?b) AS ?n) (GROUP_CONCAT(?c) AS ?all) { ?a ?b ?c }"), {2: " "})
-        self.assertEqual((bench.bid("abc123"), bench.bid("ext:https://orcid.org/0000-0001"), bench.bid("https://example.org/x")),
-                         ("bid:abc123", "https://orcid.org/0000-0001", "https://example.org/x"))
+        self.assertEqual([bench.bid(node) for node in ("abc123", "ext:https://orcid.org/0000-0001", "https://example.org/x",
+                                                       m.SCHEMA_NS + "Microscope", m.SCHEMA_NS + "two words", "urn:x")],
+                         ["bid:abc123", "<https://orcid.org/0000-0001>", "<https://example.org/x>", "bbqs:Microscope",
+                          f"<{m.SCHEMA_NS}two words>", "<urn:x>"])          # as the server writes each in a cell
+        self.assertEqual(same([[300.29999999999995]]), same([[300.3]]))     # the order a sum was taken in
+        self.assertEqual(same([[0.6000000000000001]]), same([[0.6]]))
+        self.assertNotEqual(same([[0.1]]), same([[0.2]]))
+        self.assertNotEqual(same([[300.3]]), same([[300.30001]]))
+        self.assertEqual(same([[3.0]]), same([[3]]))
 
     def test_the_results_block_is_written_between_its_markers_and_nowhere_else(self):
         def row(name, kind, status, rows, **more):
@@ -2172,4 +2667,6 @@ class TheCommandLine(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    import faulthandler
+    faulthandler.dump_traceback_later(900, exit=True)   # a loop that never ends fails the run, saying where
     unittest.main(verbosity=1)

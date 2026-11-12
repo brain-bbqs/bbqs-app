@@ -337,7 +337,11 @@ streamable HTTP at `/mcp`, with `/health` beside it; put it behind HTTPS on any 
 python kg/mcp_server.py --http --host 0.0.0.0 --port 8000 --no-sparql
 ```
 
-No such host is set up; nothing in this repo deploys it.
+No such host is set up; nothing in this repo deploys it. There is no sign-in: anyone who can reach
+the port can read whatever the served file holds, which is why it should only ever serve the
+public export (see below). On `127.0.0.1`, the default, the MCP SDK also checks each request's
+`Host` and `Origin`, so a web page cannot reach the server through a browser; on another address
+it does not.
 
 ### Tools
 
@@ -356,7 +360,10 @@ which copy of the graph it came from, that copy's date, and its age in days.
 
 A node can be named by the short id another tool returned, its IRI, or an exact name, grant
 number, ORCID, DOI or PMID, so `find_paths("House Mouse", "WG-Devices")` works without a search
-first. An ambiguous name comes back as an error listing the candidates.
+first. An ambiguous name comes back as an error listing the candidates, however it was written
+(quoted, bracketed, or in a list). An argument a tool does not take is refused, not dropped: a
+misspelt `max_hop` would otherwise answer a different question without a word. So is a list that
+names nothing, such as `type: "["`.
 
 ### What a hop is
 
@@ -438,13 +445,16 @@ How answers are ordered:
   not the theory's, and it is what keeps the big working groups in their place: ordered by amount
   alone, in one list of everything, a working group the person is not in reaches the first ten for
   172 of 210 people, and nearest first holds that to 15.
-- **Four links away, unless asked.** `max_hops` goes up to 8. What lies farther is counted per
-  type (`beyond`), not listed.
+- **Four links away, unless asked.** `max_hops` goes up to 8. Per type, `within` counts the
+  nodes within reach and `beyond` those farther, which are counted, not listed.
+- **Up to 25 per type** when up to three types are named, 10 otherwise: every type at once is
+  twenty lists, and at 25 each a reply came to 72 kB.
 - **Several starting nodes** ask what they have in common. Only nodes that every one of them
   reaches are returned, each placed by its worst tie (the farthest starting node, and of those the
   weakest), then by its next worst.
 - **Ties are said, not hidden.** When a list is cut among equals, `tied` gives how many there are
-  and how many were listed, and within a tie the order is by name and means nothing. It is common:
+  and how many were listed, and within a tie the order is by name and means nothing. With several
+  starting nodes, nodes are equal only if they are equal on every tie. It is common:
   274 of the 421 default lists of people end that way (export of 2026-11-05), because everyone who
   shares only a working group with someone is tied to them equally.
 - **Two nodes are one tie**, however many links record it. A person recorded on a grant twice is
@@ -453,19 +463,23 @@ How answers are ordered:
 What a reply carries. A row one link away has `link`, the link itself. A row farther away has
 `through`, the strongest route to it (the path `find_paths` lists first), each node on it with
 `splits`, the number of neighbours it divided among; where there is more than one route the row
-also has `routes`, how many, and `share`, the part of the strength the route shown brings. With several starting nodes a row has `ties`
-instead, one per starting node. `find_paths` lists the paths between two nodes shortest first, and
+also has `routes`, how many, and `share`, the part of the strength the route shown brings. Where
+two nodes are joined by more than one link, `link` is one and `also` the others, each with its own
+direction. With several starting nodes a row has `per_start` instead, one tie per starting node.
+`find_paths` lists the paths between two nodes shortest first, and
 the strongest first among paths of one length (a longer path can be stronger than a shorter one), up
 to 25 at a time (`offset` for the next page) and up to 8 links long, each with its own strength;
 its `routes` and `strength` are the number and the sum of the shortest ones, which are the figures
-`find_related` shows for the pair. The two tools are one calculation read two ways, and give the
+`find_related` shows for the pair, `shortest` is their length and `listed` the paths on the page.
+A path's `text` draws each link the way it points. A page so deep that finding it would take more
+than 50,000 steps is cut short and says `partial`. The two tools are one calculation read two ways, and give the
 same answer whichever end the question starts from.
 
 So a nearby answer can be redone by hand from what the reply shows. A far one adds up hundreds of
 routes, and `routes` says how many.
 
 For those who know the names: this is a breadth-first search that carries one number, the chance
-that a random walker leaving the starting node stands on a given node after that many steps, times
+that a random walker leaving the starting node stands on a given node after as many steps as it is links away, times
 the starting node's neighbours. Two links out it is the Resource Allocation index used to predict
 missing links (Zhou, Lü & Zhang 2009). The psychology supplies the reasons and the vocabulary. The
 arithmetic is ordinary.
@@ -517,7 +531,14 @@ and a roster record with an end missing is counted in `describe_graph`'s notes (
 `sparql_query` sees the graph exactly as exported, with neither change. It refuses everything that
 is not a read of the loaded graph (updates, `CONSTRUCT`, `DESCRIBE`, `SERVICE`, `FROM`) and stops a
 query after 10 seconds. `--no-sparql` leaves the tool out, which is the safer choice for an endpoint
-anyone can reach: a stopped query still cost 10 seconds of CPU.
+anyone can reach: a stopped query still cost 10 seconds of CPU. Nothing the server tells a client
+then mentions SPARQL.
+
+What the view leaves out, it counts in `describe_graph`'s notes rather than dropping in silence:
+a roster record with an end missing, or with a person, a project or a role given more than once
+(no link is made of it); a node's second type (it is listed under the first); and blank nodes,
+which are not nodes here. Language tags are dropped from text. The exporter writes none of these
+except the first: two roster records with an end missing, in the export of 2026-11-05.
 
 ### Which graph, and how old
 
@@ -550,7 +571,12 @@ either does not. Questions that return nothing are compared too, and must return
 (the hidden-tie measure above, with the tools' real output) and the speed of each tool. The results
 are in the main [`README.md`](../README.md#benchmark); `--update README.md` rewrites them there.
 `--show CQ04` prints one question's rows each way, `--only questions` leaves the measurements out,
-and `--source` takes another export.
+and `--source` takes another export (with `--access full` if it is a full one, so that a question
+with no rows there is not reported as needing the full export). The reference is the file queried
+directly by rdflib, with each cell written out by the benchmark's own rules, so a fault in how the
+server writes a value would show as a difference. Numbers are compared to 12 significant digits,
+because a sum's last digits depend on the order it is taken in. CQ17 and CQ39 compare dates as
+ISO text, which is what an `xsd:date` is.
 
 On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
 provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
@@ -561,10 +587,13 @@ group has a member with a role (CQ42). A question of the form "which X has no Y"
 CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is
 not the same as having none.
 
-A walk without SPARQL sees the graph as the server shows it, and in one respect that differs from
-the file: a roster record with an end missing makes no link, while SPARQL still reads the half that
-is there. The export of 2026-11-05 has two such records and no question can tell; a question that
-could would be reported as different, which is right.
+A walk without SPARQL sees the graph as the server shows it, which differs from the file exactly
+where the view leaves something out (above): a roster record it could not fold, a second type, a
+blank node, a language tag. SPARQL reads the file as it is, so a question that can tell is reported
+as different, which is right. The export of 2026-11-05 has two roster records with an end missing,
+and no question can tell. A question that cannot be walked in full (a node with more than 500 links
+of one kind, more than `get_node` lists at once) fails on its own and says why; the others are
+still asked.
 
 ### Tests
 
@@ -581,11 +610,15 @@ ranking has checks of its own: the code gives exactly what spreading with nothin
 delivers first (a second, slower version of the process, written without the shortcuts); the paths
 between two nodes add up to the strength shown for them; the worked example in the tool
 descriptions is built and run, so what a client is told is what the server does; replies stay a
-size a client can take; and the hidden-tie measure above. The benchmark's 42 questions are run
-here too: on the committed export; on a graph in miniature in which every one of them has rows,
-the number of rows worked out by hand; and on one built from the shapes an export could take and
-today's does not (ids nothing describes, a property given twice or not at all, the same two nodes
-linked twice, two things with one name), each of which once led a walk astray. Three guards hold across files: every
+size a client can take; and the hidden-tie measure above. Every argument of every tool is shown to
+reach the graph: each is set away from its default, the answer compared with the method called
+directly, and shown to change when that argument alone is reset. The benchmark's 42 questions are
+run here too: on the committed export; on a graph in miniature in which every one of them has
+rows, the number of rows worked out by hand; and on one built from the shapes an export could take
+and today's does not (ids nothing describes, a property given twice or not at all, the same two
+nodes linked twice, two things with one name, amounts with cents), each of which once led a walk
+astray. The benchmark's own measure is run on a graph whose every case was worked out by hand,
+and its command line end to end. Three guards hold across files: every
 schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
 script header match `requirements*.txt`, and no call that writes to a graph appears outside the
 one that loads it. The suite was shown able to fail: the server was broken 128 ways in a

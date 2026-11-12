@@ -99,7 +99,8 @@ MAX_DEPTH = 4            # get_neighbors
 HUB_LINKS = 30           # get_neighbors does not walk through a node with more links than this
 MAX_HOPS = 8             # find_paths
 MAX_SEEDS = 5            # find_related: starting nodes in one question
-PATH_STEPS = 50_000      # find_paths stops exploring after this many steps
+PATH_STEPS = 50_000      # find_paths stops exploring longer paths after this many steps
+SHORTEST_STEPS = 50_000  # ... and listing the shortest ones after this many (a deep page can ask for many)
 SPARQL_SECONDS = 10.0    # time budget for one sparql_query
 MAX_ROWS = 1000
 FETCH_SECONDS = 10
@@ -151,6 +152,11 @@ def _plain(value: Literal):
     return str(v)
 
 
+def _link_shown(link: "Link") -> dict:
+    """One link as a reply shows it: its type, which way it points, and what its record carries."""
+    return {"edge": link.edge, "direction": "out" if link.out else "in", **dict(link.attrs)}
+
+
 def _fold(text) -> str:
     """Lower-case, accents removed: 'José' and 'jose' compare equal."""
     decomposed = unicodedata.normalize("NFKD", str(text))
@@ -180,7 +186,7 @@ def _as_list(value) -> list[str]:
         if text.startswith("["):
             try:
                 value = json.loads(text)
-            except ValueError:
+            except (ValueError, RecursionError):           # not JSON, or bracketed past what it can read
                 value = text.strip("[]").split(",")
         else:
             value = text.split(",")
@@ -326,6 +332,9 @@ class KG:
         self.edge_counts: Counter = Counter()            # (from type, edge, to type) -> links
         self.edge_attrs: dict = defaultdict(lambda: defaultdict(Counter))
         self.unfolded: Counter = Counter()               # folded-class records missing an end
+        self.repeated: Counter = Counter()               # ... and with an end or a role given twice
+        self.multityped = 0                              # nodes with more than one rdf:type
+        self.blank = 0                                   # triples with a blank node at either end
         self._build()
 
     # -- construction --
@@ -336,6 +345,7 @@ class KG:
             if isinstance(s, URIRef):
                 types[str(s)].add(_local(str(o)))
         node_type = {iri: sorted(found)[0] for iri, found in types.items()}
+        self.multityped = sum(1 for found in types.values() if len(found) > 1)   # filed under the first
         for s in self.graph.subjects():                  # a subject with facts but no rdf:type
             if isinstance(s, URIRef):
                 node_type.setdefault(str(s), "Untyped")
@@ -344,6 +354,8 @@ class KG:
         triples = []                                      # between two nodes
         outside: dict = defaultdict(list)                 # outside IRI -> [(node, predicate)]
         for s, p, o in self.graph:
+            if isinstance(s, BNode) or isinstance(o, BNode):
+                self.blank += 1                           # not a node of this view: counted, not walked
             if p == RDF.type or not isinstance(s, URIRef):
                 continue
             subject, predicate = str(s), _local(str(p))
@@ -361,19 +373,25 @@ class KG:
             if iri not in folded:
                 self.nodes[iri] = Node(iri, t, props={k: sorted(v, key=str) for k, v in props[iri].items()})
 
-        ends: dict = defaultdict(dict)
+        ends: dict = defaultdict(lambda: defaultdict(list))
         for subject, predicate, obj in triples:
             if subject in folded:
-                ends[subject][predicate] = obj
+                ends[subject][predicate].append(obj)
             elif obj not in folded:
                 self._link(subject, predicate, obj)
         for iri in sorted(folded):
             rule = FOLDED[node_type[iri]]
-            source, target = ends[iri].get(rule["from"]), ends[iri].get(rule["to"])
-            if source in self.nodes and target in self.nodes:
+            sources, targets = ends[iri][rule["from"]], ends[iri][rule["to"]]
+            # One record is one person on one project in one role. A record that gives either end,
+            # or the role, more than once says two things at once: it is left out and counted.
+            given = [len(sources) + len(props[iri].get(rule["from"], ())), len(targets) + len(props[iri].get(rule["to"], ()))]
+            given += [len(props[iri].get(slot, ())) for slot in rule["attrs"].values()]
+            if max(given) > 1:
+                self.repeated[node_type[iri]] += 1
+            elif sources and targets and sources[0] in self.nodes and targets[0] in self.nodes:
                 attrs = tuple((name, str(props[iri][slot][0])) for name, slot in rule["attrs"].items()
                               if props[iri].get(slot))
-                self._link(source, rule["edge"], target, attrs)
+                self._link(sources[0], rule["edge"], targets[0], attrs)
             else:
                 self.unfolded[node_type[iri]] += 1
 
@@ -435,9 +453,10 @@ class KG:
                 same = next((n for n, (a, b) in enumerate(zip(tail, other)) if a != b), min(len(tail), len(other)))
                 need = max(need, same + 1)
             self.nodes[ID_NS + tail].id = tail[:need]
-        self._tails = tails
+        self._tails = sorted((tail.lower(), tail) for tail in tails)    # for a prefix, whatever its case
         for node in self.nodes.values():
             node.id = node.id or node.iri
+        self._by_id = {node.id: node for node in self.nodes.values()}
 
     @staticmethod
     def _label(node: Node) -> str:
@@ -466,9 +485,11 @@ class KG:
         for candidate in (text, ID_NS + tail):
             if candidate in self.nodes and self.nodes[candidate].type != EXTERNAL:
                 return self.nodes[candidate]
+        if tail in self._by_id and self._by_id[tail].type != EXTERNAL:   # an id as another tool showed it
+            return self._by_id[tail]
         if re.fullmatch(r"[0-9a-f-]{6,}", tail.lower()):
-            start = bisect.bisect_left(self._tails, tail.lower())
-            found = [t for t in self._tails[start: start + 6] if t.startswith(tail.lower())]
+            start = bisect.bisect_left(self._tails, (tail.lower(),))
+            found = [t for folded, t in self._tails[start: start + 6] if folded.startswith(tail.lower())]
             if len(found) == 1:
                 return self.nodes[ID_NS + found[0]]
             if found:
@@ -493,7 +514,9 @@ class KG:
         """Validate a list of type or edge names against the ones the graph has; None = no filter."""
         names = _as_list(wanted)
         if not names:
-            return None
+            if wanted is None or (isinstance(wanted, str) and wanted.strip() in ("", "[]"))                     or (isinstance(wanted, (list, tuple, set)) and not wanted):
+                return None
+            raise KGError(f"{_clip(repr(wanted), 60)} names no {what}. This graph has: {', '.join(known)}.")
         by_fold = {k.casefold(): k for k in known}
         missing = [n for n in names if n.casefold() not in by_fold]
         if missing:
@@ -529,7 +552,7 @@ class KG:
 
     # -- the tools --
 
-    def describe(self, type=None) -> dict:
+    def describe(self, type=None, sparql: bool = True) -> dict:
         if type:
             return self._describe_type(type)
         by_type: dict = defaultdict(list)
@@ -562,10 +585,11 @@ class KG:
             notes.append(
                 f"{rule['edge']} is the grant roster: one link per person per project, carrying "
                 f"{' and '.join(rule['attrs'])}. It is the only authority for a role on a project; {CAREER_LABEL} on "
-                "a person is a free-text career or consortium label and says nothing about any one grant. "
-                f"In sparql_query the roster is still records, not links: ?r a bbqs:{kind} ; bbqs:{rule['from']} "
-                f"?person ; bbqs:{rule['to']} ?project{slots} ."
-                + (f" Every other link is a triple of the same name, e.g. ?a bbqs:{plain} ?b ." if plain else ""))
+                "a person is a free-text career or consortium label and says nothing about any one grant."
+                + (f" In sparql_query the roster is still records, not links: ?r a bbqs:{kind} ; bbqs:{rule['from']} "
+                   f"?person ; bbqs:{rule['to']} ?project{slots} ."
+                   + (f" Every other link is a triple of the same name, e.g. ?a bbqs:{plain} ?b ." if plain else "")
+                   if sparql else ""))
         notes.append(
             "find_related and find_paths rank by strength, which comes from spreading activation: activation leaves "
             "the starting node along every link, each node it reaches splits what it received equally among the nodes "
@@ -585,6 +609,15 @@ class KG:
         if self.unfolded:
             notes.append("Roster records left out because one end did not resolve: "
                          + ", ".join(f"{n} {t}" for t, n in self.unfolded.items()) + ".")
+        if self.repeated:
+            notes.append("Roster records left out because they give a person, a project or a role more than once: "
+                         + ", ".join(f"{n} {t}" for t, n in self.repeated.items()) + ".")
+        if self.multityped:
+            notes.append(f"Nodes with more than one type: {self.multityped}. Each is listed under the first of its "
+                         "types in alphabetical order.")
+        if self.blank:
+            notes.append(f"Triples with a blank node at one end: {self.blank}. A blank node is not a node here, so "
+                         "they are not walked.")
         return {"graph": "BBQS consortium knowledge graph, public read-only snapshot", "snapshot": self.status(),
                 "nodes": len(self.nodes), "links": sum(self.edge_counts.values()), "unlinked_nodes": unlinked,
                 "node_types": node_types, "edge_types": edge_types, "notes": notes}
@@ -793,7 +826,7 @@ class KG:
         over the nodes in between. It is the same from either end, and it is worked in exact
         fractions, so equal things tie exactly and nothing is ordered by rounding.
         Without the name: a breadth-first search that carries one number, the chance that a random
-        walker leaving `start` stands on the node after that many steps, times the neighbours of
+        walker leaving `start` stands on the node after as many steps as it is links away, times the neighbours of
         `start`. Two links out it is the Resource Allocation index of link prediction."""
         ways = ways or self._ways(avoid)
         reached = {start.iri: Reached(0, Fraction(1), 1, Fraction(1))}
@@ -856,8 +889,8 @@ class KG:
         seeds = self._seeds(references)
         kinds = self._pick(type, self.types, "node type")
         avoid = self._pick(avoid_edges, self.edges, "edge") or set()
-        # Every type at once is many lists, so each is kept shorter than one asked for by name.
-        limit, offset = _page(limit, 25 if kinds else 10), _page(offset, 10 ** 6, 0)
+        # Every type at once is many lists, so each is kept shorter than when a few are named.
+        limit, offset = _page(limit, 25 if kinds and len(kinds) <= 3 else 10), _page(offset, 10 ** 6, 0)
         max_hops = _bounded(max_hops, 1, MAX_HOPS, "max_hops")
         ways = self._ways(avoid)
         waves = [self._wave(seed, ways=ways) for seed in seeds]
@@ -888,7 +921,7 @@ class KG:
             rows.sort()
         for kind, rows in sorted(ranked.items(), key=lambda kv: (not kv[1], kv[1][0][0] if kv[1] else (), kv[0])):
             page = rows[offset: offset + limit]
-            group = {"type": kind, "reached": len(rows),
+            group = {"type": kind, "within": len(rows),
                      "nodes": [self._related_row(seeds, waves, row[2], ways) for row in page]}
             if page and len(rows) > offset + limit and rows[offset + limit][0] == page[-1][0]:
                 level = page[-1][0]                              # the list was cut among equals: say how many
@@ -905,14 +938,17 @@ class KG:
         alone = [seed for seed, wave in zip(seeds, waves) if len(wave) == 1]
         apart = [seed for seed in seeds[1:] if seed.iri not in waves[0]]
         if alone:
-            reply["note"] = (f"No links{without} are recorded for {self._listing(alone)}, so nothing is tied to "
-                             f"{'it' if len(alone) == 1 else 'them'}. A missing link means 'not recorded'.")
+            # A link from a node to itself leads nowhere, so a node with only such links is alone too.
+            others = "other nodes" if any(seed.links and not seed.near for seed in alone) else ""
+            reply["note"] = (f"No links{' to ' + others if others else ''}{without} are recorded for "
+                             f"{self._listing(alone)}, so nothing is tied to {'it' if len(alone) == 1 else 'them'}. "
+                             "A missing link means 'not recorded'.")
         elif apart:
             reply["note"] = (f"No chain of links{without} joins {self._listing(seeds[:1])} and "
                              f"{self._listing(apart)}, so nothing is tied to all of them.")
-        elif not within:
-            reply["note"] = (f"Nothing is within {max_hops} links{without} of "
-                             f"{'this node' if len(seeds) == 1 else 'every one of these nodes'}.")
+        elif not within:                           # one starting node always has a neighbour within one link
+            reply["note"] = (f"Nothing is within {max_hops} link{'' if max_hops == 1 else 's'}{without} of every one "
+                             "of these nodes.")
         return reply
 
     def _seeds(self, references) -> list:
@@ -926,16 +962,20 @@ class KG:
                 parts = _as_list(text)                           # a list in one string: split at the commas
                 if parts in ([], [text]):
                     raise
-                references, failed = [], None
+                references, failed, named = [], None, None
                 for part in parts:
                     try:
                         references.append(self.resolve(part))
                     except KGError as this_part:
                         failed = failed or this_part
-                if failed and not references:
+                        if not str(this_part).startswith("No node matches"):
+                            named = named or this_part           # it names nodes, only not one alone
+                if named and len(parts) == 1:
+                    raise named from None                        # one name, quoted or bracketed: what it names
+                if failed and not references and not named:
                     raise whole from None                        # no part of it is a node either
                 if failed:                                       # some of it is: say which part is not
-                    raise KGError(f"Read as {len(parts)} nodes. {failed}") from None
+                    raise KGError(f"Read as {len(parts)} nodes. {named or failed}") from None
         elif not isinstance(references, (list, tuple)):
             references = [references]
         nodes = [r if isinstance(r, Node) else self.resolve(r) for r in references]
@@ -950,12 +990,12 @@ class KG:
         node = self.nodes[iri]
         if len(seeds) == 1:
             return {**self.brief(node), **self._tie(seeds[0], waves[0], iri, ways)}
-        # Several starting nodes: the row is headed by its worst tie, and `ties` gives each one.
+        # Several starting nodes: the row is headed by its worst tie, and `per_start` gives each one.
         # The routes are not spelled out here (find_paths gives them for any pair).
-        ties = [{"start": seed.id, "hops": wave[iri].hops, "strength": _shown(wave[iri].strength),
-                 **({"routes": wave[iri].routes} if wave[iri].routes > 1 else {})} for seed, wave in zip(seeds, waves)]
+        per_start = [{"start": seed.id, "hops": wave[iri].hops, "strength": _shown(wave[iri].strength),
+                      **({"routes": wave[iri].routes} if wave[iri].routes > 1 else {})} for seed, wave in zip(seeds, waves)]
         worst = max((wave[iri] for wave in waves), key=lambda found: (found.hops, -found.strength))
-        return {**self.brief(node), "hops": worst.hops, "strength": _shown(worst.strength), "ties": ties}
+        return {**self.brief(node), "hops": worst.hops, "strength": _shown(worst.strength), "per_start": per_start}
 
     def _tie(self, seed: Node, wave: dict, iri: str, ways) -> dict:
         """How one starting node reaches one node: how far, how strongly, and mostly by which route."""
@@ -965,9 +1005,9 @@ class KG:
             tie.update(routes=found.routes, share=_shown(found.strongest / found.strength))
         if found.hops == 1:
             first, *others = ways(seed.iri)[iri]
-            tie["link"] = {"edge": first.edge, "direction": "out" if first.out else "in", **dict(first.attrs)}
+            tie["link"] = _link_shown(first)
             if others:                             # more than one link joins the two: still one tie
-                tie["link"]["also"] = [link.edge for link in others]
+                tie["link"]["also"] = [_link_shown(link) for link in others]
             return tie
         # `splits`: how many neighbours the node divided among, so 1/splits, multiplied along the
         # route, is the route's strength.
@@ -980,7 +1020,7 @@ class KG:
         max_hops, limit = _bounded(max_hops, 1, MAX_HOPS, "max_hops"), _page(limit, 25)
         offset = _page(offset, 10 ** 6, 0)
         avoid = self._pick(avoid_edges, self.edges, "edge") or set()
-        reply = {"source": self.brief(a), "target": self.brief(b), "found": 0, "paths": []}
+        reply = {"source": self.brief(a), "target": self.brief(b), "listed": 0, "paths": []}
         if a is b:
             return {**reply, "note": "source and target are the same node."}
         ways = self._ways(avoid)
@@ -997,10 +1037,11 @@ class KG:
             return {**reply, "note": f"The shortest connection{without} is {tie.hops} hops; max_hops is {max_hops}."}
         want = offset + limit + 1                 # one more than asked for, to know whether there are more
         found = self._strongest_shortest(first.iri, last.iri, wave, ways, want)
+        cut = len(found) < min(want, tie.routes)  # the budget ran out before the shortest paths asked for
         steps_left, length, searched = [PATH_STEPS], tie.hops, False
         # Then the longer ones, a length at a time. Between two nodes that are linked there are
         # none: any other way from one to the other is the long way round that link.
-        while tie.hops > 1 and len(found) < want and length < max_hops:
+        while not cut and tie.hops > 1 and len(found) < want and length < max_hops:
             searched = True
             if steps_left[0] <= 0:
                 break
@@ -1009,11 +1050,11 @@ class KG:
             self._walk(first.iri, last.iri, length, wave, ways, [first.iri], level, steps_left)
             found.extend(sorted(((self._left(path, ways), path) for path in level), key=lambda one: (-one[0], one[1])))
         page = found[offset: offset + limit]
-        reply.update(found=len(page), paths=[self._path(path if first is a else path[::-1], strength, ways)
-                                             for strength, path in page])
-        if len(found) > offset + limit:
+        reply.update(listed=len(page), paths=[self._path(path if first is a else path[::-1], strength, ways)
+                                              for strength, path in page])
+        if len(found) > offset + limit or cut:
             reply["more"] = True
-        if searched and steps_left[0] <= 0:       # gave up among the longer paths: some may be missing, or out of order
+        if cut or (searched and steps_left[0] <= 0):  # gave up: some paths may be missing, or out of order
             reply["partial"] = True
         return reply
 
@@ -1033,10 +1074,11 @@ class KG:
         wave from `last`, which says of every node how far it is from `last` and how strong the
         strongest route onward is. So the best a partly built path can still become is known
         exactly, and paths are finished in order of strength. Equally strong ones come in the
-        order of their nodes."""
+        order of their nodes. It stops after SHORTEST_STEPS paths begun, which only a page far down
+        a list of a great many paths can reach; the caller then says the answer is partial."""
         heap = [(-wave[first].strongest, (first,), Fraction(1))]
-        found = []
-        while heap and len(found) < want:
+        found, budget = [], SHORTEST_STEPS
+        while heap and len(found) < want and budget > 0:
             _, trail, so_far = heapq.heappop(heap)       # so_far: what the nodes between `first` and the last one left
             here = trail[-1]
             if here == last:
@@ -1047,6 +1089,7 @@ class KG:
                 if other in wave and wave[other].hops == wave[here].hops - 1:
                     best = passed if other == last else passed * wave[other].strongest / len(ways(other))
                     heapq.heappush(heap, (-best, trail + (other,), passed))
+                    budget -= 1
         return found
 
     def _walk(self, current, target, remaining, wave, ways, trail, out, steps_left):
@@ -1073,12 +1116,16 @@ class KG:
         def show(iri):
             return f'{self.nodes[iri].type} "{_clip(self.nodes[iri].label, 70)}"'
 
+        def named(links):
+            return " + ".join(link.edge + "".join(f" {value}" for name, value in link.attrs if name == "role")
+                              for link in links)
+
         text = show(path[0])
         for here, nxt in zip(path, path[1:]):
-            links = ways(here)[nxt]                # usually one; all of them are named
-            detail = " + ".join(link.edge + "".join(f" {value}" for name, value in link.attrs if name == "role")
-                                for link in links)
-            text += (f" -[{detail}]-> " if links[0].out else f" <-[{detail}]- ") + show(nxt)
+            links = ways(here)[nxt]                # usually one; all of them are named, each the way it points
+            forth, back = [link for link in links if link.out], [link for link in links if not link.out]
+            arrows = ([f"-[{named(forth)}]->"] if forth else []) + ([f"<-[{named(back)}]-"] if back else [])
+            text += f" {' / '.join(arrows)} " + show(nxt)
         return {"hops": len(path) - 1, "strength": _shown(strength), "text": text,
                 "nodes": [self.nodes[iri].id for iri in path]}
 
@@ -1243,6 +1290,12 @@ INSTRUCTIONS = (
     "public snapshot of a graph that is still being linked, so a missing link means 'not recorded', not 'no'."
 )
 NODE = "A node: an id returned by another tool, a full IRI, or an exact name, grant number, ORCID, DOI or PMID."
+WITHOUT_SPARQL = "; for a count, search_nodes gives the total"
+
+
+def instructions(sparql: bool = True) -> str:
+    """INSTRUCTIONS, or without the tool that is not offered."""
+    return INSTRUCTIONS if sparql else INSTRUCTIONS.replace("; use sparql_query for counts and aggregates", WITHOUT_SPARQL)
 
 
 def build_server(source: GraphSource, sparql: bool = True):
@@ -1250,37 +1303,50 @@ def build_server(source: GraphSource, sparql: bool = True):
     from anyio import to_thread
     from mcp.server.mcpserver import MCPServer
     from mcp.server.mcpserver.exceptions import ToolError
+    from mcp.server.mcpserver.tools import Tool
     from mcp_types import ToolAnnotations
-    from pydantic import Field
+    from pydantic import ConfigDict, Field
     from starlette.responses import JSONResponse
 
-    server = MCPServer("bbqs-kg", title="BBQS knowledge graph", version=__version__, instructions=INSTRUCTIONS,
-                       website_url="https://brain-bbqs.org/")
     read_only = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True,
                                 open_world_hint=False)
+    tools: list = []
 
-    def tool(fn):
+    def tool(fn=None, *, description: str | None = None):
         """Register `fn` as a read-only tool. Its answer goes out as compact JSON (indentation is
         token cost on every result), and a KGError becomes the tool's error text so the model can
-        read what went wrong and correct itself, instead of a bare 'Error executing tool'."""
+        read what went wrong and correct itself, instead of a bare 'Error executing tool'. An
+        argument the tool does not take is refused, not dropped: a misspelt max_hops would
+        otherwise answer a different question without a word."""
+        if fn is None:
+            return lambda fn: tool(fn, description=description)
+
         @functools.wraps(fn)
         def answer(*args, **kwargs):
             try:
                 return json.dumps(fn(*args, **kwargs), separators=(",", ":"), ensure_ascii=False, default=str)
             except KGError as exc:
                 raise ToolError(str(exc)) from exc
-        server.add_tool(answer, annotations=read_only, structured_output=False)
+        made = Tool.from_function(answer, description=description, annotations=read_only, structured_output=False)
+        loose = made.fn_metadata.arg_model
+        strict = type(loose.__name__, (loose,), {"__module__": loose.__module__,
+                                                 "model_config": ConfigDict({**loose.model_config, "extra": "forbid"})})
+        made.fn_metadata.arg_model = strict
+        made.parameters = strict.model_json_schema(by_alias=True)
+        tools.append(made)
         return fn
 
-    @tool
+    describe_text = ("The map of the graph. Node types with counts and the properties each carries, link types with "
+                     "their endpoints, how complete the data is, and which snapshot is being served. Call this first; "
+                     "call it again with a type before filtering on that type's properties"
+                     + (" or writing SPARQL about it." if sparql else "."))
+
+    @tool(description=describe_text)
     def describe_graph(
         type: Annotated[str | None, Field(description="A node type, for that type in full: what each property "
                                           "means, the values it takes, and its links.")] = None,
     ) -> dict:
-        """The map of the graph. Node types with counts and the properties each carries, link types with
-        their endpoints, how complete the data is, and which snapshot is being served. Call this first;
-        call it again with a type before filtering on that type's properties or writing SPARQL about it."""
-        return source.current().describe(type)
+        return source.current().describe(type, sparql=sparql)
 
     @tool
     def search_nodes(
@@ -1341,7 +1407,8 @@ def build_server(source: GraphSource, sparql: bool = True):
         type: Annotated[str | list[str] | None, Field(description="Only these node types, e.g. Investigator "
                                                       "for 'which people'. Default: every type, each ranked on "
                                                       "its own.")] = None,
-        limit: Annotated[int, Field(description="Nodes per type, 1-25 (1-10 when no type is named).")] = 5,
+        limit: Annotated[int, Field(description="Nodes per type, 1-25 (1-10 when no type, or more than three, "
+                                    "are named).")] = 5,
         offset: Annotated[int, Field(description="Nodes to skip per type, for the next page.")] = 0,
         avoid_edges: Annotated[str | list[str] | None, Field(description="Link types not to spread along, e.g. "
                                                              "member_of_group to leave working groups out of "
@@ -1356,8 +1423,12 @@ def build_server(source: GraphSource, sparql: bool = True):
         routes 0.4. Each node type is ranked on its own, nearest first and then strongest: strength compares
         nodes the same distance away, and being a sum it can pass 1 where many routes arrive. With several
         starting nodes only what every one of them reaches is returned, each node placed by its worst tie (the
-        farthest starting node, then the weakest). `through` is the strongest route and `share` the part of
-        the strength it brings; find_paths lists the routes. `tied` says a list was cut among equals, whose
+        farthest starting node, then the weakest); `per_start` gives the tie to each one, and only nodes
+        equal on every tie count as equals. Per type, `within` counts the nodes within max_hops and `beyond`
+        those farther. A row one link away has `link` (and `also` for further links between the same two);
+        a farther one has `through`, the strongest route, each node on it with `splits`, the neighbours it
+        divided among, and, where there are several routes, `routes` and `share`, the part of the strength
+        the route shown brings. find_paths lists the routes. `tied` says a list was cut among equals, whose
         order (by name) means nothing."""
         kg = source.current()
         return kg.answered(kg.related(nodes, type, limit, offset, avoid_edges, max_hops))
@@ -1378,8 +1449,9 @@ def build_server(source: GraphSource, sparql: bool = True):
         strength is what is left of one unit after every node in between has split it equally among the
         nodes it is linked to, so a path through a hub (a working group with a hundred members) is weak.
         The reply counts the shortest paths (`routes`) and adds up their `strength`: the two figures
-        find_related shows for the pair. `more` means there are further paths, reached with offset;
-        `partial` means the search among the longer ones stopped early, so some may be missing."""
+        find_related shows for the pair. `shortest` is their length and `listed` the number of paths on this
+        page. `more` means there are further paths, reached with offset; `partial` means the search stopped
+        early, so some paths may be missing."""
         kg = source.current()
         return kg.answered(kg.paths(source_node, target_node, max_hops, limit, avoid_edges, offset))
 
@@ -1396,6 +1468,9 @@ def build_server(source: GraphSource, sparql: bool = True):
             bbqs:Project, bbqs:grant_number and so on; describe_graph's notes give the roster pattern."""
             kg = source.current()
             return kg.answered(kg.sparql(query, limit))
+
+    server = MCPServer("bbqs-kg", title="BBQS knowledge graph", version=__version__, instructions=instructions(sparql),
+                       website_url="https://brain-bbqs.org/", tools=tools)
 
     @server.custom_route("/health", methods=["GET"])
     async def health(_request):
