@@ -32,6 +32,7 @@ The questions and the ranking do not depend on the machine; the speed does, and 
 """
 import argparse
 import json
+import math
 import platform
 import queue
 import re
@@ -173,10 +174,13 @@ class Client:
         """Everything a node points at through one property, one entry for each: a node (as get_node
         lists it) where the other end is one, otherwise the value itself. An identifier that two or
         more nodes share is both a value and a node in the server's view; here it is the node."""
-        rows = self.linked(node_id, name, "out")
-        shared = {row["id"][4:] if row["type"] == m.EXTERNAL else self.node(row["id"])["iri"]
-                  for row in rows if row["type"] in (m.EXTERNAL, m.UNRESOLVED)}
-        return rows + [value for value in self.values(node_id, name) if value not in shared]
+        rows, values = self.linked(node_id, name, "out"), list(self.values(node_id, name))
+        for row in rows:
+            if row["type"] in (m.EXTERNAL, m.UNRESOLVED):    # the link and one of the values are the same entry
+                iri = row["id"][4:] if row["type"] == m.EXTERNAL else self.node(row["id"])["iri"]
+                if iri in values:
+                    values.remove(iri)
+        return rows + values
 
     def has(self, node_id: str, name: str) -> bool:
         """Whether a node says anything at all under one property, as a link or as a value."""
@@ -242,11 +246,12 @@ def cell(entry):
 # missing or given twice, a link may point at an id nothing describes, the same two nodes may be
 # linked twice. What they take for granted is the schema: a link ends at the type its range names.
 #
-# What a walk cannot see is what the server's view leaves out, which describe_graph counts in its
-# notes: a roster record with an end missing, or with a person, project or role given twice (no
-# link is made of it); a node's second rdf:type (it is listed under the first); a blank node (not
-# a node of the view); a language tag (the text is kept, the tag is not). SPARQL reads the file as
-# it is, so where a question can tell, the comparison below says DIFFERENT, as it should. The
+# What a walk cannot see is what the server's view leaves out. describe_graph counts most of it:
+# a roster record with an end missing, or with an end, a role or its source given twice (no link is
+# made of it); what a record says besides those, and a link to a record; a node's second rdf:type
+# (it is listed under the first); a blank node (not a node of the view). Two are not counted: a
+# language tag and a datatype (the text is kept, the tag or type is not). SPARQL reads the file as it
+# is, so where a question can tell, the comparison below says DIFFERENT, as it should. The
 # export the exporter writes has none of these but two roster records with an end missing, which
 # no question can tell. CQ17 and CQ39 compare xsd:date values as ISO text, which is what they are.
 
@@ -643,8 +648,9 @@ def joined_cells(sparql: str) -> dict:
 def reference(term, ids: dict):
     """One cell of the export queried directly, written out here rather than by the server, so that
     a fault in how the server writes a value cannot hide in both the reference and its answer. The
-    rules are the ones a client is told (a number as a number, a date as ISO text, a node of this
-    graph as bid:<id>); only the short ids are the server's, because they are names, not values."""
+    rules are the ones sparql_query's description gives a client (a number as a number, a date or
+    time as ISO text, any other literal as its text, a node of this graph as bid:<id>); only the short
+    ids are the server's, because they are names, not values."""
     if term is None:
         return None
     if isinstance(term, BNode):
@@ -655,27 +661,37 @@ def reference(term, ids: dict):
             return str(value)
         if isinstance(value, Decimal):
             return int(value) if value == value.to_integral_value() else float(value)
-        if isinstance(value, (bool, int, float, str)):
+        if isinstance(value, float) and not math.isfinite(value):
+            return str(term)                                   # NaN and INF: JSON has no number for them
+        if isinstance(value, (int, float, str)):
             return value
-        return value.isoformat() if hasattr(value, "isoformat") else str(value)
+        return value.isoformat() if hasattr(value, "isoformat") else str(term)
     iri = str(term)
     return "bid:" + ids[iri] if iri in ids else address(iri)
 
 
 def same(rows, joined: dict | None = None) -> list:
     """Rows in one order and one spelling, so that two ways of asking can be compared. Duplicate rows
-    count. Three things are evened out, because none is part of the answer: the order of the values
-    in a cell that joins several (`joined`, from joined_cells); whether a web address came back as
-    an IRI (in angle brackets) or as text, which the graph tools do not tell apart; and a number's
-    last digits, which depend on the order a sum was taken in (12 significant digits are kept)."""
+    count. Four things are evened out, because none is part of the answer: the order of the values
+    in a cell that joins several (`joined`, from joined_cells); whether an IRI came back as an IRI
+    (in angle brackets, or as prefix:name) or as text, which the graph tools do not tell apart; a
+    number's last digits, which depend on the order a sum was taken in (12 significant digits are
+    kept, whole numbers or not); and a blank node's label, which each reading of a file makes up."""
     def cell(value, column):
-        if isinstance(value, float):
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
             value = float(f"{value:.12g}")
             return int(value) if value.is_integer() else value
-        if isinstance(value, str) and column in (joined or {}):
+        if not isinstance(value, str):
+            return value
+        if column in (joined or {}):
             return (joined[column]).join(sorted(value.split(joined[column])))
-        if isinstance(value, str) and re.fullmatch(r"<https?://[^<>\s]*>", value):
+        if re.fullmatch(r"_:\S+", value):
+            return "_:"
+        if re.fullmatch(r"<[^<>\s]+>", value):
             return value[1:-1]
+        written = re.fullmatch(r"([A-Za-z]\w*):(\w+)", value)
+        if written and written.group(1) in m.PREFIXES and written.group(1) != "bid":
+            return m.PREFIXES[written.group(1)] + written.group(2)
         return value
     return sorted(json.dumps([cell(value, column) for column, value in enumerate(row)], sort_keys=True, default=str,
                              ensure_ascii=False) for row in rows)
@@ -724,12 +740,12 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
             problems.append(f"the graph tools: {exc}")
         walk_seconds, calls = time.perf_counter() - began, client.calls - calls
         terms = set(re.findall(r"\bbbqs:(\w+)", question["sparql"]))
-        if schema is not None and terms - schema:
-            status = "not modelled"                           # the schema has no such term: nothing can answer it yet
-        elif direct is None:
-            status = "could not be asked"
+        if direct is None:
+            status = "could not be asked"                     # the export queried directly refused it
         elif direct:
             status = "answered"
+        elif schema is not None and terms - schema:
+            status = "not modelled"                           # the schema has no such term: nothing can answer it yet
         elif question["access"] == "full" and access == "anon":
             status = "needs the full export"                  # its source rows are not public
         else:
@@ -737,7 +753,7 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
         if error:
             problems.append(f"sparql_query: {error}")
         rows_out.append({"id": question["id"], "set": question["set"], "question": question["question"],
-                         "area": question["area"], "status": status, "rows": len(direct or ()),
+                         "area": question["area"], "status": status, "rows": None if direct is None else len(direct),
                          "sparql_agrees": direct is not None and by_sparql == direct,
                          "tools_agree": direct is not None and by_tools == direct, "how": how,
                          "tool_calls": calls, "sparql_ms": round(sparql_seconds * 1000, 1),
@@ -751,16 +767,19 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
                     print("    " + row)
                 for row in sorted(set(direct or ()) - set(got))[:20]:
                     print("    MISSING " + row)
-    answered, silent = [r for r in rows_out if r["rows"]], [r for r in rows_out if not r["rows"]]
+    asked_ok = [r for r in rows_out if r["rows"] is not None]   # a question the file refused is neither
+    answered, silent = [r for r in asked_ok if r["rows"]], [r for r in asked_ok if not r["rows"]]
     adopted = [r for r in rows_out if r["set"] == "adopted"]
 
     def count(status):
         return sum(r["status"] == status for r in silent)
 
+    refused = sum(r["status"] == "could not be asked" for r in rows_out)
+
     return {"asked": len(rows_out), "adopted": len(adopted), "answered": len(answered),
             "answered_adopted": sum(1 for r in adopted if r["rows"]),
             "need_the_full_export": count("needs the full export"), "none_in_this_export": count("none in this export"),
-            "not_modelled": count("not modelled"), "could_not_be_asked": count("could not be asked"),
+            "not_modelled": count("not modelled"), "could_not_be_asked": refused,
             "sparql_agree": sum(r["sparql_agrees"] for r in answered), "tools_agree": sum(r["tools_agree"] for r in answered),
             "silent_agree": sum(r["sparql_agrees"] and r["tools_agree"] for r in silent),
             "all_agree": all(r["sparql_agrees"] and r["tools_agree"] for r in rows_out), "questions": rows_out}
@@ -896,7 +915,7 @@ def report(results: dict) -> str:
                f"{snapshot['source']}" + (f", dated {snapshot['dated']}" if snapshot.get("dated") else ""))
     if "questions" in results:
         q = results["questions"]
-        proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"]
+        proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"] - q.get("could_not_be_asked", 0)
         out.append(f"\nQUESTIONS  {q['asked']} asked ({q['adopted']} the KG is scored on, {proposed} proposed in issue #441); "
                    f"{q['answered']} return rows on this export. Of those, the same rows as the export queried directly: "
                    f"{q['sparql_agree']} through sparql_query, {q['tools_agree']} through the graph tools. Of the other "
@@ -906,7 +925,7 @@ def report(results: dict) -> str:
                 return "DIFFERENT" if not ok else "same" if rows else "none"
             if r["set"] == "proposed" and r["id"] == next(x["id"] for x in q["questions"] if x["set"] == "proposed"):
                 out.append("  -- proposed in issue #441, not adopted yet --")
-            out.append(f"  {r['id']}  {r['rows']:4d} rows  sparql {mark(r['sparql_agrees']):9s} {r['sparql_ms']:7.1f} ms   "
+            out.append(f"  {r['id']}  {'—' if r['rows'] is None else r['rows']:>4} rows  sparql {mark(r['sparql_agrees']):9s} {r['sparql_ms']:7.1f} ms   "
                        f"tools {mark(r['tools_agree']):9s} {r['tools_ms']:7.1f} ms {r['tool_calls']:4d} calls   "
                        f"{r['status']:21s} {r['question']}" + (f"\n        {r['error']}" if r.get("error") else ""))
     if "ranking" in results:
@@ -934,11 +953,11 @@ def markdown(results: dict) -> str:
     out = [START, f"Graph: {results['nodes']} nodes, {results['links']} links"
            + (f", export of {snapshot['dated']}" if snapshot.get("dated") else "") + f". Server {results['server']}.", ""]
     if q:
-        proposed, silent = q["asked"] - q["adopted"], q["asked"] - q["answered"]
+        proposed, refused = q["asked"] - q["adopted"], q.get("could_not_be_asked", 0)
+        silent = q["asked"] - q["answered"] - refused
         rest = [f"{q[key]} {what}" for key, what in (("need_the_full_export", "need the full export"),
                                                      ("none_in_this_export", "find none in this export"),
-                                                     ("not_modelled", "not modelled yet"),
-                                                     ("could_not_be_asked", "could not be asked")) if q.get(key)]
+                                                     ("not_modelled", "not modelled yet")) if q.get(key)]
         out += ["| | Result |", "|---|---|",
                 f"| Competency questions that return rows on this export | **{q['answered']} of {q['asked']}**: "
                 f"{q['answered_adopted']} of the {q['adopted']} the KG is scored on"
@@ -950,6 +969,9 @@ def markdown(results: dict) -> str:
         if silent:
             out.append(f"| The other {silent}" + (f" ({', '.join(rest)})" if rest else "") + ": no rows either way | "
                        f"**{q['silent_agree']} of {silent}** |")
+        if refused:
+            out.append(f"| {refused} could not be asked: the export queried directly refused {'it' if refused == 1 else 'them'} "
+                       "| **not compared** |")
     if r:
         first = r["in_first_ten"]
         out += [f"| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties "
@@ -976,7 +998,8 @@ def markdown(results: dict) -> str:
             note = "" if row["status"] == "answered" else f" *({row['status']})*"
             cells = ["**differs**" if not ok else "same" if row["rows"] else "none"
                      for ok in (row["sparql_agrees"], row["tools_agree"])]
-            out.append(f"| {row['id']} | {row['question']}{note} | {row['rows']} | {cells[0]} | {cells[1]} | {row['how']} |")
+            shown = "—" if row["rows"] is None else row["rows"]
+            out.append(f"| {row['id']} | {row['question']}{note} | {shown} | {cells[0]} | {cells[1]} | {row['how']} |")
         out += ["", f"The first {q['adopted']} are the questions the knowledge graph is scored on "
                     "([`kg/competency_questions.yaml`](kg/competency_questions.yaml))."
                     + (" The rest are the extended set proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441) "

@@ -339,9 +339,10 @@ python kg/mcp_server.py --http --host 0.0.0.0 --port 8000 --no-sparql
 
 No such host is set up; nothing in this repo deploys it. There is no sign-in: anyone who can reach
 the port can read whatever the served file holds, which is why it should only ever serve the
-public export (see below). On `127.0.0.1`, the default, the MCP SDK also checks each request's
-`Host` and `Origin`, so a web page cannot reach the server through a browser; on another address
-it does not.
+public export (see below). On `127.0.0.1` (the default), `localhost` or `::1`, the MCP SDK also
+checks each request to `/mcp` for its `Host` and `Origin`, which stops a page on another site, or
+one using DNS rebinding, from calling it through a browser. A page served from a local port can
+still call it, and `/health` is not checked. On any other address nothing is checked.
 
 ### Tools
 
@@ -454,7 +455,8 @@ How answers are ordered:
   weakest), then by its next worst.
 - **Ties are said, not hidden.** When a list is cut among equals, `tied` gives how many there are
   and how many were listed, and within a tie the order is by name and means nothing. With several
-  starting nodes, nodes are equal only if they are equal on every tie. It is common:
+  starting nodes, two nodes are equals when their worst ties are equal, then their next worst, and
+  so on, whichever starting node each tie is to. It is common:
   274 of the 421 default lists of people end that way (export of 2026-11-05), because everyone who
   shares only a working group with someone is tied to them equally.
 - **Two nodes are one tie**, however many links record it. A person recorded on a grant twice is
@@ -534,11 +536,13 @@ query after 10 seconds. `--no-sparql` leaves the tool out, which is the safer ch
 anyone can reach: a stopped query still cost 10 seconds of CPU. Nothing the server tells a client
 then mentions SPARQL.
 
-What the view leaves out, it counts in `describe_graph`'s notes rather than dropping in silence:
-a roster record with an end missing, or with a person, a project or a role given more than once
-(no link is made of it); a node's second type (it is listed under the first); and blank nodes,
-which are not nodes here. Language tags are dropped from text. The exporter writes none of these
-except the first: two roster records with an end missing, in the export of 2026-11-05.
+What the view leaves out, it mostly counts in `describe_graph`'s notes rather than dropping in
+silence: a roster record with an end missing, or with a person, project, role or role's source
+given more than once (no link is made of it); a link to a roster record, and what a record says
+besides those (records are folded into links, not kept as nodes); a node's second type (it is
+listed under the first); and blank nodes, which are not nodes here. Two things are dropped without
+a count: a text's language tag, and a value's datatype (the text is kept). The exporter writes none
+of these but the first: two roster records with an end missing, in the export of 2026-11-05.
 
 ### Which graph, and how old
 
@@ -574,9 +578,15 @@ are in the main [`README.md`](../README.md#benchmark); `--update README.md` rewr
 and `--source` takes another export (with `--access full` if it is a full one, so that a question
 with no rows there is not reported as needing the full export). The reference is the file queried
 directly by rdflib, with each cell written out by the benchmark's own rules, so a fault in how the
-server writes a value would show as a difference. Numbers are compared to 12 significant digits,
-because a sum's last digits depend on the order it is taken in. CQ17 and CQ39 compare dates as
-ISO text, which is what an `xsd:date` is.
+server writes a value would show as a difference. Four things are evened out because they are not
+part of an answer: numbers, whole or not, are compared to 12 significant digits (a sum's last digits
+depend on the order it is taken in); an IRI and the same text compare equal, however each is
+written (`<urn:x>`, `bbqs:Foo`), because the graph tools give an IRI that is not a node as text;
+blank nodes compare equal, because each reading of a file labels them afresh; and the order of the
+parts of a cell that joins several. CQ17 and CQ39 compare dates as ISO text, which is what an
+`xsd:date` is. A question with rows counts as answered even if it uses a term the schema does not
+declare; one the export queried directly refuses (text where a sum needs a number, say) is shown
+apart, as could not be asked, and fails the run.
 
 On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
 provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
@@ -587,10 +597,10 @@ group has a member with a role (CQ42). A question of the form "which X has no Y"
 CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is
 not the same as having none.
 
-A walk without SPARQL sees the graph as the server shows it, which differs from the file exactly
-where the view leaves something out (above): a roster record it could not fold, a second type, a
-blank node, a language tag. SPARQL reads the file as it is, so a question that can tell is reported
-as different, which is right. The export of 2026-11-05 has two roster records with an end missing,
+A walk without SPARQL sees the graph as the server shows it, which differs from the file where the
+view leaves something out (above): a roster record it could not fold or a link to one, a second
+type, a blank node, a language tag or datatype. SPARQL reads the file as it is, so a question that
+can tell is reported as different, which is right. The export of 2026-11-05 has two roster records with an end missing,
 and no question can tell. A question that cannot be walked in full (a node with more than 500 links
 of one kind, more than `get_node` lists at once) fails on its own and says why; the others are
 still asked.

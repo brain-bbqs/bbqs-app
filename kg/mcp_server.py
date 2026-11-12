@@ -139,17 +139,21 @@ def _local(iri: str) -> str:
 
 
 def _plain(value: Literal):
-    """A literal as a JSON value."""
+    """A literal as a JSON value: a number as a number, a truth value as one, a date or time as ISO
+    text, and anything else (text, an ill-typed value, a type JSON has no form for) as its text.
+    rdflib has already written a truth value as true or false, whatever the file said."""
     v = value.toPython()
     if isinstance(v, Literal):  # ill-typed, e.g. a sentence in an integer field: keep the text
         return str(v)
-    if isinstance(v, (bool, int, float, str)):
+    if isinstance(v, float) and not math.isfinite(v):
+        return str(value)       # NaN and INF have no JSON form
+    if isinstance(v, (int, float, str)):
         return v
     if isinstance(v, Decimal):
         return int(v) if v == v.to_integral_value() else float(v)
     if isinstance(v, (date, datetime, clock_time)):
         return v.isoformat()
-    return str(v)
+    return str(value)           # e.g. hexBinary or an XML literal: as written, not as Python shows it
 
 
 def _link_shown(link: "Link") -> dict:
@@ -335,6 +339,7 @@ class KG:
         self.repeated: Counter = Counter()               # ... and with an end or a role given twice
         self.multityped = 0                              # nodes with more than one rdf:type
         self.blank = 0                                   # triples with a blank node at either end
+        self.unused = 0                                  # about folded records, outside their rule
         self._build()
 
     # -- construction --
@@ -345,7 +350,6 @@ class KG:
             if isinstance(s, URIRef):
                 types[str(s)].add(_local(str(o)))
         node_type = {iri: sorted(found)[0] for iri, found in types.items()}
-        self.multityped = sum(1 for found in types.values() if len(found) > 1)   # filed under the first
         for s in self.graph.subjects():                  # a subject with facts but no rdf:type
             if isinstance(s, URIRef):
                 node_type.setdefault(str(s), "Untyped")
@@ -369,6 +373,11 @@ class KG:
                     outside[str(o)].append((subject, predicate))
 
         folded = {iri for iri, t in node_type.items() if t in FOLDED}
+        self.multityped = sum(1 for iri, found in types.items() if len(found) > 1 and iri not in folded)  # filed under the first
+        for iri in folded:                                # what a record says beyond its two ends and what it carries
+            rule = FOLDED[node_type[iri]]
+            self.unused += sum(len(values) for slot, values in props[iri].items()
+                               if slot not in (rule["from"], rule["to"], *rule["attrs"].values()))
         for iri, t in node_type.items():
             if iri not in folded:
                 self.nodes[iri] = Node(iri, t, props={k: sorted(v, key=str) for k, v in props[iri].items()})
@@ -377,8 +386,12 @@ class KG:
         for subject, predicate, obj in triples:
             if subject in folded:
                 ends[subject][predicate].append(obj)
+                rule = FOLDED[node_type[subject]]
+                self.unused += predicate not in (rule["from"], rule["to"])
             elif obj not in folded:
                 self._link(subject, predicate, obj)
+            else:
+                self.unused += 1                          # a link to a record: records are not nodes here
         for iri in sorted(folded):
             rule = FOLDED[node_type[iri]]
             sources, targets = ends[iri][rule["from"]], ends[iri][rule["to"]]
@@ -503,6 +516,13 @@ class KG:
             raise KGError(f"'{reference}' names {len(named)} nodes: {self._listing(named)}. Pass one of these ids.")
         if text in self.nodes:   # an outside identifier no node owns, e.g. an author who is not a member
             return self.nodes[text]
+        inner = _as_list(text) if text[:1] in "\"'[" else []
+        if len(inner) == 1 and inner[0] != text:   # one name in quotes or brackets: the name inside
+            try:
+                return self.resolve(inner[0])
+            except KGError as exc:
+                if not str(exc).startswith("No node matches"):
+                    raise                  # it names several nodes: say which
         raise KGError(f"No node matches '{reference}'. Find it with search_nodes; it takes partial names.")
 
     def _listing(self, nodes, most: int = 8) -> str:
@@ -553,8 +573,11 @@ class KG:
     # -- the tools --
 
     def describe(self, type=None, sparql: bool = True) -> dict:
-        if type:
-            return self._describe_type(type)
+        kinds = self._pick(type, self.types, "node type")
+        if kinds:
+            if len(kinds) > 1:
+                raise KGError(f"Name one node type at a time; {', '.join(sorted(kinds))} were given.")
+            return self._describe_type(next(iter(kinds)))
         by_type: dict = defaultdict(list)
         for node in self.nodes.values():
             by_type[node.type].append(node)
@@ -610,8 +633,12 @@ class KG:
             notes.append("Roster records left out because one end did not resolve: "
                          + ", ".join(f"{n} {t}" for t, n in self.unfolded.items()) + ".")
         if self.repeated:
-            notes.append("Roster records left out because they give a person, a project or a role more than once: "
+            slots = sorted({slot for rule in FOLDED.values() for slot in (rule["from"], rule["to"], *rule["attrs"].values())})
+            notes.append(f"Roster records left out because they give one of {', '.join(slots)} more than once: "
                          + ", ".join(f"{n} {t}" for t, n in self.repeated.items()) + ".")
+        if self.unused:
+            notes.append(f"Triples about roster records that this view does not use (a link to a record, or what a "
+                         f"record says besides its person, project and role): {self.unused}.")
         if self.multityped:
             notes.append(f"Nodes with more than one type: {self.multityped}. Each is listed under the first of its "
                          "types in alphabetical order.")
@@ -625,7 +652,7 @@ class KG:
     def _describe_type(self, type) -> dict:
         """One node type in full: what the schema says it and its properties mean, how full each
         property is, the values it takes when they are few, and its links."""
-        kind = next(iter(self._pick(type, self.types, "node type")))
+        kind = type
         group = sorted((n for n in self.nodes.values() if n.type == kind), key=lambda n: (_fold(n.label), n.iri))
         meaning = _definitions()
         own = {EXTERNAL: "An outside identifier (such as an ORCID iD) that two or more nodes carry.",
@@ -1052,8 +1079,8 @@ class KG:
         page = found[offset: offset + limit]
         reply.update(listed=len(page), paths=[self._path(path if first is a else path[::-1], strength, ways)
                                               for strength, path in page])
-        if len(found) > offset + limit or cut:
-            reply["more"] = True
+        if len(found) > offset + limit or (cut and tie.routes > offset + limit):
+            reply["more"] = True                  # after a cut, only where more shortest paths are known to exist
         if cut or (searched and steps_left[0] <= 0):  # gave up: some paths may be missing, or out of order
             reply["partial"] = True
         return reply
@@ -1423,13 +1450,14 @@ def build_server(source: GraphSource, sparql: bool = True):
         routes 0.4. Each node type is ranked on its own, nearest first and then strongest: strength compares
         nodes the same distance away, and being a sum it can pass 1 where many routes arrive. With several
         starting nodes only what every one of them reaches is returned, each node placed by its worst tie (the
-        farthest starting node, then the weakest); `per_start` gives the tie to each one, and only nodes
-        equal on every tie count as equals. Per type, `within` counts the nodes within max_hops and `beyond`
-        those farther. A row one link away has `link` (and `also` for further links between the same two);
-        a farther one has `through`, the strongest route, each node on it with `splits`, the neighbours it
-        divided among, and, where there are several routes, `routes` and `share`, the part of the strength
-        the route shown brings. find_paths lists the routes. `tied` says a list was cut among equals, whose
-        order (by name) means nothing."""
+        farthest starting node, then the weakest), then by its next worst, and so on; such a row has
+        `per_start`, its tie to each starting node, in place of the fields below. Per type, `within` counts
+        the nodes within max_hops and `beyond` those farther. A row one link away has `link`, holding `also`
+        for any further links between the same two; a farther one has `through`, the strongest route, each
+        node on it with `splits`, the neighbours it divided among, and, where there are several routes,
+        `routes` and `share`, the part of the strength the route shown brings. find_paths lists the routes.
+        `tied` says a list was cut among equals, whose order (by name) means nothing: `count` of them, `listed`
+        on this page. `note` explains an empty answer; `avoided` repeats avoid_edges."""
         kg = source.current()
         return kg.answered(kg.related(nodes, type, limit, offset, avoid_edges, max_hops))
 
@@ -1450,8 +1478,9 @@ def build_server(source: GraphSource, sparql: bool = True):
         nodes it is linked to, so a path through a hub (a working group with a hundred members) is weak.
         The reply counts the shortest paths (`routes`) and adds up their `strength`: the two figures
         find_related shows for the pair. `shortest` is their length and `listed` the number of paths on this
-        page. `more` means there are further paths, reached with offset; `partial` means the search stopped
-        early, so some paths may be missing."""
+        page; each path has its `hops`, `strength`, `text` (each link drawn the way it points) and `nodes`.
+        `more` means there are further paths, reached with offset; `partial` means the search stopped
+        early, so some paths may be missing. `note` explains an empty answer."""
         kg = source.current()
         return kg.answered(kg.paths(source_node, target_node, max_hops, limit, avoid_edges, offset))
 
@@ -1465,7 +1494,9 @@ def build_server(source: GraphSource, sparql: bool = True):
         ) -> dict:
             """Read-only SPARQL over the graph exactly as exported, for counts, aggregates and anything the
             other tools cannot express. Classes and properties are the names describe_graph lists, as
-            bbqs:Project, bbqs:grant_number and so on; describe_graph's notes give the roster pattern."""
+            bbqs:Project, bbqs:grant_number and so on; describe_graph's notes give the roster pattern. In the
+            `rows`, a number is a number, a date or time ISO text and any other literal its text; a node of
+            this graph is bid:<id>, and any other IRI prefix:name or <iri>. `more` means rows were cut at limit."""
             kg = source.current()
             return kg.answered(kg.sparql(query, limit))
 

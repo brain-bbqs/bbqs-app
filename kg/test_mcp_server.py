@@ -662,6 +662,24 @@ class TheView(unittest.TestCase):
             self.assertTrue(self.err(self.kg.related, spelling).startswith("Read as 2 nodes. 'Sam Twin' names 2 nodes"),
                             spelling)
 
+    def test_every_tool_reads_a_name_in_quotes_or_brackets(self):
+        for spelling in ('"Sam Twin"', '["Sam Twin"]', "[Sam Twin]", "'Sam Twin'"):
+            for ask in (lambda ref: self.kg.node(ref), lambda ref: self.kg.neighbors(ref),
+                        lambda ref: self.kg.paths(ref, ADA), lambda ref: self.kg.paths(ADA, ref)):
+                self.assertIn("'Sam Twin' names 2 nodes", self.err(ask, spelling), spelling)
+        for spelling in ('"Ada Lovelace"', '["Ada Lovelace"]', "[Ada Lovelace]"):
+            self.assertEqual(self.kg.resolve(spelling).id, ADA, spelling)
+        self.assertIn("No node matches '[abc'", self.err(self.kg.node, "[abc"))     # the name as written
+
+    def test_describe_graph_takes_one_type_or_none(self):
+        everything = self.kg.describe()
+        for none in (None, "", " ", "[]", []):
+            self.assertEqual(self.kg.describe(none)["nodes"], everything["nodes"], repr(none))
+        self.assertIn("Name one node type at a time", self.err(self.kg.describe, "Species, Project"))
+        self.assertIn("Name one node type at a time", self.err(self.kg.describe, ["Species", "Project"]))
+        self.assertEqual(self.kg.describe("species")["type"], "Species")
+        self.assertIn("names no node type", self.err(self.kg.describe, "["))
+
     def test_an_argument_that_names_nothing_is_a_mistake_not_no_filter(self):
         everything = self.kg.related(ADA)
         for none in (None, "", " ", "[]", []):
@@ -745,14 +763,27 @@ class TheView(unittest.TestCase):
             bid:r2 a bbqs:ProjectRole ; bbqs:held_by bid:x ; bbqs:on_project bid:j ; bbqs:project_role "pi", "co_pi" .
             bid:r3 a bbqs:ProjectRole ; bbqs:held_by bid:y ; bbqs:on_project bid:j ; bbqs:project_role "co_pi" .
             bid:d a bbqs:Dataset, bbqs:Dandiset ; bbqs:name "D" .""")
-        self.assertEqual((dict(kg.repeated), dict(kg.unfolded), kg.multityped, kg.blank), ({"ProjectRole": 2}, {}, 1, 2))
+        self.assertEqual((dict(kg.repeated), dict(kg.unfolded), kg.multityped, kg.blank, kg.unused),
+                         ({"ProjectRole": 2}, {}, 1, 2, 0))
         self.assertEqual([(l.edge, l.other.rsplit("/", 1)[-1], l.attrs) for l in kg.resolve("J").links],
                          [("has_role", "y", (("role", "co_pi"),))])                 # r3 alone is folded
         self.assertEqual(kg.resolve("D").type, "Dandiset")
         notes = " ".join(kg.describe()["notes"])
-        for said in ("give a person, a project or a role more than once: 2 ProjectRole",
+        for said in ("give one of held_by, on_project, project_role, role_source more than once: 2 ProjectRole",
                      "Nodes with more than one type: 1.", "Triples with a blank node at one end: 2."):
             self.assertIn(said, notes)
+        # a record whose role's source is given twice is one of them; a record typed twice is not a
+        # node, so not counted as one; a link to a record, and what a record says besides its rule,
+        # are counted as unused
+        kg = small_kg("""
+            bid:x a bbqs:Investigator ; bbqs:name "X" . bid:j a bbqs:Project ; bbqs:name "J" ; bbqs:roster bid:r2 .
+            bid:r1 a bbqs:ProjectRole ; bbqs:held_by bid:x ; bbqs:on_project bid:j ; bbqs:project_role "pi" ;
+                bbqs:role_source "reporter", "curator" .
+            bid:r2 a bbqs:ProjectRole, bbqs:ZRecord ; bbqs:held_by bid:x ; bbqs:on_project bid:j ; bbqs:project_role "co_pi" ;
+                bbqs:start_date "2025-01-01" ; bbqs:approved_by bid:x .""")
+        self.assertEqual((dict(kg.repeated), kg.multityped, kg.unused), ({"ProjectRole": 1}, 0, 3))
+        self.assertEqual([link.attrs for link in kg.resolve("J").links if link.edge == "has_role"], [(("role", "co_pi"),)])
+        self.assertIn("Triples about roster records that this view does not use", " ".join(kg.describe()["notes"]))
         self.assertEqual((dict(self.kg.repeated), self.kg.multityped, self.kg.blank), ({}, 0, 0))   # none in the fixture
 
     def test_every_id_shown_leads_back_whatever_it_looks_like(self):
@@ -932,7 +963,9 @@ class TheView(unittest.TestCase):
         # A page so deep that finding it would take too long is cut short, and the reply says so.
         with mock.patch.object(m, "SHORTEST_STEPS", 5):
             cut = kg.paths("A", "B", limit=5, offset=100)
+            past = kg.paths("A", "B", limit=5, offset=216)           # past every shortest path: more is not known
         self.assertEqual((cut["partial"], cut["more"], cut["routes"]), (True, True, 216))
+        self.assertEqual((past["partial"], "more" in past, past["listed"]), (True, False, 0))
         self.assertEqual(len(kg.paths("A", "B", limit=5, offset=100)["paths"]), 5)
 
     def test_longer_paths_of_equal_strength_come_in_the_order_of_their_nodes(self):
@@ -971,7 +1004,7 @@ class TheView(unittest.TestCase):
                     self.assertEqual((there["source"], there["target"]), (back["target"], back["source"]))
                     self.assertEqual([(p["strength"], p["nodes"]) for p in there["paths"]],
                                      [(p["strength"], p["nodes"][::-1]) for p in back["paths"]], (a.id, b.id))
-                    summary = ("found", "shortest", "routes", "strength", "more", "partial", "note")
+                    summary = ("listed", "shortest", "routes", "strength", "more", "partial", "note")
                     self.assertEqual([there.get(k) for k in summary], [back.get(k) for k in summary], (a.id, b.id))
                     joined += bool(there["paths"])
         self.assertGreater(joined, 100)
@@ -1633,7 +1666,8 @@ class Guards(unittest.TestCase):
         self.assertIn("split it equally among the nodes it is linked to", " ".join(paths.split()))
         said, told = " ".join(related.split()), " ".join(paths.split())
         for phrase in ("only what every one of them reaches is returned", "`through`, the strongest route",
-                       "only nodes equal on every tie count as equals", "whose order (by name) means nothing",
+                       "then by its next worst, and so on", "`per_start`, its tie to each starting node, in place of",
+                       "`link`, holding `also`", "whose order (by name) means nothing", "`count` of them, `listed` on this page",
                        "`within` counts the nodes within max_hops and `beyond` those farther",
                        "`splits`, the neighbours it divided among"):
             self.assertIn(phrase, said)
@@ -1641,6 +1675,9 @@ class Guards(unittest.TestCase):
                        "`shortest` is their length and `listed` the number of paths on this page"):
             self.assertIn(phrase, told)
         self.assertIn("how exclusive the nodes in between look", note)
+        cells = " ".join(tools["sparql_query"].description.split())          # how a cell is written, as the benchmark relies on
+        self.assertIn("a number is a number, a date or time ISO text and any other literal its text", cells)
+        self.assertIn("a node of this graph is bid:<id>, and any other IRI prefix:name or <iri>", cells)
         for field in ("`through`", "`share`", "`tied`", "`per_start`", "`link`", "`also`", "`routes`"):
             self.assertIn(field, related)
         for field in ("`routes`", "`strength`", "`more`", "`partial`"):
@@ -1650,10 +1687,16 @@ class Guards(unittest.TestCase):
             gave_up = fixture_kg().paths(ADA, P3)
         replies = (kg.related("S", max_hops=3), kg.related(["S", "U"], max_hops=3), kg.paths("S", "U"),
                    kg.related("S", type="Dataset", limit=1, max_hops=3),  # five datasets equally tied: cut
-                   fixture_kg().paths(ADA, P2, limit=1), gave_up)               # ADA to P2: two paths, one shown
+                   fixture_kg().paths(ADA, P2, limit=1), gave_up,          # ADA to P2: two paths, one shown
+                   kg.related("S", avoid_edges="staffed_by", max_hops=1),   # a link type left out
+                   fixture_kg().related(DEE), fixture_kg().paths(ADA, DEE))  # nothing to give: a note
         sent = {key for reply in replies for key in re.findall(r'"(\w+)":', json.dumps(reply))}
-        self.assertEqual({field for field in re.findall(r"`(\w+)`", related + paths) if field not in sent} - {"also"},
-                         set())                                        # `also`: only between nodes linked twice
+        named = set(re.findall(r"`(\w+)`", related + paths))
+        self.assertEqual(named - sent - {"also"}, set())                  # `also`: only between nodes linked twice
+        # ...and every field a reply carries is named, but for the plain ones every reply has
+        plain = {"id", "type", "label", "links", "start", "related", "nodes", "source", "target", "paths", "edge",
+                 "direction", "role", "role_source", "hops", "strength"}
+        self.assertEqual(sent - named - plain, set())
         self.assertIn("find_related", tools["get_neighbors"].description)   # the lister points to the ranker
         for tool in ("find_related", "find_paths", "get_neighbors", "get_node"):
             self.assertIn(tool, m.INSTRUCTIONS)
@@ -2157,8 +2200,8 @@ MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06":
 #     that one project studies, two jobs called Technician at one institution
 #   - a project that carries R34DA059723 only as its name (q3), with a person on it; so Bo is on
 #     two projects of which one has no grant number
-#   - award amounts with cents, and one written as a double, so a sum's last digits depend on the
-#     order it is taken in
+#   - award amounts with cents: SPARQL adds them as decimals (300.30) and a walk as floats
+#     (300.29999999999995), so they agree only to 12 significant digits
 #   - two links between a project and its organization, the one asked for sorting second (q1)
 #   - one person on two projects that share a grant number (Ann on q2 and q6), a person on a
 #     project with a paper and no grant number (Bo on q3), and a role written in capitals (MPI)
@@ -2170,7 +2213,7 @@ bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ; b
     bbqs:award_amount 100.10 ; bbqs:hosted_at bid:o1 ; bbqs:part_of_org bid:o1 ;
     bbqs:funded_datasets bid:d1, bid:gone1, bid:gone2 ; bbqs:produced bid:d1 ; bbqs:studies_species bid:m1, bid:m2 .
 bid:q2 a bbqs:Project ; bbqs:grant_number "U01DA000002", "U01DA000002-S1" ; bbqs:funded_datasets bid:gone2 ;
-    bbqs:mechanism "R34" ; bbqs:award_amount "0.1"^^xsd:double ;
+    bbqs:mechanism "R34" ;
     bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_name "marmoset" .
 bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2, bid:pub9 .
 bid:q6 a bbqs:Project ; bbqs:grant_number "U01DA000002" .
@@ -2195,6 +2238,9 @@ bid:s4 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q2 ; bbqs
 bid:s5 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q3 ; bbqs:project_role "co_pi" .
 bid:s6 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:q6 ; bbqs:project_role "co_pi" .
 bid:s7 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:q2 ; bbqs:project_role "MPI" .
+bid:di a bbqs:Investigator ; bbqs:name "Di D" .
+bid:s8 a bbqs:ProjectRole ; bbqs:held_by bid:di ; bbqs:on_project bid:q3 ; bbqs:project_role "co_pi" .
+bid:s9 a bbqs:ProjectRole ; bbqs:held_by bid:di ; bbqs:on_project bid:q4 ; bbqs:project_role "co_pi" .
 bid:o1 a bbqs:ResearchOrganization ; bbqs:name "ONE" ; bbqs:members bid:ann, bid:nobody1 .
 bid:o2 a bbqs:ResearchOrganization ; bbqs:name "TWO" ; bbqs:members bid:nobody1 .
 bid:o3 a bbqs:ResearchOrganization ; bbqs:name "THREE" .
@@ -2235,12 +2281,13 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #   CQ04   q1 alone has the grant number (q3 only has it as a name, so Bo's role there does not
 #          count). Ann's two records on q1, each under her two names; Bo's record has no role: 4.
 #   CQ03   q1 is part of ONE (and also hosted at it): 1.
-#   CQ05   Ann on q1, q2 and q6, under two names; Bo on q1, q2 and q3: 3.
+#   CQ05   Ann on q1, q2 and q6, under two names; Bo on q1, q2 and q3; Di on q3 and q4: 4.
+#          (Di is on one numbered project only, so not in CQ20.)
 #   CQ11   q6 names no species: 1 (q3 has no grant number).
 #   CQ13   the dataset q1 both funded and produced: 2.
 #   CQ18   one job under two titles, and two called Technician: 4.
-#   CQ02   q1, q2 and q4 are R34: 100.10 + 0.1 + 200.20 = 300.4, in whatever order it is added.
-#   CQ07   Bo's iD, a node of its own: 1. CQ21 then has Ann alone, under her two names: 2.
+#   CQ02   q1 and q4 are R34 with an amount (q2 has none): 100.10 + 200.20 = 300.3.
+#   CQ07   Bo's iD, a node of its own: 1. CQ21 then has Ann, under her two names, and Di: 3.
 #   CQ15   the scope whose category nothing describes, and Scope 2, filed under bbqs:Microscope: 2.
 #   CQ19   v1 gives two values from a source nothing describes: 2. v2 gives one value from that
 #          source and from one graded twice: 3. v4 is about q3: 0. So 5.
@@ -2262,9 +2309,9 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #   CQ41   q1: three datasets, two of them not exported, each with Ann (contact_pi) under two names:
 #          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names and Bo (MPI): 6.
 #          So 12.
-AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 3, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
+AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 4, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
                 "CQ15": 2, "CQ17": 4,
-                "CQ18": 4, "CQ19": 5, "CQ20": 3, "CQ21": 2, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
+                "CQ18": 4, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
                 "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 2,
                 "CQ39": 2, "CQ40": 2, "CQ41": 12, "CQ42": 1}
 
@@ -2349,8 +2396,7 @@ class TheBenchmark(unittest.TestCase):
         self.assertNotIn(0, MINIATURE_ROWS.values())
         self.assertEqual(self.differing(asked), [])
         status = {q["id"]: q["status"] for q in asked["questions"]}
-        self.assertEqual(status["CQ14"], "not modelled")   # the schema has no such link, whatever the data says
-        self.assertEqual({s for name, s in status.items() if name != "CQ14"}, {"answered"})
+        self.assertEqual(set(status.values()), {"answered"})   # CQ14 too: it uses a link the schema lacks, and has rows
         self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 19, 0))
         # CQ14 has rows here, so it is not among the questions with none, whatever its status
         self.assertEqual((asked["not_modelled"], asked["need_the_full_export"], asked["none_in_this_export"]), (0, 0, 0))
@@ -2368,7 +2414,7 @@ class TheBenchmark(unittest.TestCase):
                                                                   ["Lens Co", "Scope 2", "bbqs:Microscope"]])
         self.assertEqual(bench.WALKS["CQ07"][0](client), [["Bo B", "<https://orcid.org/0000-0002-0000-0002>"]])
         [[mechanism, projects, total]] = bench.WALKS["CQ02"][0](client)
-        self.assertEqual((mechanism, projects, round(total, 9)), ("R34", 3, 300.4))
+        self.assertEqual((mechanism, projects, total), ("R34", 2, 100.1 + 200.2))         # 300.29999999999995
         self.assertEqual(sorted(bench.WALKS["CQ32"][0](client)), [["FOUR", 1], ["ONE", 2], ["THREE", 0], ["TWO", 1]])
         self.assertEqual(bench.WALKS["CQ30"][0](client), [["bid:d2", "D two"]])
         self.assertEqual(sorted(bench.WALKS["CQ19"][0](client), key=str),
@@ -2424,6 +2470,35 @@ class TheBenchmark(unittest.TestCase):
                          sorted([12.5, 7, 0.1, True, "2026-01-02", "2026-01-02T03:04:05", "a sentence", "en", "<urn:x>",
                                  "bbqs:Microscope"], key=str))
 
+    def test_the_reference_does_not_lean_on_the_server_to_write_a_value(self):
+        broken = small_kg('bid:a a bbqs:Thing ; bbqs:name "A" .')
+        ids = {iri: node.id for iri, node in broken.nodes.items()}
+        values = Graph().parse(data="""@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            <urn:s> <urn:p> "12.50"^^xsd:decimal, "2026-01-02"^^xsd:date, "NaN"^^xsd:double, "deadbeef"^^xsd:hexBinary,
+                "true"^^xsd:boolean, <https://brain-bbqs.org/id/a>, <urn:x> .""", format="turtle")
+        written = {str(term): bench.reference(term, ids) for _, _, term in values}
+        with mock.patch.object(m, "_plain", lambda value: "X"), mock.patch.object(m.KG, "_cell", lambda self, term: "X"):
+            self.assertEqual({str(term): bench.reference(term, ids) for _, _, term in values}, written)   # not the server's
+        nan = next(text for text in written if text.lower() == "nan")
+        self.assertEqual(written, {"12.50": 12.5, "2026-01-02": "2026-01-02", nan: nan, "deadbeef": "deadbeef", "true": True,
+                                   m.ID_NS + "a": "bid:a", "urn:x": "<urn:x>"})      # NaN as text: JSON has no number for it
+        self.assertEqual({str(term): broken._cell(term) for _, _, term in values}, written)   # and the server writes the same
+
+    def test_values_written_as_iris_or_blank_nodes_agree_both_ways(self):
+        source = self.graph(PREFIXES + """
+            bid:t1 a bbqs:SoftwareTool ; bbqs:name "T1" ; bbqs:repo_url <urn:isbn:1> .
+            bid:t2 a bbqs:SoftwareTool ; bbqs:name "T2" ; bbqs:repo_url bbqs:Foo .
+            bid:t3 a bbqs:SoftwareTool ; bbqs:name "T3" ; bbqs:repo_url <mailto:a@b.org> .
+            bid:t4 a bbqs:SoftwareTool ; bbqs:name "T4" ; bbqs:repo_url [ bbqs:url "x" ] .
+            bid:ann a bbqs:Investigator ; bbqs:name "Ann" ;
+                bbqs:orcid <https://orcid.org/0000-0001-0000-0001>, "https://orcid.org/0000-0001-0000-0001" .
+            bid:bea a bbqs:Investigator ; bbqs:name "Bea" ; bbqs:orcid <https://orcid.org/0000-0001-0000-0001> .
+        """)
+        rows = {q["id"]: q for q in self.ask(source)["questions"]}
+        self.assertEqual((rows["CQ16"]["rows"], rows["CQ16"]["sparql_agrees"]), (4, True))   # the blank node too
+        self.assertEqual((rows["CQ07"]["rows"], rows["CQ07"]["sparql_agrees"], rows["CQ07"]["tools_agree"]), (3, True, True))
+        self.assertFalse(rows["CQ16"]["tools_agree"])        # the walk cannot see a blank node: documented, and said
+
     def test_a_question_the_tools_cannot_walk_in_full_fails_alone(self):
         # A working group of 501: more members than get_node lists at once. The questions that need
         # every member link say so and fail; the rest are asked as usual.
@@ -2446,8 +2521,11 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual((cq02["status"], cq02["sparql_agrees"], cq02["tools_agree"], asked["could_not_be_asked"]),
                          ("could not be asked", False, False, 1))
         self.assertIn("the export queried directly", cq02["error"])
-        self.assertIn("1 could not be asked", bench.markdown({"server": "0", "nodes": 1, "links": 0, "snapshot": {"source": "x"},
-                                                             "questions": asked}))
+        block = bench.markdown({"server": "0", "nodes": 1, "links": 0, "snapshot": {"source": "x"}, "questions": asked})
+        self.assertIn("| 1 could not be asked: the export queried directly refused it | **not compared** |", block)
+        self.assertIn("*(could not be asked)* | — |", block)                      # not "0 rows": it has rows
+        self.assertIsNone(cq02["rows"])                                            # neither "answered" nor "no rows"
+        self.assertEqual(asked["asked"] - asked["answered"] - asked["could_not_be_asked"], asked["silent_agree"])
         self.assertEqual([q["id"] for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])], ["CQ02"])
 
     def test_with_a_full_export_no_rows_is_none_not_needs_the_full_export(self):
@@ -2588,6 +2666,10 @@ class TheBenchmark(unittest.TestCase):
         self.assertNotEqual(same([[0.1]]), same([[0.2]]))
         self.assertNotEqual(same([[300.3]]), same([[300.30001]]))
         self.assertEqual(same([[3.0]]), same([[3]]))
+        self.assertEqual(same([[1234567890123]]), same([[1234567890123.0]]))   # whole or not, to 12 digits
+        self.assertEqual(same([["_:n1a2b"]]), same([["_:f9e8d"]]))              # blank labels are made up per reading
+        self.assertEqual(same([["<urn:isbn:1>"], ["bbqs:Foo"]]), same([["urn:isbn:1"], [m.SCHEMA_NS + "Foo"]]))
+        self.assertNotEqual(same([["bid:abc"]]), same([[m.ID_NS + "abc"]]))      # a node of this graph stays a node
 
     def test_the_results_block_is_written_between_its_markers_and_nowhere_else(self):
         def row(name, kind, status, rows, **more):
