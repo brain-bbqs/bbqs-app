@@ -330,19 +330,34 @@ Claude Desktop and other clients that take a JSON entry:
 { "mcpServers": { "bbqs-kg": { "command": "uv", "args": ["run", "/path/to/bbqs-app/kg/mcp_server.py"] } } }
 ```
 
-A client that cannot start a local process (claude.ai connectors) needs a URL. `--http` serves
-streamable HTTP at `/mcp`, with `/health` beside it; put it behind HTTPS on any host:
+No checkout is needed: the script names its own dependencies, so uv runs it from GitHub, and it
+then reads the export the site publishes, or the one committed to `main`:
 
 ```bash
-python kg/mcp_server.py --http --host 0.0.0.0 --port 8000 --no-sparql
+claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/mcp_server.py
 ```
 
-No such host is set up; nothing in this repo deploys it. There is no sign-in: anyone who can reach
-the port can read whatever the served file holds, which is why it should only ever serve the
-public export (see below). On `127.0.0.1` (the default), `localhost` or `::1`, the MCP SDK also
-checks each request to `/mcp` for its `Host` and `Origin`, which stops a page on another site, or
-one using DNS rebinding, from calling it through a browser. A page served from a local port can
-still call it, and `/health` is not checked. On any other address nothing is checked.
+### On a public URL
+
+A client that cannot start a local process (a claude.ai connector) needs a URL. GitHub Pages
+serves files and cannot run it, so it needs a host that runs a Python process from the repository.
+There: install `kg/requirements-mcp.txt`, and start it with
+
+```bash
+python kg/mcp_server.py --http --host 0.0.0.0 --no-sparql --allow-host neuromcp.brain-bbqs.org
+```
+
+It serves MCP at `/mcp` and a health check at `/health`, on `$PORT` (8000 if the host sets none).
+Point a CNAME record for `neuromcp` at the address the host gives, let the host provide HTTPS, and
+add `https://neuromcp.brain-bbqs.org/mcp` as a connector. Nothing in this repo deploys it.
+
+There is no sign-in: anyone who can reach it can read whatever the served file holds, which is why
+it should only ever serve the public export (see below), and why SPARQL is left off. `--allow-host`
+(or `BBQS_KG_ALLOWED_HOSTS`, comma-separated) names the public host names; it keeps the MCP SDK
+checking each request to `/mcp` for its `Host` and `Origin`, which stops a page on another site, or
+one using DNS rebinding, from calling it through a browser. Without it the SDK checks only when the
+server listens on `127.0.0.1` (the default), `localhost` or `::1`, and then a request forwarded by a
+proxy or a tunnel for the public name is refused. `/health` is never checked.
 
 ### Tools
 
@@ -539,10 +554,11 @@ then mentions SPARQL.
 What the view leaves out, it mostly counts in `describe_graph`'s notes rather than dropping in
 silence: a roster record with an end missing, or with a person, project, role or role's source
 given more than once (no link is made of it); a link to a roster record, and what a record says
-besides those (records are folded into links, not kept as nodes); a node's second type (it is
-listed under the first); and blank nodes, which are not nodes here. Two things are dropped without
-a count: a text's language tag, and a value's datatype (the text is kept). The exporter writes none
-of these but the first: two roster records with an end missing, in the export of 2026-11-05.
+besides those, its other types included (records are folded into links, not kept as nodes); a
+node's second type (it is listed under the first); and blank nodes, which are not nodes here. Two
+things are dropped without a count: a text's language tag, and a value's datatype (the text is
+kept). Of all these, the export of 2026-11-05 has two roster records with an end missing, and
+datatypes: `xsd:anyURI` on 477 values and `xsd:date` on 27, which no question tells apart.
 
 ### Which graph, and how old
 

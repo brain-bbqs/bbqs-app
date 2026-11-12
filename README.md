@@ -56,6 +56,14 @@ To talk to it from Claude Code (give the full path to your checkout):
 claude mcp add bbqs-kg -- uv run /path/to/bbqs-app/kg/mcp_server.py
 ```
 
+Or, with no checkout at all, straight from GitHub:
+
+```bash
+claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/mcp_server.py
+```
+
+To serve it on a public URL for a claude.ai connector, see [On a public URL](kg/README.md#on-a-public-url).
+
 ### Benchmark
 
 <!-- kg-mcp-benchmark:start -->

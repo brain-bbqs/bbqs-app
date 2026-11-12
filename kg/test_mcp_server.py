@@ -670,6 +670,14 @@ class TheView(unittest.TestCase):
         for spelling in ('"Ada Lovelace"', '["Ada Lovelace"]', "[Ada Lovelace]"):
             self.assertEqual(self.kg.resolve(spelling).id, ADA, spelling)
         self.assertIn("No node matches '[abc'", self.err(self.kg.node, "[abc"))     # the name as written
+        kg = small_kg("""bid:s1 a bbqs:Investigator ; bbqs:name "Smith, J" . bid:s2 a bbqs:Investigator ; bbqs:name "Smith, J" .
+            bid:k1 a bbqs:Organization ; bbqs:name "Kids" . bid:k2 a bbqs:Organization ; bbqs:name "Kids'" .
+            bid:b1 a bbqs:Organization ; bbqs:name "Biomark, Inc." .
+            bid:208980e9-0000-0000-0000-000000000001 a bbqs:Dataset ; bbqs:name "E-notation" .""")
+        for spelling in ('"Smith, J"', "[Smith, J]", "'Smith, J'", '["Smith, J"]'):      # a comma inside is part of the name
+            self.assertIn("'Smith, J' names 2 nodes", self.err(kg.node, spelling), spelling)
+        self.assertEqual([kg.resolve(ref).label for ref in ('"Biomark, Inc."', "[Biomark, Inc.]", '"Kids\'"', "[208980e9]")],
+                         ["Biomark, Inc.", "Biomark, Inc.", "Kids'", "E-notation"])      # not "Kids"; not a number
 
     def test_describe_graph_takes_one_type_or_none(self):
         everything = self.kg.describe()
@@ -781,7 +789,7 @@ class TheView(unittest.TestCase):
                 bbqs:role_source "reporter", "curator" .
             bid:r2 a bbqs:ProjectRole, bbqs:ZRecord ; bbqs:held_by bid:x ; bbqs:on_project bid:j ; bbqs:project_role "co_pi" ;
                 bbqs:start_date "2025-01-01" ; bbqs:approved_by bid:x .""")
-        self.assertEqual((dict(kg.repeated), kg.multityped, kg.unused), ({"ProjectRole": 1}, 0, 3))
+        self.assertEqual((dict(kg.repeated), kg.multityped, kg.unused), ({"ProjectRole": 1}, 0, 4))   # r2's ZRecord too
         self.assertEqual([link.attrs for link in kg.resolve("J").links if link.edge == "has_role"], [(("role", "co_pi"),)])
         self.assertIn("Triples about roster records that this view does not use", " ".join(kg.describe()["notes"]))
         self.assertEqual((dict(self.kg.repeated), self.kg.multityped, self.kg.blank), ({}, 0, 0))   # none in the fixture
@@ -1588,6 +1596,70 @@ class TheSource(unittest.TestCase):
             self.assertEqual(fallback.current().snapshot["source"], fallback.locations[0])   # heals when it is back
 
 
+class OnAPublicUrl(unittest.TestCase):
+    """What running it as a web service needs: a source when the repository is not there, the port
+    the host gives, and the public name it is reached by."""
+
+    def test_without_the_repository_it_reads_the_export_committed_to_main(self):
+        self.assertEqual(m.GraphSource(None, 0).locations, [m.PUBLISHED_EXPORT, str(m.BUNDLED_EXPORT)])
+        with mock.patch.object(m, "BUNDLED_EXPORT", Path("/nowhere/export/bbqs.ttl")):
+            self.assertEqual(m.GraphSource(None, 0).locations, [m.PUBLISHED_EXPORT, m.GITHUB_EXPORT])
+        self.assertEqual(m.GITHUB_EXPORT, "https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/export/bbqs.ttl")
+
+    def test_the_port_and_the_public_names_come_from_the_host_s_environment(self):
+        with mock.patch.dict(os.environ, {"PORT": "9123", "BBQS_KG_ALLOWED_HOSTS": "neuromcp.brain-bbqs.org, x.run.app"}):
+            args = m.command_line(["--http"])
+            self.assertEqual((args.port, args.allow_host), (9123, ["neuromcp.brain-bbqs.org", "x.run.app"]))
+            self.assertEqual(m.command_line(["--allow-host", "a.org"]).allow_host, ["a.org"])   # the flag wins
+        with mock.patch.dict(os.environ, {"PORT": "", "BBQS_KG_ALLOWED_HOSTS": ""}):
+            self.assertEqual((m.command_line([]).port, m.command_line([]).allow_host, m.command_line([]).host),
+                             (8000, [], "127.0.0.1"))
+        self.assertIsNone(m.transport_security([]))                  # the SDK's own rule
+        settings = m.transport_security(["neuromcp.brain-bbqs.org"])
+        self.assertTrue(settings.enable_dns_rebinding_protection)
+        self.assertIn("neuromcp.brain-bbqs.org", settings.allowed_hosts)
+        self.assertIn("127.0.0.1:*", settings.allowed_hosts)
+        self.assertIn("https://neuromcp.brain-bbqs.org", settings.allowed_origins)
+
+    def test_behind_a_proxy_it_answers_its_public_name_and_no_other(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        graph = Path(folder.name) / "graph.ttl"
+        graph.write_text(FIXTURE, encoding="utf8")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        log = tempfile.TemporaryFile()
+        self.addCleanup(log.close)
+        process = subprocess.Popen([sys.executable, str(SERVER), "--source", str(graph), "--http", "--no-sparql",
+                                    "--allow-host", "kg.example.org"], stdout=log, stderr=log,
+                                   env={**os.environ, "PORT": str(port)})
+        self.addCleanup(lambda: (process.terminate(), process.wait(timeout=20)))
+        import http.client
+
+        def ask(host, origin=None):
+            headers = {"Host": host, "Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+            if origin:
+                headers["Origin"] = origin
+            for _ in range(300):
+                try:
+                    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+                    connection.request("POST", "/mcp", json.dumps(_request(1, "tools/list")), headers)
+                    return connection.getresponse().status
+                except ConnectionRefusedError:
+                    if process.poll() is not None:
+                        log.seek(0)
+                        raise AssertionError(log.read().decode(errors="replace")[-2000:]) from None
+                    time.sleep(0.2)
+            raise AssertionError("the server did not start")
+
+        self.assertEqual(ask("kg.example.org"), 200)                                    # its public name
+        self.assertEqual(ask(f"127.0.0.1:{port}"), 200)                                 # and the local one
+        self.assertEqual(ask("evil.example"), 421)                                      # not another name
+        self.assertEqual(ask("kg.example.org", origin="https://evil.example"), 403)    # nor a page elsewhere
+        self.assertEqual(ask("kg.example.org", origin="https://kg.example.org"), 200)
+
+
 class Guards(unittest.TestCase):
     """Things that must stay true across files, where no reviewer would think to look."""
 
@@ -1676,7 +1748,8 @@ class Guards(unittest.TestCase):
             self.assertIn(phrase, told)
         self.assertIn("how exclusive the nodes in between look", note)
         cells = " ".join(tools["sparql_query"].description.split())          # how a cell is written, as the benchmark relies on
-        self.assertIn("a number is a number, a date or time ISO text and any other literal its text", cells)
+        self.assertIn("a number is a number, a truth value true or false, a date or time ISO text and any other "
+                      "literal its text (NaN and infinity as NaN, INF, -INF)", cells)
         self.assertIn("a node of this graph is bid:<id>, and any other IRI prefix:name or <iri>", cells)
         for field in ("`through`", "`share`", "`tied`", "`per_start`", "`link`", "`also`", "`routes`"):
             self.assertIn(field, related)
@@ -2207,6 +2280,7 @@ MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06":
 #     project with a paper and no grant number (Bo on q3), and a role written in capitals (MPI)
 #   - an ORCID iD that is itself described (so a node, not a value), and a device category whose
 #     address is not one of this graph's ids (bbqs:Microscope)
+#   - a repository and an institution that are nodes of the graph, not text (tool9, j5)
 #   - dates on the first and last day of CQ39's window, on the day either side, and on CQ17's day
 AWKWARD = PREFIXES + """
 bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ; bbqs:mechanism "R34" ;
@@ -2260,6 +2334,8 @@ bid:j2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" ; bbqs:j
     bbqs:posted_by bid:nobody2 .
 bid:j3 a bbqs:Job ; bbqs:name "Engineer" ; bbqs:job_type "staff" ; bbqs:posted_by bid:nobody1 .
 bid:j4 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" .
+bid:j5 a bbqs:Job ; bbqs:name "Analyst" ; bbqs:job_institution bid:o1 .
+bid:tool9 a bbqs:SoftwareTool ; bbqs:name "Kit" ; bbqs:repo_url bid:o3 .
 bid:f1 a bbqs:FundingOpportunity ; bbqs:name "First day" ; bbqs:expiration_date "2026-10-14"^^xsd:date .
 bid:f2 a bbqs:FundingOpportunity ; bbqs:name "Last day" ; bbqs:expiration_date "2027-04-14"^^xsd:date .
 bid:f3 a bbqs:FundingOpportunity ; bbqs:name "Day before" ; bbqs:expiration_date "2026-10-13"^^xsd:date .
@@ -2285,7 +2361,9 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #          (Di is on one numbered project only, so not in CQ20.)
 #   CQ11   q6 names no species: 1 (q3 has no grant number).
 #   CQ13   the dataset q1 both funded and produced: 2.
-#   CQ18   one job under two titles, and two called Technician: 4.
+#   CQ16   Kit, whose repository is a node: 1.
+#   CQ18   one job under two titles, two called Technician, and one at the node ONE rather than the
+#          text "ONE": 5. CQ35 then groups the text and the node apart: 2.
 #   CQ02   q1 and q4 are R34 with an amount (q2 has none): 100.10 + 200.20 = 300.3.
 #   CQ07   Bo's iD, a node of its own: 1. CQ21 then has Ann, under her two names, and Di: 3.
 #   CQ15   the scope whose category nothing describes, and Scope 2, filed under bbqs:Microscope: 2.
@@ -2310,9 +2388,9 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names and Bo (MPI): 6.
 #          So 12.
 AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 4, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
-                "CQ15": 2, "CQ17": 4,
-                "CQ18": 4, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
-                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2, "CQ37": 4, "CQ38": 2,
+                "CQ15": 2, "CQ16": 1, "CQ17": 4,
+                "CQ18": 5, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
+                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 2, "CQ36": 2, "CQ37": 4, "CQ38": 2,
                 "CQ39": 2, "CQ40": 2, "CQ41": 12, "CQ42": 1}
 
 
@@ -2423,7 +2501,7 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(bench.WALKS["CQ13"][0](client), [["R34DA059723", "D one"]] * 2)
         self.assertEqual(sorted(bench.WALKS["CQ26"][0](client)), [["Mus musculus", 1], ["Mus musculus domesticus", 1],
                                                                   ["Mus spretus", 1]])
-        self.assertEqual([row[:2] for row in bench.WALKS["CQ35"][0](client)], [["ONE", 4]])
+        self.assertEqual(sorted(row[:2] for row in bench.WALKS["CQ35"][0](client)), [["ONE", 4], ["bid:o1", 1]])
         every = "R34DA059723, U01DA000002, U01DA000002-S1"                 # q2 under two, q6 under one of them
         self.assertEqual(sorted(bench.WALKS["CQ20"][0](client)), [["A. Ann", every], ["Ann A", every], ["Bo B", every]])
 
@@ -2480,7 +2558,7 @@ class TheBenchmark(unittest.TestCase):
         with mock.patch.object(m, "_plain", lambda value: "X"), mock.patch.object(m.KG, "_cell", lambda self, term: "X"):
             self.assertEqual({str(term): bench.reference(term, ids) for _, _, term in values}, written)   # not the server's
         nan = next(text for text in written if text.lower() == "nan")
-        self.assertEqual(written, {"12.50": 12.5, "2026-01-02": "2026-01-02", nan: nan, "deadbeef": "deadbeef", "true": True,
+        self.assertEqual(written, {"12.50": 12.5, "2026-01-02": "2026-01-02", nan: "NaN", "deadbeef": "deadbeef", "true": True,
                                    m.ID_NS + "a": "bid:a", "urn:x": "<urn:x>"})      # NaN as text: JSON has no number for it
         self.assertEqual({str(term): broken._cell(term) for _, _, term in values}, written)   # and the server writes the same
 
@@ -2489,15 +2567,18 @@ class TheBenchmark(unittest.TestCase):
             bid:t1 a bbqs:SoftwareTool ; bbqs:name "T1" ; bbqs:repo_url <urn:isbn:1> .
             bid:t2 a bbqs:SoftwareTool ; bbqs:name "T2" ; bbqs:repo_url bbqs:Foo .
             bid:t3 a bbqs:SoftwareTool ; bbqs:name "T3" ; bbqs:repo_url <mailto:a@b.org> .
-            bid:t4 a bbqs:SoftwareTool ; bbqs:name "T4" ; bbqs:repo_url [ bbqs:url "x" ] .
             bid:ann a bbqs:Investigator ; bbqs:name "Ann" ;
                 bbqs:orcid <https://orcid.org/0000-0001-0000-0001>, "https://orcid.org/0000-0001-0000-0001" .
             bid:bea a bbqs:Investigator ; bbqs:name "Bea" ; bbqs:orcid <https://orcid.org/0000-0001-0000-0001> .
         """)
         rows = {q["id"]: q for q in self.ask(source)["questions"]}
-        self.assertEqual((rows["CQ16"]["rows"], rows["CQ16"]["sparql_agrees"]), (4, True))   # the blank node too
-        self.assertEqual((rows["CQ07"]["rows"], rows["CQ07"]["sparql_agrees"], rows["CQ07"]["tools_agree"]), (3, True, True))
-        self.assertFalse(rows["CQ16"]["tools_agree"])        # the walk cannot see a blank node: documented, and said
+        for name, count in (("CQ16", 3), ("CQ07", 3)):
+            self.assertEqual((rows[name]["rows"], rows[name]["sparql_agrees"], rows[name]["tools_agree"]), (count, True, True))
+        # a blank node: SPARQL agrees with the file (the labels are made up per reading); a walk
+        # cannot see it, which is documented, and reported
+        blank = {q["id"]: q for q in self.ask(self.graph(PREFIXES + 'bid:t4 a bbqs:SoftwareTool ; bbqs:name "T4" ; '
+                                                                     'bbqs:repo_url [ bbqs:url "x" ] .\n'))["questions"]}
+        self.assertEqual((blank["CQ16"]["rows"], blank["CQ16"]["sparql_agrees"], blank["CQ16"]["tools_agree"]), (1, True, False))
 
     def test_a_question_the_tools_cannot_walk_in_full_fails_alone(self):
         # A working group of 501: more members than get_node lists at once. The questions that need
@@ -2523,7 +2604,9 @@ class TheBenchmark(unittest.TestCase):
         self.assertIn("the export queried directly", cq02["error"])
         block = bench.markdown({"server": "0", "nodes": 1, "links": 0, "snapshot": {"source": "x"}, "questions": asked})
         self.assertIn("| 1 could not be asked: the export queried directly refused it | **not compared** |", block)
-        self.assertIn("*(could not be asked)* | — |", block)                      # not "0 rows": it has rows
+        self.assertIn("*(could not be asked)* | — | — | — |", block)              # not "0 rows", not "differs": not compared
+        report = bench.report({"server": "0", "nodes": 1, "links": 0, "snapshot": {"source": "x"}, "questions": asked})
+        self.assertIn("; 1 could not be asked: NOT ALL AGREE", report)
         self.assertIsNone(cq02["rows"])                                            # neither "answered" nor "no rows"
         self.assertEqual(asked["asked"] - asked["answered"] - asked["could_not_be_asked"], asked["silent_agree"])
         self.assertEqual([q["id"] for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])], ["CQ02"])

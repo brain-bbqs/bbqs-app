@@ -74,6 +74,8 @@ HERE = Path(__file__).resolve().parent
 BUNDLED_EXPORT = HERE / "export" / "bbqs.ttl"
 SCHEMA_FILE = HERE / "bbqs.owl.ttl"                      # definitions of classes and properties, if at hand
 PUBLISHED_EXPORT = "https://brain-bbqs.org/kg/bbqs.ttl"  # written by .github/workflows/publish.yml
+# The export committed to main, for a server run without the repository (from its GitHub URL, say).
+GITHUB_EXPORT = "https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/export/bbqs.ttl"
 SCHEMA_NS = "https://brain-bbqs.org/schema#"
 ID_NS = "https://brain-bbqs.org/id/"
 PREFIXES = {"bbqs": SCHEMA_NS, "bid": ID_NS, "rdf": str(RDF), "xsd": "http://www.w3.org/2001/XMLSchema#"}
@@ -146,7 +148,7 @@ def _plain(value: Literal):
     if isinstance(v, Literal):  # ill-typed, e.g. a sentence in an integer field: keep the text
         return str(v)
     if isinstance(v, float) and not math.isfinite(v):
-        return str(value)       # NaN and INF have no JSON form
+        return _non_finite(v)   # NaN and INF have no JSON form
     if isinstance(v, (int, float, str)):
         return v
     if isinstance(v, Decimal):
@@ -159,6 +161,11 @@ def _plain(value: Literal):
 def _link_shown(link: "Link") -> dict:
     """One link as a reply shows it: its type, which way it points, and what its record carries."""
     return {"edge": link.edge, "direction": "out" if link.out else "in", **dict(link.attrs)}
+
+
+def _non_finite(number: float) -> str:
+    """NaN or an infinity, written the way XSD writes it."""
+    return "NaN" if math.isnan(number) else ("INF" if number > 0 else "-INF")
 
 
 def _fold(text) -> str:
@@ -178,6 +185,21 @@ def _key(text) -> str:
 
 def _clip(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1].rstrip() + "…"
+
+
+def _unwrapped(text: str) -> str:
+    """What is inside one matching pair of quotes or brackets around `text`, as written: a comma in
+    it stays, and so does a quote. ["a name"] is read as JSON. Empty when `text` is not so wrapped."""
+    if len(text) < 2 or text[0] + text[-1] not in ('""', "''", "[]"):
+        return ""
+    if text[0] == "[":
+        try:
+            listed = json.loads(text)
+        except (ValueError, RecursionError):
+            listed = None
+        if isinstance(listed, list) and len(listed) == 1 and isinstance(listed[0], str):
+            return listed[0].strip()
+    return text[1:-1].strip()
 
 
 def _as_list(value) -> list[str]:
@@ -374,6 +396,7 @@ class KG:
 
         folded = {iri for iri, t in node_type.items() if t in FOLDED}
         self.multityped = sum(1 for iri, found in types.items() if len(found) > 1 and iri not in folded)  # filed under the first
+        self.unused += sum(len(found) - 1 for iri, found in types.items() if iri in folded)   # a record's other types
         for iri in folded:                                # what a record says beyond its two ends and what it carries
             rule = FOLDED[node_type[iri]]
             self.unused += sum(len(values) for slot, values in props[iri].items()
@@ -516,10 +539,10 @@ class KG:
             raise KGError(f"'{reference}' names {len(named)} nodes: {self._listing(named)}. Pass one of these ids.")
         if text in self.nodes:   # an outside identifier no node owns, e.g. an author who is not a member
             return self.nodes[text]
-        inner = _as_list(text) if text[:1] in "\"'[" else []
-        if len(inner) == 1 and inner[0] != text:   # one name in quotes or brackets: the name inside
+        inner = _unwrapped(text)
+        if inner:                                  # one name in quotes or brackets: the name inside
             try:
-                return self.resolve(inner[0])
+                return self.resolve(inner)
             except KGError as exc:
                 if not str(exc).startswith("No node matches"):
                     raise                  # it names several nodes: say which
@@ -638,7 +661,7 @@ class KG:
                          + ", ".join(f"{n} {t}" for t, n in self.repeated.items()) + ".")
         if self.unused:
             notes.append(f"Triples about roster records that this view does not use (a link to a record, or what a "
-                         f"record says besides its person, project and role): {self.unused}.")
+                         f"record says besides its person, project, role and one type): {self.unused}.")
         if self.multityped:
             notes.append(f"Nodes with more than one type: {self.multityped}. Each is listed under the first of its "
                          "types in alphabetical order.")
@@ -1221,7 +1244,7 @@ class GraphSource:
 
     def __init__(self, location: str | None = None, refresh_hours: float = 1.0):
         self.locations = [location] if location else (
-            [PUBLISHED_EXPORT] + ([str(BUNDLED_EXPORT)] if BUNDLED_EXPORT.exists() else []))
+            [PUBLISHED_EXPORT] + ([str(BUNDLED_EXPORT)] if BUNDLED_EXPORT.exists() else [GITHUB_EXPORT]))
         self.refresh_seconds = refresh_hours * 3600 if refresh_hours and refresh_hours > 0 else None
         self.problem: str | None = None
         self._kg: KG | None = None
@@ -1451,8 +1474,8 @@ def build_server(source: GraphSource, sparql: bool = True):
         nodes the same distance away, and being a sum it can pass 1 where many routes arrive. With several
         starting nodes only what every one of them reaches is returned, each node placed by its worst tie (the
         farthest starting node, then the weakest), then by its next worst, and so on; such a row has
-        `per_start`, its tie to each starting node, in place of the fields below. Per type, `within` counts
-        the nodes within max_hops and `beyond` those farther. A row one link away has `link`, holding `also`
+        `per_start`, its tie to each starting node, in place of link, through, routes and share. Per type,
+        `within` counts the nodes within max_hops and `beyond` those farther. A row one link away has `link`, holding `also`
         for any further links between the same two; a farther one has `through`, the strongest route, each
         node on it with `splits`, the neighbours it divided among, and, where there are several routes,
         `routes` and `share`, the part of the strength the route shown brings. find_paths lists the routes.
@@ -1495,8 +1518,9 @@ def build_server(source: GraphSource, sparql: bool = True):
             """Read-only SPARQL over the graph exactly as exported, for counts, aggregates and anything the
             other tools cannot express. Classes and properties are the names describe_graph lists, as
             bbqs:Project, bbqs:grant_number and so on; describe_graph's notes give the roster pattern. In the
-            `rows`, a number is a number, a date or time ISO text and any other literal its text; a node of
-            this graph is bid:<id>, and any other IRI prefix:name or <iri>. `more` means rows were cut at limit."""
+            `rows`, a number is a number, a truth value true or false, a date or time ISO text and any other
+            literal its text (NaN and infinity as NaN, INF, -INF); a node of this graph is bid:<id>, and any
+            other IRI prefix:name or <iri>. `more` means rows were cut at limit."""
             kg = source.current()
             return kg.answered(kg.sparql(query, limit))
 
@@ -1512,20 +1536,48 @@ def build_server(source: GraphSource, sparql: bool = True):
     return server
 
 
-def main(argv=None) -> int:
+def command_line(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="BBQS knowledge graph over MCP: read-only graph traversal.")
     parser.add_argument("--source", default=os.environ.get("BBQS_KG_SOURCE"), metavar="PATH_OR_URL",
                         help="Turtle file or URL to serve (or set BBQS_KG_SOURCE). Default: the copy published "
-                             f"at {PUBLISHED_EXPORT}, else the export committed next to this file.")
+                             f"at {PUBLISHED_EXPORT}, else the export committed next to this file, else the one on "
+                             "GitHub.")
     parser.add_argument("--refresh", type=float, default=1.0, metavar="HOURS",
                         help="Re-read the source this often (default 1). 0 reads it once.")
     parser.add_argument("--http", action="store_true", help="Serve streamable HTTP at /mcp instead of stdio.")
     parser.add_argument("--host", default="127.0.0.1", help="With --http: address to bind (default 127.0.0.1).")
-    parser.add_argument("--port", type=int, default=8000, help="With --http: port (default 8000).")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT") or 8000),
+                        help="With --http: port (default $PORT, else 8000).")
+    parser.add_argument("--allow-host", action="append", metavar="NAME",
+                        help="With --http: a public host name requests may arrive for, through a tunnel or a proxy "
+                             "(may be repeated, or set BBQS_KG_ALLOWED_HOSTS to a comma-separated list). The Host "
+                             "and Origin check then stays on for it and the local names.")
     parser.add_argument("--no-sparql", action="store_true", help="Do not offer the sparql_query tool.")
     parser.add_argument("--check", action="store_true", help="Load the graph, print what it holds, and exit.")
     args = parser.parse_args(argv)
+    if args.allow_host is None:
+        args.allow_host = [name.strip() for name in os.environ.get("BBQS_KG_ALLOWED_HOSTS", "").split(",") if name.strip()]
+    return args
 
+
+def transport_security(allowed: list):
+    """Which requests to /mcp the HTTP transport accepts. With no names given, the SDK's own rule:
+    Host and Origin are checked when it listens on a local address, and not on any other. With
+    names, they are checked on any address, against those names and the local ones, which is what
+    keeps a page on another site from calling the server behind a tunnel or a proxy."""
+    if not allowed:
+        return None
+    from mcp.server.transport_security import TransportSecuritySettings
+    local = ["127.0.0.1", "localhost", "[::1]"]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[*(f"{name}:*" for name in local), *allowed, *(f"{name}:*" for name in allowed)],
+        allowed_origins=[*(f"http://{name}:*" for name in local), *(f"https://{name}" for name in allowed),
+                         *(f"https://{name}:*" for name in allowed)])
+
+
+def main(argv=None) -> int:
+    args = command_line(argv)
     source = GraphSource(args.source, args.refresh)
     try:
         kg = source.current()
@@ -1545,7 +1597,8 @@ def main(argv=None) -> int:
 
     server = build_server(source, sparql=not args.no_sparql)
     if args.http:
-        server.run("streamable-http", host=args.host, port=args.port, stateless_http=True, json_response=True)
+        server.run("streamable-http", host=args.host, port=args.port, stateless_http=True, json_response=True,
+                   transport_security=transport_security(args.allow_host))
     else:
         server.run("stdio")
     return 0

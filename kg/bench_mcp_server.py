@@ -248,10 +248,11 @@ def cell(entry):
 #
 # What a walk cannot see is what the server's view leaves out. describe_graph counts most of it:
 # a roster record with an end missing, or with an end, a role or its source given twice (no link is
-# made of it); what a record says besides those, and a link to a record; a node's second rdf:type
-# (it is listed under the first); a blank node (not a node of the view). Two are not counted: a
-# language tag and a datatype (the text is kept, the tag or type is not). SPARQL reads the file as it
-# is, so where a question can tell, the comparison below says DIFFERENT, as it should. The
+# made of it); what a record says besides those, its other types, and a link to a record; a node's
+# second rdf:type (it is listed under the first); a blank node (not a node of the view). Two are not
+# counted: a language tag and a datatype (the text is kept, the tag or type is not). The export does
+# carry datatypes (xsd:anyURI on 477 values, xsd:date on 27), and no question tells them apart.
+# SPARQL reads the file as it is, so where a question can tell, the comparison below says DIFFERENT. The
 # export the exporter writes has none of these but two roster records with an end missing, which
 # no question can tell. CQ17 and CQ39 compare xsd:date values as ISO text, which is what they are.
 
@@ -648,9 +649,9 @@ def joined_cells(sparql: str) -> dict:
 def reference(term, ids: dict):
     """One cell of the export queried directly, written out here rather than by the server, so that
     a fault in how the server writes a value cannot hide in both the reference and its answer. The
-    rules are the ones sparql_query's description gives a client (a number as a number, a date or
-    time as ISO text, any other literal as its text, a node of this graph as bid:<id>); only the short
-    ids are the server's, because they are names, not values."""
+    rules are the ones sparql_query's description gives a client (a number as a number, a truth value
+    as true or false, a date or time as ISO text, any other literal as its text, a node of this graph
+    as bid:<id>); only the short ids are the server's, because they are names, not values."""
     if term is None:
         return None
     if isinstance(term, BNode):
@@ -661,8 +662,8 @@ def reference(term, ids: dict):
             return str(value)
         if isinstance(value, Decimal):
             return int(value) if value == value.to_integral_value() else float(value)
-        if isinstance(value, float) and not math.isfinite(value):
-            return str(term)                                   # NaN and INF: JSON has no number for them
+        if isinstance(value, float) and not math.isfinite(value):   # JSON has no number for them: as XSD writes them
+            return "NaN" if math.isnan(value) else ("INF" if value > 0 else "-INF")
         if isinstance(value, (int, float, str)):
             return value
         return value.isoformat() if hasattr(value, "isoformat") else str(term)
@@ -919,10 +920,12 @@ def report(results: dict) -> str:
         out.append(f"\nQUESTIONS  {q['asked']} asked ({q['adopted']} the KG is scored on, {proposed} proposed in issue #441); "
                    f"{q['answered']} return rows on this export. Of those, the same rows as the export queried directly: "
                    f"{q['sparql_agree']} through sparql_query, {q['tools_agree']} through the graph tools. Of the other "
-                   f"{silent}, {q['silent_agree']} return nothing either way" + ("." if q["all_agree"] else ": NOT ALL AGREE, see below."))
+                   f"{silent}, {q['silent_agree']} return nothing either way"
+                   + (f"; {q['could_not_be_asked']} could not be asked" if q.get("could_not_be_asked") else "")
+                   + ("." if q["all_agree"] else ": NOT ALL AGREE, see below."))
         for r in q["questions"]:
             def mark(ok, rows=r["rows"]):
-                return "DIFFERENT" if not ok else "same" if rows else "none"
+                return "—" if rows is None else "DIFFERENT" if not ok else "same" if rows else "none"
             if r["set"] == "proposed" and r["id"] == next(x["id"] for x in q["questions"] if x["set"] == "proposed"):
                 out.append("  -- proposed in issue #441, not adopted yet --")
             out.append(f"  {r['id']}  {'—' if r['rows'] is None else r['rows']:>4} rows  sparql {mark(r['sparql_agrees']):9s} {r['sparql_ms']:7.1f} ms   "
@@ -996,7 +999,7 @@ def markdown(results: dict) -> str:
             if row["id"] == first_proposed:
                 out.append("| | **Proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441), not adopted yet** | | | | |")
             note = "" if row["status"] == "answered" else f" *({row['status']})*"
-            cells = ["**differs**" if not ok else "same" if row["rows"] else "none"
+            cells = ["—" if row["rows"] is None else "**differs**" if not ok else "same" if row["rows"] else "none"
                      for ok in (row["sparql_agrees"], row["tools_agree"])]
             shown = "—" if row["rows"] is None else row["rows"]
             out.append(f"| {row['id']} | {row['question']}{note} | {shown} | {cells[0]} | {cells[1]} | {row['how']} |")
