@@ -41,6 +41,7 @@ from rdflib import Graph
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import bench_mcp_server as bench  # noqa: E402
 import mcp_server as m  # noqa: E402
 
 SERVER = HERE / "mcp_server.py"
@@ -1483,6 +1484,9 @@ class Guards(unittest.TestCase):
         self.assertEqual({p for p in inline if p.startswith("rdflib==")},
                          {p for p in pins("requirements.txt") if p.startswith("rdflib==")})
         self.assertEqual({p.split("==")[0] for p in inline}, {"mcp", "rdflib"})
+        header = re.search(r"^# dependencies = (\[.*\])$", (HERE / "bench_mcp_server.py").read_text(encoding="utf8"), re.M)
+        self.assertEqual(set(json.loads(header.group(1))),             # the benchmark: the server's two, and the YAML reader
+                         inline | {p for p in pins("requirements.txt") if p.startswith("PyYAML==")})
 
 
 # ---- the protocol, as a client sees it ------------------------------------------------------------
@@ -1759,6 +1763,116 @@ class OverHttp(unittest.TestCase):
                          [(ZEBRA, 4)])
         refused = self.post(_request(5, "tools/call", {"name": "sparql_query", "arguments": {"query": "ASK {}"}}))
         self.assertTrue("error" in refused or refused["result"].get("isError"))
+
+
+# A whole graph in miniature in which EVERY competency question has an answer, the three the public
+# export cannot answer included (a job with its institution, a provenance record, a device category
+# on a project), so that each question's walk through the graph tools is checked against rows.
+MINIATURE = """
+@prefix bbqs: <https://brain-bbqs.org/schema#> .
+@prefix bid: <https://brain-bbqs.org/id/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+bid:p1 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:grant_number "R34DA059723" ; bbqs:mechanism "R34" ;
+    bbqs:award_amount 100 ; bbqs:title "Mouse project" ; bbqs:studies_species bid:mouse ; bbqs:part_of_org bid:org1 ;
+    bbqs:produced bid:pub1, bid:ds2 ; bbqs:funded_datasets bid:ds1 ; bbqs:uses_device_category bid:cat1 .
+bid:p2 a bbqs:Project ; bbqs:name "U01DA000002" ; bbqs:grant_number "U01DA000002" ; bbqs:mechanism "U01" ;
+    bbqs:award_amount 250 ; bbqs:study_scope "All Species" .
+bid:p3 a bbqs:Project ; bbqs:name "R34DA000003" ; bbqs:grant_number "R34DA000003" ; bbqs:mechanism "R34" ;
+    bbqs:award_amount 50 ; bbqs:studies_species bid:rat .
+bid:r1 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:p1 ; bbqs:project_role "contact_pi" .
+bid:r2 a bbqs:ProjectRole ; bbqs:held_by bid:bo ; bbqs:on_project bid:p1 ; bbqs:project_role "co_pi" .
+bid:r3 a bbqs:ProjectRole ; bbqs:held_by bid:ann ; bbqs:on_project bid:p3 ; bbqs:project_role "co_pi" .
+bid:ann a bbqs:Investigator ; bbqs:name "Ann A" ; bbqs:orcid <https://orcid.org/0000-0001-0000-0001> ;
+    bbqs:member_of_group bid:wgd .
+bid:bo a bbqs:Investigator ; bbqs:name "Bo B" ; bbqs:member_of_group bid:wgd .
+bid:org1 a bbqs:ResearchOrganization ; bbqs:name "TEST UNIVERSITY" ; bbqs:members bid:ann, bid:bo .
+bid:wgd a bbqs:WorkingGroup ; bbqs:name "WG-Devices" .
+bid:mouse a bbqs:Species ; bbqs:name "Mouse" ; bbqs:common_name "House Mouse" ; bbqs:taxonomy_class "Mammalia" .
+bid:rat a bbqs:Species ; bbqs:name "Rat" ; bbqs:common_name "Brown Rat" ; bbqs:taxonomy_class "Mammalia" .
+bid:pub1 a bbqs:Publication ; bbqs:name "A paper" ; bbqs:title "A paper" .
+bid:ds1 a bbqs:Dataset ; bbqs:name "Dataset one" .
+bid:ds2 a bbqs:Dataset ; bbqs:name "Dataset two" .
+bid:cat1 a bbqs:DeviceCategory ; bbqs:name "Microscopes" ; bbqs:label "Microscopes" .
+bid:dev1 a bbqs:Device ; bbqs:name "Scope One" ; bbqs:model_name "Scope One" ; bbqs:manufacturer bid:man1 ;
+    bbqs:device_category bid:cat1 .
+bid:dev2 a bbqs:Device ; bbqs:name "Scope Two" ; bbqs:model_name "Scope Two" ; bbqs:manufacturer bid:man1 .
+bid:man1 a bbqs:DeviceManufacturer ; bbqs:name "Lens Co" .
+bid:tool1 a bbqs:SoftwareTool ; bbqs:name "Tracker" ; bbqs:repo_url "https://github.com/example/tracker"^^xsd:anyURI .
+bid:fo1 a bbqs:FundingOpportunity ; bbqs:name "Open call" ; bbqs:expiration_date "2027-01-15"^^xsd:date .
+bid:fo2 a bbqs:FundingOpportunity ; bbqs:name "Closed call" ; bbqs:expiration_date "2026-01-15"^^xsd:date .
+bid:job1 a bbqs:Job ; bbqs:name "Postdoc" ; bbqs:job_institution "TEST UNIVERSITY" .
+bid:src1 a bbqs:SourceClass ; bbqs:name "RePORTER" ; bbqs:grade 2 .
+bid:prov1 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "p1" ; bbqs:prov_entity_column "title" ;
+    bbqs:prov_value_text "Mouse project" ; bbqs:prov_source_class bid:src1 .
+bid:prov2 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "p1" ; bbqs:prov_entity_column "mechanism" ;
+    bbqs:prov_value_text "R34" ; bbqs:prov_source_class bid:src1 .
+"""
+
+
+class TheBenchmark(unittest.TestCase):
+    """bench_mcp_server.py: the competency questions, asked over MCP as SPARQL and without it."""
+
+    def ask(self, source: str) -> dict:
+        client = bench.Client(source)
+        self.addCleanup(client.close)
+        return bench.ask_questions(client, m.GraphSource(source, 0).current(), source, fresh=False)
+
+    def test_every_question_gets_the_same_rows_three_ways_on_the_export(self):
+        asked = self.ask(str(EXPORT))
+        differ = [(q["id"], q["sparql_agrees"], q["tools_agree"]) for q in asked["questions"]
+                  if not (q["sparql_agrees"] and q["tools_agree"])]
+        self.assertEqual(differ, [])                       # as SPARQL, and through the graph tools, as the file itself
+        self.assertEqual(asked["asked"], 19)
+        baseline = json.loads((HERE / "quality_baseline.json").read_text(encoding="utf8"))
+        self.assertEqual(sorted(q["id"] for q in asked["questions"] if q["rows"]), sorted(baseline["answered"]))
+        self.assertEqual((asked["sparql_agree"], asked["tools_agree"], asked["all_agree"]),
+                         (asked["answered"], asked["answered"], True))
+        self.assertEqual(set(bench.WALKS), {q["id"] for q in asked["questions"]})      # no question without a walk
+
+    def miniature(self) -> str:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        graph = Path(folder.name) / "miniature.ttl"
+        graph.write_text(MINIATURE, encoding="utf8")
+        return str(graph)
+
+    def test_every_question_can_be_walked_when_it_has_an_answer(self):
+        # On the public export three questions return nothing either way, which checks nothing. Here
+        # all nineteen have rows, so every walk through the graph tools is held against real ones.
+        asked = self.ask(self.miniature())
+        rows = {q["id"]: q["rows"] for q in asked["questions"]}
+        self.assertEqual([name for name, count in rows.items() if not count], [])
+        self.assertEqual((rows["CQ02"], rows["CQ05"], rows["CQ11"], rows["CQ13"], rows["CQ15"], rows["CQ17"], rows["CQ19"]),
+                         (2, 1, 1, 2, 2, 1, 1))
+        differ = [q["id"] for q in asked["questions"] if not (q["sparql_agrees"] and q["tools_agree"])]
+        self.assertEqual(differ, [])
+        status = {q["id"]: q["status"] for q in asked["questions"]}
+        self.assertEqual(status["CQ14"], "not modelled")   # the schema has no such link, whatever the data says
+        self.assertEqual({s for name, s in status.items() if name != "CQ14"}, {"answered"})
+
+    def test_a_walk_that_went_wrong_would_be_noticed(self):
+        with mock.patch.dict(bench.WALKS, {"CQ09": (lambda client: [], "nothing")}):
+            asked = self.ask(self.miniature())
+        wrong = [q["id"] for q in asked["questions"] if not q["tools_agree"]]
+        self.assertEqual((wrong, asked["all_agree"], asked["tools_agree"]), (["CQ09"], False, asked["answered"] - 1))
+
+    def test_the_results_block_is_written_between_its_markers_and_nowhere_else(self):
+        results = {"server": "0.0.0", "nodes": 3, "links": 2, "snapshot": {"source": "x.ttl", "dated": "2026-01-01"},
+                   "questions": {"asked": 2, "answered": 1, "need_the_full_export": 1, "not_modelled": 0, "sparql_agree": 1,
+                                 "tools_agree": 1, "all_agree": True, "questions": [
+                                     {"id": "CQ01", "question": "One?", "status": "answered", "rows": 4, "sparql_agrees": True,
+                                      "tools_agree": True, "how": "walk"},
+                                     {"id": "CQ02", "question": "Two?", "status": "needs the full export", "rows": 0,
+                                      "sparql_agrees": True, "tools_agree": True, "how": "walk"}]}}
+        block = bench.markdown(results)
+        self.assertTrue(block.startswith(bench.START) and block.endswith(bench.END))
+        self.assertIn("| Competency questions with an answer in this export | **1 of 2** (1 need the full export) |", block)
+        self.assertIn("| CQ01 | One? | 4 | same | same | walk |", block)
+        self.assertIn("| CQ02 | Two? *(needs the full export)* | 0 | none | none | walk |", block)
+        readme = (HERE.parent / "README.md").read_text(encoding="utf8")
+        self.assertEqual((readme.count(bench.START), readme.count(bench.END)), (1, 1))     # the main README has the block
+        self.assertLess(readme.index(bench.START), readme.index(bench.END))
 
 
 class TheCommandLine(unittest.TestCase):

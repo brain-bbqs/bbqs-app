@@ -144,6 +144,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `mcp_server.py` | **MCP server**: read-only traversal of an exported graph for AI clients, over stdio or HTTP. No database, no credentials (see [MCP server](#mcp-server-read-the-graph-from-an-ai-client)). |
 | `test_mcp_server.py` | Its tests: a hand-built graph with known answers, the competency questions through the server, cross-file guards, and the protocol over stdio and HTTP. |
 | `requirements-mcp.txt` | Pinned deps for the server alone: `rdflib` and the MCP SDK. |
+| `bench_mcp_server.py` | Benchmark for the server: every competency question asked over MCP, as SPARQL and without it; the ranking against distance alone; the speed. Writes the results block in the main `README.md`. |
 
 ## The three validation layers
 
@@ -530,6 +531,22 @@ checkout.
 It serves whatever file it is given and has no access control of its own. Give it an anon export
 unless every client is entitled to more.
 
+### Benchmark
+
+```bash
+python kg/bench_mcp_server.py
+```
+
+This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it every
+question in `competency_questions.yaml` twice: as SPARQL through `sparql_query`, and without SPARQL
+through `search_nodes`, `get_node` and `find_related`. Both must return the rows the export gives
+when it is queried directly, and the command fails if either does not. It then measures the ranking
+(the hidden-tie measure above, with the tools' real output) and the speed of each tool. The results
+are in the main [`README.md`](../README.md#benchmark); `--update README.md` rewrites them there.
+`--show CQ04` prints one question's rows each way, `--only questions` leaves the measurements out,
+and `--source` takes another export, such as a full-access one, where the three questions the
+public export cannot answer have rows too.
+
 ### Tests
 
 ```bash
@@ -545,7 +562,8 @@ ranking has checks of its own: the code gives exactly what spreading with nothin
 delivers first (a second, slower version of the process, written without the shortcuts); the paths
 between two nodes add up to the strength shown for them; the worked example in the tool
 descriptions is built and run, so what a client is told is what the server does; replies stay a
-size a client can take; and the hidden-tie measure above. Three guards hold across files: every
+size a client can take; and the hidden-tie measure above. The benchmark's questions are run here
+too, on the committed export and on a graph in miniature in which all nineteen have an answer. Three guards hold across files: every
 schema term the server or its descriptions name is declared in `bbqs.owl.ttl`, the pins in the
 script header match `requirements*.txt`, and no call that writes to a graph appears outside the
 one that loads it. The suite was shown able to fail: the server was broken 128 ways in a
