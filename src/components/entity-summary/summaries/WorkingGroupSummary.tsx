@@ -89,11 +89,11 @@ const WORKING_GROUPS: Record<string, WorkingGroupData> = {
       "Coordinate and Promote Enhancement of Standards: Facilitate community working groups, collaborate with standards bodies, create crosswalks to link metadata fields to ontologies",
       "Facilitate Adoption and Use of BBQS Standards: Create online tutorials, develop curated controlled term sets, develop mechanisms for annotating existing standards",
     ],
-    charterUrl:
-      "https://docs.google.com/document/d/1WIVI8HZF4-IfZZ61UjCZx2K7NyYx_CaTuIHmhFo7eYw/edit?usp=sharing",
+    // Rendered from https://github.com/brain-bbqs/bbqs-standards (see src/lib/standardsDocs.ts)
+    charterUrl: "/working-groups/standards/charter",
     resourcesUrl: "/resources?search=WG-Standards",
     additionalLinks: [
-      { label: "Standards Guidelines", url: "https://docs.google.com/document/d/1vIJ01La9G76FfGywS3IbG4o1GR4qquS31MoJ2B4_4os/edit?usp=sharing", external: true },
+      { label: "Standards Guidelines", url: "/working-groups/standards/guidelines" },
       { label: "The Ecosystem of Standards in Neuroscience (SfN 2025 Poster)", url: "https://zenodo.org/records/18333008", external: true },
     ],
     chairs: [
@@ -188,13 +188,13 @@ export function WorkingGroupSummary({ id }: { id: string }) {
             {data.charterUrl && (
               <a
                 href={data.charterUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={data.charterUrl.startsWith("/") ? undefined : "_blank"}
+                rel={data.charterUrl.startsWith("/") ? undefined : "noopener noreferrer"}
                 className="flex items-center gap-2 text-sm text-primary hover:underline font-medium rounded-lg border border-border p-3 hover:bg-accent/50 transition-colors"
               >
                 <FileText className="h-4 w-4" />
                 Working Group Charter
-                <ExternalLink className="h-3 w-3 ml-auto" />
+                {!data.charterUrl.startsWith("/") && <ExternalLink className="h-3 w-3 ml-auto" />}
               </a>
             )}
             {data.resourcesUrl && (
