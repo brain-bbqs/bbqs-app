@@ -47,3 +47,21 @@ test("non-answers and note lines are dropped, link-only answers kept", () => {
   assert.equal(social.length, 1, "the organizer line is a note, not a presentation");
   assert.equal(all.find((p) => p.day == null).link, "https://www.abstractsonline.com/pp8/#!/21503/presentation/27321");
 });
+
+// Cory Inman's answer, 2026-11-13: a "/ BOARD" location after the number became the whole title
+// ("/ CC3"), and "STR030.03" (no P) was neither a number nor stripped from the title.
+test("a board location after the number, and a number missing its P, still parse", () => {
+  const [a, b] = parseAnswer(
+    "Cory Inman",
+    "November 14, 1-5:00pm STR030.03 / GG7 - Neural Reinstatement During Repeated Viewing of Real-World Autobiographical Memories in Humans\n" +
+      "November 15, 8:00am-12:00pm PSTR060.12 / CC3 - Multimodal Recordings Capture Dynamic Event Structure During Real-World Navigation",
+  );
+  assert.deepEqual(
+    [a.day, a.time, a.number, a.title],
+    [14, "1:00–5:00 PM", "PSTR030.03", "Neural Reinstatement During Repeated Viewing of Real-World Autobiographical Memories in Humans"],
+  );
+  assert.deepEqual(
+    [b.day, b.time, b.number, b.title],
+    [15, "8:00 AM–12:00 PM", "PSTR060.12", "Multimodal Recordings Capture Dynamic Event Structure During Real-World Navigation"],
+  );
+});

@@ -100,7 +100,7 @@ function readTime(clocks: Clock[]) {
 }
 
 function readNumber(entry: string): string | null {
-  const pstr = entry.match(/\bPSTR\s*(\d+(?:\.\d+)?)/i);
+  const pstr = entry.match(/\bPSTR\s*(\d+(?:\.\d+)?)/i) ?? entry.match(/\bSTR(\d{3}\.\d{2})\b/i);
   if (pstr) return `PSTR${pstr[1]}`;
   const abs = entry.match(/(?:\bnumber:?\s*|#)(\d{3,5})\b/i);
   return abs ? `#${abs[1]}` : null;
@@ -113,7 +113,7 @@ function readTitle(entry: string, rest: string): string {
     : rest
         .replace(/\[[^\]]*(?:number|pstr|#)[^\]]*\]/gi, " ")
         .replace(/\[\s*keywords:[^\]]*\]/gi, " ")
-        .replace(/\bPSTR\s*\d+(?:\.\d+)?/gi, " ")
+        .replace(/\bP?STR\s*\d+(?:\.\d+)?(?:\s*\/\s*[A-Z]{1,3}\d{1,3}\b)?/gi, " ")
         .replace(/#\d+/g, " ")
         .replace(/^[\s[\]:,;–—-]+/, "")
         .split(/\s+-\s+/)[0];
