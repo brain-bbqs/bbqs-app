@@ -98,7 +98,7 @@ _TRANSLIT = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "ae", "Ö":
 
 def fold_name(name) -> str:
     """A person's name for matching only: case, accents, dots, spacing and any (note) ignored, so
-    "Oliver Rübel" = "Oliver Ruebel" and "Bijan  Pesaran" = "Bijan Pesaran"."""
+    "Jürgen Müller" = "Juergen Mueller" and "Ann  Lee" = "Ann Lee"."""
     text = re.sub(r"\(.*?\)", " ", str(name).translate(_TRANSLIT))
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return " ".join(text.replace(".", " ").casefold().split())
@@ -380,9 +380,10 @@ class KGQuality:
 
         The tie is a Project's `produced` link, which the exporter writes from project_publications:
         the NIH award credited on the paper's PubMed record. The export allows two checks of it:
-        whether an author is on the project's roster, by ORCID (most records carry no author ORCIDs,
-        so most cannot be checked), and whether another record has the same title (usually a preprint
-        and its published version). The text is not in an anon export: publication_fulltext is
+        whether an author is on the project's roster, by ORCID, which can only be asked where the
+        paper has author ORCIDs and someone on the roster has an ORCID too (otherwise the tie is
+        "roster_unchecked"), and whether another record has the same title (usually a preprint and
+        its published version). The text is not in an anon export: publication_fulltext is
         admin-only, so `texts` lists only the text records this export holds (`text_of` links)."""
         g, types = self.graph, self.types
         pubs = sorted((n for n, c in types.items() if c == "Publication"), key=lambda n: (self.label(n).lower(), str(n)))
@@ -407,12 +408,13 @@ class KGQuality:
                 texts[pub].append({"id": str(node), **{local(p): str(o) for p, o in g.predicate_objects(node)
                                                        if p != RDF.type and isinstance(o, Literal)}})
 
-        def title_key(n):
+        def title_key(n):                  # markup and punctuation out: "Ca<sup>2+</sup>" = "Ca[2+]"
             t = g.value(n, BBQS.title) or g.value(n, BBQS.name) or ""
-            return " ".join(re.sub(r"[\W_]+", " ", str(t).casefold()).split())
+            return re.sub(r"[\W_]+", "", re.sub(r"<[^>]+>", "", str(t)).casefold())
 
         same = Counter(title_key(n) for n in pubs)
         by_label = lambda n: (self.label(n), str(n))
+        with_orcid = {p for people in by_orcid.values() for p in people}
         rows = []
         for pub in pubs:
             projects = sorted(produced[pub], key=by_label)
@@ -426,6 +428,8 @@ class KGQuality:
                 checks.append("several_projects")
             if not orcids:
                 checks.append("authors_unchecked")
+            elif not members & with_orcid:                # nothing on the roster to compare the ORCIDs with
+                checks.append("roster_unchecked")
             elif not any(p in members for p in authors):
                 checks.append("no_roster_author")
             if title_key(pub) and same[title_key(pub)] > 1:
@@ -446,10 +450,11 @@ class KGQuality:
         return {"count": len(rows), "checks": dict(Counter(c for r in rows for c in r["checks"])), "rows": rows}
 
     def match_person(self, name: str, first_name_alone: bool = True) -> tuple[list[str], str | None]:
-        """The Investigator nodes that are the person named, and how that was decided: the same name;
-        the same first and last name; the same last name with the first name shortened ("Kris" for
-        Kristofer, "Joe" for Joseph); or, for a first name alone, the one investigator who has it.
-        More than one node means the graph holds the person twice."""
+        """The Investigator nodes that are the person named, and how that was decided: the same name,
+        and the same first and last name (both, so a person the graph holds twice, once with a middle
+        name, links to both nodes); failing those, the same last name with the first name shortened
+        ("Alex" for Alexander, "Joe" for Joseph); or, for a first name alone, the one investigator
+        who has it. More than one node means the graph holds the person twice."""
         if not hasattr(self, "_investigators"):
             self._investigators = [(n, fold_name(self.label(n)).split()) for n, c in self.types.items()
                                    if c == "Investigator"]
@@ -467,7 +472,15 @@ class KGQuality:
         w = fold_name(name).split()
         if not w:
             return [], None
-        for how, rule in rules:
+        same = {}
+        for how, rule in rules[:2]:                        # rule 1 or 2, every node either finds
+            for n, x in self._investigators:
+                if rule(w, x):
+                    same.setdefault(n, how)
+        if same:
+            first = next(how for how, _rule in rules[:2] if how in same.values())
+            return sorted(str(n) for n in same), first
+        for how, rule in rules[2:]:
             hits = [n for n, x in self._investigators if rule(w, x)]
             if hits:
                 return sorted(str(n) for n in hits), how
@@ -652,6 +665,8 @@ def main(data_file, access, json_path, html_path, fragment_path, source, interna
     """Measure DATA_FILE (default kg/export/bbqs.ttl) and build the entity browser from it."""
     internal = None
     if internal_paths:
+        if os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("CI"):
+            raise click.UsageError("--internal runs on CI here (GITHUB_ACTIONS or CI is set); the artifact copy is built by hand only.")
         if not fragment_path:
             raise click.UsageError("--internal goes into the artifact fragment only: give --fragment as well.")
         for path, what in [*((p, "--internal") for p in internal_paths), (fragment_path, "--fragment")]:

@@ -34,3 +34,12 @@ supabase/.temp/
 
 # The weekly digest the progress builder writes next to its JSON snapshot; only the JSON is served.
 public/data/progress.md
+
+# Internal: the working-group notes and the device list, and what kg/meetings.py and kg/devices.py
+# build from them, live outside the repo (tests/guards/inspector-internal-data checks for them too).
+meetings_extracted.json
+meetings_flat.csv
+person_roles.csv
+device_evidence.csv
+device_discussion_crosscutting.csv
+bbqs_devices_kg.json

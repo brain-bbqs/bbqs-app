@@ -162,6 +162,7 @@
   .facets select.search { padding: 6px 8px; }
   .mtg { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: grid; gap: 8px; min-width: 0; }
   .mtg header { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .mtg header .pill { white-space: normal; min-width: 0; }
   .mtg .date { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .pt { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 2px 12px; padding-top: 8px; border-top: 1px solid var(--line); }
   .pt .kind { display: inline-flex; gap: 6px; align-items: center; align-self: start; font: 600 11px/1.9 var(--f-body); letter-spacing: .06em; text-transform: uppercase; }
@@ -402,11 +403,11 @@ async function initFlags() {
   if (MT) db.collection("meeting_flags").onSnapshot(snap => {
     RV.mflags = new Map(snap.docs.map(d => [d.data().item, d.data()]));
     render();
-  }, err => { RV.status = `Meeting flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  }, err => { RV.msubErr = `Meeting flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
   if (DV) db.collection("device_flags").onSnapshot(snap => {
     RV.dflags = new Map(snap.docs.map(d => [d.data().device, d.data()]));
     render();
-  }, err => { RV.status = `Device flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  }, err => { RV.dsubErr = `Device flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
   render();
 }
 
@@ -506,7 +507,8 @@ function questionFlagHTML(q) {
       <span class="note" id="qflag-status-${q.id}" style="margin:0" role="status">${esc(RV.qstatus.get(q.id) || "")}</span></div>
   </div>`;
 }
-const flagWhen = f => (f.flagged_at || "").slice(0, 16).replace("T", " ");
+const str = v => v == null ? "" : String(v);
+const flagWhen = f => str(f && f.flagged_at).slice(0, 16).replace("T", " ");
 
 function flagSectionHTML(e) {
   if (!RV.db) return "";
@@ -824,7 +826,7 @@ function renderStructure() {
 // ---- publications ------------------------------------------------------------------------------
 // Each paper's tie to the grant it came from (kg/quality.py publications()), and its text. The text
 // is not in the export: publication_fulltext is admin-only, and licences are still being filled in.
-// Inside the artifact viewer a curator can read it through their own BBQS-MCP connector, with the
+// Inside the artifact viewer an admin can read it through their own BBQS-MCP connector, with the
 // database's row-level security deciding what they see. Nothing read that way is stored in the page.
 const PCHECK = {
   no_project: { cls: "bad", text: "no project", look: true, tip: "No project links to it, so it is tied to no grant." },
@@ -834,6 +836,7 @@ const PCHECK = {
   same_title: { cls: "warn", text: "title appears twice", look: true,
     tip: "Another record has the same title: usually a preprint and its published version, sometimes a duplicate." },
   several_projects: { cls: "na", text: "two or more projects", tip: "Credited to more than one project." },
+  roster_unchecked: { cls: "na", text: "roster has no ORCIDs", tip: "It has author ORCIDs, but no one on the project's roster has an ORCID in the export, so they can't be compared." },
   authors_unchecked: { cls: "na", text: "authors not checkable", tip: "The export has no author ORCIDs for it, so its authors can't be checked against the roster." },
   no_text: { cls: "na", text: "no text in this export", tip: "The full text is kept in the database's admin-only tables, not in the export." },
 };
@@ -859,9 +862,10 @@ function mcpMessage(err) {
   switch (code) {
     case "needs_reauth": return `Reconnect ${s} in claude.ai Settings → Connectors, then try again.`;
     case "server_not_connected": case "server_not_found":
-      return `Add the ${s} connector in claude.ai Settings → Connectors to read the text here. It answers curators only.`;
+      return `Add the ${s} connector in claude.ai Settings → Connectors to read the text here. It answers curators, and only admins see the text.`;
     case "selection_required": return `You have more than one connector named ${s}. Choose one when claude.ai asks, then try again.`;
-    case "not_in_manifest": case "consent_required": return `${s} isn't allowed on this page for you. Allow it when the page asks, then try again.`;
+    case "not_in_manifest": return `${s} is turned off for this page for you. Allow it from this page's Permissions menu, then reload.`;
+    case "consent_required": return `${s} isn't allowed on this page for you yet. Allow it when the page asks, then try again.`;
     case "blocked_by_policy": case "approval_required": return `Your organization's policy doesn't let this page use ${s}.`;
     case "not_granted": case "capability_disabled": case "capability_removed": return "This view can't use connectors.";
     case "tool_error": return `${s} refused: ${String(err.message || "no reason given").replace(/^Error:\s*/, "")}`;
@@ -869,13 +873,13 @@ function mcpMessage(err) {
     default: return `The text couldn't be read (${code || "unknown error"}).`;
   }
 }
-async function kgQuery(path, staleTime) {
+async function kgQuery(path, staleTime, refresh = false) {
   // kg_query is a read (a PostgREST path, run as the viewer). One retry, only where the error says so.
-  const call = () => TEXT.mcp.callTool(TEXT.server, "kg_query", { path }, { cache: { staleTime } });
+  const call = () => TEXT.mcp.callTool(TEXT.server, "kg_query", { path }, { cache: refresh ? { staleTime, refresh: true } : { staleTime } });
   let res;
   try { res = await call(); } catch (e) {
     if (!e || e.retryable !== true) throw e;
-    await new Promise(r => setTimeout(r, Math.min(e.retryAfterMs || 900 + Math.random() * 900, 10000)));
+    await new Promise(r => setTimeout(r, Math.min(e.retryAfterMs ?? (900 + Math.random() * 900), 60000)));
     res = await call();
   }
   const rows = typeof res.payload === "string" ? JSON.parse(res.payload) : res.payload;
@@ -883,22 +887,22 @@ async function kgQuery(path, staleTime) {
   return { rows, at: res.cache ? res.cache.storedAt : Date.now() };
 }
 const notRows = `${TEXT.server} answered with something other than database rows.`;
-async function loadTextStatus() {
+async function loadTextStatus(refresh = false) {
   if (!TEXT.mcp || TEXT.state === "loading") return;
   TEXT.state = "loading"; TEXT.msg = ""; render();
   try {
-    const { rows, at } = await kgQuery("publications?select=resource_id,publication_fulltext(text_source,char_count,license,retrieved_at,figure_count)&limit=5000", 60000);
+    const { rows, at } = await kgQuery("publications?select=resource_id,publication_fulltext(text_source,char_count,license,retrieved_at,figure_count)&limit=5000", 60000, refresh);
     TEXT.rows = new Map(rows.filter(r => r && r.resource_id).map(r => [String(r.resource_id).toLowerCase(), one(r.publication_fulltext)]));
     TEXT.at = at; TEXT.state = "ready";
   } catch (e) { TEXT.state = "error"; TEXT.msg = e instanceof SyntaxError ? notRows : mcpMessage(e); }
   render();
 }
-async function loadBody(iri) {
+async function loadBody(iri, refresh = false) {
   const id = uuidOf(iri);
   if (!id || !TEXT.mcp || (TEXT.bodies.get(id) || {}).state === "loading") return;
   TEXT.bodies.set(id, { state: "loading" }); render();
   try {
-    const { rows } = await kgQuery(`publications?select=resource_id,publication_fulltext(text_source,license,char_count,publication_fulltext_body(body))&resource_id=eq.${id}`, 300000);
+    const { rows } = await kgQuery(`publications?select=resource_id,publication_fulltext(text_source,license,char_count,publication_fulltext_body(body))&resource_id=eq.${id}`, 300000, refresh);
     const ft = one((rows[0] || {}).publication_fulltext), body = ft && one(ft.publication_fulltext_body);
     TEXT.bodies.set(id, body && typeof body.body === "string" ? { state: "ready", body: body.body, ft } : { state: "none" });
   } catch (e) { TEXT.bodies.set(id, { state: "error", msg: e instanceof SyntaxError ? notRows : mcpMessage(e) }); }
@@ -942,8 +946,8 @@ function pubRowHTML(r) {
   const grants = r.projects.map(p => `<span class="pill cls" style="color:${colorOf("Project")}">${esc(p.grant_number || "no grant number")}</span>`).join("");
   const authors = r.author_orcids
     ? `${r.author_orcids} author ORCID${r.author_orcids === 1 ? "" : "s"} in the export. ${r.investigator_authors.length
-        ? "BBQS investigators among them: " + r.investigator_authors.map(a => `${refLink(a.id)} <span class="pill ${a.on_roster ? "ok" : "na"}">${a.on_roster ? "on the project's roster" : "not on its roster"}</span>`).join(" ")
-        : "None of them is a BBQS investigator in the graph."}`
+        ? "BBQS investigators among them: " + r.investigator_authors.map(a => `${refLink(a.id)}${r.projects.length ? ` <span class="pill ${a.on_roster ? "ok" : "na"}">${a.on_roster ? "on the project's roster" : "not on its roster"}</span>` : ""}`).join(" ")
+        : "None matches an ORCID held by a BBQS investigator in the graph."}`
     : "The export has no author ORCIDs for this paper, so its authors can't be checked against the roster.";
   return `<details class="q" data-pub="${esc(r.id)}" ${pOpen.has(r.id) ? "open" : ""}>
     <summary><span class="id">${esc(year || "—")}</span><span>${esc(e.label)}</span><span class="right">${grants}${pills}</span></summary>
@@ -960,7 +964,7 @@ function pubRowHTML(r) {
     </div></details>`;
 }
 function textLoaderHTML() {
-  if (!TEXT.mcp) return `<p class="note" style="margin:0">The full text is kept in the database's admin-only tables, so this export can't show it. Opened in the claude.ai artifact viewer, this page lets a curator read it through their BBQS-MCP connector.</p>`;
+  if (!TEXT.mcp) return `<p class="note" style="margin:0">The full text is kept in the database's admin-only tables, so this export can't show it. Opened in the claude.ai artifact viewer, this page lets an admin read it through their BBQS-MCP connector.</p>`;
   const when = TEXT.at ? ` Checked ${esc(new Date(TEXT.at).toISOString().slice(0, 16).replace("T", " "))} UTC.` : "";
   const counts = TEXT.rows ? (() => { const v = [...TEXT.rows.values()]; const n = v.filter(Boolean).length;
       return n ? `${n} of ${TEXT.rows.size} publications in the database ${n === 1 ? "has" : "have"} text.${when}` : `No text is visible to you.${when} The text tables are admin-only, so only an admin sees them.`; })() : "";
@@ -976,13 +980,14 @@ function renderPublications() {
   for (const r of rows) for (const c of r.checks) counts[c] = (counts[c] || 0) + 1;
   const tied = rows.filter(r => r.projects.length).length, checked = rows.filter(r => r.author_orcids).length;
   const onRoster = rows.filter(r => r.investigator_authors.some(a => a.on_roster)).length;
+  const comparable = rows.filter(r => r.author_orcids && !r.checks.includes("roster_unchecked")).length;
   const keys = ["all", "look", ...Object.keys(PCHECK).filter(k => counts[k])];
   const label = k => k === "all" ? "All" : k === "look" ? "Needs a look" : PCHECK[k].text;
   const q = pQ.trim().toLowerCase();
   const shown = rows.filter(r => (pFilter === "all" || (pFilter === "look" ? needsLook(r) : r.checks.includes(pFilter))) && (!q || pubHay(r).includes(q)))
     .sort((a, b) => fact(ent(b.id), "year").localeCompare(fact(ent(a.id), "year")) || ent(a.id).label.localeCompare(ent(b.id).label));
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
-    <p class="intro">Every publication in the export, the project and grant it is credited to, and what the export lets us check about that tie. <b>${tied} of ${rows.length}</b> are tied to a project${counts.several_projects ? ` (${counts.several_projects} to more than one)` : ""}. Only ${checked} carry author ORCIDs, and ${onRoster} of those ${onRoster === 1 ? "has" : "have"} an author on the project's roster.</p>
+    <p class="intro">Every publication in the export, the project and grant it is credited to, and what the export lets us check about that tie. <b>${tied} of ${rows.length}</b> are tied to a project${counts.several_projects ? ` (${counts.several_projects} to more than one)` : ""}. Only ${checked} carry author ORCIDs, and for ${comparable} of those someone on the project's roster has an ORCID to compare them with; ${onRoster} ${onRoster === 1 ? "has" : "have"} an author on the roster.</p>
     ${textLoaderHTML()}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <input class="search" id="pq" type="search" placeholder="Search titles, journals, DOIs, grant numbers" value="${esc(pQ)}" aria-label="Search publications" style="max-width:360px">
@@ -1001,6 +1006,7 @@ const KIND = {
   disagreement: { text: "Disagreement", plural: "Disagreements", c: "org" },
   decision: { text: "Decision", plural: "Decisions", c: "people" },
   action: { text: "Action", plural: "Actions", c: "product" },
+  blocker: { text: "Blocker", plural: "Blockers", c: "announce" },
 };
 const HOW = { attributed: "said", owner: "owns", named: "named", relayed: "relayed" };
 const HOW_TIP = { attributed: "The notes attribute this point to them", owner: "The notes give them this action",
@@ -1033,14 +1039,22 @@ function whoHTML(item) {
     : `<span class="who unres" tabindex="0" title="${esc(`Not resolved to one person: ${w.basis}.`)}">${esc(w.as_written)}?<span class="how">${esc(HOW[w.how] || w.how)}</span></span>`).join("");
 }
 const canFlag = () => RV.db && !(RV.readOnly || RV.canWrite === false);
+const flagPill = (cur, kinds) => cur ? `<span class="pill flag" title="${esc(str(cur.note))}">${cur.flagged_by && cur.flagged_by === RV.uid ? "you flagged" : "flagged"}: ${esc(str(kinds[cur.problem] || cur.problem || "?").toLowerCase())}</span>` : "";
+// A flag box: what the current flag says, a warning if it changed after the box was opened, and,
+// when a save was refused, the note that was written, so it is not lost.
+const flagNow = (cur, kinds, opened) => (cur ? `<span class="note" style="margin:0">Current flag: ${cur.flagged_by && cur.flagged_by === RV.uid ? "you" : "someone"}, ${esc(str(kinds[cur.problem] || cur.problem))}, ${esc(flagWhen(cur))} UTC${cur.note ? `: ${esc(str(cur.note))}` : ""}</span>` : "")
+  + (str(cur && cur.flagged_at) !== str(opened) ? `<span class="pill warn">This flag changed while the box was open: saving replaces it, removing deletes it</span>` : "");
+const refusedBox = (status, draft, cancel) => status ? `<div class="flagbox"><span class="note" role="status" style="margin:0">${esc(status)}</span>${draft && draft.note ? `<textarea readonly aria-label="The note you wrote">${esc(draft.note)}</textarea>` : ""}<div class="row"><button class="btn ghost" ${cancel}="1">Close</button></div></div>` : "";
 function itemFlagHTML(item) {
   const cur = RV.mflags.get(item.id);
-  const pill = cur ? `<span class="pill flag" title="${esc(cur.note || "")}">${cur.flagged_by && cur.flagged_by === RV.uid ? "you flagged" : "flagged"}: ${esc((MKINDS[cur.problem] || cur.problem || "?").toLowerCase())}</span>` : "";
-  if (!canFlag()) return pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(cur.note)}</span>` : ""}</div>` : "";
+  const pill = flagPill(cur, MKINDS);
+  if (!canFlag()) return (pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(str(cur.note))}</span>` : ""}</div>` : "")
+    + (mt.flagging === item.id ? refusedBox(RV.mstatus, RV.mdraft, "data-mflagcancel") : "");
   if (mt.flagging !== item.id) return `<div class="chips">${pill}<button class="linkbtn quiet" data-mflag="${esc(item.id)}">${cur ? "Change flag" : "Flag this point"}</button></div>`;
   const d = RV.mdraft && RV.mdraft.item === item.id ? RV.mdraft : { problem: (cur && cur.problem) || "person", note: (cur && cur.note) || "" };
   return `<div class="flagbox">
     <span class="note" style="margin:0">Flag a wrong attribution or point. It is saved with this page for whoever triages the notes.</span>
+    ${flagNow(cur, MKINDS, RV.mopened)}
     <div class="row"><label for="mflag-kind" class="muted" style="font-size:12.5px">Problem</label>
       <select id="mflag-kind">${Object.entries(MKINDS).map(([k, v]) => `<option value="${k}" ${d.problem === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
     <textarea id="mflag-note" aria-label="What's wrong, and how you know" placeholder="What's wrong, and how you know (who really said it?)">${esc(d.note)}</textarea>
@@ -1054,7 +1068,7 @@ async function saveMeetingFlag(id) {
   const item = ITEM_BY.get(id), m = item && MEET_BY.get(item.meeting);
   if (!item || !RV.db) return;
   const body = {
-    item: item.id, meeting: item.meeting, date: m.date, group: m.group, kind: item.kind,
+    item: item.id, meeting: item.meeting, date: m.date, group: m.group, kind: item.kind, n: item.n,
     text_at_flag: item.text, who_at_flag: item.who.map(w => w.name || `${w.as_written}?`),
     problem: $("#mflag-kind").value, note: $("#mflag-note").value.trim(),
     flagged_at: new Date().toISOString(), flagged_by: RV.uid, notes_sha256: (MT.source || {}).sha256 || null,
@@ -1097,7 +1111,8 @@ function meetingHTML(m, items) {
     <header><span class="date">${esc(m.date || "undated")}</span><span class="pill cls" style="color:var(--c-people)">${esc(m.group)}</span>
       <h3>${esc(m.title || "Untitled meeting")}</h3>
       ${m.note ? `<span class="pill na" title="Note on the source">${esc(m.note)}</span>` : ""}
-      <span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span></header>
+      <span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span>
+      ${(m.attendees || []).length ? `<span class="note" title="${esc(m.attendees.join(", "))}">${m.attendees.length} listed as attending</span>` : ""}</header>
     ${agenda}
     ${rows.map(i => `<div class="pt">
       <span class="kind" style="color:var(--c-${KIND[i.kind].c})"><i class="swatch"></i>${esc(KIND[i.kind].text)}</span>
@@ -1128,7 +1143,7 @@ function renderMeetings() {
   const kindCount = {}, groupCount = {};
   for (const i of MT.items) kindCount[i.kind] = (kindCount[i.kind] || 0) + 1;
   for (const m of MT.meetings) groupCount[m.group] = (groupCount[m.group] || 0) + 1;
-  const people = MT.people.filter(p => p.attributed + p.owns + p.named > 0).sort((a, b) => a.name.localeCompare(b.name));
+  const people = MT.people.filter(p => p.attributed + p.owns + p.named > 0 || p.name === mt.person).sort((a, b) => a.name.localeCompare(b.name));
   const src = MT.source || {};
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
     <div style="display:grid;gap:6px"><p class="intro">Lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date, with who each point is tied to: <b>said</b> (the notes attribute it to them), <b>owns</b> (their action), <b>named</b> (the sentence mentions them). Hover a name to see how it was matched.</p>
@@ -1142,12 +1157,13 @@ function renderMeetings() {
         <fieldset><legend>Kind</legend>${Object.entries(KIND).map(([k, v]) => `<label><input type="checkbox" data-mkind="${k}" ${mt.kinds.has(k) ? "checked" : ""}><i class="swatch" style="color:var(--c-${v.c})"></i>${v.plural}<span class="c">${kindCount[k] || 0}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Group</legend>${Object.keys(groupCount).sort().map(g => `<label><input type="checkbox" data-mgroup="${esc(g)}" ${mt.groups.has(g) ? "checked" : ""}>${esc(g)}<span class="c">${groupCount[g]}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Only</legend>
-          <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>Points tied to someone</label>
+          <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>Points someone said or owns</label>
           <label><input type="checkbox" id="mquoted" ${mt.quoted ? "checked" : ""}>Words in quotation marks</label></fieldset>
         <button class="linkbtn" id="mclear">Clear filters</button>
       </aside>
       <div class="list">
         ${mt.person ? personHTML(mt.person) : ""}
+        ${RV.msubErr ? `<div class="viol w"><span>${esc(RV.msubErr)}</span></div>` : ""}
         <div class="meta"><span>${fmt(hits.length)} of ${fmt(MT.items.length)} points · ${fmt(meetings.length)} meeting${meetings.length === 1 ? "" : "s"}</span>
           <button class="linkbtn" id="morder">${mt.newest ? "Newest first" : "Oldest first"} ⇅</button></div>
         ${meetings.slice(0, mt.limit).map(m => meetingHTML(m, byMeeting.get(m.id) || [])).join("") || `<p class="empty">No point matches these filters.</p>`}
@@ -1158,20 +1174,23 @@ function renderMeetings() {
 }
 function meetingFlagsHTML() {
   if (!MT) return "";
-  const rows = [...RV.mflags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  const rows = [...RV.mflags.values()].sort((a, b) => str(b.flagged_at).localeCompare(str(a.flagged_at)));
   if (!rows.length) return `<p class="empty">No meeting point flagged yet. Use “Flag this point” on the Meetings tab when an attribution looks wrong.</p>`;
   return `<h2>Meeting notes · ${rows.length}</h2><div class="tbl"><table><thead><tr><th>Meeting</th><th>Point</th><th>Problem</th><th>Note</th><th>Now</th><th>Flagged (UTC)</th></tr></thead><tbody>${rows.map(f => {
     const now = ITEM_BY.get(f.item);
-    const state = !now ? `<span class="pill warn">not in these notes</span>` : now.text !== f.text_at_flag ? `<span class="pill warn">text changed</span>` : `<span class="pill na">unchanged</span>`;
-    return `<tr><td class="mono">${esc(f.date || "")} · ${esc(f.group || "")}</td><td>${esc(f.text_at_flag || "")}<br><span class="note">${esc((f.who_at_flag || []).join(", "))}</span></td>
-      <td><span class="pill flag">${esc(MKINDS[f.problem] || f.problem || "")}</span></td><td>${esc(f.note || "")}</td><td>${state}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
+    const then = Array.isArray(f.who_at_flag) ? f.who_at_flag.map(str) : [];
+    const ties = now ? now.who.map(w => w.name || `${w.as_written}?`) : [];
+    const state = !now ? `<span class="pill warn">not in these notes</span>` : now.text !== str(f.text_at_flag) ? `<span class="pill warn">text changed</span>`
+      : ties.join("|") !== then.join("|") ? `<span class="pill warn" title="Now: ${esc(ties.join(", ") || "nobody")}">ties changed</span>` : `<span class="pill na">unchanged</span>`;
+    return `<tr><td class="mono">${esc(str(f.date))} · ${esc(str(f.group))}</td><td>${esc(str(f.text_at_flag))}<br><span class="note">${esc(then.join(", "))}</span></td>
+      <td><span class="pill flag">${esc(str(MKINDS[f.problem] || f.problem))}</span></td><td>${esc(str(f.note))}</td><td>${state}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function inMeetingsHTML(e) {
   const name = MT && e.class === "Investigator" ? PERSON_OF.get(e.id) : null, p = name && PEOPLE.get(name);
   if (!p) return "";
   return `<section><h3>In the meeting notes</h3><p style="margin:0">${esc(p.name)}: named as a speaker in ${p.meetings} meeting${p.meetings === 1 ? "" : "s"}; ${p.attributed} point${p.attributed === 1 ? "" : "s"} attributed, ${p.owns} action${p.owns === 1 ? "" : "s"} owned, named in ${p.named} more. <span class="note">(${esc(p.match)})</span></p>
-    <button class="btn ghost" style="justify-self:start" data-goperson="${esc(p.name)}">Show their points in Meetings</button></section>`;
+    ${p.attributed + p.owns + p.named ? `<button class="btn ghost" style="justify-self:start" data-goperson="${esc(p.name)}">Show their points in Meetings</button>` : `<p class="note" style="margin:0">No point in the notes is tied to them.</p>`}</section>`;
 }
 
 // Events for the two tabs above. The listeners for the other tabs are where those tabs are built.
@@ -1200,15 +1219,15 @@ $("#view").addEventListener("click", e => {
   const d = t.dataset;
   if (d.qset) { qSet = d.qset; qFilter = "all"; render(); }
   else if (d.pfilter) { pFilter = d.pfilter; render(); }
-  else if (t.id === "ptext") loadTextStatus();
-  else if (d.pbody) loadBody(d.pbody);
+  else if (t.id === "ptext") loadTextStatus(!!TEXT.rows);
+  else if (d.pbody) loadBody(d.pbody, (TEXT.bodies.get(uuidOf(d.pbody)) || {}).state === "ready");
   else if (d.person) { mt.person = mt.person === d.person ? "" : d.person; mt.limit = MPAGE; render(); $("#view").scrollIntoView({ block: "start" }); }
   else if (d.goperson) { mt.person = d.goperson; mt.limit = MPAGE; tab = "meetings"; store.set("tab", tab); render(); }
   else if (t.id === "mperson-clear") { mt.person = ""; render(); }
   else if (t.id === "mclear") { Object.assign(mt, { q: "", person: "", quoted: false, tied: false, limit: MPAGE }); mt.kinds.clear(); mt.groups.clear(); render(); }
   else if (t.id === "morder") { mt.newest = !mt.newest; render(); }
   else if (t.id === "mmore") { mt.limit += MPAGE; render(); }
-  else if (d.mflag) { mt.flagging = d.mflag; RV.mdraft = null; RV.mstatus = ""; render(); $("#mflag-note")?.focus(); }
+  else if (d.mflag) { mt.flagging = d.mflag; RV.mopened = (RV.mflags.get(d.mflag) || {}).flagged_at || null; RV.mdraft = null; RV.mstatus = ""; render(); $("#mflag-note")?.focus(); }
   else if (d.mflagcancel) { mt.flagging = null; RV.mdraft = null; render(); }
   else if (d.mflagsave) saveMeetingFlag(d.mflagsave);
   else if (d.mflagremove) removeMeetingFlag(d.mflagremove);
@@ -1264,12 +1283,14 @@ function evidenceHTML(d) {
 }
 function deviceFlagHTML(d) {
   const cur = RV.dflags.get(d.id);
-  const pill = cur ? `<span class="pill flag" title="${esc(cur.note || "")}">${cur.flagged_by && cur.flagged_by === RV.uid ? "you flagged" : "flagged"}: ${esc((DKINDS[cur.problem] || cur.problem || "?").toLowerCase())}</span>` : "";
-  if (!canFlag()) return pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(cur.note)}</span>` : ""}</div>` : "";
+  const pill = flagPill(cur, DKINDS);
+  if (!canFlag()) return (pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(str(cur.note))}</span>` : ""}</div>` : "")
+    + (dv.flagging === d.id ? refusedBox(RV.dstatus, RV.ddraft, "data-dflagcancel") : "");
   if (dv.flagging !== d.id) return `<div class="chips">${pill}<button class="linkbtn quiet" data-dflag="${esc(d.id)}">${cur ? "Change flag" : "Flag this device"}</button></div>`;
   const draft = RV.ddraft && RV.ddraft.device === d.id ? RV.ddraft : { problem: (cur && cur.problem) || (d.ai_predicted ? "confirmed" : "device"), note: (cur && cur.note) || "" };
   return `<div class="flagbox">
     <span class="note" style="margin:0">Confirm or correct this line. The flag is saved with this page for whoever updates the device list.</span>
+    ${flagNow(cur, DKINDS, RV.dopened)}
     <div class="row"><label for="dflag-kind" class="muted" style="font-size:12.5px">What</label>
       <select id="dflag-kind">${Object.entries(DKINDS).map(([k, v]) => `<option value="${k}" ${draft.problem === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
     <textarea id="dflag-note" aria-label="What is right, and how you know" placeholder="The right model, maker or person, and how you know">${esc(draft.note)}</textarea>
@@ -1370,6 +1391,7 @@ function renderDevices() {
       </aside>
       <div class="list">
         ${person ? `<div class="flagbox" style="background:var(--surface)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><h2>${esc(person.label)}</h2><button class="linkbtn" id="dperson-clear">Show everyone</button></div><span>Named as speaking to ${fmt(hits.length)} device${hits.length === 1 ? "" : "s"} at the workshop, per the summary. ${refLink(dv.person)}</span></div>` : ""}
+        ${RV.dsubErr ? `<div class="viol w"><span>${esc(RV.dsubErr)}</span></div>` : ""}
         <div class="meta"><span>${fmt(hits.length)} of ${fmt(DV.devices.length)} lines · ${fmt(byAward.size)} award${byAward.size === 1 ? "" : "s"}</span></div>
         ${DV.awards.filter(a => byAward.has(a.award)).map(a => `<article class="mtg" id="award-${esc(a.award)}">
           <header><span class="date">${esc(a.award)}</span>${(a.projects || []).length ? a.projects.map(refLink).join(" ") : `<span class="pill na" title="No project in the graph has this grant number">not in the graph</span>`}</header>
@@ -1384,12 +1406,16 @@ function renderDevices() {
 }
 function deviceFlagsHTML() {
   if (!DV) return "";
-  const rows = [...RV.dflags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  const rows = [...RV.dflags.values()].sort((a, b) => str(b.flagged_at).localeCompare(str(a.flagged_at)));
   if (!rows.length) return `<p class="empty">No device flagged yet. Use “Flag this device” on the Devices tab to confirm or correct a model, a maker or who spoke to it.</p>`;
-  return `<h2>Device list · ${rows.length}</h2><div class="tbl"><table><thead><tr><th>Device</th><th>What</th><th>Note</th><th>Then</th><th>Flagged (UTC)</th></tr></thead><tbody>${rows.map(f => {
-    const ai = f.ai_predicted_at_flag || {};
-    return `<tr><td><span class="mono">${esc(f.award || "")}</span> ${esc(f.name_at_flag || f.device || "")}</td><td><span class="pill flag">${esc(DKINDS[f.problem] || f.problem || "")}</span></td>
-      <td>${esc(f.note || "")}</td><td class="note">${esc([f.brand_at_flag, ai.manufacturer, ai.model].filter(Boolean).join(" · "))}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
+  return `<h2>Device list · ${rows.length}</h2><div class="tbl"><table><thead><tr><th>Device</th><th>What</th><th>Note</th><th>Then</th><th>Now</th><th>Flagged (UTC)</th></tr></thead><tbody>${rows.map(f => {
+    const ai = f.ai_predicted_at_flag && typeof f.ai_predicted_at_flag === "object" ? f.ai_predicted_at_flag : {};
+    const now = DEV_BY.get(str(f.device)), nai = (now && now.ai_predicted) || {};
+    const same = now && now.name === str(f.name_at_flag) && str(now.brand_stated) === str(f.brand_at_flag) && str(now.presenter) === str(f.presenter_at_flag)
+      && str(nai.manufacturer) === str(ai.manufacturer) && str(nai.model) === str(ai.model);
+    const state = !now ? `<span class="pill warn">not in this list</span>` : same ? `<span class="pill na">unchanged</span>` : `<span class="pill warn">line changed</span>`;
+    return `<tr><td><span class="mono">${esc(str(f.award))}</span> ${esc(str(f.name_at_flag || f.device))}</td><td><span class="pill flag">${esc(str(DKINDS[f.problem] || f.problem))}</span></td>
+      <td>${esc(str(f.note))}</td><td class="note">${esc([f.brand_at_flag, ai.manufacturer, ai.model].map(str).filter(Boolean).join(" · "))}</td><td>${state}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function onDeviceListHTML(e) {
@@ -1427,7 +1453,7 @@ $("#view").addEventListener("click", e => {
   else if (d.godevperson) { Object.assign(dv, { person: d.godevperson, award: "", q: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); tab = "devices"; store.set("tab", tab); render(); }
   else if (t.id === "dperson-clear") { dv.person = ""; render(); }
   else if (t.id === "dclear") { Object.assign(dv, { q: "", award: "", person: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); render(); }
-  else if (d.dflag) { dv.flagging = d.dflag; RV.ddraft = null; RV.dstatus = ""; render(); $("#dflag-note")?.focus(); }
+  else if (d.dflag) { dv.flagging = d.dflag; RV.dopened = (RV.dflags.get(d.dflag) || {}).flagged_at || null; RV.ddraft = null; RV.dstatus = ""; render(); $("#dflag-note")?.focus(); }
   else if (d.dflagcancel) { dv.flagging = null; RV.ddraft = null; render(); }
   else if (d.dflagsave) saveDeviceFlag(d.dflagsave);
   else if (d.dflagremove) removeDeviceFlag(d.dflagremove);
@@ -1437,6 +1463,7 @@ function render() {
   // A live flag update re-renders while someone may be typing: put focus and caret back.
   const a = document.activeElement, focusId = a && a.id;
   const caret = a && typeof a.selectionStart === "number" ? [a.selectionStart, a.selectionEnd] : null;
+  const reading = [...document.querySelectorAll("details[data-pub] .textbox")].map(box => [box.closest("details").dataset.pub, box.scrollTop]);
   if (tab !== "flags" && !TABS.some(t => t[0] === tab)) tab = "entities";   // a tab this copy doesn't have
   renderTabs();
   try { history.replaceState(null, "", "#" + tab); } catch {}
@@ -1444,6 +1471,10 @@ function render() {
                   publications: renderPublications, meetings: renderMeetings, devices: renderDevices,
                   flags: RV.db ? renderFlags : renderEntities };
   (views[tab] || renderEntities)();
+  for (const [pub, top] of reading) {
+    const box = [...document.querySelectorAll("details[data-pub]")].find(d => d.dataset.pub === pub)?.querySelector(".textbox");
+    if (box) box.scrollTop = top;
+  }
   const el = focusId && document.getElementById(focusId);
   if (el && el !== document.activeElement) { el.focus(); if (caret && el.setSelectionRange) el.setSelectionRange(caret[0], caret[1]); }
 }

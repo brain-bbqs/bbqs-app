@@ -33,18 +33,24 @@ test("the committed Inspector carries no meeting records", () => {
 });
 
 test("no workflow builds a page with the meeting notes", () => {
-  const dir = join(ROOT, ".github", "workflows");
-  for (const name of readdirSync(dir).filter((n) => /\.ya?ml$/.test(n))) {
-    const src = read(join(".github", "workflows", name));
-    assert.doesNotMatch(src, /quality\.py[^\n]*--internal/, `${name} passes --internal to kg/quality.py`);
-    assert.doesNotMatch(src, /kg\/(meetings|devices)\.py/, `${name} runs kg/meetings.py or kg/devices.py; the records stay off CI`);
+  // The whole file, not one line: a flag on a continuation line or in a variable counts too.
+  for (const sub of ["workflows", "scripts", "actions"]) {
+    const dir = join(ROOT, ".github", sub);
+    let names = [];
+    try { names = readdirSync(dir, { recursive: true }).map(String); } catch { continue; }
+    for (const name of names.filter((n) => /\.(ya?ml|sh|py|mjs|js)$/.test(n))) {
+      const src = read(join(".github", sub, name));
+      assert.doesNotMatch(src, /--internal\b/, `.github/${sub}/${name} passes --internal`);
+      assert.doesNotMatch(src, /\b(meetings|devices)\.py\b|kg\.(meetings|devices)\b/, `.github/${sub}/${name} runs kg/meetings.py or kg/devices.py; the records stay off CI`);
+    }
   }
+  const scripts = JSON.stringify(JSON.parse(read("package.json")).scripts || {});
+  assert.doesNotMatch(scripts, /--internal\b|\b(meetings|devices)\.py\b/, "a package.json script builds the internal records");
 });
 
 test("no meeting records are committed", () => {
-  // kg/meetings.py and kg/devices.py write the markers and the template reads them; any other file
-  // holding one is a copy of the records. Text-like files only, and not node_modules, dist or the git store.
-  const allowed = new Set(["kg/meetings.py", "kg/devices.py", "kg/browser/template.html", "tests/guards/inspector-internal-data.test.mjs"]);
+  // Any file holding a marker, the template the public site ships included, is a copy of the records. Text-like files only, and not node_modules, dist or the git store.
+  const allowed = new Set();    // kg/meetings.py and kg/devices.py build the marker from a constant, so no file is exempt
   const skip = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".venv", "__pycache__"]);
   const text = new Set([".json", ".js", ".mjs", ".ts", ".tsx", ".py", ".html", ".md", ".csv", ".yaml", ".yml", ".ttl", ".txt", ".sql"]);
   const hits = [];

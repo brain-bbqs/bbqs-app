@@ -27,10 +27,12 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
+KIND = "bbqs-devices"           # the marker tests/guards/inspector-internal-data looks for, written only here
 FILES = ("devices.csv", "device_evidence.csv", "device_discussion_crosscutting.csv", "awards.csv",
          "bbqs_devices_kg.json")
 TIER_ORDER = ("T1", "T2", "T3", "U")
@@ -94,12 +96,18 @@ def build(folder: Path) -> dict:
     known = {d["id"] for d in devices}
     orphans = sorted({e["device"] for e in evidence if e["device"] and e["device"] not in known})
     return {
-        "kind": "bbqs-devices", "version": 1, "caveat": CAVEAT,
+        "kind": KIND, "version": 1, "caveat": CAVEAT,
         "tiers": {t: tiers.get(t, "") for t in TIER_ORDER if t in tiers or any(t in d["tiers"] for d in devices)},
         "rule": spec.get("rule", ""),
         "awards": awards, "devices": devices, "evidence": evidence, "discussion": discussion,
         "orphan_evidence": orphans,
     }
+
+
+def refuse_on_ci(parser) -> None:
+    """These records are internal: they are built by hand, never on a CI runner."""
+    if os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("CI"):
+        parser.error("this runs on CI (GITHUB_ACTIONS or CI is set); internal records are built by hand only")
 
 
 def main(argv=None) -> int:
@@ -109,6 +117,7 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, required=True, help="where to write the records (outside the repo)")
     parser.add_argument("--describe", default="", help="where the list came from, shown on the page")
     args = parser.parse_args(argv)
+    refuse_on_ci(parser)
     missing = [name for name in FILES if not (args.folder / name).is_file()]
     if missing:
         parser.error(f"{args.folder} is missing {', '.join(missing)}")

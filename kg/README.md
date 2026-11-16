@@ -232,9 +232,10 @@ link the exporter writes from `project_publications`, which is the NIH award cre
 PubMed record), its PMID and DOI, and what the export lets us check about that tie: no project, more
 than one project, a title that appears twice (usually a preprint and its published version), and
 whether any author is on the project's roster, by ORCID. Only 21 of the 89 papers carry author
-ORCIDs, so most ties can't be checked that way. The full text is in no export:
+ORCIDs, and for 11 of those no one on the roster has an ORCID to compare with (*roster has no
+ORCIDs*), so most ties can't be checked that way. The full text is in no export:
 `publication_fulltext` is admin-only and its licences are still `unknown` (#444). In the artifact
-viewer a curator can read it through their own BBQS-MCP connector (`kg_query`, run as them, so the
+viewer an admin can read it through their own BBQS-MCP connector (`kg_query`, run as them, so the
 database's row-level security decides what they see); nothing read that way is stored in the page.
 
 **Meetings tab (artifact copy only).** The working-group meeting notes as `meetings.py` reads them:
