@@ -1530,6 +1530,7 @@ const AREA_ORDER = Object.keys(AREA_NAME);
 // through them: people hold roles on them, papers and datasets come out of them.
 const GANCHOR = { project: [0, 0], people: [-420, 0], org: [-240, -330], announce: [250, -330], product: [420, 0],
                   species: [0, 350], prov: [270, 320], other: [-270, 320] };
+const GFRINGE = { project: [0, -500] };    // the rest: their region's anchor pushed out by a third
 const G = { hist: [{ focus: null }], pos: 0, q: "", qSel: 0, hover: null, ringSel: -1, hidden: new Set(),
             connecting: false, pathQ: "", pathTo: null, viaHubs: false, expand: new Set(),
             cam: null, mapCam: null, anim: null, raf: 0, tok: null, ring: [], ringRs: 0, mapAmt: 1, cv: null };
@@ -1555,17 +1556,23 @@ function graphData() {
     const [a, b] = from < to ? [from, to] : [to, from];
     pairs.set(a + "\u0001" + b, [a, b]);
   };
+  const noHolder = new Map();
+  let roles = 0;
   for (const e of ENT) {
     if (e.class === "ProjectRole") {             // person —role→ project, in place of the record
+      roles++;
       const on = e.out.find(l => l.predicate === "on_project"), by = e.out.find(l => l.predicate === "held_by");
-      if (on && by) add(by.target, on.target, `role: ${(e.facts.project_role || ["unnamed"])[0]}`);
+      const role = (e.facts.project_role || ["unnamed"])[0];
+      if (on && by && nodes.has(on.target) && nodes.has(by.target)) add(by.target, on.target, `role: ${role}`);
+      else if (on && nodes.has(on.target)) { if (!noHolder.has(on.target)) noHolder.set(on.target, []); noHolder.get(on.target).push(role); }
       continue;
     }
     for (const l of e.out) add(e.id, l.target, l.predicate);
   }
   for (const n of nodes.values()) n.degree = adj.get(n.id).size;
   const hubs = [...nodes.values()].filter(n => n.degree > GHUB).sort((a, b) => b.degree - a.degree);
-  GRAPH = { nodes, adj, pairs: [...pairs.values()], hubs, isolated: [...nodes.values()].filter(n => !n.degree).length };
+  GRAPH = { nodes, adj, pairs: [...pairs.values()], hubs, isolated: [...nodes.values()].filter(n => !n.degree).length,
+            roles, noHolder, unheld: [...noHolder.values()].reduce((s, l) => s + l.length, 0) };
   return GRAPH;
 }
 const gnode = id => graphData().nodes.get(id);
@@ -1575,8 +1582,8 @@ const gHow = (from, to) => [...new Set((graphData().adj.get(from).get(to) || [])
 // d3-force's link, many-body and velocity-decay forces (300 ticks, the many-body sum done exactly),
 // with each node pulled toward its kind's region instead of the centre. Isolated nodes are pulled to
 // the outer edge of their region, so they show as a hollow fringe. A fixed seed keeps it stable.
-function forceLayout(nodes, links) {
-  let seed = 1;
+function gForce(nodes, links) {
+  let seed = 1, alpha = 1, tick = 0;
   const jiggle = () => ((seed = (1664525 * seed + 1013904223) % 4294967296) / 4294967296 - 0.5) * 1e-6;
   const step = Math.PI * (3 - Math.sqrt(5));
   nodes.forEach((d, i) => {
@@ -1587,9 +1594,8 @@ function forceLayout(nodes, links) {
   for (const [s, t] of links) { count[s]++; count[t]++; }
   const lk = links.map(([s, t]) => ({ s: nodes[s], t: nodes[t], str: 1 / Math.min(count[s], count[t]), bias: count[s] / (count[s] + count[t]),
                                       len: 18 + 3 * Math.sqrt(Math.min(nodes[s].degree, nodes[t].degree)) }));
-  const CHARGE = -24, FAR2 = 240 * 240, decay = 1 - Math.pow(0.001, 1 / 300);
-  let alpha = 1;
-  for (let tick = 0; tick < 300; tick++) {
+  const CHARGE = -24, FAR2 = 240 * 240, TICKS = 300, decay = 1 - Math.pow(0.001, 1 / TICKS);
+  const one = () => {
     alpha += -alpha * decay;
     for (const l of lk) {
       let x = l.t.x + l.t.vx - l.s.x - l.s.vx || jiggle(), y = l.t.y + l.t.vy - l.s.y - l.s.vy || jiggle();
@@ -1612,20 +1618,28 @@ function forceLayout(nodes, links) {
       }
     }
     for (const d of nodes) {
-      const [ax, ay] = GANCHOR[d.area] || [0, 0], f = d.degree ? 1 : 1.36, s = d.degree ? 0.13 : 0.16;
-      d.vx += (ax * f - d.x) * s * alpha; d.vy += (ay * f - d.y) * s * alpha;
+      const [ax, ay] = GANCHOR[d.area] || [0, 0];
+      const [px, py] = d.degree ? [ax, ay] : GFRINGE[d.area] || [ax * 1.36, ay * 1.36], s = d.degree ? 0.13 : 0.16;
+      d.vx += (px - d.x) * s * alpha; d.vy += (py - d.y) * s * alpha;
       d.x += d.vx *= 0.6; d.y += d.vy *= 0.6;
     }
-  }
+  };
+  return { run(more) { while (tick < TICKS && more()) { one(); tick++; } return tick >= TICKS; } };
 }
-function gLayout() {
-  if (GLAYOUT) return GLAYOUT;
+let GJOB = null;
+function gLayoutJob() {                          // the nodes, laid out tick by tick
+  if (GJOB) return GJOB;
   const g = graphData();
   const nodes = [...g.nodes.values()].sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id))
     .map(n => ({ id: n.id, label: n.label, cls: n.cls, area: n.area, degree: n.degree, r: 2.6 + Math.min(10, Math.sqrt(n.degree) * 1.3) }));
   const index = new Map(nodes.map((n, i) => [n.id, i]));
   const links = g.pairs.map(([a, b]) => [index.get(a), index.get(b)]);
-  forceLayout(nodes, links);
+  return (GJOB = { nodes, index, links, sim: gForce(nodes, links) });
+}
+function gLayout() {
+  if (GLAYOUT) return GLAYOUT;
+  const g = graphData(), { nodes, index, links, sim } = gLayoutJob();
+  sim.run(() => true);                           // whatever the idle slices have not done yet
   for (const n of nodes) { n.mx = n.x; n.my = n.y; n.a = 1; n.tx = n.x; n.ty = n.y; n.ta = 1; }
   const regions = AREA_ORDER.map(a => {
     const own = nodes.filter(n => n.area === a);
@@ -1644,7 +1658,7 @@ function gLayout() {
   }
   const box = own => {
     const xs = own.map(n => n.mx), ys = own.map(n => n.my);
-    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: Math.min(...ys) - 22 };
+    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, top: Math.min(...ys) };
   };
   const sizes = Array.from({ length: pieces }, (_, c) => nodes.filter((n, i) => comp[i] === c));
   const order = sizes.map((own, c) => [own.length, c]).sort((a, b) => b[0] - a[0]);
@@ -1689,8 +1703,9 @@ function gFit() {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const n of L.nodes) if (!G.hidden.has(n.area)) { x0 = Math.min(x0, n.mx); x1 = Math.max(x1, n.mx); y0 = Math.min(y0, n.my); y1 = Math.max(y1, n.my); }
   if (!isFinite(x0)) return { k: 1, cx: 0, cy: 0 };
-  const k = Math.max(0.15, Math.min(14, 0.92 * Math.min(w / Math.max(1, x1 - x0 + 40), h / Math.max(1, y1 - y0 + 60))));
-  return { k, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 - 8 / k };
+  const TOP = 66, BOTTOM = 14, SIDE = 18;                     // px: the hint and a label row above, a margin below
+  const k = Math.max(0.15, Math.min(14, Math.min((w - 2 * SIDE) / Math.max(1, x1 - x0), (h - TOP - BOTTOM) / Math.max(1, y1 - y0))));
+  return { k, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 - (TOP - BOTTOM) / 2 / k };
 }
 function gTargets() {
   const L = gLayout(), g = graphData(), f = gView().focus, F = f && L.byId.get(f), { w, h } = G.cv;
@@ -1724,7 +1739,13 @@ function gAnimate(cam, instant) {
 function gTick(now) {
   G.raf = 0;
   const A = G.anim, L = gLayout();
-  if (!A || !G.cv || !G.cv.el.isConnected) { G.anim = null; return; }
+  if (!A) return;
+  if (!G.cv || !G.cv.el.isConnected) {          // the tab went away mid-step: end it where it was going
+    for (const n of L.nodes) { n.x = n.tx; n.y = n.ty; n.a = n.ta; }
+    if (A.c1) G.cam = { ...A.c1 };
+    G.mapAmt = A.m1; G.anim = null;
+    return;
+  }
   const p = A.dur ? Math.min(1, (now - A.t0) / A.dur) : 1, e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   for (const n of L.nodes) { n.x = n.sx + (n.tx - n.sx) * e; n.y = n.sy + (n.ty - n.sy) * e; n.a = n.sa + (n.ta - n.sa) * e; }
   if (A.c1) {
@@ -1739,8 +1760,13 @@ function gTick(now) {
 // -- moving around: every move is a history entry, like a browser --------------------------------
 function gApply(instant) {
   if (!G.cv) return;
+  gSetHover(null);
+  const tip = $("#gtip");
+  if (tip) tip.hidden = true;
   gAnimate(gTargets(), instant);
   gChrome();
+  const a = document.activeElement;              // the chip, crumb or button that was clicked may be gone
+  if (!a || a === document.body || !a.isConnected) $("#gcanvas")?.focus({ preventScroll: true });
   const f = gView().focus, n = f && gnode(f);
   const sr = $("#gsr");
   if (sr) sr.textContent = n ? `${n.label}, ${n.cls}, ${gPlural(n.degree, "neighbour")}. Back and forward with the arrow keys, Escape for the map.` : "The whole graph.";
@@ -1748,7 +1774,7 @@ function gApply(instant) {
 function gGo(id) {
   if (id && !gnode(id)) return;
   if ((gView().focus || null) === (id || null)) return;
-  if (!gView().focus) G.mapCam = G.cam && { ...G.cam };      // come back to the map as you left it
+  gSaveMapCam();
   G.hist = [...G.hist.slice(0, G.pos + 1), { focus: id || null }].slice(-60);
   G.pos = G.hist.length - 1;
   G.connecting = false; G.pathTo = null; G.pathQ = ""; G.expand.clear(); G.ringSel = -1;
@@ -1756,18 +1782,26 @@ function gGo(id) {
 }
 function gJump(i) {
   if (i < 0 || i >= G.hist.length || i === G.pos) return;
-  if (!gView().focus) G.mapCam = G.cam && { ...G.cam };
+  gSaveMapCam();
   G.pos = i; G.connecting = false; G.pathTo = null; G.expand.clear(); G.ringSel = -1;
   gApply();
 }
 const gBack = () => gJump(G.pos - 1), gFwd = () => gJump(G.pos + 1);
+function gSaveMapCam() {                         // come back to the map as you left it
+  if (gView().focus || !G.cv) return;
+  const A = G.anim, cam = A && A.c1 && A.m1 === 1 ? A.c1 : G.cam;     // mid-way back to the map: where it was going
+  const fit = gFit(), same = cam && ["k", "cx", "cy"].every(q => Math.abs(cam[q] - fit[q]) < 1e-6);
+  G.mapCam = cam && !same ? { ...cam } : null;
+}
 
 // -- drawing -------------------------------------------------------------------------------------
 function gDraw() {
-  const cv = G.cv;
+  let cv = G.cv;
   if (!cv || !cv.el.isConnected || !G.cam) return;
+  if (cv.dpr !== (window.devicePixelRatio || 1)) cv = gCanvas() || cv;
   const { ctx: c, w, h, dpr } = cv, t = G.cam, tok = gTok(), L = gLayout(), g = graphData();
-  const f = gView().focus, F = f ? L.byId.get(f) : null, H = G.hover ? L.byId.get(G.hover) : null;
+  const f = gView().focus, F = f ? L.byId.get(f) : null, H0 = G.hover ? L.byId.get(G.hover) : null;
+  const H = H0 && (H0 === F || H0.a >= 0.02) ? H0 : null;
   const near = H ? g.adj.get(H.id) : F ? g.adj.get(F.id) : null, hub = H || F;
   const X = n => (n.x - t.cx) * t.k + w / 2, Y = n => (n.y - t.cy) * t.k + h / 2;
   const onRing = n => F && n !== F && n.ta === 1;
@@ -1827,7 +1861,7 @@ function gDraw() {
 
   // what the map shows, named, while the map is showing; a label that would overlap one already
   // drawn is left out (the main network first, then the unlinked fringes, then the islands)
-  const placed = [], fits = b => !placed.some(p => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1]);
+  const placed = [[0, 0, w, 30]], fits = b => !placed.some(p => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1]);
   if (G.mapAmt > 0.02) {
     c.textAlign = "center"; c.textBaseline = "alphabetic";
     for (const r of L.groups) {
@@ -1835,13 +1869,15 @@ function gDraw() {
       c.font = `600 13px ${tok.display}`;
       const tw = c.measureText(r.title).width; c.font = `11px ${tok.font}`;
       const half = Math.max(tw, c.measureText(r.sub).width) / 2 + 4;
-      const x = Math.max(half + 2, Math.min(w - half - 2, (r.x - t.cx) * t.k + w / 2)), y = (r.y - t.cy) * t.k + h / 2, b = [x - half, y - 13, x + half, y + 17];
+      let x = (r.x - t.cx) * t.k + w / 2;
+      if (w < 560) { if (x - half < 2 || x + half > w - 2) continue; } else x = Math.max(half + 2, Math.min(w - half - 2, x));
+      const y = (r.top - t.cy) * t.k + h / 2 - 22, b = [x - half, y - 13, x + half, y + 17];
       if (!fits(b)) continue;
       placed.push(b);
       c.lineJoin = "round"; c.lineWidth = 4; c.strokeStyle = tok.surface;
-      c.globalAlpha = 0.95 * G.mapAmt; c.fillStyle = r.color === "fg" ? tok.fg : tok[r.color] || tok.muted;
+      c.globalAlpha = G.mapAmt; c.fillStyle = r.color === "fg" ? tok.fg : tok[r.color] || tok.muted;
       c.font = `600 13px ${tok.display}`; c.strokeText(r.title, x, y); c.fillText(r.title, x, y);
-      c.globalAlpha = 0.9 * G.mapAmt; c.fillStyle = tok.muted; c.font = `11px ${tok.font}`; c.strokeText(r.sub, x, y + 13); c.fillText(r.sub, x, y + 13);
+      c.globalAlpha = G.mapAmt; c.fillStyle = tok.muted; c.font = `11px ${tok.font}`; c.strokeText(r.sub, x, y + 13); c.fillText(r.sub, x, y + 13);
     }
     c.textAlign = "start";
   }
@@ -1861,12 +1897,23 @@ function gDraw() {
     c.font = `12px ${tok.font}`;
     for (const [i, n] of G.ring.entries()) {
       if (many && n !== H && i !== G.ringSel) continue;
-      const x = X(n), y = Y(n), right = Math.cos(n.ang) >= -1e-9, off = rad(n) + 5, s = gClip(n.label, len);
+      const x = X(n), y = Y(n), right = Math.cos(n.ang) >= -1e-9, off = rad(n) + 5;
+      const ux = Math.cos(n.ang), uy = Math.sin(n.ang), sx = x + ux * off, sy = y + uy * off;
+      let room = Infinity;                                     // how far the label can run before an edge
+      if (ux > 1e-6) room = Math.min(room, (w - 6 - sx) / ux); else if (ux < -1e-6) room = Math.min(room, (6 - sx) / ux);
+      if (uy > 1e-6) room = Math.min(room, (h - 6 - sy) / uy); else if (uy < -1e-6) room = Math.min(room, (32 - sy) / uy);
+      if (room < 24) continue;                                 // no room: the tooltip and the card still name it
+      c.font = n === H || i === G.ringSel ? `600 12px ${tok.font}` : `12px ${tok.font}`;
+      let s = gClip(n.label, len);
+      while (s.length > 4 && c.measureText(s).width > room) s = gClip(n.label, s.length - 1);
+      const wd = c.measureText(s).width;
       c.save(); c.translate(x, y); c.rotate(n.ang + (right ? 0 : Math.PI));
       c.textAlign = right ? "start" : "end";
-      c.font = n === H || i === G.ringSel ? `600 12px ${tok.font}` : `12px ${tok.font}`;
       halo(s, right ? off : -off, 0); c.restore();
+      const ex = sx + ux * wd, ey = sy + uy * wd;
+      placed.push([Math.min(sx, ex) - 2, Math.min(sy, ey) - 7, Math.max(sx, ex) + 2, Math.max(sy, ey) + 7]);
     }
+    for (const n of [F, ...G.ring]) { const r = rad(n) + 2, x = X(n), y = Y(n); placed.push([x - r, y - r, x + r, y + r]); }
     if (G.ring.length <= 20 && !narrow) {                      // each link's name, a little way along it
       c.font = `10.5px ${tok.mono}`; c.fillStyle = tok.muted; c.textAlign = "center";
       for (const n of G.ring) {
@@ -1897,8 +1944,12 @@ function gDraw() {
   }
 
   // the map in miniature, bottom left, while you are on a node: where you are in the whole
-  if (F && G.mapAmt < 0.98 && w >= 560) {
-    const mw = Math.min(170, w * 0.3), mh = mw * 0.66, mx = 10, my = h - mh - 10;
+  const mw = Math.min(170, w * 0.3), mh = mw * 0.66, mx = 10, my = h - mh - 10;
+  const clear = F && (() => {
+    const fx = X(F), fy = Y(F), nx = Math.max(mx, Math.min(fx, mx + mw)), ny = Math.max(my, Math.min(fy, my + mh));
+    return Math.hypot(fx - nx, fy - ny) > G.ringRs + (G.ring.length > 48 ? 14 : 160);
+  })();
+  if (F && clear && G.mapAmt < 0.98 && w >= 560) {
     c.globalAlpha = 0.92 * (1 - G.mapAmt); c.fillStyle = tok.surface; c.strokeStyle = tok.line; c.lineWidth = 1;
     c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke();
     const fit = G.mini || (G.mini = (() => { let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -1951,8 +2002,13 @@ function gSetHover(id) {
 function gZoom(how) {
   if (!G.cv || !G.cam) return;
   if (how === "fit") { if (gView().focus) gApply(); else { G.mapCam = null; gAnimate(gFit()); } return; }
-  const k = Math.max(0.15, Math.min(14, G.cam.k * (how === "in" ? 1.5 : 1 / 1.5)));
-  G.anim = null; G.cam = { ...G.cam, k }; gDraw();
+  const f = how === "in" ? 1.5 : 1 / 1.5, clampK = k => Math.max(0.15, Math.min(14, k));
+  if (G.anim && G.anim.c1) {
+    G.anim.c0 = { ...G.anim.c0, k: clampK(G.anim.c0.k * f) }; G.anim.c1 = { ...G.anim.c1, k: clampK(G.anim.c1.k * f) };
+    return;
+  }
+  G.cam = { ...G.cam, k: clampK(G.cam.k * f) };
+  if (!G.anim) gDraw();
 }
 function gBind(el) {
   if (el.dataset.bound) return;
@@ -2073,6 +2129,11 @@ function shortestPath(from, to, viaHubs) {
   for (let x = to; x != null; x = prev.get(x)) path.unshift(x);
   return path;
 }
+function gPathHits(f) {
+  const hits = graphSearch(G.pathQ).filter(n => n.id !== f);
+  return hits.length ? hits.map(n => `<button class="linkbtn" data-gpathto="${esc(n.id)}">${esc(gClip(n.label, 60))}</button>`).join("")
+    : G.pathQ.trim() ? `<span class="note">No node matches.</span>` : "";
+}
 function gPathHTML(f) {
   const g = graphData();
   if (G.pathTo && gnode(G.pathTo)) {
@@ -2086,9 +2147,8 @@ function gPathHTML(f) {
       : `<p class="note" style="margin:0">No path: they are in separate pieces of the graph.</p>`}
       <button class="linkbtn" id="gpathclear">Try another</button></div>`;
   }
-  const hits = graphSearch(G.pathQ).filter(n => n.id !== f);
   return `<div class="gpathbox"><input class="search" id="gpath" type="search" placeholder="To which node?" value="${esc(G.pathQ)}" aria-label="Find how this node connects to another">
-    ${hits.length ? `<div class="gresults">${hits.map(n => `<button class="linkbtn" data-gpathto="${esc(n.id)}">${esc(gClip(n.label, 60))}</button>`).join("")}</div>` : G.pathQ.trim() ? `<span class="note">No node matches.</span>` : ""}
+    <div class="gresults" id="gpathres">${gPathHits(f)}</div>
     ${g.hubs.length ? `<label class="note" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" id="gviahubs" ${G.viaHubs ? "checked" : ""}><span>Allow paths through the hubs (${esc(g.hubs.map(x => x.label).join(", "))}), which nearly everyone belongs to</span></label>` : ""}</div>`;
 }
 function gCardHTML() {
@@ -2097,6 +2157,7 @@ function gCardHTML() {
     const L = gLayout(), linkCount = g.pairs.length;
     return `<h2>The whole graph</h2>
       <p class="note" style="margin:0">${gPlural(g.nodes.size, "node")} and ${gPlural(linkCount, "link")}. ${fmt(L.mainSize)} of the ${fmt(g.nodes.size - g.isolated)} linked nodes form one network; ${L.pieces > 1 ? `${gPlural(L.pieces - 1, "smaller piece")} hold the rest` : "nothing else is linked"}. Each colour is one kind of thing. A hollow dot is one of the ${fmt(g.isolated)} nodes nothing links to yet, gathered at the edge by kind.</p>
+      ${g.roles ? `<p class="note" style="margin:0">The ${fmt(g.roles)} role records are drawn as person–project links${g.unheld ? `, except ${fmt(g.unheld)} with no public holder, listed on their project` : ""}; that is why this counts ${fmt(g.nodes.size)} nodes to the ${fmt(S.nodes)} above.</p>` : ""}
       <div class="gkinds" role="group" aria-label="Kinds of node: untick one to hide it">${L.regions.map(r => `<label><input type="checkbox" data-garea="${r.area}" ${G.hidden.has(r.area) ? "" : "checked"}><i class="swatch" style="color:var(--c-${r.area}, var(--muted))"></i><span>${esc(AREA_NAME[r.area] || r.area)}</span><span class="c">${fmt(r.n)}${r.iso ? ` · ${fmt(r.iso)} unlinked` : ""}</span></label>`).join("")}</div>
       <div style="display:grid;gap:6px"><h3>Good places to start</h3><div class="gchips">${startPoints().map(s => gChip(s.id, s.cls === "Project" ? s.label.split(" · ")[0] : gClip(s.label, 26), `${s.label} · ${s.cls} · ${gPlural(s.degree, "link")}`)).join("")}</div></div>
       <p class="note" style="margin:0">Click a dot, or search above, to step in. Then click a neighbour to move on; <kbd>←</kbd> <kbd>→</kbd> go back and forward, <kbd>Esc</kbd> returns here.</p>`;
@@ -2105,19 +2166,21 @@ function gCardHTML() {
   const groups = new Map();
   for (const d of nb) { if (!groups.has(d.cls)) groups.set(d.cls, []); groups.get(d.cls).push(d); }
   const summary = [...groups].map(([cls, list]) => `${list.length} ${cls}`).join(" · ");
+  const hiddenHere = nb.filter(d => G.hidden.has(d.area)).length, unheld = g.noHolder.get(f) || [];
   const facts = ent ? Object.entries(ent.facts).filter(([k]) => !/^(label|name|title|description|abstract)$/.test(k)).slice(0, 4) : [];
   const show = v => /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(gClip(v.replace(/^https?:\/\/(www\.)?/, ""), 40))}</a>` : esc(gClip(String(v), 80));
   return `<div style="display:grid;gap:6px">
       <span class="pill cls" style="color:${colorOf(n.cls)};justify-self:start"><i class="swatch"></i>${esc(n.cls)}</span>
       <h2>${esc(n.label)}</h2>
-      <p class="note" style="margin:0">${n.degree ? `${gPlural(n.degree, "neighbour")}: ${esc(summary)}` : `Nothing links to it yet: it is one of the ${fmt(g.isolated)} isolated nodes.`}</p>
+      <p class="note" style="margin:0">${n.degree ? `${gPlural(n.degree, "neighbour")}: ${esc(summary)}${hiddenHere ? ` (${fmt(hiddenHere)} of a kind hidden on the map)` : ""}` : `Nothing links to it yet: it is one of the ${fmt(g.isolated)} isolated nodes.`}</p>
+      ${unheld.length ? `<p class="note" style="margin:0">Also on its roster, with no public holder: ${esc(unheld.join(", "))}.</p>` : ""}
     </div>
     ${facts.length ? `<dl class="kv gfacts">${facts.map(([k, vs]) => `<dt>${esc(k)}</dt><dd>${vs.slice(0, 2).map(show).join("<br>")}${vs.length > 2 ? ` <span class="note">+${vs.length - 2}</span>` : ""}</dd>`).join("")}</dl>` : ""}
     <div class="chips">${ent ? `<button class="btn ghost" data-go="${esc(f)}">Open its full card</button>` : ""}<button class="btn ghost" id="gconnect" aria-expanded="${G.connecting}">How does it connect to…</button></div>
     ${G.connecting ? gPathHTML(f) : ""}
     ${nb.length ? `<div style="display:grid;gap:10px"><h3>Neighbours <span class="note">click one to step there</span></h3>${[...groups].map(([cls, list]) => {
       const open = G.expand.has(cls) || list.length <= 12;
-      return `<div class="ggroup"><div class="ghead"><i class="swatch" style="color:${colorOf(cls)}"></i>${esc(cls)} <span class="c">${fmt(list.length)}</span></div>
+      return `<div class="ggroup" data-gcls="${esc(cls)}"><div class="ghead"><i class="swatch" style="color:${colorOf(cls)}"></i>${esc(cls)} <span class="c">${fmt(list.length)}</span></div>
         <div class="gchips">${(open ? list : list.slice(0, 12)).map(d => gChip(d.id, gClip(d.cls === "Project" ? d.label.split(" · ")[0] : d.label, 34), `${d.label}\n${gHow(f, d.id)}`)).join("")}${open ? "" : `<button class="gchip more" data-gexpand="${esc(cls)}">+${fmt(list.length - 12)} more</button>`}</div></div>`;
     }).join("")}</div>` : ""}`;
 }
@@ -2134,14 +2197,22 @@ function gChrome() {
                                              : "Click a dot to step in · hover to see its links · scroll to zoom, drag to pan · / to search";
   gCard();
 }
+function gSearchList(open) {
+  const box = $("#gq"), list = $("#gqres");
+  if (!box || !list) return;
+  const hits = open ? graphSearch(G.q) : [];
+  list.innerHTML = open ? gResultsHTML() : "";
+  box.setAttribute("aria-expanded", String(open && !!G.q.trim()));
+  if (hits.length) box.setAttribute("aria-activedescendant", `gres-${G.qSel}`); else box.removeAttribute("aria-activedescendant");
+}
 function renderGraph() {
-  const g = graphData();
+  const g = graphData(), searching = !!(document.activeElement && document.activeElement.id === "gq");
   if (gView().focus && !gnode(gView().focus)) { G.hist = [{ focus: null }]; G.pos = 0; }
   $("#view").innerHTML = `<div class="gx">
     <div class="gbar">
       <div class="gnav"><button id="gback" aria-label="Back (left arrow key)" title="Back  ←">←</button><button id="gfwd" aria-label="Forward (right arrow key)" title="Forward  →">→</button></div>
       <nav class="gcrumbs" id="gcrumbs" aria-label="Where you have been"></nav>
-      <div class="gsearch"><input class="search" id="gq" type="search" placeholder="Search ${fmt(g.nodes.size)} nodes  ( / )" value="${esc(G.q)}" role="combobox" aria-expanded="${!!G.q.trim()}" aria-controls="gqres" aria-autocomplete="list" aria-label="Search the graph"><div class="gqres" id="gqres" role="listbox">${gResultsHTML()}</div></div>
+      <div class="gsearch"><input class="search" id="gq" type="search" placeholder="Search ${fmt(g.nodes.size)} nodes  ( / )" value="${esc(G.q)}" role="combobox" aria-expanded="${searching && !!G.q.trim()}" aria-controls="gqres" aria-autocomplete="list" aria-label="Search the graph"><div class="gqres" id="gqres" role="listbox">${searching ? gResultsHTML() : ""}</div></div>
     </div>
     <div class="gmain">
       <div class="gstage" id="gstage">
@@ -2159,7 +2230,12 @@ function renderGraph() {
   if (!cv) return;
   gBind(cv.el);
   if (!G.cam) { G.cam = gFit(); G.mapAmt = gView().focus ? 0 : 1; }
-  gAnimate(gTargets(), true);                                 // back on the tab: as it was, no motion
+  try { document.fonts && document.fonts.ready.then(() => { if (tab === "graph" && !G.anim) gDraw(); }); } catch {}
+  if (G.anim) { if (!G.raf) G.raf = requestAnimationFrame(gTick); return; }    // a step under way carries on here
+  gTargets();                                                  // as it was: same view, same camera, no motion
+  for (const n of gLayout().nodes) { n.x = n.tx; n.y = n.ty; n.a = n.ta; }
+  G.mapAmt = gView().focus ? 0 : 1;
+  gDraw();
 }
 $("#view").addEventListener("click", e => {
   const t = e.target.closest("[data-gfocus],[data-gres],[data-gjump],[data-gzoom],[data-gexpand],[data-gpathto],[data-gofocus],#gback,#gfwd,#gconnect,#gpathclear");
@@ -2167,30 +2243,37 @@ $("#view").addEventListener("click", e => {
   const d = t.dataset;
   if (d.gofocus) { tab = "graph"; store.set("tab", tab); render(); gGo(d.gofocus); $("#gstage")?.scrollIntoView({ block: "nearest" }); return; }
   if (d.gzoom) { gZoom(d.gzoom); return; }
-  if (d.gres) { G.q = ""; $("#gq").value = ""; $("#gqres").innerHTML = ""; gGo(d.gres); $("#gcanvas")?.focus({ preventScroll: true }); return; }
+  if (d.gres) { G.q = ""; $("#gq").value = ""; gSearchList(false); gGo(d.gres); $("#gcanvas")?.focus({ preventScroll: true }); return; }
   if (d.gfocus) { gGo(d.gfocus); return; }
   if (d.gjump) { gJump(Number(d.gjump)); return; }
   if (t.id === "gback") { gBack(); return; }
   if (t.id === "gfwd") { gFwd(); return; }
-  if (d.gexpand) { G.expand.add(d.gexpand); gCard(); return; }
-  if (t.id === "gconnect") { G.connecting = !G.connecting; G.pathTo = null; gCard(); $("#gpath")?.focus(); return; }
-  if (d.gpathto) { G.pathTo = d.gpathto; G.pathQ = ""; gCard(); return; }
+  if (d.gexpand) {
+    G.expand.add(d.gexpand); gCard();
+    [...document.querySelectorAll(`#gcard .ggroup[data-gcls="${CSS.escape(d.gexpand)}"] .gchip`)][12]?.focus();
+    return;
+  }
+  if (t.id === "gconnect") { G.connecting = !G.connecting; G.pathTo = null; gCard(); (G.connecting ? $("#gpath") : $("#gconnect"))?.focus(); return; }
+  if (d.gpathto) { G.pathTo = d.gpathto; G.pathQ = ""; gCard(); $("#gpathclear")?.focus(); return; }
   if (t.id === "gpathclear") { G.pathTo = null; G.pathQ = ""; gCard(); $("#gpath")?.focus(); }
 });
 $("#view").addEventListener("input", e => {
-  if (e.target.id === "gq") {
-    G.q = e.target.value; G.qSel = 0;
-    $("#gqres").innerHTML = gResultsHTML(); e.target.setAttribute("aria-expanded", String(!!G.q.trim()));
-  } else if (e.target.id === "gpath") {
-    G.pathQ = e.target.value;
-    const pos = e.target.selectionStart; gCard();
-    const box = $("#gpath"); if (box) { box.focus(); box.setSelectionRange(pos, pos); }
-  }
+  if (e.target.id === "gq") { G.q = e.target.value; G.qSel = 0; gSearchList(true); }
+  else if (e.target.id === "gpath" && !e.isComposing) { G.pathQ = e.target.value; const r = $("#gpathres"); if (r) r.innerHTML = gPathHits(gView().focus); }
 });
+$("#view").addEventListener("compositionend", e => {
+  if (e.target.id === "gpath") { G.pathQ = e.target.value; const r = $("#gpathres"); if (r) r.innerHTML = gPathHits(gView().focus); }
+});
+$("#view").addEventListener("focusin", e => { if (e.target.id === "gq" && G.q.trim()) gSearchList(true); });
+$("#view").addEventListener("focusout", e => {
+  const to = e.relatedTarget;
+  if (e.target.id === "gq" && !(to && to.closest && to.closest(".gsearch"))) gSearchList(false);
+});
+$("#view").addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest("#gqres")) e.preventDefault(); });
 $("#view").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset && t.dataset.garea) { t.checked ? G.hidden.delete(t.dataset.garea) : G.hidden.add(t.dataset.garea); G.mini = null; gAnimate(gTargets()); }
-  else if (t.id === "gviahubs") { G.viaHubs = t.checked; gCard(); }
+  else if (t.id === "gviahubs") { G.viaHubs = t.checked; gCard(); $("#gviahubs")?.focus(); }
 });
 $("#view").addEventListener("mouseover", e => {
   const b = e.target.closest && e.target.closest("[data-ghover]");
@@ -2201,31 +2284,31 @@ $("#view").addEventListener("mouseout", e => {
   if (b && !(e.relatedTarget && b.contains(e.relatedTarget))) gSetHover(null);
 });
 $("#view").addEventListener("keydown", e => {
-  if (e.target.id !== "gq") return;
+  if (e.target.id !== "gq" || e.isComposing || e.keyCode === 229) return;
   const hits = graphSearch(G.q);
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     if (!hits.length) return;
     e.preventDefault();
     G.qSel = (G.qSel + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
-    $("#gqres").innerHTML = gResultsHTML(); e.target.setAttribute("aria-activedescendant", `gres-${G.qSel}`);
+    gSearchList(true);
   } else if (e.key === "Enter" && hits[G.qSel]) {
     e.preventDefault();
-    const id = hits[G.qSel].id; G.q = ""; e.target.value = ""; $("#gqres").innerHTML = "";
+    const id = hits[G.qSel].id; G.q = ""; e.target.value = ""; gSearchList(false);
     gGo(id); $("#gcanvas")?.focus({ preventScroll: true });
   } else if (e.key === "Escape") {
     e.preventDefault(); e.stopPropagation();
-    G.q = ""; e.target.value = ""; $("#gqres").innerHTML = ""; $("#gcanvas")?.focus({ preventScroll: true });
+    G.q = ""; e.target.value = ""; gSearchList(false); $("#gcanvas")?.focus({ preventScroll: true });
   }
 });
 document.addEventListener("keydown", e => {
   if (tab !== "graph" || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
-  const el = e.target, typing = el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+  const el = e.target, typing = el && ((el.tagName === "INPUT" && el.type !== "checkbox") || /^(TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
   if (typing) return;
   if (e.key === "/") { e.preventDefault(); $("#gq")?.focus(); return; }
   if (e.key === "ArrowLeft") { e.preventDefault(); gBack(); return; }
   if (e.key === "ArrowRight") { e.preventDefault(); gFwd(); return; }
   if (e.key === "Escape" && gView().focus) { e.preventDefault(); gGo(null); return; }
-  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && G.ring.length && (el === $("#gcanvas") || el === document.body)) {
+  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && G.ring.length && el === $("#gcanvas")) {
     e.preventDefault();
     G.ringSel = G.ringSel < 0 ? (e.key === "ArrowDown" ? 0 : G.ring.length - 1) : (G.ringSel + (e.key === "ArrowDown" ? 1 : G.ring.length - 1)) % G.ring.length;
     const n = G.ring[G.ringSel], sr = $("#gsr"), F = gView().focus;
@@ -2235,11 +2318,34 @@ document.addEventListener("keydown", e => {
   }
   if (e.key === "Enter" && el === $("#gcanvas") && G.ring[G.ringSel]) { e.preventDefault(); gGo(G.ring[G.ringSel].id); }
 });
-try { (window.requestIdleCallback || (f => setTimeout(f, 300)))(() => gLayout(), { timeout: 4000 }); } catch {}
+function gIdle(deadline) {                      // a few ticks per idle slice; at least two, so it always moves on
+  if (GLAYOUT) return;
+  let n = 0;
+  if (gLayoutJob().sim.run(() => n++ < 2 || deadline.timeRemaining() > 4)) gLayout(); else gIdleLater();
+}
+function gIdleLater() {
+  try { (window.requestIdleCallback || (f => setTimeout(() => f({ timeRemaining: () => 8 }), 60)))(gIdle, { timeout: 4000 }); } catch {}
+}
+gIdleLater();
 let gResize = null;
 window.addEventListener("resize", () => {
   clearTimeout(gResize);
-  gResize = setTimeout(() => { if (tab === "graph" && gCanvas()) { G.mini = null; gAnimate(gTargets(), true); } }, 120);
+  gResize = setTimeout(() => {
+    if (tab !== "graph" || !G.cv) return;
+    const before = [G.cv.w, G.cv.h], oldFit = G.cam && gFit();
+    const atFit = c => c && oldFit && ["k", "cx", "cy"].every(q => Math.abs(c[q] - oldFit[q]) < 1e-6);
+    const cv = gCanvas();
+    if (!cv) return;
+    G.mini = null;
+    if (cv.w === before[0] && cv.h === before[1]) { if (!G.anim) gDraw(); return; }
+    if (atFit(G.mapCam)) G.mapCam = null;
+    if (gView().focus) { gAnimate(gTargets(), true); return; }
+    const wasFit = atFit(G.cam);
+    gTargets();
+    for (const n of gLayout().nodes) { n.x = n.tx; n.y = n.ty; n.a = n.ta; }
+    if (wasFit) G.cam = gFit();
+    if (!G.anim) gDraw();
+  }, 120);
 });
 try {
   const reset = () => { G.tok = null; if (!G.anim) gDraw(); };
