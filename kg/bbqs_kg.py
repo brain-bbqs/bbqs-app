@@ -298,21 +298,25 @@ class BBQSKnowledgeGraph:
             self.add(n, "journal", pub.get("journal"))
             self.add(n, "year", pub.get("year"), cast=None)
 
+        tool_node = {}
         for st in self.fetch("software_tools"):
             rid = st.get("resource_id")
             if not rid:
                 continue
             n = BID[rid]
+            tool_node[st["id"]] = n
             self.add(n, "repo_url", st.get("repo_url"), datatype=XSD.anyURI)
             self.add(n, "docs_url", st.get("docs_url"), datatype=XSD.anyURI)
             self.add(n, "language", st.get("language"))
             self.add(n, "software_license", st.get("license"))
             self.add(n, "version", st.get("version"))
+        fund_node = {}
         for fo in self.fetch("funding_opportunities"):
             rid = fo.get("resource_id")
             if not rid:
                 continue
             n = BID[rid]
+            fund_node[fo["id"]] = n
             for col in ("fon", "activity_code", "status", "announcement_type"):
                 self.add(n, "opportunity_type" if col == "announcement_type" else col, fo.get(col))
             for col in ("open_date", "posted_date", "expiration_date"):   # typed, so date comparisons work
@@ -320,6 +324,15 @@ class BBQSKnowledgeGraph:
             self.add(n, "url", fo.get("url"), datatype=XSD.anyURI)
             for code in fo.get("eligible_activity_codes") or []:
                 self.add(n, "eligible_activity_codes", code)
+
+        # An announcement's or job's organization lives on its own table; the spine row's organization_id is
+        # not always in step with it (curators fill the detail table), so the edge reads the detail column too.
+        # Jobs come from the public_jobs view: the jobs table itself is hidden from the anon key the
+        # published export uses, so reading it would add nothing there.
+        for tbl in ("announcements", "public_jobs"):
+            for row in self.fetch(tbl):
+                if row.get("resource_id") and row.get("organization_id") in org_node:
+                    g.add((BID[row["resource_id"]], BBQS["part_of_org"], org_node[row["organization_id"]]))
 
         for o in self.fetch("organizations"):        # name/description already come from the spine row
             rid = o.get("resource_id")
@@ -350,6 +363,16 @@ class BBQSKnowledgeGraph:
             org, inv = org_node.get(io.get("organization_id")), inv_node.get(io.get("investigator_id"))
             if org is not None and inv is not None:
                 g.add((org, BBQS["members"], inv))
+        for fo_org in self.fetch("funding_opportunity_orgs"):
+            call, org = fund_node.get(fo_org.get("funding_opportunity_id")), org_node.get(fo_org.get("organization_id"))
+            if call is not None and org is not None:
+                g.add((call, BBQS["funding_org"], org))
+        for ps in self.fetch("project_software_tools"):
+            proj, tool = proj_node.get(ps.get("project_id")), tool_node.get(ps.get("software_tool_id"))
+            if (ps.get("relation") or "uses") != "uses":   # 'develops' has no slot yet; don't call it 'uses'
+                continue
+            if proj is not None and tool is not None:
+                g.add((proj, BBQS["uses_software"], tool))
         for pp in self.fetch("project_publications"):
             proj, pub = proj_node.get(pp.get("project_id")), pub_node.get(pp.get("publication_id"))
             if proj is not None and pub is not None:
@@ -442,7 +465,7 @@ class BBQSKnowledgeGraph:
 
         edges = []
         asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
-                                "device_category", "manufacturer"}
+                                "device_category", "manufacturer", "funding_org", "uses_software"}
         for s, p, o in g:
             local = str(p).rsplit("#", 1)[-1]
             if local in asserted_predicates and not isinstance(o, Literal):
