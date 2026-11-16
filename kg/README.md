@@ -130,6 +130,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `competency_questions.yaml` | The 42 fixed questions the graph must answer (CQ20-CQ42 adopted from #441), each with its SPARQL and the access level it needs. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
+| `devices.py` | The consortium device list → the Inspector's Devices records (by award, each line with its tier: slide, workshop, notes, AI-predicted). Internal: reads and writes files outside the repo only. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
@@ -249,9 +250,26 @@ python kg/meetings.py /path/to/meetings_extracted.json --out /outside/the/repo/m
 python kg/quality.py --fragment /outside/the/repo/inspector.html --internal /outside/the/repo/meetings.json
 ```
 
-`quality.py` refuses either path inside the repository and never puts the notes in `--html` or
-`--json`. `tests/guards/inspector-internal-data.test.mjs` checks the committed copy, the workflows
-and the tree.
+**Devices tab (artifact copy only).** The consortium device list (*BBQS Device List, Who Said What,
+with References*) as `devices.py` reads it: every device and sensor each team listed for the Data
+Blitz, by award, with what backs each line, kept apart by tier. **T1** is the team's own slide;
+**T2** the workshop summary, which was written from the transcripts and names who spoke to a device,
+but has not been checked against them; **T3** a line of working-group notes; **U** a manufacturer or
+model that only the AI-assembled device list gives. A U entry is shown as *AI-predicted, unverified*
+and never as the device's model: it counts only where the list records it as a guess. Each award is
+linked to its Project node, each named speaker to their Investigator node (a name the source marks
+for checking is left unlinked), and a maker or model to the device catalog node of the same name. A
+reviewer can flag a line to confirm or correct it. The list names people, so it is internal too:
+
+```bash
+python kg/devices.py /path/to/device_list_folder --out /outside/the/repo/devices.json
+python kg/quality.py --fragment /outside/the/repo/inspector.html \
+  --internal /outside/the/repo/meetings.json --internal /outside/the/repo/devices.json
+```
+
+`quality.py` refuses any of these paths inside the repository and never puts the records in `--html`
+or `--json`. `tests/guards/inspector-internal-data.test.mjs` checks the committed copy, the
+workflows and the tree, including for the raw files by name.
 
 **Online: https://brain-bbqs.org/kg/inspector/**. `publish.yml` rebuilds it on every deploy of
 `main` and daily at 06:17 UTC, from a fresh anon export. If that export fails it falls back to the

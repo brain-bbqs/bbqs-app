@@ -445,12 +445,14 @@ class KGQuality:
             })
         return {"count": len(rows), "checks": dict(Counter(c for r in rows for c in r["checks"])), "rows": rows}
 
-    def link_people(self, internal: dict) -> dict:
-        """Tie each person the meeting records name to the Investigator nodes that are the same person,
-        saying how: the same name; the same first and last name; the same last name with the first
-        name shortened ("Kris" for Kristofer, "Joe" for Joseph); or, where the notes give a first name
-        only, the one investigator who has it. More than one node means the graph holds the person twice."""
-        investigators = [(n, fold_name(self.label(n)).split()) for n, c in self.types.items() if c == "Investigator"]
+    def match_person(self, name: str, first_name_alone: bool = True) -> tuple[list[str], str | None]:
+        """The Investigator nodes that are the person named, and how that was decided: the same name;
+        the same first and last name; the same last name with the first name shortened ("Kris" for
+        Kristofer, "Joe" for Joseph); or, for a first name alone, the one investigator who has it.
+        More than one node means the graph holds the person twice."""
+        if not hasattr(self, "_investigators"):
+            self._investigators = [(n, fold_name(self.label(n)).split()) for n, c in self.types.items()
+                                   if c == "Investigator"]
 
         def short_for(a, b):
             a = NAME_FORMS.get(a, a)
@@ -462,24 +464,90 @@ class KGQuality:
             ("same last name, and the first name is a short form of it",
              lambda w, x: len(w) > 1 and len(x) > 1 and x[-1] == w[-1] and short_for(w[0], x[0])),
         ]
+        w = fold_name(name).split()
+        if not w:
+            return [], None
+        for how, rule in rules:
+            hits = [n for n, x in self._investigators if rule(w, x)]
+            if hits:
+                return sorted(str(n) for n in hits), how
+        hits = [n for n, x in self._investigators if first_name_alone and len(w) == 1 and x[:1] == w]
+        if len(hits) == 1:
+            return [str(hits[0])], "first name only: the notes give no last name, and one investigator has it"
+        return [], None
+
+    def link_people(self, internal: dict) -> dict:
+        """Tie each person the meeting records name to the Investigator nodes that are the same person
+        (match_person says how)."""
         for person in internal.get("people") or []:
-            w = fold_name(person.get("name", "")).split()
             person.pop("investigators", None)
             person.pop("match", None)
-            if not w:
-                continue
-            for how, rule in rules:
-                hits = [n for n, x in investigators if rule(w, x)]
-                if hits:
-                    break
-            else:
-                hits = [n for n, x in investigators if len(w) == 1 and x[:1] == w]
-                hits, how = (hits, "first name only: the notes give no last name, and one investigator has it") \
-                    if len(hits) == 1 else ([], None)
+            hits, how = self.match_person(person.get("name", ""))
             if hits:
-                person["investigators"] = sorted(str(n) for n in hits)
-                person["match"] = how
+                person["investigators"], person["match"] = hits, how
         return internal
+
+    def link_devices(self, doc: dict) -> dict:
+        """Tie the device list to the graph. Each award to its Project node by grant number; each
+        full name in a "who spoke to it" or "speaker" line to Investigator nodes (match_person: a
+        first name alone is not enough there, and a name the source marks for checking, in
+        parentheses with VERIFY or "likely", is left out because fold_name drops the parenthesis);
+        and each maker or model named to the device catalog's DeviceManufacturer or Device node of
+        the same name. A match says that a name is in the catalog, not that the device is checked."""
+        g = self.graph
+
+        def core(grant) -> str:              # 1R34DA059716-01 -> R34DA059716
+            m = re.search(r"[A-Z]\d{2}[A-Z]{2}\d{6}", str(grant).upper())
+            return m.group(0) if m else str(grant).strip().upper()
+
+        projects = defaultdict(set)
+        for n, c in self.types.items():
+            if c == "Project":
+                for gn in g.objects(n, BBQS.grant_number):
+                    projects[core(gn)].add(str(n))
+        for award in doc.get("awards") or []:
+            award["projects"] = sorted(projects.get(core(award.get("award", "")), ()))
+
+        spoken = {}
+        for text in {d.get("presenter", "") for d in doc.get("devices") or []} | \
+                    {e.get("speaker", "") for e in (doc.get("evidence") or []) + (doc.get("discussion") or [])}:
+            cleaned = re.sub(r"\(.*?\)", " ", text or "")
+            found = []
+            for m in re.finditer(r"\b[A-Z][\w'’.-]+(?:\s+[A-Z][\w'’.-]+){1,2}\b", cleaned):
+                hits, how = self.match_person(m.group(0), first_name_alone=False)
+                if hits and all(h not in {x for f in found for x in f["investigators"]} for h in hits):
+                    found.append({"as_written": m.group(0), "investigators": hits, "match": how})
+            if found:
+                spoken[text] = found
+        doc["speakers"] = spoken
+
+        def names(cls, preds):
+            index = defaultdict(set)
+            for n, c in self.types.items():
+                if c == cls:
+                    for p in preds:
+                        for v in g.objects(n, BBQS[p]):
+                            if fold_name(v):
+                                index[fold_name(v)].add(str(n))
+            return index
+
+        makers, models = names("DeviceManufacturer", ("name", "aliases")), names("Device", ("name", "model_name", "aliases"))
+
+        def catalog(name, index):
+            f = fold_name(name)
+            if not f:
+                return []
+            exact = index.get(f) or {n for key, nodes in index.items() if key.startswith(f + " ") for n in nodes}
+            return sorted(exact)
+
+        for d in doc.get("devices") or []:
+            ai = d.get("ai_predicted") or {}
+            d["catalog"] = {
+                "brand": catalog(d.get("brand_stated", ""), makers),
+                "ai_manufacturer": catalog(re.split(r"[,(]", ai.get("manufacturer") or "")[0], makers),
+                "ai_model": catalog(re.split(r"[,;(]", ai.get("model") or "")[0], models),
+            }
+        return doc
 
     # ---- report ------------------------------------------------------------------------------------
 
@@ -575,24 +643,35 @@ class KGQuality:
               help="Also write the page without doctype/head, for publishing as an Artifact.")
 @click.option("--source", default=None,
               help="How the data was produced, shown in the page's build stamp (default: the file path).")
-@click.option("--internal", "internal_path", type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              default=None,
-              help="Meeting records from kg/meetings.py, for the Meetings tab. Internal: embedded in the "
-                   "--fragment only, which must be written outside the repository.")
-def main(data_file, access, json_path, html_path, fragment_path, source, internal_path):
+@click.option("--internal", "internal_paths", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              multiple=True,
+              help="Internal records for the artifact copy: the meeting notes (kg/meetings.py, the Meetings "
+                   "tab) and the device list (kg/devices.py, the Devices tab). May be given once for each. "
+                   "Embedded in the --fragment only, which must be written outside the repository.")
+def main(data_file, access, json_path, html_path, fragment_path, source, internal_paths):
     """Measure DATA_FILE (default kg/export/bbqs.ttl) and build the entity browser from it."""
     internal = None
-    if internal_path:
+    if internal_paths:
         if not fragment_path:
             raise click.UsageError("--internal goes into the artifact fragment only: give --fragment as well.")
-        for path, what in ((internal_path, "--internal"), (fragment_path, "--fragment")):
+        for path, what in [*((p, "--internal") for p in internal_paths), (fragment_path, "--fragment")]:
             if inside_repo(path):
-                raise click.UsageError(f"{what} {path} is inside the repository. Meeting notes are internal: "
+                raise click.UsageError(f"{what} {path} is inside the repository. These records are internal: "
                                        "keep them, and any page built with them, outside it.")
     kg = KGQuality(data_file, access=access, source=source)
     report = kg.report()
-    if internal_path:
-        internal = kg.link_people(json.loads(internal_path.read_text(encoding="utf-8")))
+    if internal_paths:
+        linkers = {"bbqs-meetings": kg.link_people, "bbqs-devices": kg.link_devices}
+        internal = {}
+        for path in internal_paths:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            kind = doc.get("kind") if isinstance(doc, dict) else None
+            if kind not in linkers:
+                raise click.UsageError(f"--internal {path} is not meeting records or a device list "
+                                       f"(its kind is {kind!r}; kg/meetings.py and kg/devices.py write them).")
+            if kind in internal:
+                raise click.UsageError(f"--internal was given two files of kind {kind}.")
+            internal[kind] = linkers[kind](doc)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     KGQuality.render_html(report, html_path)                  # never the internal records

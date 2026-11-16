@@ -172,6 +172,12 @@
   .who[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .who.unres { border-style: dashed; color: var(--warn); cursor: help; }
   .linkbtn.quiet { color: var(--muted); font-size: 12px; }
+  .pill.said { background: transparent; border-color: currentColor; color: var(--c-people); }
+  details.facetmore > summary { cursor: pointer; font: 600 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-bottom: 6px; }
+  .ai { border: 1px dashed var(--warn); background: var(--warn-soft); border-radius: 4px; padding: 6px 10px; display: grid; gap: 2px; }
+  .ai b { color: var(--warn); font-weight: 600; }
+  details.evi > summary { cursor: pointer; font-size: 12.5px; color: var(--accent); }
+  .evrow { border-left: 2px solid var(--line); padding-left: 8px; font-size: 13px; }
   .linkbtn.quiet:hover, .linkbtn.quiet:focus-visible { color: var(--accent); }
 
   @media (max-width: 1100px) {
@@ -209,11 +215,13 @@
 
 <script>
 const REPORT = /*__REPORT__*/null;
-// The artifact build's internal records (kg/quality.py --internal): the working-group meeting notes.
-// null on the public site and in the repo's copy.
+// The artifact build's internal records (kg/quality.py --internal): the working-group meeting notes and
+// the device list, keyed by kind. null on the public site and in the repo's copy.
 const INTERNAL = /*__INTERNAL__*/null;
+const BUNDLE = INTERNAL ? (INTERNAL.kind ? { [INTERNAL.kind]: INTERNAL } : INTERNAL) : {};
 const PUBS = REPORT && REPORT.publications && Array.isArray(REPORT.publications.rows) ? REPORT.publications : null;
-const MT = INTERNAL && INTERNAL.kind === "bbqs-meetings" && Array.isArray(INTERNAL.items) ? INTERNAL : null;
+const MT = BUNDLE["bbqs-meetings"] && Array.isArray(BUNDLE["bbqs-meetings"].items) ? BUNDLE["bbqs-meetings"] : null;
+const DV = BUNDLE["bbqs-devices"] && Array.isArray(BUNDLE["bbqs-devices"].devices) ? BUNDLE["bbqs-devices"] : null;
 // Every competency question: the ones the CI gate scores, then the ones proposed in #441 (shown, not scored).
 const CQS = REPORT ? [...(REPORT.competency || []), ...(REPORT.competency_proposed || [])].map(q => ({ set: "adopted", ...q })) : [];
 
@@ -300,6 +308,7 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
     ...(PUBS ? [[`${PUBS.rows.filter(r => r.projects.length).length}/${PUBS.count}`, "publications tied to a project",
                  PUBS.rows.every(r => r.projects.length) ? "ok" : "warn"]] : []),
     ...(MT ? [[fmt(MT.items.length), `meeting points · ${fmt(MT.meetings.length)} meetings`, ""]] : []),
+    ...(DV ? [[fmt(DV.devices.filter(d => d.kind === "device/sensor").length), `devices on the device list · ${fmt(DV.devices.filter(d => d.ai_predicted).length)} with an AI-predicted model`, ""]] : []),
   ];
   $("#tiles").innerHTML = t.map(([b, s, c]) => `<div class="tile ${c}"><b>${b}</b><span>${esc(s)}</span></div>`).join("");
 })();
@@ -309,6 +318,7 @@ const TABS = [
   ["entities", "Entities", ENT.length],
   ...(PUBS ? [["publications", "Publications", PUBS.count]] : []),
   ...(MT ? [["meetings", "Meetings", MT.meetings.length]] : []),
+  ...(DV ? [["devices", "Devices", DV.devices.length]] : []),
   ["questions", "Questions", CQS.length],
   ["shapes", "Shapes", REPORT.shapes.length],
   ["structure", "Structure", CLASSES.length],
@@ -319,7 +329,8 @@ const TABS = [
 // Opened any other way (the public site, a local file) the page stays read-only.
 const KINDS = { wrong: "Wrong", missing: "Missing", duplicate: "Duplicate", suspicious: "Suspicious" };
 const RV = { db: null, uid: null, canWrite: null, readOnly: false, flags: new Map(), draft: null, status: "",
-             qflags: new Map(), qdraft: new Map(), qstatus: new Map(), mflags: new Map(), mdraft: null, mstatus: "" };
+             qflags: new Map(), qdraft: new Map(), qstatus: new Map(), mflags: new Map(), mdraft: null, mstatus: "",
+             dflags: new Map(), ddraft: null, dstatus: "" };
 const QKINDS = { wrong: "Answer is wrong", missing: "Answer is incomplete", question: "Question needs changing", idea: "Idea or follow-up" };
 const qOpen = new Set();
 const flagKey = iri => iri.replace("https://brain-bbqs.org/id/", "").replace(/\//g, "~");
@@ -392,6 +403,10 @@ async function initFlags() {
     RV.mflags = new Map(snap.docs.map(d => [d.data().item, d.data()]));
     render();
   }, err => { RV.status = `Meeting flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  if (DV) db.collection("device_flags").onSnapshot(snap => {
+    RV.dflags = new Map(snap.docs.map(d => [d.data().device, d.data()]));
+    render();
+  }, err => { RV.status = `Device flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
   render();
 }
 
@@ -525,7 +540,7 @@ function renderFlags() {
   $("#view").innerHTML = `<div style="display:grid;gap:12px">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
       <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag keeps what it pointed at when it was made, and <b>Now</b> compares that with this build${nowSummary ? `: ${nowSummary}` : ""}. A flag that looks resolved stays until someone removes it.</p>
-      ${rows.length || qrows.length || RV.mflags.size ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
+      ${rows.length || qrows.length || RV.mflags.size || RV.dflags.size ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
     </div>
     ${qrows.length ? `<h2>Question feedback · ${qrows.length}</h2><div class="tbl"><table><thead><tr><th>Question</th><th>Feedback</th><th>Now</th><th>Note</th><th>Answer then</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${qrows.map(f => `<tr>
       <td><button class="linkbtn" data-goq="${esc(f.cq)}">${esc(f.cq)}</button> ${esc(f.question || "")}</td>
@@ -539,10 +554,11 @@ function renderFlags() {
       <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>`
       : `<p class="empty">No entity flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.${qrows.length ? "" : " Feedback on a competency question is left on the Questions tab."}</p>`}
     ${meetingFlagsHTML()}
+    ${deviceFlagsHTML()}
   </div>`;
 }
 
-const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size + RV.qflags.size + RV.mflags.size]] : TABS;
+const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size + RV.qflags.size + RV.mflags.size + RV.dflags.size]] : TABS;
 let tab = (location.hash.slice(1) && TABS.some(t => t[0] === location.hash.slice(1))) ? location.hash.slice(1) : store.get("tab", "entities");
 function renderTabs() {
   $("#tabs").innerHTML = tabList().map(([k, n, c]) =>
@@ -609,6 +625,7 @@ function detailHTML(e) {
     </div>
     ${flagSectionHTML(e)}
     ${inMeetingsHTML(e)}
+    ${onDeviceListHTML(e)}
     ${e.violations.length ? `<section><h3>Consistency checks</h3>${e.violations.map(v =>
       `<div class="viol${isWarn(v) ? " w" : ""}"><b>${isWarn(v) ? "warning · " : ""}${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
     <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
@@ -702,7 +719,8 @@ $("#view").addEventListener("click", e => {
     const b = e.target, withNow = (f, s) => ({ ...f, now: NOW[s.k].text, now_why: s.why }),
       text = JSON.stringify({ entities: [...RV.flags.values()].map(f => withNow(f, entityFlagState(f))),
                               questions: [...RV.qflags.values()].map(f => withNow(f, questionFlagState(f))),
-                              ...(MT ? { meetings: [...RV.mflags.values()] } : {}) }, null, 2);
+                              ...(MT ? { meetings: [...RV.mflags.values()] } : {}),
+                              ...(DV ? { devices: [...RV.dflags.values()] } : {}) }, null, 2);
     const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy as JSON"), 1400); };
     try { navigator.clipboard.writeText(text).then(done, () => (b.textContent = "Copy failed")); } catch { b.textContent = "Copy failed"; }
     return;
@@ -1196,6 +1214,225 @@ $("#view").addEventListener("click", e => {
   else if (d.mflagremove) removeMeetingFlag(d.mflagremove);
 });
 
+// ---- devices (internal) ------------------------------------------------------------------------
+// Present only in the artifact build (kg/quality.py --internal with kg/devices.py's records): every
+// device and sensor the teams listed for the Data Blitz, by award, with what backs each line. The
+// tiers stay apart: a team's slide (T1), the workshop summary written from the transcripts (T2),
+// meeting notes (T3), and the AI-assembled list (U), whose models are shown as predictions only.
+const TIER_UI = {
+  T1: { cls: "ok", text: "on the team's slide" },
+  T2: { cls: "said", text: "said at the workshop" },
+  T3: { cls: "na", text: "in the meeting notes" },
+  U: { cls: "warn", text: "AI-predicted, unverified" },
+};
+const DFILTER = { T1: "Listed on the team's slide", T2: "Someone spoke to it at the workshop", U: "Has an AI-predicted model or maker" };
+const DKINDS = { model: "Model or maker is wrong", confirmed: "I can confirm the model", presenter: "Wrong person named",
+                 device: "Device is wrong or missing", other: "Something else" };
+const DEV_AWARD = new Map(DV ? DV.awards.map(a => [a.award, a]) : []);
+const DEV_EVIDENCE = new Map(DV ? DV.evidence.map(e => [e.id, e]) : []);
+const DEV_BY = new Map(DV ? DV.devices.map(d => [d.id, d]) : []);
+const SPOKE = (DV && DV.speakers) || {};
+const AWARD_OF_PROJECT = new Map(), DEVICES_OF_PERSON = new Map();
+if (DV) {
+  for (const a of DV.awards) for (const iri of a.projects || []) AWARD_OF_PROJECT.set(iri, a.award);
+  for (const d of DV.devices) for (const f of SPOKE[d.presenter] || []) for (const iri of f.investigators) {
+    if (!DEVICES_OF_PERSON.has(iri)) DEVICES_OF_PERSON.set(iri, []);
+    if (!DEVICES_OF_PERSON.get(iri).includes(d.id)) DEVICES_OF_PERSON.get(iri).push(d.id);
+  }
+}
+const dv = { q: "", tiers: new Set(), kinds: new Set(), cats: new Set(), award: "", person: "", flagging: null };
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+const tierPill = t => TIER_UI[t] ? `<span class="pill ${TIER_UI[t].cls}" title="${esc((DV.tiers || {})[t] || "")}">${esc(t)} · ${esc(TIER_UI[t].text)}</span>` : "";
+const toVerify = text => /verify|likely/i.test(text || "");
+
+function spokeHTML(text) {
+  const found = SPOKE[text] || [];
+  const links = found.map(f => f.investigators.map(refLink).join(" ") + (f.investigators.length > 1 ? ` <span class="pill warn" title="The graph holds this person ${f.investigators.length} times">${f.investigators.length} records</span>` : "")).join(" · ");
+  return `${esc(text)}${toVerify(text) ? ` <span class="pill warn" title="The source marks this name for checking">name to verify</span>` : ""}${links ? `<br>${links}` : ""}`;
+}
+function catalogHTML(nodes, what) {
+  return nodes && nodes.length ? ` <span class="note">${esc(what)}: ${nodes.map(refLink).join(" ")}</span>` : "";
+}
+function evidenceHTML(d) {
+  const rows = d.evidence.map(id => DEV_EVIDENCE.get(id)).filter(Boolean);
+  if (!rows.length) return "";
+  return `<details class="evi"><summary>Evidence · ${rows.length}</summary><div style="display:grid;gap:6px;padding-top:6px">${rows.map(e => {
+    const url = safeUrl(e.url);
+    return `<div class="evrow">${tierPill(e.tier)} <span class="note">${esc(e.type)}</span><br><span>${esc(e.text)}</span>
+      <br><span class="note">${[e.speaker, e.session, e.date].filter(Boolean).map(esc).join(" · ")}${e.source ? ` · ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(e.source)}</a>` : esc(e.source)}` : ""}${e.note ? ` · ${esc(e.note)}` : ""}</span></div>`;
+  }).join("")}</div></details>`;
+}
+function deviceFlagHTML(d) {
+  const cur = RV.dflags.get(d.id);
+  const pill = cur ? `<span class="pill flag" title="${esc(cur.note || "")}">${cur.flagged_by && cur.flagged_by === RV.uid ? "you flagged" : "flagged"}: ${esc((DKINDS[cur.problem] || cur.problem || "?").toLowerCase())}</span>` : "";
+  if (!canFlag()) return pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(cur.note)}</span>` : ""}</div>` : "";
+  if (dv.flagging !== d.id) return `<div class="chips">${pill}<button class="linkbtn quiet" data-dflag="${esc(d.id)}">${cur ? "Change flag" : "Flag this device"}</button></div>`;
+  const draft = RV.ddraft && RV.ddraft.device === d.id ? RV.ddraft : { problem: (cur && cur.problem) || (d.ai_predicted ? "confirmed" : "device"), note: (cur && cur.note) || "" };
+  return `<div class="flagbox">
+    <span class="note" style="margin:0">Confirm or correct this line. The flag is saved with this page for whoever updates the device list.</span>
+    <div class="row"><label for="dflag-kind" class="muted" style="font-size:12.5px">What</label>
+      <select id="dflag-kind">${Object.entries(DKINDS).map(([k, v]) => `<option value="${k}" ${draft.problem === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <textarea id="dflag-note" aria-label="What is right, and how you know" placeholder="The right model, maker or person, and how you know">${esc(draft.note)}</textarea>
+    <div class="row"><button class="btn" data-dflagsave="${esc(d.id)}">${cur ? "Update flag" : "Save flag"}</button>
+      ${cur ? `<button class="btn ghost" data-dflagremove="${esc(d.id)}">Remove flag</button>` : ""}
+      <button class="btn ghost" data-dflagcancel="1">Cancel</button>
+      <span class="note" id="dflag-status" role="status" style="margin:0">${esc(RV.dstatus)}</span></div>
+  </div>`;
+}
+async function saveDeviceFlag(id) {
+  const d = DEV_BY.get(id); if (!d || !RV.db) return;
+  const body = {
+    device: d.id, award: d.award, name_at_flag: d.name, presenter_at_flag: d.presenter || null,
+    ai_predicted_at_flag: d.ai_predicted || null, brand_at_flag: d.brand_stated || null,
+    problem: $("#dflag-kind").value, note: $("#dflag-note").value.trim(),
+    flagged_at: new Date().toISOString(), flagged_by: RV.uid,
+    list_sha256: ((DV.source || {}).files || {})["devices.csv"] || null,
+  };
+  RV.dstatus = "Saving…"; const el = $("#dflag-status"); if (el) el.textContent = RV.dstatus;
+  try { await withRetry(() => RV.db.collection("device_flags").doc(d.id).set(body)); RV.ddraft = null; dv.flagging = null; RV.dstatus = ""; }
+  catch (err) { RV.dstatus = flagError(err); }
+  render();
+}
+async function removeDeviceFlag(id) {
+  if (!RV.db) return;
+  RV.dstatus = "Removing…";
+  try { await withRetry(() => RV.db.collection("device_flags").doc(id).delete()); RV.ddraft = null; dv.flagging = null; RV.dstatus = ""; }
+  catch (err) { RV.dstatus = flagError(err); }
+  render();
+}
+function deviceMatches(d) {
+  if (dv.award && d.award !== dv.award) return false;
+  if (dv.kinds.size && !dv.kinds.has(d.kind)) return false;
+  if (dv.cats.size && !dv.cats.has(d.category)) return false;
+  for (const t of dv.tiers) if (!d.tiers.includes(t)) return false;
+  if (dv.person && !(SPOKE[d.presenter] || []).some(f => f.investigators.includes(dv.person))) return false;
+  if (dv.q) {
+    const a = DEV_AWARD.get(d.award) || {}, ai = d.ai_predicted || {};
+    const hay = [d.name, d.category, d.kind, ...d.measures, ...d.tools, ...d.sharing, d.presenter, d.brand_stated, ai.manufacturer, ai.model,
+                 d.award, a.institution, a.pis, a.species, a.title].join(" ").toLowerCase();
+    if (!hay.includes(dv.q.toLowerCase())) return false;
+  }
+  return true;
+}
+function deviceRowHTML(d) {
+  const ai = d.ai_predicted, c = d.catalog || {};
+  return `<div class="pt dev" id="dev-${esc(d.id)}">
+    <span class="kind" style="color:var(--c-product)"><i class="swatch"></i>${esc(d.category || "device")}</span>
+    <div style="display:grid;gap:4px;min-width:0">
+      <span><b>${esc(d.name)}</b>${d.kind && d.kind !== "device/sensor" ? ` <span class="pill na">${esc(d.kind)}</span>` : ""}${d.measures.length ? ` <span class="muted">· measures ${d.measures.map(esc).join(", ")}</span>` : ""}</span>
+      ${d.tools.length || d.sharing.length ? `<span class="note">${d.tools.length ? `tools: ${d.tools.map(esc).join(", ")}` : ""}${d.tools.length && d.sharing.length ? " · " : ""}${d.sharing.length ? `sharing: ${d.sharing.map(esc).join(", ")}` : ""}</span>` : ""}
+      <div class="chips">${d.tiers.map(tierPill).join("")}</div>
+      ${d.presenter ? `<span><span class="muted">Spoke to it (workshop summary, not yet checked against the transcript):</span> ${spokeHTML(d.presenter)}</span>` : ""}
+      ${d.brand_stated ? `<span><span class="muted">Brand on the team's slide:</span> ${esc(d.brand_stated)}${catalogHTML(c.brand, "in the device catalog")}</span>` : ""}
+      ${ai ? `<div class="ai"><b>AI-predicted, unverified:</b> ${esc([ai.manufacturer, ai.model].filter(Boolean).join(" · "))}
+        <span class="note">From the AI-assembled device list; nothing on a slide or in the workshop summary backs it. Confirm with the lab before using it.</span>${catalogHTML(c.ai_manufacturer, "a catalog maker has this name")}${catalogHTML(c.ai_model, "a catalog device has this name")}</div>` : ""}
+      ${evidenceHTML(d)}
+      ${deviceFlagHTML(d)}
+    </div></div>`;
+}
+function discussionHTML() {
+  const rows = [...(DV.discussion || [])].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const q = dv.q.toLowerCase();
+  const shown = rows.filter(r => !q || [r.topic, r.speaker, r.text, r.session, r.source].join(" ").toLowerCase().includes(q));
+  if (!shown.length) return "";
+  return `<section style="display:grid;gap:8px"><h2>Who said what about devices, across the consortium · ${shown.length}</h2>
+    <p class="note" style="margin:0">Statements from the workshop summary (T2) and the working-group notes (T3), each with where it was said. The notes' wording is the note-taker's.</p>
+    ${shown.map(r => {
+      const url = safeUrl(r.url);
+      return `<div class="mtg"><header><span class="date">${esc(r.date || "undated")}</span>${tierPill(r.tier)}<b>${esc(r.topic)}</b></header>
+        <span>${esc(r.text)}</span>
+        <span class="note">${spokeHTML(r.speaker)}${r.session ? ` · ${esc(r.session)}` : ""}${r.source ? ` · ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(r.source)}</a>` : esc(r.source)}` : ""}</span></div>`;
+    }).join("")}</section>`;
+}
+function renderDevices() {
+  if (!DV) { $("#view").innerHTML = `<p class="empty">This copy of the page has no device list.</p>`; return; }
+  const hits = DV.devices.filter(deviceMatches), byAward = new Map();
+  for (const d of hits) { if (!byAward.has(d.award)) byAward.set(d.award, []); byAward.get(d.award).push(d); }
+  const count = (f) => DV.devices.filter(f).length;
+  const cats = {}; for (const d of DV.devices) cats[d.category || "—"] = (cats[d.category || "—"] || 0) + 1;
+  const kinds = {}; for (const d of DV.devices) kinds[d.kind || "—"] = (kinds[d.kind || "—"] || 0) + 1;
+  const tierCount = {}; for (const e of [...DV.evidence, ...(DV.discussion || [])]) tierCount[e.tier] = (tierCount[e.tier] || 0) + 1;
+  const person = dv.person && BY_ID.get(dv.person);
+  const src = DV.source || {};
+  $("#view").innerHTML = `<div style="display:grid;gap:14px">
+    <div style="display:grid;gap:6px"><p class="intro">Every device and sensor the teams listed for the Data Blitz, by award, with what backs each line. ${fmt(count(d => d.kind === "device/sensor"))} devices and sensors and ${fmt(count(d => d.kind !== "device/sensor"))} methods across ${fmt(DV.awards.length)} awards; ${fmt(count(d => d.presenter))} have someone named as speaking to them, and ${fmt(count(d => d.ai_predicted))} carry an AI-predicted model or maker.</p>
+      <p class="intro note"><span class="pill warn">AI-predicted models are not facts</span> ${esc(DV.caveat || "")}</p>
+      <div class="legend">${Object.keys(TIER_UI).filter(t => (DV.tiers || {})[t]).map(t => `<span>${tierPill(t)} ${esc(DV.tiers[t])} (${fmt(tierCount[t] || 0)} records)</span>`).join("")}</div>
+      <p class="note" style="margin:0">${esc(src.description || "")} Internal: this copy of the page only, never the public site.</p></div>
+    <div class="meet">
+      <aside class="facets">
+        <input class="search" id="dq" type="search" placeholder="Search devices, measures, makers, people" value="${esc(dv.q)}" aria-label="Search the device list">
+        <fieldset><legend>Award</legend><select id="daward" class="search" aria-label="Show one award's devices"><option value="">Every award</option>${DV.awards.map(a => `<option value="${esc(a.award)}" ${dv.award === a.award ? "selected" : ""}>${esc(a.award)} · ${esc(a.institution)}</option>`).join("")}</select></fieldset>
+        <fieldset><legend>Evidence</legend>${Object.entries(DFILTER).map(([t, label]) => `<label><input type="checkbox" data-dtier="${t}" ${dv.tiers.has(t) ? "checked" : ""}>${esc(label)}<span class="c">${count(d => d.tiers.includes(t))}</span></label>`).join("")}</fieldset>
+        <fieldset><legend>Kind</legend>${Object.keys(kinds).sort().map(k => `<label><input type="checkbox" data-dkind="${esc(k)}" ${dv.kinds.has(k) ? "checked" : ""}>${esc(k)}<span class="c">${kinds[k]}</span></label>`).join("")}</fieldset>
+        <details class="facetmore" ${dv.cats.size ? "open" : ""}><summary>Category · ${Object.keys(cats).length}</summary><fieldset>${Object.keys(cats).sort().map(k => `<label><input type="checkbox" data-dcat="${esc(k)}" ${dv.cats.has(k) ? "checked" : ""}>${esc(k)}<span class="c">${cats[k]}</span></label>`).join("")}</fieldset></details>
+        <button class="linkbtn" id="dclear">Clear filters</button>
+      </aside>
+      <div class="list">
+        ${person ? `<div class="flagbox" style="background:var(--surface)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><h2>${esc(person.label)}</h2><button class="linkbtn" id="dperson-clear">Show everyone</button></div><span>Named as speaking to ${fmt(hits.length)} device${hits.length === 1 ? "" : "s"} at the workshop, per the summary. ${refLink(dv.person)}</span></div>` : ""}
+        <div class="meta"><span>${fmt(hits.length)} of ${fmt(DV.devices.length)} lines · ${fmt(byAward.size)} award${byAward.size === 1 ? "" : "s"}</span></div>
+        ${DV.awards.filter(a => byAward.has(a.award)).map(a => `<article class="mtg" id="award-${esc(a.award)}">
+          <header><span class="date">${esc(a.award)}</span>${(a.projects || []).length ? a.projects.map(refLink).join(" ") : `<span class="pill na" title="No project in the graph has this grant number">not in the graph</span>`}</header>
+          <span class="note">${[a.institution, a.pis, a.species].filter(Boolean).map(esc).join(" · ")}${a.title ? ` · ${esc(a.title)}` : ""}</span>
+          ${a.status ? `<span class="note"><b>At the Blitz</b>: ${esc(a.status)}</span>` : ""}
+          ${byAward.get(a.award).map(deviceRowHTML).join("")}
+        </article>`).join("") || `<p class="empty">No device matches these filters.</p>`}
+        ${dv.award || dv.person || dv.tiers.size || dv.kinds.size || dv.cats.size ? "" : discussionHTML()}
+      </div>
+    </div>
+  </div>`;
+}
+function deviceFlagsHTML() {
+  if (!DV) return "";
+  const rows = [...RV.dflags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  if (!rows.length) return `<p class="empty">No device flagged yet. Use “Flag this device” on the Devices tab to confirm or correct a model, a maker or who spoke to it.</p>`;
+  return `<h2>Device list · ${rows.length}</h2><div class="tbl"><table><thead><tr><th>Device</th><th>What</th><th>Note</th><th>Then</th><th>Flagged (UTC)</th></tr></thead><tbody>${rows.map(f => {
+    const ai = f.ai_predicted_at_flag || {};
+    return `<tr><td><span class="mono">${esc(f.award || "")}</span> ${esc(f.name_at_flag || f.device || "")}</td><td><span class="pill flag">${esc(DKINDS[f.problem] || f.problem || "")}</span></td>
+      <td>${esc(f.note || "")}</td><td class="note">${esc([f.brand_at_flag, ai.manufacturer, ai.model].filter(Boolean).join(" · "))}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
+function onDeviceListHTML(e) {
+  if (!DV) return "";
+  if (e.class === "Project" && AWARD_OF_PROJECT.has(e.id)) {
+    const award = AWARD_OF_PROJECT.get(e.id), list = DV.devices.filter(d => d.award === award);
+    return `<section><h3>On the device list</h3><p style="margin:0">${fmt(list.length)} line${list.length === 1 ? "" : "s"} for ${esc(award)}: ${list.slice(0, 6).map(d => esc(d.name)).join("; ")}${list.length > 6 ? "; …" : ""}. ${list.filter(d => d.ai_predicted).length} with an AI-predicted model or maker.</p>
+      <button class="btn ghost" style="justify-self:start" data-goaward="${esc(award)}">Show them in Devices</button></section>`;
+  }
+  if (e.class === "Investigator" && DEVICES_OF_PERSON.has(e.id)) {
+    const list = DEVICES_OF_PERSON.get(e.id).map(id => DEV_BY.get(id)).filter(Boolean);
+    return `<section><h3>On the device list</h3><p style="margin:0">Named in the workshop summary as speaking to ${fmt(list.length)} device${list.length === 1 ? "" : "s"}: ${list.slice(0, 6).map(d => esc(d.name)).join("; ")}${list.length > 6 ? "; …" : ""}.</p>
+      <button class="btn ghost" style="justify-self:start" data-godevperson="${esc(e.id)}">Show them in Devices</button></section>`;
+  }
+  return "";
+}
+$("#view").addEventListener("input", e => {
+  if (e.target.id === "dq") { dv.q = e.target.value; render(); }
+  else if (e.target.id === "dflag-note") RV.ddraft = { device: dv.flagging, problem: $("#dflag-kind").value, note: e.target.value };
+});
+$("#view").addEventListener("change", e => {
+  const t = e.target, d = t.dataset || {};
+  if (t.id === "dflag-kind") { RV.ddraft = { device: dv.flagging, problem: t.value, note: $("#dflag-note").value }; return; }
+  if (d.dtier) t.checked ? dv.tiers.add(d.dtier) : dv.tiers.delete(d.dtier);
+  else if (d.dkind) t.checked ? dv.kinds.add(d.dkind) : dv.kinds.delete(d.dkind);
+  else if (d.dcat) t.checked ? dv.cats.add(d.dcat) : dv.cats.delete(d.dcat);
+  else if (t.id === "daward") dv.award = t.value;
+  else return;
+  render();
+});
+$("#view").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const d = t.dataset;
+  if (d.goaward) { Object.assign(dv, { award: d.goaward, person: "", q: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); tab = "devices"; store.set("tab", tab); render(); }
+  else if (d.godevperson) { Object.assign(dv, { person: d.godevperson, award: "", q: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); tab = "devices"; store.set("tab", tab); render(); }
+  else if (t.id === "dperson-clear") { dv.person = ""; render(); }
+  else if (t.id === "dclear") { Object.assign(dv, { q: "", award: "", person: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); render(); }
+  else if (d.dflag) { dv.flagging = d.dflag; RV.ddraft = null; RV.dstatus = ""; render(); $("#dflag-note")?.focus(); }
+  else if (d.dflagcancel) { dv.flagging = null; RV.ddraft = null; render(); }
+  else if (d.dflagsave) saveDeviceFlag(d.dflagsave);
+  else if (d.dflagremove) removeDeviceFlag(d.dflagremove);
+});
+
 function render() {
   // A live flag update re-renders while someone may be typing: put focus and caret back.
   const a = document.activeElement, focusId = a && a.id;
@@ -1204,13 +1441,16 @@ function render() {
   renderTabs();
   try { history.replaceState(null, "", "#" + tab); } catch {}
   const views = { entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure,
-                  publications: renderPublications, meetings: renderMeetings,
+                  publications: renderPublications, meetings: renderMeetings, devices: renderDevices,
                   flags: RV.db ? renderFlags : renderEntities };
   (views[tab] || renderEntities)();
   const el = focusId && document.getElementById(focusId);
   if (el && el !== document.activeElement) { el.focus(); if (caret && el.setSelectionRange) el.setSelectionRange(caret[0], caret[1]); }
 }
-if (MT) { const n = $("#internal-note"); n.textContent = "This copy also carries the working-group meeting notes, which are internal: the public Inspector never does."; n.hidden = false; }
+if (MT || DV) {
+  const n = $("#internal-note"), what = [MT && "the working-group meeting notes", DV && "the device list"].filter(Boolean).join(" and ");
+  n.textContent = `This copy also carries ${what}, which are internal: the public Inspector never does.`; n.hidden = false;
+}
 render();
 initFlags();
 initText();

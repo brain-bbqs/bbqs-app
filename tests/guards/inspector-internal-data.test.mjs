@@ -1,9 +1,10 @@
-// Guard: the working-group meeting notes reach the Graph Inspector only in the artifact build,
-// never the repo or the public site.
+// Guard: the working-group meeting notes and the device list reach the Graph Inspector only in the
+// artifact build, never the repo or the public site.
 //
 // WHY (2026-11-16). The Inspector gained a Meetings tab: lessons, disagreements and decisions from
 // the working-group notes, each tied to the person the notes attribute it to. Those notes are
-// internal. The same template builds three pages: kg/browser/index.html (committed),
+// internal, and so is the device list (2026-11-16), which names who spoke to each device. The same
+// template builds three pages: kg/browser/index.html (committed),
 // /kg/inspector/ on the public site (publish.yml, daily), and the fragment published to the
 // claude.ai artifact that the consortium shares. Only the last may carry the notes, and the page
 // embeds whatever it is given, so one stray `--internal` in a workflow, or one rebuild of the
@@ -17,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const read = (p) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n");
-const MARK = /"kind":\s*"bbqs-meetings"/;
+const MARK = /"kind":\s*"bbqs-(meetings|devices)"/;
 
 test("the template has the report placeholder, then the internal one, once each", () => {
   const src = read("kg/browser/template.html");
@@ -36,14 +37,14 @@ test("no workflow builds a page with the meeting notes", () => {
   for (const name of readdirSync(dir).filter((n) => /\.ya?ml$/.test(n))) {
     const src = read(join(".github", "workflows", name));
     assert.doesNotMatch(src, /quality\.py[^\n]*--internal/, `${name} passes --internal to kg/quality.py`);
-    assert.doesNotMatch(src, /kg\/meetings\.py/, `${name} runs kg/meetings.py; the notes stay off CI`);
+    assert.doesNotMatch(src, /kg\/(meetings|devices)\.py/, `${name} runs kg/meetings.py or kg/devices.py; the records stay off CI`);
   }
 });
 
 test("no meeting records are committed", () => {
-  // kg/meetings.py writes the marker and the template reads it; any other file holding it is a copy
-  // of the notes. Text-like files only, and not node_modules, dist or the git store.
-  const allowed = new Set(["kg/meetings.py", "kg/browser/template.html", "tests/guards/inspector-internal-data.test.mjs"]);
+  // kg/meetings.py and kg/devices.py write the markers and the template reads them; any other file
+  // holding one is a copy of the records. Text-like files only, and not node_modules, dist or the git store.
+  const allowed = new Set(["kg/meetings.py", "kg/devices.py", "kg/browser/template.html", "tests/guards/inspector-internal-data.test.mjs"]);
   const skip = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".venv", "__pycache__"]);
   const text = new Set([".json", ".js", ".mjs", ".ts", ".tsx", ".py", ".html", ".md", ".csv", ".yaml", ".yml", ".ttl", ".txt", ".sql"]);
   const hits = [];
@@ -58,4 +59,23 @@ test("no meeting records are committed", () => {
   };
   walk(ROOT);
   assert.deepEqual(hits, [], "meeting records belong outside the repository");
+});
+
+test("no raw copy of the notes or the device list is committed", () => {
+  // The inputs carry no marker, so they are known by name: the extraction of the meeting notes and
+  // the device list's files (kg/meetings.py and kg/devices.py read them from outside the repo).
+  const raw = new Set(["meetings_extracted.json", "meetings_flat.csv", "person_roles.csv", "devices.csv",
+                       "device_evidence.csv", "device_discussion_crosscutting.csv", "bbqs_devices_kg.json"]);
+  const skip = new Set([".git", "node_modules", "dist", ".venv"]);
+  const hits = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      if (skip.has(name)) continue;
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (raw.has(name)) hits.push(relative(ROOT, full).split("\\").join("/"));
+    }
+  };
+  walk(ROOT);
+  assert.deepEqual(hits, [], "the notes and the device list belong outside the repository");
 });
