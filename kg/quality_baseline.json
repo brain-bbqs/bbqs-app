@@ -19,7 +19,22 @@
     "CQ13",
     "CQ15",
     "CQ16",
-    "CQ17"
+    "CQ17",
+    "CQ20",
+    "CQ21",
+    "CQ22",
+    "CQ23",
+    "CQ25",
+    "CQ26",
+    "CQ27",
+    "CQ28",
+    "CQ29",
+    "CQ32",
+    "CQ33",
+    "CQ34",
+    "CQ38",
+    "CQ41",
+    "CQ42"
   ],
   "exercised": [
     "AuthorOrcidResolvesShape",

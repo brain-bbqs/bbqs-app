@@ -18,9 +18,8 @@ It starts the real server as a client would (a process, JSON-RPC over stdio) and
   questions  Every competency question, asked twice over MCP: as SPARQL through sparql_query, and
              without SPARQL through the graph tools (search_nodes, get_node, find_related). Each
              way must return the rows the export gives when it is queried directly, with no server
-             in between. Exit code 1 if any does not. The questions are the 19 the KG is scored
-             on (competency_questions.yaml) and the 23 proposed in issue #441
-             (competency_questions_extended.yaml): 42 in all.
+             in between. Exit code 1 if any does not. The questions are the 42 the KG is scored
+             on (competency_questions.yaml), CQ20-CQ42 among them as adopted from issue #441.
   ranking    Is the order find_related gives worth having? Hide one real tie, start at one of its
              ends, ask for nodes of the hidden end's type, and see whether the hidden end is among
              the first ten returned that the start is not already tied to. The same for
@@ -54,8 +53,7 @@ sys.path.insert(0, str(HERE))
 import mcp_server as m  # noqa: E402
 
 SERVER = HERE / "mcp_server.py"
-QUESTION_FILES = {"adopted": HERE / "competency_questions.yaml",             # CQ01-CQ19: what quality.py scores
-                  "proposed": HERE / "competency_questions_extended.yaml"}   # CQ20-CQ42: issue #441, not adopted yet
+QUESTION_FILES = {"adopted": HERE / "competency_questions.yaml"}   # CQ01-CQ42, what quality.py scores (CQ20-CQ42 from #441)
 START, END = "<!-- kg-mcp-benchmark:start -->", "<!-- kg-mcp-benchmark:end -->"
 PARTS = ("questions", "ranking", "speed")
 
@@ -391,7 +389,7 @@ def cq19(c):
     return rows
 
 
-# -- the 23 proposed in issue #441 --
+# -- CQ20-CQ42, adopted from issue #441 --
 
 def _roles_of(c) -> dict:
     """person id -> [(project, the role on the link or None), ...], one entry per roster record."""
@@ -962,9 +960,9 @@ def markdown(results: dict) -> str:
                                                      ("none_in_this_export", "find none in this export"),
                                                      ("not_modelled", "not modelled yet")) if q.get(key)]
         out += ["| | Result |", "|---|---|",
-                f"| Competency questions that return rows on this export | **{q['answered']} of {q['asked']}**: "
-                f"{q['answered_adopted']} of the {q['adopted']} the KG is scored on"
-                + (f", {q['answered'] - q['answered_adopted']} of the {proposed} proposed in #441" if proposed else "") + " |",
+                f"| Competency questions that return rows on this export | **{q['answered']} of {q['asked']}**"
+                + (f": {q['answered_adopted']} of the {q['adopted']} the KG is scored on, "
+                   f"{q['answered'] - q['answered_adopted']} of the {proposed} proposed in #441" if proposed else "") + " |",
                 f"| Those {q['answered']}, asked as SPARQL through the server: same rows as the export queried directly | "
                 f"**{q['sparql_agree']} of {q['answered']}** |",
                 f"| Those {q['answered']}, asked without SPARQL through the graph tools: same rows again | "
@@ -1003,11 +1001,11 @@ def markdown(results: dict) -> str:
                      for ok in (row["sparql_agrees"], row["tools_agree"])]
             shown = "—" if row["rows"] is None else row["rows"]
             out.append(f"| {row['id']} | {row['question']}{note} | {shown} | {cells[0]} | {cells[1]} | {row['how']} |")
-        out += ["", f"The first {q['adopted']} are the questions the knowledge graph is scored on "
+        out += ["", (f"The first {q['adopted']} are" if first_proposed else f"All {q['asked']} are")
+                    + " the questions the knowledge graph is scored on "
                     "([`kg/competency_questions.yaml`](kg/competency_questions.yaml))."
-                    + (" The rest are the extended set proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441) "
-                       "([`kg/competency_questions_extended.yaml`](kg/competency_questions_extended.yaml)); they count toward "
-                       "nothing until that issue adopts them." if first_proposed else "")
+                    + (" The rest are the extended set proposed in [#441](https://github.com/brain-bbqs/bbqs-app/issues/441); "
+                       "they count toward nothing until that issue adopts them." if first_proposed else "")
                     + " A question of the form \"which X has no Y\" lists every X with no Y *recorded*, which in a graph "
                     "still being linked is not the same as having none.", "", "</details>"]
     if s:

@@ -127,8 +127,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `roundtrip.py` | Round trip: how much of the database a (fresh) export carries, cell by cell → `export/roundtrip.json` (see [Round trip](#round-trip-the-graph-must-be-able-to-rebuild-the-database)). |
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
-| `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
-| `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. `quality.py` asks them for the Inspector's Questions tab, marked *proposed*; the gate scores only CQ01-CQ19 until #441 adopts them. `bench_mcp_server.py` asks them too. |
+| `competency_questions.yaml` | The 42 fixed questions the graph must answer (CQ20-CQ42 adopted from #441), each with its SPARQL and the access level it needs. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
@@ -200,7 +199,7 @@ built one at a time, and each gets a board issue under #386 while it's in progre
 
 | # | Step | Question it answers | How | Status |
 |---|---|---|---|---|
-| 1 | **Competency questions** | Can the graph answer what it's for? | `competency_questions.yaml`: 19 SPARQL questions pinned to real entities (R34DA059723, House Mouse, WG-Devices). Each is *answered*, *empty* (exporter gap), *n/a* (RLS-gated on anon) or *unmodeled* (schema gap). | **live** (`quality.py`) |
+| 1 | **Competency questions** | Can the graph answer what it's for? | `competency_questions.yaml`: 42 SPARQL questions pinned to real entities (R34DA059723, House Mouse, WG-Devices). Each is *answered*, *empty* (exporter gap), *n/a* (RLS-gated on anon) or *unmodeled* (schema gap); a "which X has no Y" question is *none* when nothing is missing. | **live** (`quality.py`) |
 | 2 | **Structural metrics** | Is it one graph or a pile of records? | Nodes and links per class, isolated nodes, connected pieces, dangling links, and the class→predicate→class link matrix. | **live** (`quality.py`) |
 | 3 | **Cross-artifact conformance** | Do the export, the OWL and the generated SHACL use the same terms? | Every predicate and class the export emits must be declared in `bbqs.owl.ttl` *and* be a path in `bbqs.shapes.gen.ttl`. Today they disagree: the export and OWL use `bbqs:<slot>`, gen-shacl uses the mapped `slot_uri` (`schema:*`, `prov:*`), so the generated shapes target nothing. | planned (needs one IRI convention) |
 | 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL consistency shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
@@ -610,9 +609,9 @@ unless every client is entitled to more.
 python kg/bench_mcp_server.py
 ```
 
-This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it 42
-competency questions: the 19 in `competency_questions.yaml` that the graph is scored on, and the 23
-in `competency_questions_extended.yaml` that #441 proposes adding. Each is asked twice: as SPARQL
+This starts the server the way a client does (a process, JSON-RPC over stdio) and asks it the 42
+competency questions in `competency_questions.yaml` that the graph is scored on (CQ20-CQ42 adopted
+from #441). Each is asked twice: as SPARQL
 through `sparql_query`, and without SPARQL through `search_nodes`, `get_node` and `find_related`.
 Both must return the rows the export gives when it is queried directly, and the command fails if
 either does not. Questions that return nothing are compared too, and must return nothing both ways. It then measures the ranking

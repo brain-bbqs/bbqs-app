@@ -6,9 +6,9 @@ Four measurements, one report:
   structure   -- nodes/edges per class, connected components, isolated nodes, dangling IRIs, and the
                  class->predicate->class edge matrix (which links actually exist)
   competency  -- runs kg/competency_questions.yaml; each question is answered / empty / n/a / unmodeled
-                 (or "none" for a question that asks what is missing, when nothing is). It also runs
-                 competency_questions_extended.yaml, the questions proposed in #441, for the Inspector
-                 only: the gate (ci_check.py) scores just the adopted file until #441 adopts them
+                 (or "none" for a question that asks what is missing, when nothing is). A file of
+                 questions proposed but not adopted yet, competency_questions_proposed.yaml, is run too
+                 when there is one, for the Inspector only: the gate (ci_check.py) scores the adopted file
   shapes      -- per consistency shape: how many nodes it targets, and whether the data even contains
                  the terms it checks (a shape whose inputs are absent passes vacuously)
   violations  -- the SHACL results, keyed by focus node, so each entity card can show its own
@@ -112,7 +112,7 @@ class KGQuality:
     DEFAULT_DATA = HERE / "export" / "bbqs.ttl"
     DEFAULT_TBOX = HERE / "bbqs.owl.ttl"
     DEFAULT_CQS = HERE / "competency_questions.yaml"
-    DEFAULT_CQS_PROPOSED = HERE / "competency_questions_extended.yaml"
+    DEFAULT_CQS_PROPOSED = HERE / "competency_questions_proposed.yaml"   # none today: #441's were adopted
     DEFAULT_SHAPES_DIR = HERE / "shapes"
     DEFAULT_JSON = HERE / "export" / "quality.json"
     DEFAULT_HTML = HERE / "browser" / "index.html"
@@ -258,7 +258,7 @@ class KGQuality:
         return results
 
     def competency_proposed(self) -> list[dict]:
-        """The questions proposed in #441: shown in the Inspector, not counted by the gate."""
+        """Questions proposed but not adopted yet, if there is such a file: shown, not counted by the gate."""
         return self.competency(self.cq_proposed_file, "proposed") if self.cq_proposed_file.exists() else []
 
     # ---- consistency shapes: exercise + violations ------------------------------------------------
@@ -545,7 +545,7 @@ class KGQuality:
             extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
             lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
         if report.get("competency_proposed"):
-            lines += ["", f"proposed in #441, not scored: {report['competency_proposed_summary']}"]
+            lines += ["", f"proposed, not scored: {report['competency_proposed_summary']}"]
             for q in report["competency_proposed"]:
                 extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
                 lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")

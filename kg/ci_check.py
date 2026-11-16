@@ -82,7 +82,8 @@ def main(export_path, check_generated, update_baseline):
                                           if v["severity"] == "violation").items())),
         "warnings": dict(sorted(Counter(v["shape"] for e in report["entities"] for v in e["violations"]
                                         if v["severity"] == "warning").items())),
-        "answered": sorted(c["id"] for c in report["competency"] if c["status"] == "answered"),
+        # A "which X has no Y" question (reads: absence) answers whether it lists some X or none.
+        "answered": sorted(c["id"] for c in report["competency"] if c["status"] in ("answered", "none")),
         "exercised": sorted(s["shape"] for s in report["shapes"] if s["exercised"]),
         "isolated": report["structure"]["isolated"],
         "nodes": report["structure"]["nodes"],

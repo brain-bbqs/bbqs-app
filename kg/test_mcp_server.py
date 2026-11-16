@@ -1230,7 +1230,8 @@ class TheExport(unittest.TestCase):
             asked += 1
             direct = self.plain.query(question["sparql"], initNs=m.PREFIXES)
             through = self.kg.sparql(question["sparql"], limit=m.MAX_ROWS)
-            self.assertGreater(len(through["rows"]), 0, question["id"])
+            if question.get("reads") != "absence":     # a "which X has no Y" one answers with none missing too
+                self.assertGreater(len(through["rows"]), 0, question["id"])
             self.assertEqual(through["columns"], [str(v) for v in direct.vars], question["id"])
             same = lambda rows: sorted(json.dumps(row, sort_keys=True, default=str) for row in rows)  # noqa: E731
             self.assertEqual(same(through["rows"]), same([self.kg._cell(c) for c in row] for row in direct),
@@ -2417,27 +2418,31 @@ class TheBenchmark(unittest.TestCase):
         return [(q["id"], q["sparql_agrees"], q["tools_agree"]) for q in asked["questions"]
                 if not (q["sparql_agrees"] and q["tools_agree"])]
 
-    def test_the_questions_are_the_19_adopted_and_the_23_proposed(self):
+    def test_the_questions_are_the_42_the_kg_is_scored_on(self):
         questions, prologue = bench.load_questions()
         self.assertEqual([q["id"] for q in questions], [f"CQ{n:02d}" for n in range(1, 43)])
-        self.assertEqual([q["set"] for q in questions], ["adopted"] * 19 + ["proposed"] * 23)
+        self.assertEqual([q["set"] for q in questions], ["adopted"] * 42)
+        self.assertEqual({q["id"] for q in questions if q.get("reads") == "absence"},
+                         {"CQ21", "CQ27", "CQ30", "CQ33", "CQ38", "CQ42"})        # the "which X has no Y" ones
         self.assertEqual(set(bench.WALKS), {q["id"] for q in questions})      # no question without a walk, nor a walk without one
         self.assertEqual({q["access"] for q in questions}, {"anon", "full"})
         for q in questions:                                                    # each parses, with the prefixes the files give
             Graph().query(prologue + q["sparql"])
-        # the adopted file is the one quality.py scores, and adding the second did not touch it
-        self.assertEqual([path.name for path in bench.QUESTION_FILES.values()],
-                         ["competency_questions.yaml", "competency_questions_extended.yaml"])
+        # the file is the one quality.py scores
+        self.assertEqual([path.name for path in bench.QUESTION_FILES.values()], ["competency_questions.yaml"])
         self.assertIn('DEFAULT_CQS = HERE / "competency_questions.yaml"', (HERE / "quality.py").read_text(encoding="utf8"))
 
     def test_every_question_gets_the_same_rows_three_ways_on_the_export(self):
         asked = self.ask(str(EXPORT))
         self.assertEqual(self.differing(asked), [])        # as SPARQL, and through the graph tools, as the file itself
-        self.assertEqual((asked["asked"], asked["adopted"]), (42, 19))
+        self.assertEqual((asked["asked"], asked["adopted"]), (42, 42))
         baseline = json.loads((HERE / "quality_baseline.json").read_text(encoding="utf8"))
         adopted = [q for q in asked["questions"] if q["set"] == "adopted"]
-        self.assertEqual(sorted(q["id"] for q in adopted if q["rows"]), sorted(baseline["answered"]))   # as the KG gate counts
-        self.assertEqual(asked["answered_adopted"], len(baseline["answered"]))
+        # as the KG gate counts: a question with rows, and a "which X has no Y" one that found none missing
+        absence = {q["id"] for q in bench.load_questions()[0] if q.get("reads") == "absence"}
+        none_missing = [q["id"] for q in adopted if q["id"] in absence and q["status"] == "none in this export"]
+        self.assertEqual(sorted([q["id"] for q in adopted if q["rows"]] + none_missing), sorted(baseline["answered"]))
+        self.assertEqual(asked["answered_adopted"] + len(none_missing), len(baseline["answered"]))
         silent = asked["asked"] - asked["answered"]
         self.assertEqual((asked["sparql_agree"], asked["tools_agree"], asked["silent_agree"], asked["all_agree"]),
                          (asked["answered"], asked["answered"], silent, True))
@@ -2464,7 +2469,7 @@ class TheBenchmark(unittest.TestCase):
         readme = (HERE / "README.md").read_text(encoding="utf8")
         for name in status["needs the full export"] + status["none in this export"] + status["not modelled"]:
             self.assertIn(name, readme)
-        self.assertGreater(asked["answered"] - asked["answered_adopted"], 10)  # the proposed ones are not all silent here
+        self.assertEqual(asked["answered"], asked["answered_adopted"])      # every question is one the KG is scored on
 
     def test_every_question_can_be_walked_when_it_has_an_answer(self):
         # On the public export 13 of the questions return nothing either way, which checks nothing.
@@ -2475,7 +2480,7 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(self.differing(asked), [])
         status = {q["id"]: q["status"] for q in asked["questions"]}
         self.assertEqual(set(status.values()), {"answered"})   # CQ14 too: it uses a link the schema lacks, and has rows
-        self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 19, 0))
+        self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 42, 0))
         # CQ14 has rows here, so it is not among the questions with none, whatever its status
         self.assertEqual((asked["not_modelled"], asked["need_the_full_export"], asked["none_in_this_export"]), (0, 0, 0))
 
