@@ -304,8 +304,12 @@ into links. #421 wrote these links:
 | CQ12 publications per project | `produced` | `project_publications` (2 rows; RePORTER is the live source, see the importer) |
 | CQ13 datasets per project | `funded_datasets` | `grant_dandisets` (2) + `dandisets.award_numbers` (3) |
 
-CQ14 (device categories per project) is **unmodeled**: `project_device_usage` has 131 anon rows,
-but the schema has no Project → DeviceCategory slot.
+CQ14 (device categories per project) was **unmodeled**: `project_device_usage` has 131 anon rows,
+but the schema had no Project → DeviceCategory slot. It has one now, `uses_device_category`, which
+the exporter writes from that view; the committed export predates it, so CQ14 finds nothing until
+the next export. The exporter also writes the rest of what the device catalog declares: a model's
+aliases, output signals, price tier, regulatory class and product, manual and SDK links; a
+category's typical use cases and schema.org type; a maker's country.
 
 ### Round trip: the graph must be able to rebuild the database
 
@@ -652,8 +656,8 @@ apart, as could not be asked, and fails the run.
 
 On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
 provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
-asks for a link the schema does not have (CQ14). Five are understood and have nothing to list
-today: nobody holds two kinds of role (CQ24), every free-text species is also resolved (CQ27), no
+asks for a link the committed export predates (CQ14, `uses_device_category`). Five are understood
+and have nothing to list today: nobody holds two kinds of role (CQ24), every free-text species is also resolved (CQ27), no
 model has a benchmark linked (CQ31), no funding call expires in CQ39's window, and every working
 group has a member with a role (CQ42). A question of the form "which X has no Y" (CQ21, CQ27,
 CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is

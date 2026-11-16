@@ -264,6 +264,9 @@ class BBQSKnowledgeGraph:
             self.add(n, "label", cat.get("label"))
             for meas in cat.get("measures") or []:
                 self.add(n, "measures", meas)
+            for use in cat.get("typical_use_cases") or []:
+                self.add(n, "typical_use_cases", use)
+            self.add(n, "schema_org_type", cat.get("schema_org_type"))
         for dm in self.fetch("device_models"):
             rid = dm.get("resource_id")
             if not rid:
@@ -275,14 +278,39 @@ class BBQSKnowledgeGraph:
             if dm.get("manufacturer_id") and dm["manufacturer_id"] in man_node:
                 g.add((n, BBQS["manufacturer"], man_node[dm["manufacturer_id"]]))
             self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
+            # The rest of what the catalog says about a model, slot for slot as bbqs.linkml.yaml declares it.
+            for al in dm.get("aliases") or []:
+                self.add(n, "aliases", al)
+            for sig in dm.get("output_signals") or []:
+                self.add(n, "output_signals", sig)
+            self.add(n, "price_tier", dm.get("price_tier"))
+            self.add(n, "regulatory_class", dm.get("regulatory_class"))
+            self.add(n, "product_url", dm.get("product_url"), datatype=XSD.anyURI)
+            for url in dm.get("manual_urls") or []:
+                self.add(n, "manual_urls", url, datatype=XSD.anyURI)
+            for url in dm.get("sdk_urls") or []:
+                self.add(n, "sdk_urls", url, datatype=XSD.anyURI)
         for man in self.fetch("device_manufacturers"):
             rid = man.get("resource_id")
             if not rid:
                 continue
             n = BID[rid]
             self.add(n, "homepage_url", man.get("homepage_url"), datatype=XSD.anyURI)
+            self.add(n, "country", man.get("country"))
             for al in man.get("aliases") or []:
                 self.add(n, "aliases", al)
+        # Which kinds of instrument each project uses: the project_device_usage view (anon-readable),
+        # one row per project and device category its methods evidence names. A row whose project or
+        # category has no node is skipped, not written as a dangling link.
+        uses = 0
+        core = {re.sub(r"^\d|-\w+$", "", k or ""): n for k, n in gn_node.items()}   # 1R34DA059723-01 -> R34DA059723
+        for u in self.fetch("project_device_usage"):
+            proj = (proj_node.get(u.get("project_id")) or gn_node.get(u.get("grant_number"))
+                    or core.get(re.sub(r"^\d|-\w+$", "", u.get("grant_number") or "")))
+            cat = cat_node.get(u.get("category_key"))
+            if proj is not None and cat is not None and (proj, BBQS["uses_device_category"], cat) not in g:
+                g.add((proj, BBQS["uses_device_category"], cat))
+                uses += 1
 
         for pub in self.fetch("publications"):
             rid = pub.get("resource_id")
@@ -392,6 +420,7 @@ class BBQSKnowledgeGraph:
         print(f"Wrote {out_path}: {len(g)} triples")
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         print(f"ProjectRole edges: {roles}")
+        print(f"uses_device_category edges: {uses}")
         if skipped:
             print("Skipped (deprecated/unknown resource_type, not noded): " +
                   ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())))

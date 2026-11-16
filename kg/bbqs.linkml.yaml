@@ -208,6 +208,7 @@ classes:
       - funded_datasets      # grant_dandisets → Dandiset
       - has_model            # → MarrModel  (RESERVED stub)
       - produced             # → any Artifact (dataset/software/publication/model…)
+      - uses_device_category # project_device_usage → DeviceCategory
 
   ProjectRole:
     class_uri: prov:Association
@@ -578,6 +579,7 @@ slots:
   typical_use_cases: { multivalued: true }
   schema_org_type: { description: "device_categories.schema_org_type — the schema.org type this category maps to." }
   uses_device: { slot_uri: schema:instrument, range: Device, multivalued: true }
+  uses_device_category: { slot_uri: bbqs:usesDeviceCategory, range: DeviceCategory, multivalued: true, description: "A kind of instrument the project's methods evidence names (the project_device_usage view): a category, not a model." }
   measures_construct: { slot_uri: bbqs:measuresConstruct, range: BehavioralConstruct, multivalued: true }
 
   # ---- community / notices --------------------------------------------------

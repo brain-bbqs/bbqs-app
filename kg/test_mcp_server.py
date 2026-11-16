@@ -2451,7 +2451,7 @@ class TheBenchmark(unittest.TestCase):
                          + asked["could_not_be_asked"], silent)
         full = {q["id"] for q in bench.load_questions()[0] if q["access"] == "full"}
         self.assertLessEqual({q["id"] for q in asked["questions"] if q["status"] == "needs the full export"}, full)
-        self.assertEqual(next(q["status"] for q in asked["questions"] if q["id"] == "CQ14"), "not modelled")
+        self.assertEqual(next(q["status"] for q in asked["questions"] if q["id"] == "CQ14"), "none in this export")
 
     def test_the_readme_says_which_questions_have_no_rows_on_the_committed_export(self):
         # kg/README.md ("Benchmark") names the questions with no rows today and why. When a new export
@@ -2464,10 +2464,9 @@ class TheBenchmark(unittest.TestCase):
             "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 23, 25, 26,
                                                 28, 29, 32, 33, 34, 38, 41)],
             "needs the full export": ["CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40"],
-            "not modelled": ["CQ14"],
-            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
+            "none in this export": ["CQ14", "CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
         readme = (HERE / "README.md").read_text(encoding="utf8")
-        for name in status["needs the full export"] + status["none in this export"] + status["not modelled"]:
+        for name in status["needs the full export"] + status["none in this export"] + status.get("not modelled", []):
             self.assertIn(name, readme)
         self.assertEqual(asked["answered"], asked["answered_adopted"])      # every question is one the KG is scored on
 
@@ -2479,7 +2478,7 @@ class TheBenchmark(unittest.TestCase):
         self.assertNotIn(0, MINIATURE_ROWS.values())
         self.assertEqual(self.differing(asked), [])
         status = {q["id"]: q["status"] for q in asked["questions"]}
-        self.assertEqual(set(status.values()), {"answered"})   # CQ14 too: it uses a link the schema lacks, and has rows
+        self.assertEqual(set(status.values()), {"answered"})   # CQ14 too
         self.assertEqual((asked["answered"], asked["answered_adopted"], asked["silent_agree"]), (42, 42, 0))
         # CQ14 has rows here, so it is not among the questions with none, whatever its status
         self.assertEqual((asked["not_modelled"], asked["need_the_full_export"], asked["none_in_this_export"]), (0, 0, 0))

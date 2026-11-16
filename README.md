@@ -74,12 +74,12 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | Competency questions that return rows on this export | **29 of 42** |
 | Those 29, asked as SPARQL through the server: same rows as the export queried directly | **29 of 29** |
 | Those 29, asked without SPARQL through the graph tools: same rows again | **29 of 29** |
-| The other 13 (7 need the full export, 5 find none in this export, 1 not modelled yet): no rows either way | **13 of 13** |
+| The other 13 (7 need the full export, 6 find none in this export): no rows either way | **13 of 13** |
 | Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,383 cases) | **62%** (65% looking up to 8 links) |
 | The same for `get_neighbors`, which lists by distance alone | 45% (47% walking through hubs) |
 | Strengths equal to a slow second version of the rule, exactly | **515 of 515** starting nodes |
-| A `find_related` call (median; 95th percentile) | 7 ms; 11 ms |
-| A `find_paths` call | 4 ms; 10 ms |
+| A `find_related` call (median; 95th percentile) | 6 ms; 10 ms |
+| A `find_paths` call | 4 ms; 14 ms |
 | A `find_related` reply (median; largest of the 103 timed) | 7.6 kB; 12.2 kB |
 
 <details><summary>All 42 questions, both ways</summary>
@@ -99,7 +99,7 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | CQ11 | Which projects name no resolvable species, and is that by design? | 4 | same | same | list the projects; keep those with no species named |
 | CQ12 | Which publications came out of which project? | 89 | same | same | from each project, the publications one link away |
 | CQ13 | Which datasets were produced under which project? | 4 | same | same | from each project, the datasets one link away |
-| CQ14 | Which device categories does each project use? *(not modelled)* | 0 | none | none | from each project, the device categories one link away |
+| CQ14 | Which device categories does each project use? *(none in this export)* | 0 | none | none | from each project, the device categories one link away |
 | CQ15 | Which devices does each manufacturer make, by category? | 35 | same | same | from each device, its maker and its category |
 | CQ16 | Which software tools does the consortium provide, with their repositories? | 18 | same | same | list the software tools; read each one's repository |
 | CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 5 | same | same | list the funding calls; keep those still open |

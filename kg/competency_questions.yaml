@@ -167,7 +167,7 @@ questions:
   - id: CQ14
     area: products
     question: Which device categories does each project use?
-    access: anon  # project_device_usage is anon-readable; the schema has no Project->DeviceCategory slot
+    access: anon  # project_device_usage is anon-readable; exported as Project uses_device_category
     sparql: |
       SELECT ?grant_number ?category WHERE {
         ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:uses_device_category ?cat .
