@@ -214,6 +214,8 @@ const REPORT = /*__REPORT__*/null;
 const INTERNAL = /*__INTERNAL__*/null;
 const PUBS = REPORT && REPORT.publications && Array.isArray(REPORT.publications.rows) ? REPORT.publications : null;
 const MT = INTERNAL && INTERNAL.kind === "bbqs-meetings" && Array.isArray(INTERNAL.items) ? INTERNAL : null;
+// Every competency question: the ones the CI gate scores, then the ones proposed in #441 (shown, not scored).
+const CQS = REPORT ? [...(REPORT.competency || []), ...(REPORT.competency_proposed || [])].map(q => ({ set: "adopted", ...q })) : [];
 
 const AREA = {
   Investigator: "people", ProjectRole: "people", WorkingGroup: "people",
@@ -237,6 +239,7 @@ const STATUS = {
   empty: { cls: "bad", text: "empty", tip: "Answerable on this export, but returned nothing: the exporter doesn't emit the link" },
   "n/a": { cls: "na", text: "n/a on anon", tip: "Needs a full-access export; the source rows are hidden from anon" },
   unmodeled: { cls: "warn", text: "unmodeled", tip: "Uses a term the schema doesn't declare" },
+  none: { cls: "ok", text: "none found", tip: "Asks which things lack something, and none does in this export" },
 };
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -279,7 +282,8 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
 
 // ---- summary tiles -----------------------------------------------------------------------------
 (function tiles() {
-  const cq = REPORT.competency, answered = cq.filter(q => q.status === "answered").length;
+  const cq = CQS, answered = cq.filter(q => q.status === "answered" || q.status === "none").length;
+  const scored = cq.filter(q => q.set === "adopted"), scoredAnswered = scored.filter(q => q.status === "answered").length;
   const ex = REPORT.shapes.filter(s => s.exercised).length;
   const isoPct = Math.round(100 * S.isolated / S.nodes);
   const t = [
@@ -288,7 +292,8 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
     [fmt(S.edges), "links between nodes", ""],
     [`${fmt(S.isolated)}`, `isolated nodes (${isoPct}%)`, isoPct > 25 ? "bad" : isoPct > 5 ? "warn" : "ok"],
     [fmt(S.components), `connected pieces · largest ${fmt(S.largest_component)}`, S.components > 20 ? "warn" : "ok"],
-    [`${answered}/${cq.length}`, "questions answered", answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
+    [`${answered}/${cq.length}`, scored.length < cq.length ? `questions answered (${scoredAnswered}/${scored.length} scored by the CI gate)` : "questions answered",
+     answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
     [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
     [fmt(REPORT.violation_count), "consistency violations", REPORT.violation_count ? "bad" : "ok"],
     ...(REPORT.warning_count ? [[fmt(REPORT.warning_count), "warnings", "warn"]] : []),
@@ -304,7 +309,7 @@ const TABS = [
   ["entities", "Entities", ENT.length],
   ...(PUBS ? [["publications", "Publications", PUBS.count]] : []),
   ...(MT ? [["meetings", "Meetings", MT.meetings.length]] : []),
-  ["questions", "Questions", REPORT.competency.length],
+  ["questions", "Questions", CQS.length],
   ["shapes", "Shapes", REPORT.shapes.length],
   ["structure", "Structure", CLASSES.length],
 ];
@@ -357,7 +362,7 @@ function entityFlagState(f) {
   return { k: "open", why: `Same facts, links and checks ${since}` };
 }
 function questionFlagState(f) {
-  const q = REPORT.competency.find(x => x.id === f.cq);
+  const q = CQS.find(x => x.id === f.cq);
   if (!q) return { k: "gone", why: "This question isn't in this build" };
   const then = `${f.status_at_flag} with ${f.row_count_at_flag} rows`, now = `${q.status} with ${q.row_count} rows`;
   if (f.status_at_flag !== "answered" && q.status === "answered") return { k: "resolved", why: `Was ${then}, now ${now}` };
@@ -440,7 +445,7 @@ function setQStatus(cq, text) {
   const el = document.getElementById("qflag-status-" + cq); if (el) el.textContent = text;
 }
 async function saveQuestionFlag(cq) {
-  const q = REPORT.competency.find(x => x.id === cq); if (!q || !RV.db) return;
+  const q = CQS.find(x => x.id === cq); if (!q || !RV.db) return;
   const body = {
     cq, question: q.question, area: q.area,
     kind: document.getElementById("qflag-kind-" + cq).value,
@@ -726,14 +731,20 @@ function cell(v) {
   if (BY_ID.has(v)) return refLink(v);
   return esc(v);
 }
+let qSet = "all";
+const QSETS = { adopted: "Scored by the CI gate", proposed: "Proposed in #441, not scored yet" };
 function renderQuestions() {
-  const cq = REPORT.competency;
+  const cq = CQS.filter(q => qSet === "all" || q.set === qSet);
   const counts = { all: cq.length }; for (const q of cq) counts[q.status] = (counts[q.status] || 0) + 1;
-  const filt = ["all", "answered", "empty", "n/a", "unmodeled"].filter(k => counts[k])
-    .map(k => `<button data-status="${k}" aria-pressed="${qFilter === k}">${k === "all" ? "All" : STATUS[k].text} · ${counts[k]}</button>`).join("");
-  const areas = [...new Set(cq.map(q => q.area))];
-  const groups = areas.map(a => {
-    const qs = cq.filter(q => q.area === a && (qFilter === "all" || q.status === qFilter));
+  const sets = Object.keys(QSETS).filter(k => CQS.some(q => q.set === k));
+  const setFilt = sets.length > 1 ? ["all", ...sets].map(k => `<button data-qset="${k}" aria-pressed="${qSet === k}">${k === "all" ? "All questions" : QSETS[k]} · ${k === "all" ? CQS.length : CQS.filter(q => q.set === k).length}</button>`).join("") : "";
+  const filt = ["all", "answered", "none", "empty", "n/a", "unmodeled"].filter(k => counts[k])
+    .map(k => `<button data-status="${k}" aria-pressed="${qFilter === k}">${k === "all" ? "Any answer" : STATUS[k].text} · ${counts[k]}</button>`).join("");
+  const groups = sets.filter(k => qSet === "all" || qSet === k).map(set => {
+    const inSet = cq.filter(q => q.set === set);
+    const areas = [...new Set(inSet.map(q => q.area))];
+    const body = areas.map(a => {
+    const qs = inSet.filter(q => q.area === a && (qFilter === "all" || q.status === qFilter));
     if (!qs.length) return "";
     return `<div class="qgroup"><h2>${esc(a.replace("_", " "))}</h2>${qs.map(q => {
       const s = STATUS[q.status];
@@ -742,16 +753,19 @@ function renderQuestions() {
         ${q.row_count > q.rows.length ? `<p class="note">Showing ${q.rows.length} of ${q.row_count} rows.</p>` : ""}` : "";
       const why = q.status === "unmodeled" ? `<p>The schema doesn't declare <code>${q.unmodeled.map(t => "bbqs:" + t).join(", ")}</code>, so the graph has no way to say this yet.</p>`
         : q.status === "empty" ? `<p>The export has no <code>${q.terms.map(t => "bbqs:" + t).join("</code> / <code>")}</code> data that answers it. Usually that is a link the exporter doesn't write yet; sometimes the source rows are sparse too. kg/README.md traces each empty question to its source table.</p>`
-        : q.status === "n/a" ? `<p>The data behind this lives in tables anon can't read. It will be answerable on a full-access export.</p>` : "";
+        : q.status === "n/a" ? `<p>The data behind this lives in tables anon can't read. It will be answerable on a full-access export.</p>`
+        : q.status === "none" ? `<p>This question lists what has something missing, and this export lists nothing: every one has it recorded.</p>` : "";
       const fb = RV.qflags.has(q.id) ? `<span class="pill flag" title="Feedback left on this question">feedback</span>` : "";
       return `<details class="q" data-cq="${q.id}" ${qOpen.has(q.id) ? "open" : ""}><summary><span class="id">${q.id}</span><span>${esc(q.question)}</span>
         <span class="right">${fb}<span class="rc">${q.status === "unmodeled" ? "not run" : q.row_count + " rows"}</span><span class="pill ${s.cls}" title="${s.tip}">${s.text}</span></span></summary>
         <div class="body">${why}${table}${questionFlagHTML(q)}<pre>${esc(q.sparql)}</pre></div></details>`;
     }).join("")}</div>`;
+    }).join("");
+    return body ? `<section style="display:grid;gap:12px"><h2 style="font-size:16px">${esc(QSETS[set])} · ${inSet.length}</h2>${body}</section>` : "";
   }).join("");
   $("#view").innerHTML = `<div style="display:grid;gap:16px">
-    <div style="display:grid;gap:8px"><p style="margin:0;max-width:75ch">A fixed set of questions this graph should be able to answer, each pinned to a real project, species or group so the answer can be checked against the site. An empty answer means a link the exporter doesn't write; an unmodeled one means a slot the schema doesn't have.</p>
-    <div class="filters">${filt}</div></div>${groups}</div>`;
+    <div style="display:grid;gap:8px"><p style="margin:0;max-width:75ch">The questions this graph should be able to answer, each pinned to a real project, species or group so the answer can be checked against the site. The CI gate scores the ${CQS.filter(q => q.set === "adopted").length} adopted ones${CQS.some(q => q.set === "proposed") ? `; the ${CQS.filter(q => q.set === "proposed").length} proposed in #441 are asked here too, and scored once #441 adopts them` : ""}. An empty answer means a link the exporter doesn't write; an unmodeled one means a slot the schema doesn't have; none found means a question about what is missing found nothing missing.</p>
+    ${setFilt ? `<div class="filters">${setFilt}</div>` : ""}<div class="filters">${filt}</div></div>${groups || `<p class="empty">No question matches.</p>`}</div>`;
 }
 
 // ---- shapes ------------------------------------------------------------------------------------
@@ -1166,7 +1180,8 @@ $("#view").addEventListener("change", e => {
 $("#view").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
   const d = t.dataset;
-  if (d.pfilter) { pFilter = d.pfilter; render(); }
+  if (d.qset) { qSet = d.qset; qFilter = "all"; render(); }
+  else if (d.pfilter) { pFilter = d.pfilter; render(); }
   else if (t.id === "ptext") loadTextStatus();
   else if (d.pbody) loadBody(d.pbody);
   else if (d.person) { mt.person = mt.person === d.person ? "" : d.person; mt.limit = MPAGE; render(); $("#view").scrollIntoView({ block: "start" }); }

@@ -6,6 +6,9 @@ Four measurements, one report:
   structure   -- nodes/edges per class, connected components, isolated nodes, dangling IRIs, and the
                  class->predicate->class edge matrix (which links actually exist)
   competency  -- runs kg/competency_questions.yaml; each question is answered / empty / n/a / unmodeled
+                 (or "none" for a question that asks what is missing, when nothing is). It also runs
+                 competency_questions_extended.yaml, the questions proposed in #441, for the Inspector
+                 only: the gate (ci_check.py) scores just the adopted file until #441 adopts them
   shapes      -- per consistency shape: how many nodes it targets, and whether the data even contains
                  the terms it checks (a shape whose inputs are absent passes vacuously)
   violations  -- the SHACL results, keyed by focus node, so each entity card can show its own
@@ -109,19 +112,21 @@ class KGQuality:
     DEFAULT_DATA = HERE / "export" / "bbqs.ttl"
     DEFAULT_TBOX = HERE / "bbqs.owl.ttl"
     DEFAULT_CQS = HERE / "competency_questions.yaml"
+    DEFAULT_CQS_PROPOSED = HERE / "competency_questions_extended.yaml"
     DEFAULT_SHAPES_DIR = HERE / "shapes"
     DEFAULT_JSON = HERE / "export" / "quality.json"
     DEFAULT_HTML = HERE / "browser" / "index.html"
     TEMPLATE = HERE / "browser" / "template.html"
 
     def __init__(self, data_file=None, access="anon", tbox_file=None, cq_file=None, shape_files=None,
-                 source=None):
+                 source=None, cq_proposed_file=None):
         self.data_file = Path(data_file) if data_file else self.DEFAULT_DATA
         self.access = access
         self.source = source or shown(self.data_file)
         self.graph = Graph().parse(str(self.data_file), format="turtle")
         self.tbox = Graph().parse(str(tbox_file or self.DEFAULT_TBOX), format="turtle")
         self.cq_file = Path(cq_file) if cq_file else self.DEFAULT_CQS
+        self.cq_proposed_file = Path(cq_proposed_file) if cq_proposed_file else self.DEFAULT_CQS_PROPOSED
         self.shape_files = [Path(s) for s in shape_files] if shape_files else sorted(
             self.DEFAULT_SHAPES_DIR.glob("*.ttl"))
         self.shapes = Graph()
@@ -220,15 +225,18 @@ class KGQuality:
 
     # ---- competency questions ---------------------------------------------------------------------
 
-    def competency(self) -> list[dict]:
-        spec = yaml.safe_load(self.cq_file.read_text(encoding="utf-8"))
+    def competency(self, cq_file=None, question_set="adopted") -> list[dict]:
+        """Ask every question in a file. A question with `reads: absence` asks what is missing ("which
+        X has no Y"): no rows means nothing is, so it is "none", not "empty"."""
+        spec = yaml.safe_load(Path(cq_file or self.cq_file).read_text(encoding="utf-8"))
         prologue = "".join(f"PREFIX {k}: <{v}>\n" for k, v in spec["prefixes"].items())
         results = []
         for q in spec["questions"]:
             terms = sorted(set(re.findall(r"\bbbqs:(\w+)", q["sparql"])))
             unmodeled = [t for t in terms if t not in self.tbox_terms]
             row = {k: q[k] for k in ("id", "area", "question", "access")}
-            row.update({"sparql": q["sparql"].strip(), "terms": terms, "unmodeled": unmodeled,
+            row.update({"set": question_set, "reads": q.get("reads", "rows"),
+                        "sparql": q["sparql"].strip(), "terms": terms, "unmodeled": unmodeled,
                         "columns": [], "rows": [], "row_count": 0})
             if not unmodeled:
                 res = self.graph.query(prologue + q["sparql"])
@@ -242,10 +250,16 @@ class KGQuality:
                 row["status"] = "answered"
             elif q["access"] == "full" and self.access == "anon":
                 row["status"] = "n/a"
+            elif q.get("reads") == "absence":
+                row["status"] = "none"
             else:
                 row["status"] = "empty"
             results.append(row)
         return results
+
+    def competency_proposed(self) -> list[dict]:
+        """The questions proposed in #441: shown in the Inspector, not counted by the gate."""
+        return self.competency(self.cq_proposed_file, "proposed") if self.cq_proposed_file.exists() else []
 
     # ---- consistency shapes: exercise + violations ------------------------------------------------
 
@@ -474,6 +488,7 @@ class KGQuality:
         degree = structure.pop("_degree")
         violations = self.violations()
         cqs = self.competency()
+        proposed = self.competency_proposed()
         return {
             "data_file": shown(self.data_file),
             "access": self.access,
@@ -483,6 +498,8 @@ class KGQuality:
             "structure": structure,
             "competency": cqs,
             "competency_summary": dict(Counter(q["status"] for q in cqs)),
+            "competency_proposed": proposed,
+            "competency_proposed_summary": dict(Counter(q["status"] for q in proposed)),
             "shapes": self.shape_exercise(),
             "violation_count": sum(v["severity"] == "violation" for vs in violations.values() for v in vs),
             "warning_count": sum(v["severity"] == "warning" for vs in violations.values() for v in vs),
@@ -527,6 +544,11 @@ class KGQuality:
         for q in report["competency"]:
             extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
             lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
+        if report.get("competency_proposed"):
+            lines += ["", f"proposed in #441, not scored: {report['competency_proposed_summary']}"]
+            for q in report["competency_proposed"]:
+                extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
+                lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
         pubs = report.get("publications")
         if pubs:
             tied = sum(1 for r in pubs["rows"] if r["projects"])

@@ -3,13 +3,15 @@
 # quality.py scores and the KG gate counts, and #441 decides which of these are adopted into it, and
 # how a "which X has no Y" question should be reported while Y is still being linked.
 #
-# Until then they are kept here so that kg/bench_mcp_server.py can ask all 42 of the MCP server.
-# Same layout as competency_questions.yaml. `access` follows #441: jobs and provenance are not in
-# the public (anon) export, so those questions need a full one.
+# Until then they are kept here: kg/bench_mcp_server.py asks all 42 of the MCP server, and
+# kg/quality.py runs these for the Graph Inspector's Questions tab, marked as proposed (the gate's
+# count stays CQ01-CQ19). Same layout as competency_questions.yaml. `access` follows #441: jobs and
+# provenance are not in the public (anon) export, so those questions need a full one.
 #
 # Reading the answers: a question of the form "which X has no Y" (CQ21, CQ27, CQ30, CQ33, CQ38,
 # CQ42) lists every X for which no Y is RECORDED. In a graph that is still being linked that is not
-# the same as "has none".
+# the same as "has none". Those carry `reads: absence`: no rows means nothing is missing, which
+# quality.py reports as "none" rather than as an empty answer.
 
 prefixes:
   bbqs: https://brain-bbqs.org/schema#
@@ -32,6 +34,7 @@ questions:
     area: people
     question: Which investigators have no ORCID recorded?
     access: anon
+    reads: absence
     sparql: |
       SELECT ?name WHERE {
         ?person a bbqs:Investigator ; bbqs:name ?name .
@@ -99,6 +102,7 @@ questions:
     area: species
     question: Which projects name a species in free text that is not resolved to a species node?
     access: anon
+    reads: absence
     sparql: |
       SELECT ?grant ?raw WHERE {
         ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:studies_species_name ?raw .
@@ -136,6 +140,7 @@ questions:
     area: provenance
     question: Which produced datasets have no provenance recorded?
     access: full
+    reads: absence
     sparql: |
       SELECT ?ds ?name WHERE {
         ?project bbqs:produced ?ds . ?ds a bbqs:Dataset ; bbqs:name ?name .
@@ -170,6 +175,7 @@ questions:
     area: organizations
     question: Which organizations have no members recorded?
     access: anon
+    reads: absence
     sparql: |
       SELECT ?org_name WHERE {
         ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name .
@@ -217,6 +223,7 @@ questions:
     area: diagnostics
     question: Which projects have no outputs recorded?
     access: anon
+    reads: absence
     sparql: |
       SELECT ?grant WHERE {
         ?project a bbqs:Project ; bbqs:grant_number ?grant .
@@ -264,6 +271,7 @@ questions:
     area: diagnostics
     question: Which working groups have no member with a role on any project?
     access: anon
+    reads: absence
     sparql: |
       SELECT ?wg_name WHERE {
         ?wg a bbqs:WorkingGroup ; bbqs:name ?wg_name .

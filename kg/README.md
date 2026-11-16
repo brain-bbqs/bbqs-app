@@ -128,7 +128,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
-| `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. Not scored by `quality.py` until #441 adopts them; `bench_mcp_server.py` asks them. |
+| `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. `quality.py` asks them for the Inspector's Questions tab, marked *proposed*; the gate scores only CQ01-CQ19 until #441 adopts them. `bench_mcp_server.py` asks them too. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
