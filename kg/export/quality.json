@@ -2,8 +2,8 @@
  "data_file": "kg/export/bbqs.ttl",
  "access": "anon",
  "source": "kg/export/bbqs.ttl",
- "built_at": "2026-11-16T15:15:16+00:00",
- "commit": "34c7c103",
+ "built_at": "2026-11-16T15:33:26+00:00",
+ "commit": "f0679b41",
  "structure": {
   "triples": 5039,
   "nodes": 808,
@@ -224,13 +224,13 @@
     "count": 32
    },
    {
-    "from": "Announcement",
+    "from": "Job",
     "predicate": "part_of_org",
     "to": "ResearchOrganization",
     "count": 6
    },
    {
-    "from": "Job",
+    "from": "Announcement",
     "predicate": "part_of_org",
     "to": "ResearchOrganization",
     "count": 6
@@ -255,6 +255,8 @@
    "area": "projects",
    "question": "Which projects are in the consortium, with grant number and mechanism?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?project ?grant_number ?mechanism WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number .\n  OPTIONAL { ?project bbqs:mechanism ?mechanism }\n} ORDER BY ?grant_number",
    "terms": [
     "Project",
@@ -402,6 +404,8 @@
    "area": "projects",
    "question": "What is the total award amount per mechanism?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?mechanism (COUNT(?project) AS ?projects) (SUM(?amount) AS ?total) WHERE {\n  ?project a bbqs:Project ; bbqs:mechanism ?mechanism ; bbqs:award_amount ?amount .\n} GROUP BY ?mechanism ORDER BY DESC(?total)",
    "terms": [
     "Project",
@@ -449,6 +453,8 @@
    "area": "projects",
    "question": "Which institution hosts each project?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?project ?grant_number ?org_name WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:part_of_org ?org .\n  ?org bbqs:name ?org_name .\n}",
    "terms": [
     "Project",
@@ -487,6 +493,8 @@
    "area": "people",
    "question": "Who holds a role on R34DA059723, and what role?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name ?role WHERE {\n  ?project bbqs:grant_number \"R34DA059723\" .\n  ?pr a bbqs:ProjectRole ; bbqs:on_project ?project ; bbqs:project_role ?role ;\n      bbqs:held_by ?person .\n  ?person bbqs:name ?name .\n}",
    "terms": [
     "ProjectRole",
@@ -519,6 +527,8 @@
    "area": "people",
    "question": "Which investigators hold roles on more than one project?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name (COUNT(DISTINCT ?project) AS ?projects) WHERE {\n  ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .\n  ?person bbqs:name ?name .\n} GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY DESC(?projects)",
    "terms": [
     "ProjectRole",
@@ -569,6 +579,8 @@
    "area": "people",
    "question": "Which organization is each investigator affiliated with?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name ?org_name WHERE {\n  ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name ; bbqs:members ?person .\n  ?person a bbqs:Investigator ; bbqs:name ?name .\n}",
    "terms": [
     "Investigator",
@@ -691,6 +703,8 @@
    "area": "people",
    "question": "Which investigators have an ORCID?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name ?orcid WHERE {\n  ?person a bbqs:Investigator ; bbqs:name ?name ; bbqs:orcid ?orcid .\n}",
    "terms": [
     "Investigator",
@@ -812,6 +826,8 @@
    "area": "working_groups",
    "question": "Who are the members of WG-Devices?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name WHERE {\n  ?wg a bbqs:WorkingGroup ; bbqs:name \"WG-Devices\" .\n  ?person bbqs:member_of_group ?wg ; bbqs:name ?name .\n}",
    "terms": [
     "WorkingGroup",
@@ -907,6 +923,8 @@
    "area": "species",
    "question": "Which projects study the house mouse?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?project ?grant_number WHERE {\n  ?species a bbqs:Species ; bbqs:common_name \"House Mouse\" .\n  ?project bbqs:studies_species ?species ; bbqs:grant_number ?grant_number .\n}",
    "terms": [
     "Species",
@@ -957,6 +975,8 @@
    "area": "species",
    "question": "Which projects study mammals?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT DISTINCT ?project ?grant_number WHERE {\n  ?species a bbqs:Species ; bbqs:taxonomy_class \"Mammalia\" .\n  ?project bbqs:studies_species ?species ; bbqs:grant_number ?grant_number .\n}",
    "terms": [
     "Species",
@@ -1079,6 +1099,8 @@
    "area": "species",
    "question": "Which projects name no resolvable species, and is that by design?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?project ?grant_number ?scope WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number .\n  FILTER NOT EXISTS { ?project bbqs:studies_species ?s }\n  OPTIONAL { ?project bbqs:study_scope ?scope }\n}",
    "terms": [
     "Project",
@@ -1122,6 +1144,8 @@
    "area": "products",
    "question": "Which publications came out of which project?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?grant_number ?title WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:produced ?pub .\n  ?pub a bbqs:Publication ; bbqs:title ?title .\n}",
    "terms": [
     "Project",
@@ -1245,6 +1269,8 @@
    "area": "products",
    "question": "Which datasets were produced under which project?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?grant_number ?dataset_name WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number ;\n           (bbqs:funded_datasets|bbqs:produced) ?dataset .\n  ?dataset a bbqs:Dataset ; bbqs:name ?dataset_name .\n}",
    "terms": [
     "Dataset",
@@ -1285,6 +1311,8 @@
    "area": "products",
    "question": "Which device categories does each project use?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?grant_number ?category WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant_number ; bbqs:uses_device_category ?cat .\n  ?cat bbqs:label ?category .\n}",
    "terms": [
     "Project",
@@ -1305,6 +1333,8 @@
    "area": "products",
    "question": "Which devices does each manufacturer make, by category?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?manufacturer ?model ?category WHERE {\n  ?device a bbqs:Device ; bbqs:model_name ?model ; bbqs:manufacturer ?m .\n  ?m bbqs:name ?manufacturer .\n  OPTIONAL { ?device bbqs:device_category ?category }\n}",
    "terms": [
     "Device",
@@ -1454,6 +1484,8 @@
    "area": "products",
    "question": "Which software tools does the consortium provide, with their repositories?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?name ?repo WHERE {\n  ?tool a bbqs:SoftwareTool ; bbqs:name ?name ; bbqs:repo_url ?repo .\n}",
    "terms": [
     "SoftwareTool",
@@ -1547,6 +1579,8 @@
    "area": "announcements",
    "question": "Which funding opportunities are still open (expiration after 2026-09-29)?",
    "access": "anon",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?title ?expires WHERE {\n  ?fo a bbqs:FundingOpportunity ; bbqs:name ?title ; bbqs:expiration_date ?expires .\n  FILTER (?expires > \"2026-09-29\"^^xsd:date)\n}",
    "terms": [
     "FundingOpportunity",
@@ -1588,6 +1622,8 @@
    "area": "announcements",
    "question": "Which jobs are posted, and by which institution?",
    "access": "full",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?title ?institution WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .\n}",
    "terms": [
     "Job",
@@ -1608,6 +1644,8 @@
    "area": "provenance",
    "question": "Where did R34DA059723's title come from (source class and grade)?",
    "access": "full",
+   "set": "adopted",
+   "reads": "rows",
    "sparql": "SELECT ?value ?source ?grade WHERE {\n  ?project bbqs:grant_number \"R34DA059723\" .\n  BIND(STRAFTER(STR(?project), \"https://brain-bbqs.org/id/\") AS ?localId)\n  ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId ;\n        bbqs:prov_entity_column \"title\" ; bbqs:prov_value_text ?value ;\n        bbqs:prov_source_class ?source .\n  OPTIONAL { ?source bbqs:grade ?grade }\n}",
    "terms": [
     "ProvenanceRecord",
@@ -1633,6 +1671,1571 @@
   "answered": 16,
   "unmodeled": 1,
   "n/a": 2
+ },
+ "competency_proposed": [
+  {
+   "id": "CQ20",
+   "area": "people",
+   "question": "Which investigators are on more than one project, and which projects?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?name (GROUP_CONCAT(DISTINCT ?grant; separator=\", \") AS ?projects) WHERE {\n  ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .\n  ?person bbqs:name ?name . ?project bbqs:grant_number ?grant .\n} GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY ?name",
+   "terms": [
+    "ProjectRole",
+    "grant_number",
+    "held_by",
+    "name",
+    "on_project"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "name",
+    "projects"
+   ],
+   "rows": [
+    [
+     "Alex Williams",
+     "U01DA063581, R34DA059513"
+    ],
+    [
+     "Dan Sanes",
+     "R34DA059513, U01DA063581"
+    ],
+    [
+     "David Schneider",
+     "U01DA063581, R34DA059513"
+    ],
+    [
+     "Firooz Aflatouni",
+     "R34DA059507, U01MH144347"
+    ],
+    [
+     "NANTHIA W SUTHANA",
+     "R61MH135106, U01MH143789"
+    ],
+    [
+     "Shreya  Saxena",
+     "U01DA063534, R34DA059718"
+    ],
+    [
+     "Timothy Dunn",
+     "R34DA059506, R34DA059512"
+    ]
+   ],
+   "row_count": 7,
+   "status": "answered"
+  },
+  {
+   "id": "CQ21",
+   "area": "people",
+   "question": "Which investigators have no ORCID recorded?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?name WHERE {\n  ?person a bbqs:Investigator ; bbqs:name ?name .\n  FILTER NOT EXISTS { ?person bbqs:orcid ?o }\n} ORDER BY ?name",
+   "terms": [
+    "Investigator",
+    "name",
+    "orcid"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "name"
+   ],
+   "rows": [
+    [
+     "AVNIEL S GHUMAN"
+    ],
+    [
+     "Abigayle Fogarty"
+    ],
+    [
+     "Adam Friedman"
+    ],
+    [
+     "Alex Cabral"
+    ],
+    [
+     "Amelia Johnson"
+    ],
+    [
+     "Amrita Nair"
+    ],
+    [
+     "Anibal Heinsfeld"
+    ],
+    [
+     "Arina Knowlton"
+    ],
+    [
+     "Ashlee Van't Veer"
+    ],
+    [
+     "Avniel Ghuman"
+    ],
+    [
+     "Aydin Tasevac"
+    ],
+    [
+     "Bijan  Pesaran"
+    ],
+    [
+     "Brandon Brooks-Patton"
+    ],
+    [
+     "Brendan Ito"
+    ],
+    [
+     "Brent Kious"
+    ],
+    [
+     "Brian Gitahi"
+    ],
+    [
+     "Brian Leonard"
+    ],
+    [
+     "Caleb Scott-Joseph"
+    ],
+    [
+     "Casey Harrison Halpern"
+    ],
+    [
+     "Chaoyi Zhang"
+    ],
+    [
+     "Charles B Mikell"
+    ],
+    [
+     "Cheryl Corcoran"
+    ],
+    [
+     "Christina Hatch"
+    ],
+    [
+     "Christina Liu"
+    ],
+    [
+     "Chuck Mikell"
+    ]
+   ],
+   "row_count": 150,
+   "status": "answered"
+  },
+  {
+   "id": "CQ22",
+   "area": "people",
+   "question": "Which organization is each investigator tied to, directly or through a project?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT DISTINCT ?name ?org_name WHERE {\n  ?person a bbqs:Investigator ; bbqs:name ?name .\n  { ?org bbqs:members ?person }\n  UNION\n  { ?pr bbqs:held_by ?person ; bbqs:on_project ?p . ?p bbqs:part_of_org ?org }\n  ?org bbqs:name ?org_name .\n} ORDER BY ?org_name ?name",
+   "terms": [
+    "Investigator",
+    "held_by",
+    "members",
+    "name",
+    "on_project",
+    "part_of_org"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "name",
+    "org_name"
+   ],
+   "rows": [
+    [
+     "Markus Meister",
+     "CALIFORNIA INSTITUTE OF TECHNOLOGY"
+    ],
+    [
+     "Pietro Perona",
+     "CALIFORNIA INSTITUTE OF TECHNOLOGY"
+    ],
+    [
+     "Ueli Rutishauser",
+     "CALIFORNIA INSTITUTE OF TECHNOLOGY"
+    ],
+    [
+     "Yisong Yue",
+     "CALIFORNIA INSTITUTE OF TECHNOLOGY"
+    ],
+    [
+     "Eric Yttri",
+     "CARNEGIE-MELLON UNIVERSITY"
+    ],
+    [
+     "Jonathan E. Rubin",
+     "CARNEGIE-MELLON UNIVERSITY"
+    ],
+    [
+     "Pulkit  Grover",
+     "CARNEGIE-MELLON UNIVERSITY"
+    ],
+    [
+     "Zheng  Kuang",
+     "CARNEGIE-MELLON UNIVERSITY"
+    ],
+    [
+     "Ueli Rutishauser",
+     "CEDARS-SINAI MEDICAL CENTER"
+    ],
+    [
+     "Aditya Bhise",
+     "CHILDREN'S HOSP OF PHILADELPHIA"
+    ],
+    [
+     "Timothy P Roberts",
+     "CHILDREN'S HOSP OF PHILADELPHIA"
+    ],
+    [
+     "Alik S. Widge",
+     "COLUMBIA UNIVERSITY HEALTH SCIENCES"
+    ],
+    [
+     "Brett E Youngerman",
+     "COLUMBIA UNIVERSITY HEALTH SCIENCES"
+    ],
+    [
+     "Jorge Ortiz",
+     "COLUMBIA UNIVERSITY HEALTH SCIENCES"
+    ],
+    [
+     "Joshua Jacobs",
+     "COLUMBIA UNIVERSITY HEALTH SCIENCES"
+    ],
+    [
+     "Cody Baker",
+     "DARTMOUTH COLLEGE"
+    ],
+    [
+     "Yaroslav Halchenko",
+     "DARTMOUTH COLLEGE"
+    ],
+    [
+     "Bence P Olveczky",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Gregory Darin Field",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Michael Tadross",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "NANTHIA W SUTHANA",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Tianqing Li",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Timothy Dunn",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Uros Topalovic",
+     "DUKE UNIVERSITY"
+    ],
+    [
+     "Christopher Rozell",
+     "GEORGIA INSTITUTE OF TECHNOLOGY"
+    ]
+   ],
+   "row_count": 139,
+   "status": "answered"
+  },
+  {
+   "id": "CQ23",
+   "area": "working_groups",
+   "question": "Who is in each working group, and on which projects are they?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?wg_name ?name ?grant WHERE {\n  ?wg a bbqs:WorkingGroup ; bbqs:name ?wg_name .\n  ?person bbqs:member_of_group ?wg ; bbqs:name ?name .\n  OPTIONAL { ?pr bbqs:held_by ?person ; bbqs:on_project ?p . ?p bbqs:grant_number ?grant }\n} ORDER BY ?wg_name ?name",
+   "terms": [
+    "WorkingGroup",
+    "grant_number",
+    "held_by",
+    "member_of_group",
+    "name",
+    "on_project"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "wg_name",
+    "name",
+    "grant"
+   ],
+   "rows": [
+    [
+     "WG-Analytics",
+     "Abigayle Fogarty",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Adam Friedman",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Adam Noah",
+     "R61MH138705"
+    ],
+    [
+     "WG-Analytics",
+     "Aditya Bhise",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Agatha Lenartowicz",
+     "R61MH138713"
+    ],
+    [
+     "WG-Analytics",
+     "Alessandra DallaVecchia",
+     "R61MH138713"
+    ],
+    [
+     "WG-Analytics",
+     "Alex Cabral",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Alex Williams",
+     "U01DA063581"
+    ],
+    [
+     "WG-Analytics",
+     "Alex Williams",
+     "R34DA059513"
+    ],
+    [
+     "WG-Analytics",
+     "Alireza Kazemi",
+     "R61MH135109"
+    ],
+    [
+     "WG-Analytics",
+     "Amelia Johnson",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Arish Alreja",
+     "R61MH138967"
+    ],
+    [
+     "WG-Analytics",
+     "Aydin Tasevac",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Bartul Mimica",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Bijan Pesaran",
+     "U01MH144347"
+    ],
+    [
+     "WG-Analytics",
+     "Brendan Ito",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Brian Gitahi",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Caleb Kemere",
+     "R34DA059514"
+    ],
+    [
+     "WG-Analytics",
+     "Charles Mikell",
+     "R61MH138612"
+    ],
+    [
+     "WG-Analytics",
+     "Cheryl Corcoran",
+     "R34DA059716"
+    ],
+    [
+     "WG-Analytics",
+     "Cody Baker",
+     null
+    ],
+    [
+     "WG-Analytics",
+     "Cory Inman",
+     "R61MH135109"
+    ],
+    [
+     "WG-Analytics",
+     "Cristina Savin",
+     "U01DA063565"
+    ],
+    [
+     "WG-Analytics",
+     "Dan Sanes",
+     "R34DA059513"
+    ],
+    [
+     "WG-Analytics",
+     "Dan Sanes",
+     "U01DA063581"
+    ]
+   ],
+   "row_count": 272,
+   "status": "answered"
+  },
+  {
+   "id": "CQ24",
+   "area": "people",
+   "question": "Which investigators hold more than one kind of role?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?name (GROUP_CONCAT(DISTINCT ?role; separator=\", \") AS ?roles) WHERE {\n  ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:project_role ?role .\n  ?person bbqs:name ?name .\n} GROUP BY ?person ?name HAVING (COUNT(DISTINCT ?role) > 1) ORDER BY ?name",
+   "terms": [
+    "ProjectRole",
+    "held_by",
+    "name",
+    "project_role"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "name",
+    "roles"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "empty"
+  },
+  {
+   "id": "CQ25",
+   "area": "species",
+   "question": "Which projects study the house mouse, whichever of its names is used?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?grant ?title WHERE {\n  ?sp a bbqs:Species .\n  { ?sp bbqs:name \"Mus musculus\" } UNION { ?sp bbqs:common_name \"House Mouse\" } UNION { ?sp bbqs:aliases \"Mus musculus\" }\n  ?project bbqs:studies_species ?sp ; bbqs:grant_number ?grant .\n  OPTIONAL { ?project bbqs:title ?title }\n} ORDER BY ?grant",
+   "terms": [
+    "Species",
+    "aliases",
+    "common_name",
+    "grant_number",
+    "name",
+    "studies_species",
+    "title"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "grant",
+    "title"
+   ],
+   "rows": [
+    [
+     "R34DA059506",
+     "High-resolution 3D tracking of social behaviors for deep phenotypic analysis"
+    ],
+    [
+     "R34DA059506",
+     "High-resolution 3D tracking of social behaviors for deep phenotypic analysis"
+    ],
+    [
+     "R34DA059509",
+     "Behavioral quantification through active learning and multidimensional physiological monitoring"
+    ],
+    [
+     "R34DA059509",
+     "Behavioral quantification through active learning and multidimensional physiological monitoring"
+    ],
+    [
+     "R34DA059512",
+     "High-throughput, high-resolution 3D measurement of ethologically relevant rodent behavior in a dynamic environment"
+    ],
+    [
+     "R34DA059512",
+     "High-throughput, high-resolution 3D measurement of ethologically relevant rodent behavior in a dynamic environment"
+    ],
+    [
+     "R34DA059718",
+     "Harnessing biological rhythms for a resilient social motif generator"
+    ],
+    [
+     "R34DA059718",
+     "Harnessing biological rhythms for a resilient social motif generator"
+    ],
+    [
+     "R34DA059723",
+     "Multimodal behavioral analysis of oromanual food-handling in freely moving animals"
+    ],
+    [
+     "R34DA059723",
+     "Multimodal behavioral analysis of oromanual food-handling in freely moving animals"
+    ],
+    [
+     "R34DA062119",
+     "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development"
+    ],
+    [
+     "R34DA062119",
+     "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development"
+    ],
+    [
+     "U01DA063565",
+     "Neurobehavioral Mechanisms of Social Behavior and Familial Structure"
+    ],
+    [
+     "U01DA063565",
+     "Neurobehavioral Mechanisms of Social Behavior and Familial Structure"
+    ]
+   ],
+   "row_count": 14,
+   "status": "answered"
+  },
+  {
+   "id": "CQ26",
+   "area": "species",
+   "question": "How many projects study each species?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?species (COUNT(DISTINCT ?project) AS ?projects) WHERE {\n  ?project a bbqs:Project ; bbqs:studies_species ?sp .\n  ?sp bbqs:name ?species .\n} GROUP BY ?species ORDER BY DESC(?projects)",
+   "terms": [
+    "Project",
+    "name",
+    "studies_species"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "species",
+    "projects"
+   ],
+   "rows": [
+    [
+     "Human",
+     "13"
+    ],
+    [
+     "House Mouse",
+     "7"
+    ],
+    [
+     "Mongolian Gerbil",
+     "2"
+    ],
+    [
+     "Domestic Sheep",
+     "1"
+    ],
+    [
+     "Hofstenia miamia",
+     "1"
+    ],
+    [
+     "Cichlid Fish",
+     "1"
+    ],
+    [
+     "Brown Rat",
+     "1"
+    ],
+    [
+     "White-faced Capuchin",
+     "1"
+    ],
+    [
+     "Fruit Fly",
+     "1"
+    ],
+    [
+     "Zebrafish",
+     "1"
+    ],
+    [
+     "Brown-headed Cowbird",
+     "1"
+    ],
+    [
+     "Domestic Ferret",
+     "1"
+    ],
+    [
+     "Common Marmoset",
+     "1"
+    ]
+   ],
+   "row_count": 13,
+   "status": "answered"
+  },
+  {
+   "id": "CQ27",
+   "area": "species",
+   "question": "Which projects name a species in free text that is not resolved to a species node?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?grant ?raw WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:studies_species_name ?raw .\n  FILTER NOT EXISTS { ?project bbqs:studies_species ?sp }\n} ORDER BY ?grant",
+   "terms": [
+    "Project",
+    "grant_number",
+    "studies_species",
+    "studies_species_name"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "grant",
+    "raw"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "none"
+  },
+  {
+   "id": "CQ28",
+   "area": "products",
+   "question": "How many publications, datasets, tools and models did each project produce?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?grant\n  (COUNT(DISTINCT ?pub) AS ?publications) (COUNT(DISTINCT ?ds) AS ?datasets)\n  (COUNT(DISTINCT ?tool) AS ?tools) (COUNT(DISTINCT ?model) AS ?models) WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant .\n  OPTIONAL { ?project bbqs:produced ?pub   . ?pub   a bbqs:Publication }\n  OPTIONAL { ?project bbqs:produced ?ds    . ?ds    a bbqs:Dataset }\n  OPTIONAL { ?project bbqs:produced ?tool  . ?tool  a bbqs:SoftwareTool }\n  OPTIONAL { ?project bbqs:produced ?model . ?model a bbqs:MLModel }\n} GROUP BY ?grant ORDER BY ?grant",
+   "terms": [
+    "Dataset",
+    "MLModel",
+    "Project",
+    "Publication",
+    "SoftwareTool",
+    "grant_number",
+    "produced"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "grant",
+    "publications",
+    "datasets",
+    "tools",
+    "models"
+   ],
+   "rows": [
+    [
+     "R24MH136632",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059500",
+     "4",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059506",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059507",
+     "0",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059509",
+     "13",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059510",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059512",
+     "4",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059513",
+     "6",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059514",
+     "0",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059716",
+     "0",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059718",
+     "6",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA059723",
+     "3",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA061924",
+     "2",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA061925",
+     "2",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA061984",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R34DA062119",
+     "0",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH135106",
+     "3",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH135109",
+     "3",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH135114",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH135405",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH135407",
+     "19",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH138612",
+     "0",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH138705",
+     "1",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH138713",
+     "13",
+     "0",
+     "0",
+     "0"
+    ],
+    [
+     "R61MH138966",
+     "0",
+     "0",
+     "0",
+     "0"
+    ]
+   ],
+   "row_count": 33,
+   "status": "answered"
+  },
+  {
+   "id": "CQ29",
+   "area": "products",
+   "question": "How many publications came out of each investigator's projects, and which projects?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?name (COUNT(DISTINCT ?pub) AS ?publications) (GROUP_CONCAT(DISTINCT ?grant; separator=\", \") AS ?projects) WHERE {\n  ?pr a bbqs:ProjectRole ; bbqs:held_by ?person ; bbqs:on_project ?project .\n  ?person bbqs:name ?name . ?project bbqs:grant_number ?grant ; bbqs:produced ?pub .\n  ?pub a bbqs:Publication .\n} GROUP BY ?person ?name ORDER BY DESC(?publications)",
+   "terms": [
+    "ProjectRole",
+    "Publication",
+    "grant_number",
+    "held_by",
+    "name",
+    "on_project",
+    "produced"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "name",
+    "publications",
+    "projects"
+   ],
+   "rows": [
+    [
+     "Maryam Shanechi",
+     "19",
+     "R61MH135407"
+    ],
+    [
+     "Parastoo Azizeddin",
+     "19",
+     "R61MH135407"
+    ],
+    [
+     "Pulkit  Grover",
+     "13",
+     "R34DA059509"
+    ],
+    [
+     "Jennie Grammer",
+     "13",
+     "R61MH138713"
+    ],
+    [
+     "Alessandra DallaVecchia",
+     "13",
+     "R61MH138713"
+    ],
+    [
+     "Jonathan E. Rubin",
+     "13",
+     "R34DA059509"
+    ],
+    [
+     "Zheng  Kuang",
+     "13",
+     "R34DA059509"
+    ],
+    [
+     "Eric Yttri",
+     "13",
+     "R34DA059509"
+    ],
+    [
+     "Agatha Lenartowicz",
+     "13",
+     "R61MH138713"
+    ],
+    [
+     "Talia V Roman Lopez",
+     "13",
+     "R61MH138713"
+    ],
+    [
+     "Emre Ertin",
+     "13",
+     "R61MH138713"
+    ],
+    [
+     "Shreya  Saxena",
+     "7",
+     "U01DA063534, R34DA059718"
+    ],
+    [
+     "Daniel W Wesson",
+     "6",
+     "R34DA059718"
+    ],
+    [
+     "Nancy Padilla Coreano",
+     "6",
+     "R34DA059718"
+    ],
+    [
+     "David Schneider",
+     "6",
+     "R34DA059513"
+    ],
+    [
+     "Dan Sanes",
+     "6",
+     "R34DA059513"
+    ],
+    [
+     "Alex Williams",
+     "6",
+     "R34DA059513"
+    ],
+    [
+     "Katherine  Nagel",
+     "4",
+     "R34DA059500"
+    ],
+    [
+     "Gregory Darin Field",
+     "4",
+     "R34DA059512"
+    ],
+    [
+     "Joshua Wu",
+     "4",
+     "R34DA059512"
+    ],
+    [
+     "David  Schoppik",
+     "4",
+     "R34DA059500"
+    ],
+    [
+     "Michael Tadross",
+     "4",
+     "R34DA059512"
+    ],
+    [
+     "Timothy Dunn",
+     "4",
+     "R34DA059506, R34DA059512"
+    ],
+    [
+     "Nathan Christopher Shaner",
+     "4",
+     "R34DA059500"
+    ],
+    [
+     "Jane  Wang",
+     "4",
+     "R34DA059500"
+    ]
+   ],
+   "row_count": 83,
+   "status": "answered"
+  },
+  {
+   "id": "CQ30",
+   "area": "provenance",
+   "question": "Which produced datasets have no provenance recorded?",
+   "access": "full",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?ds ?name WHERE {\n  ?project bbqs:produced ?ds . ?ds a bbqs:Dataset ; bbqs:name ?name .\n  BIND(STRAFTER(STR(?ds), \"https://brain-bbqs.org/id/\") AS ?localId)\n  FILTER NOT EXISTS { ?prov a bbqs:ProvenanceRecord ; bbqs:prov_entity_id ?localId ; bbqs:prov_source_class ?sc }\n}",
+   "terms": [
+    "Dataset",
+    "ProvenanceRecord",
+    "name",
+    "produced",
+    "prov_entity_id",
+    "prov_source_class"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "ds",
+    "name"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "n/a"
+  },
+  {
+   "id": "CQ31",
+   "area": "products",
+   "question": "Which benchmarks is each ML model evaluated by, and which project produced it?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?model_name ?bench_name ?grant WHERE {\n  ?model a bbqs:MLModel ; bbqs:name ?model_name .\n  { ?model bbqs:evaluated_by ?bench } UNION { ?bench bbqs:evaluates ?model }\n  ?bench a bbqs:Benchmark ; bbqs:name ?bench_name .\n  OPTIONAL { ?project bbqs:produced ?model ; bbqs:grant_number ?grant }\n}",
+   "terms": [
+    "Benchmark",
+    "MLModel",
+    "evaluated_by",
+    "evaluates",
+    "grant_number",
+    "name",
+    "produced"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "model_name",
+    "bench_name",
+    "grant"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "empty"
+  },
+  {
+   "id": "CQ32",
+   "area": "organizations",
+   "question": "How many members does each organization have?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?org_name (COUNT(DISTINCT ?person) AS ?members) WHERE {\n  ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name .\n  OPTIONAL { ?org bbqs:members ?person }\n} GROUP BY ?org ?org_name ORDER BY DESC(?members)",
+   "terms": [
+    "ResearchOrganization",
+    "members",
+    "name"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "org_name",
+    "members"
+   ],
+   "rows": [
+    [
+     "YALE UNIVERSITY",
+     "17"
+    ],
+    [
+     "UNIVERSITY OF PENNSYLVANIA",
+     "14"
+    ],
+    [
+     "MASSACHUSETTS INSTITUTE OF TECHNOLOGY",
+     "10"
+    ],
+    [
+     "NEW YORK UNIVERSITY SCHOOL OF MEDICINE",
+     "8"
+    ],
+    [
+     "GEORGIA INSTITUTE OF TECHNOLOGY",
+     "7"
+    ],
+    [
+     "ICAHN SCHOOL OF MEDICINE AT MOUNT SINAI",
+     "7"
+    ],
+    [
+     "DUKE UNIVERSITY",
+     "7"
+    ],
+    [
+     "UNIVERSITY OF CALIFORNIA LOS ANGELES",
+     "5"
+    ],
+    [
+     "NEW YORK UNIVERSITY",
+     "5"
+    ],
+    [
+     "UNIVERSITY OF FLORIDA",
+     "4"
+    ],
+    [
+     "COLUMBIA UNIVERSITY HEALTH SCIENCES",
+     "4"
+    ],
+    [
+     "UNIVERSITY OF PITTSBURGH AT PITTSBURGH",
+     "4"
+    ],
+    [
+     "CARNEGIE-MELLON UNIVERSITY",
+     "4"
+    ],
+    [
+     "CALIFORNIA INSTITUTE OF TECHNOLOGY",
+     "4"
+    ],
+    [
+     "UNIVERSITY OF MICHIGAN AT ANN ARBOR",
+     "3"
+    ],
+    [
+     "MICHIGAN STATE UNIVERSITY",
+     "3"
+    ],
+    [
+     "STATE UNIVERSITY NEW YORK STONY BROOK",
+     "3"
+    ],
+    [
+     "National Institutes of Health",
+     "3"
+    ],
+    [
+     "PENNSYLVANIA STATE UNIVERSITY",
+     "2"
+    ],
+    [
+     "RICE UNIVERSITY",
+     "2"
+    ],
+    [
+     "HARVARD UNIVERSITY",
+     "2"
+    ],
+    [
+     "DARTMOUTH COLLEGE",
+     "2"
+    ],
+    [
+     "SEATTLE CHILDREN'S HOSPITAL",
+     "2"
+    ],
+    [
+     "CHILDREN'S HOSP OF PHILADELPHIA",
+     "2"
+    ],
+    [
+     "UNIVERSITY OF SOUTHERN CALIFORNIA",
+     "1"
+    ]
+   ],
+   "row_count": 57,
+   "status": "answered"
+  },
+  {
+   "id": "CQ33",
+   "area": "organizations",
+   "question": "Which organizations have no members recorded?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?org_name WHERE {\n  ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name .\n  FILTER NOT EXISTS { ?org bbqs:members ?p }\n} ORDER BY ?org_name",
+   "terms": [
+    "ResearchOrganization",
+    "members",
+    "name"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "org_name"
+   ],
+   "rows": [
+    [
+     "BBQS Consortium"
+    ],
+    [
+     "Empire AI Consortium"
+    ],
+    [
+     "Eunice Kennedy Shriver National Institute of Child Health and Human Development"
+    ],
+    [
+     "INTERNATIONAL BRAIN LABORATORY"
+    ],
+    [
+     "MCGILL UNIVERSITY"
+    ],
+    [
+     "NIH Office of Behavioral and Social Sciences Research"
+    ],
+    [
+     "NIH Office of Research on Women's Health"
+    ],
+    [
+     "NIH Office of the Director (Common Fund)"
+    ],
+    [
+     "National Center for Complementary and Integrative Health"
+    ],
+    [
+     "National Eye Institute"
+    ],
+    [
+     "National Institute of Biomedical Imaging and Bioengineering"
+    ],
+    [
+     "National Institute of Mental Health"
+    ],
+    [
+     "National Institute of Neurological Disorders and Stroke"
+    ],
+    [
+     "National Institute on Aging"
+    ],
+    [
+     "National Institute on Alcohol Abuse and Alcoholism"
+    ],
+    [
+     "National Institute on Deafness and Other Communication Disorders"
+    ],
+    [
+     "National Institute on Drug Abuse"
+    ],
+    [
+     "National Science Foundation"
+    ],
+    [
+     "Simons Foundation"
+    ],
+    [
+     "Society for Neuroscience"
+    ],
+    [
+     "State University of New York at Stony Brook"
+    ]
+   ],
+   "row_count": 21,
+   "status": "answered"
+  },
+  {
+   "id": "CQ34",
+   "area": "organizations",
+   "question": "Which organizations have investigators on more than one project?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?org_name (COUNT(DISTINCT ?project) AS ?projects) WHERE {\n  ?org a bbqs:ResearchOrganization ; bbqs:name ?org_name ; bbqs:members ?person .\n  ?pr bbqs:held_by ?person ; bbqs:on_project ?project .\n} GROUP BY ?org ?org_name HAVING (COUNT(DISTINCT ?project) > 1) ORDER BY DESC(?projects)",
+   "terms": [
+    "ResearchOrganization",
+    "held_by",
+    "members",
+    "name",
+    "on_project"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "org_name",
+    "projects"
+   ],
+   "rows": [
+    [
+     "UNIVERSITY OF CALIFORNIA LOS ANGELES",
+     "4"
+    ],
+    [
+     "DUKE UNIVERSITY",
+     "4"
+    ],
+    [
+     "UNIVERSITY OF PENNSYLVANIA",
+     "3"
+    ],
+    [
+     "YALE UNIVERSITY",
+     "3"
+    ],
+    [
+     "UNIVERSITY OF FLORIDA",
+     "2"
+    ],
+    [
+     "NEW YORK UNIVERSITY SCHOOL OF MEDICINE",
+     "2"
+    ],
+    [
+     "UNIVERSITY OF ALABAMA AT BIRMINGHAM",
+     "2"
+    ],
+    [
+     "GEORGIA INSTITUTE OF TECHNOLOGY",
+     "2"
+    ],
+    [
+     "HARVARD UNIVERSITY",
+     "2"
+    ],
+    [
+     "NEW YORK UNIVERSITY",
+     "2"
+    ]
+   ],
+   "row_count": 10,
+   "status": "answered"
+  },
+  {
+   "id": "CQ35",
+   "area": "announcements",
+   "question": "Which jobs does each institution advertise?",
+   "access": "full",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?institution (COUNT(?job) AS ?jobs) (GROUP_CONCAT(?title; separator=\"; \") AS ?titles) WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .\n} GROUP BY ?institution ORDER BY DESC(?jobs)",
+   "terms": [
+    "Job",
+    "job_institution",
+    "name"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "institution",
+    "jobs",
+    "titles"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "n/a"
+  },
+  {
+   "id": "CQ36",
+   "area": "announcements",
+   "question": "Which kinds of role are being advertised?",
+   "access": "full",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?job_type (COUNT(?job) AS ?postings) WHERE {\n  ?job a bbqs:Job ; bbqs:job_type ?job_type .\n} GROUP BY ?job_type ORDER BY DESC(?postings)",
+   "terms": [
+    "Job",
+    "job_type"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "job_type",
+    "postings"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "n/a"
+  },
+  {
+   "id": "CQ37",
+   "area": "announcements",
+   "question": "Who posted each job?",
+   "access": "full",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?title ?poster WHERE { ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?poster }",
+   "terms": [
+    "Job",
+    "name",
+    "posted_by"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "title",
+    "poster"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "n/a"
+  },
+  {
+   "id": "CQ38",
+   "area": "diagnostics",
+   "question": "Which projects have no outputs recorded?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?grant WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant .\n  FILTER NOT EXISTS { ?project bbqs:produced ?o }\n} ORDER BY ?grant",
+   "terms": [
+    "Project",
+    "grant_number",
+    "produced"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "grant"
+   ],
+   "rows": [
+    [
+     "R34DA059507"
+    ],
+    [
+     "R34DA059514"
+    ],
+    [
+     "R34DA059716"
+    ],
+    [
+     "R34DA062119"
+    ],
+    [
+     "R61MH138612"
+    ],
+    [
+     "R61MH138966"
+    ],
+    [
+     "R61MH138967"
+    ],
+    [
+     "R61MH142354"
+    ],
+    [
+     "U01DA063565"
+    ],
+    [
+     "U01DA063581"
+    ],
+    [
+     "U01MH143789"
+    ],
+    [
+     "U01MH144347"
+    ]
+   ],
+   "row_count": 12,
+   "status": "answered"
+  },
+  {
+   "id": "CQ39",
+   "area": "announcements",
+   "question": "Which funding opportunities expire between 2026-10-14 and 2027-04-14?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?title ?expires WHERE {\n  VALUES (?today ?horizon) { (\"2026-10-14\"^^xsd:date \"2027-04-14\"^^xsd:date) }\n  ?fo a bbqs:FundingOpportunity ; bbqs:name ?title ; bbqs:expiration_date ?expires .\n  FILTER (?expires >= ?today && ?expires <= ?horizon)\n} ORDER BY ?expires",
+   "terms": [
+    "FundingOpportunity",
+    "expiration_date",
+    "name"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "title",
+    "expires"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "empty"
+  },
+  {
+   "id": "CQ40",
+   "area": "provenance",
+   "question": "How many values come from a source graded below 3, by source and table?",
+   "access": "full",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?source ?grade ?type (COUNT(?prov) AS ?records) WHERE {\n  ?prov a bbqs:ProvenanceRecord ; bbqs:prov_source_class ?source .\n  ?source bbqs:grade ?grade .\n  OPTIONAL { ?prov bbqs:prov_entity_table ?type }\n  FILTER (?grade < 3)\n} GROUP BY ?source ?grade ?type ORDER BY ?grade",
+   "terms": [
+    "ProvenanceRecord",
+    "grade",
+    "prov_entity_table",
+    "prov_source_class"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "source",
+    "grade",
+    "type",
+    "records"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "n/a"
+  },
+  {
+   "id": "CQ41",
+   "area": "products",
+   "question": "Which datasets did each grant fund, and who are its PIs?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "rows",
+   "sparql": "SELECT ?grant ?ds_name ?pi WHERE {\n  ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:funded_datasets ?ds .\n  OPTIONAL { ?ds bbqs:name ?ds_name }\n  OPTIONAL {\n    ?pr bbqs:on_project ?project ; bbqs:project_role ?role ; bbqs:held_by ?person .\n    ?person bbqs:name ?pi . FILTER (CONTAINS(LCASE(STR(?role)), \"pi\"))\n  }\n} ORDER BY ?grant",
+   "terms": [
+    "Project",
+    "funded_datasets",
+    "grant_number",
+    "held_by",
+    "name",
+    "on_project",
+    "project_role"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "grant",
+    "ds_name",
+    "pi"
+   ],
+   "rows": [
+    [
+     "R24MH136632",
+     "EMBER Bees DeepLabCut Training — Workflow Smoke Test",
+     "Brock Wester"
+    ],
+    [
+     "R24MH136632",
+     "NDX Wearables",
+     "Brock Wester"
+    ],
+    [
+     "R24MH136632",
+     "Encoding Helper Demos",
+     "Brock Wester"
+    ],
+    [
+     "R34DA059723",
+     "Mouse food sniff",
+     "Gordon Shepherd"
+    ]
+   ],
+   "row_count": 4,
+   "status": "answered"
+  },
+  {
+   "id": "CQ42",
+   "area": "diagnostics",
+   "question": "Which working groups have no member with a role on any project?",
+   "access": "anon",
+   "set": "proposed",
+   "reads": "absence",
+   "sparql": "SELECT ?wg_name WHERE {\n  ?wg a bbqs:WorkingGroup ; bbqs:name ?wg_name .\n  FILTER NOT EXISTS {\n    ?person bbqs:member_of_group ?wg .\n    ?pr bbqs:held_by ?person ; bbqs:on_project ?p .\n  }\n}",
+   "terms": [
+    "WorkingGroup",
+    "held_by",
+    "member_of_group",
+    "name",
+    "on_project"
+   ],
+   "unmodeled": [],
+   "columns": [
+    "wg_name"
+   ],
+   "rows": [],
+   "row_count": 0,
+   "status": "none"
+  }
+ ],
+ "competency_proposed_summary": {
+  "answered": 13,
+  "empty": 3,
+  "none": 2,
+  "n/a": 5
  },
  "shapes": [
   {
@@ -4704,7 +6307,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
+     "source": "https://brain-bbqs.org/id/2538b9fd-01c4-453f-a20b-e7351cfa8c21"
+    },
+    {
+     "predicate": "device_category",
+     "source": "https://brain-bbqs.org/id/85dba242-244b-4a63-b463-b9e6bf4d29e1"
     },
     {
      "predicate": "device_category",
@@ -4712,19 +6319,15 @@
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
-    },
-    {
-     "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/2538b9fd-01c4-453f-a20b-e7351cfa8c21"
-    },
-    {
-     "predicate": "device_category",
      "source": "https://brain-bbqs.org/id/429c73a9-8440-4f1f-a2f7-a8a1b75958a7"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/85dba242-244b-4a63-b463-b9e6bf4d29e1"
+     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
+    },
+    {
+     "predicate": "device_category",
+     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
     }
    ],
    "dangling": [],
@@ -4926,11 +6529,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ab492763-6805-4afd-bf3f-28eec5276d6d"
+     "source": "https://brain-bbqs.org/id/ce24eb59-9276-4e28-9d93-342515a4e970"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ce24eb59-9276-4e28-9d93-342515a4e970"
+     "source": "https://brain-bbqs.org/id/ab492763-6805-4afd-bf3f-28eec5276d6d"
     }
    ],
    "dangling": [],
@@ -5348,11 +6951,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/f8ca9029-6e50-43a2-802d-e61784795036"
+     "source": "https://brain-bbqs.org/id/773ddab2-ad45-41ac-8003-b80935d30c32"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/773ddab2-ad45-41ac-8003-b80935d30c32"
+     "source": "https://brain-bbqs.org/id/f8ca9029-6e50-43a2-802d-e61784795036"
     }
    ],
    "dangling": [],
@@ -5517,11 +7120,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/66955dda-ed5c-4e05-bfbb-5f9f203af4dd"
+     "source": "https://brain-bbqs.org/id/ba876f06-02b2-4ca2-bbc0-2877890b6f6a"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ba876f06-02b2-4ca2-bbc0-2877890b6f6a"
+     "source": "https://brain-bbqs.org/id/66955dda-ed5c-4e05-bfbb-5f9f203af4dd"
     }
    ],
    "dangling": [],
@@ -6564,15 +8167,15 @@
    "in": [
     {
      "predicate": "manufacturer",
-     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
-    },
-    {
-     "predicate": "manufacturer",
      "source": "https://brain-bbqs.org/id/85dba242-244b-4a63-b463-b9e6bf4d29e1"
     },
     {
      "predicate": "manufacturer",
      "source": "https://brain-bbqs.org/id/4dc711e8-2a6e-458e-88cb-a5dcd9b8336e"
+    },
+    {
+     "predicate": "manufacturer",
+     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
     }
    ],
    "dangling": [],
@@ -7570,11 +9173,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/9f75488b-59d0-4d50-b7db-869f26066743"
+     "source": "https://brain-bbqs.org/id/7848212f-5c1c-4170-bdad-44cc3273d0f1"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7848212f-5c1c-4170-bdad-44cc3273d0f1"
+     "source": "https://brain-bbqs.org/id/9f75488b-59d0-4d50-b7db-869f26066743"
     }
    ],
    "dangling": [],
@@ -8871,11 +10474,11 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/c325fdf0-4dc3-43aa-a2de-5a3607476ac5"
+     "source": "https://brain-bbqs.org/id/role/95b0b77d-e396-4d0b-b80e-4b80592a2db6"
     },
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/95b0b77d-e396-4d0b-b80e-4b80592a2db6"
+     "source": "https://brain-bbqs.org/id/role/c325fdf0-4dc3-43aa-a2de-5a3607476ac5"
     },
     {
      "predicate": "members",
@@ -9432,11 +11035,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/8f896b71-c64d-4041-9f33-f3477caf8b74"
+     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
+     "source": "https://brain-bbqs.org/id/8f896b71-c64d-4041-9f33-f3477caf8b74"
     }
    ],
    "dangling": [],
@@ -9750,11 +11353,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/52fcb5e7-1274-4621-b368-17f269eaec86"
+     "source": "https://brain-bbqs.org/id/7de07dc9-72c0-4900-be0d-c375d927a6b4"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7de07dc9-72c0-4900-be0d-c375d927a6b4"
+     "source": "https://brain-bbqs.org/id/52fcb5e7-1274-4621-b368-17f269eaec86"
     }
    ],
    "dangling": [],
@@ -11395,11 +12998,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/1ec93ddb-bb26-4062-9a18-1214bc458102"
+     "source": "https://brain-bbqs.org/id/7924e7d9-5b53-4525-95ef-3f5a6b9112a5"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7924e7d9-5b53-4525-95ef-3f5a6b9112a5"
+     "source": "https://brain-bbqs.org/id/1ec93ddb-bb26-4062-9a18-1214bc458102"
     }
    ],
    "dangling": [],
@@ -12563,11 +14166,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
+     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
+     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
     }
    ],
    "dangling": [],
@@ -13591,19 +15194,19 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
-    },
-    {
-     "predicate": "held_by",
      "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
     },
     {
-     "predicate": "members",
-     "source": "https://brain-bbqs.org/id/e5044d9f-fe07-4a69-a9c3-7aecc245b941"
+     "predicate": "held_by",
+     "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
     },
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/622f970b-e529-441d-b5f3-739025a38aa9"
+    },
+    {
+     "predicate": "members",
+     "source": "https://brain-bbqs.org/id/e5044d9f-fe07-4a69-a9c3-7aecc245b941"
     }
    ],
    "dangling": [],
@@ -14344,11 +15947,11 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/a8f54c17-5723-4efe-99dd-6568342c734d"
+     "source": "https://brain-bbqs.org/id/role/df63e239-d918-4780-9eaa-ed34a5748f01"
     },
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/df63e239-d918-4780-9eaa-ed34a5748f01"
+     "source": "https://brain-bbqs.org/id/role/a8f54c17-5723-4efe-99dd-6568342c734d"
     },
     {
      "predicate": "members",
@@ -14404,11 +16007,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/f28a2f16-5259-4e2f-9c8e-a5d11d2b5c5f"
+     "source": "https://brain-bbqs.org/id/db72ef76-b8e2-4d0e-85da-c8d475d70628"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/db72ef76-b8e2-4d0e-85da-c8d475d70628"
+     "source": "https://brain-bbqs.org/id/f28a2f16-5259-4e2f-9c8e-a5d11d2b5c5f"
     }
    ],
    "dangling": [],
@@ -15466,35 +17069,11 @@
    "in": [
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/145ca46a-181b-4fb5-b546-3522f659e770"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/0dca4f7e-50c2-4cc8-ac51-1cbe7cd5deaa"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/3cc8ceb9-f7ea-4724-91ed-546efb08242b"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/642bc862-c174-48ba-8b1b-e7c1356e07ab"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/5c64f851-de9f-4496-84da-58ed338ffa65"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/7492a89a-dd5f-46af-871d-c6f9a0bd6eb7"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/3d7151df-4a2b-40cd-97ae-0f695e5d237e"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/68749a60-249f-4eb2-ad4a-7ae78c76a2f9"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/455424c4-b3b7-466e-b6f0-c959fbb74b77"
     },
     {
      "predicate": "on_project",
@@ -15502,7 +17081,31 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/145ca46a-181b-4fb5-b546-3522f659e770"
+     "source": "https://brain-bbqs.org/id/role/68749a60-249f-4eb2-ad4a-7ae78c76a2f9"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/5c64f851-de9f-4496-84da-58ed338ffa65"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/642bc862-c174-48ba-8b1b-e7c1356e07ab"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/3d7151df-4a2b-40cd-97ae-0f695e5d237e"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/455424c4-b3b7-466e-b6f0-c959fbb74b77"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/7492a89a-dd5f-46af-871d-c6f9a0bd6eb7"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/3cc8ceb9-f7ea-4724-91ed-546efb08242b"
     },
     {
      "predicate": "on_project",
@@ -15598,7 +17201,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/0a29a35d-e673-42f7-a590-23f0fe7055f7"
+     "source": "https://brain-bbqs.org/id/role/bf82a7b1-f5dc-4ec7-8117-927452fa5027"
     },
     {
      "predicate": "on_project",
@@ -15610,7 +17213,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/bf82a7b1-f5dc-4ec7-8117-927452fa5027"
+     "source": "https://brain-bbqs.org/id/role/0a29a35d-e673-42f7-a590-23f0fe7055f7"
     }
    ],
    "dangling": [],
@@ -15690,15 +17293,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/82abd87d-c378-4049-8c84-4eede3066410"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/c65b0c08-04d4-42fb-9ca4-dcc64f2f78f8"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/a8f54c17-5723-4efe-99dd-6568342c734d"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/82abd87d-c378-4049-8c84-4eede3066410"
     }
    ],
    "dangling": [],
@@ -15770,15 +17373,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/8f554f84-7a48-4b4a-8032-cbab841613fd"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/b6d6fbfc-f005-41e9-8e22-6651720030f6"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/db582fe3-ef66-4a67-aca9-9daec764cd4c"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/8f554f84-7a48-4b4a-8032-cbab841613fd"
     },
     {
      "predicate": "on_project",
@@ -15905,11 +17508,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b6d62f54-1ff5-4355-8623-69dbe88aa41e"
+     "source": "https://brain-bbqs.org/id/role/2cf61a9f-a799-4586-94fc-a71bc80104d6"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2cf61a9f-a799-4586-94fc-a71bc80104d6"
+     "source": "https://brain-bbqs.org/id/role/ad57ca2b-08ac-42a0-991e-61feaf2c5e39"
     },
     {
      "predicate": "on_project",
@@ -15917,7 +17520,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/ad57ca2b-08ac-42a0-991e-61feaf2c5e39"
+     "source": "https://brain-bbqs.org/id/role/b6d62f54-1ff5-4355-8623-69dbe88aa41e"
     }
    ],
    "dangling": [],
@@ -16088,15 +17691,15 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/4a0c2ae2-92fd-447a-a95e-419db4773d8f"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/a31e280c-89d7-4d68-b3a3-4ecc10429cee"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/df63e239-d918-4780-9eaa-ed34a5748f01"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/4a0c2ae2-92fd-447a-a95e-419db4773d8f"
     }
    ],
    "dangling": [],
@@ -16342,15 +17945,15 @@
    "in": [
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/3027bce5-12b7-4205-9873-9cc8efbed2c0"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/70324d1e-344b-402d-bac2-afd900606e16"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/43ee45a2-22ea-4e73-9885-1efe24dc4caf"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/3027bce5-12b7-4205-9873-9cc8efbed2c0"
     }
    ],
    "dangling": [],
@@ -16445,15 +18048,15 @@
    "in": [
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/2248b93b-ea65-48b3-a940-f45b80c06346"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/3300103b-a7d5-4bdd-8f50-24fb3e24767a"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2248b93b-ea65-48b3-a940-f45b80c06346"
     }
    ],
    "dangling": [],
@@ -16629,7 +18232,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/cfcdf43e-bc65-4c3b-8046-9429be511ed1"
+     "source": "https://brain-bbqs.org/id/role/c35db851-d42d-43ad-b30c-64fb5b933dcf"
     },
     {
      "predicate": "on_project",
@@ -16637,11 +18240,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c35db851-d42d-43ad-b30c-64fb5b933dcf"
+     "source": "https://brain-bbqs.org/id/role/cc0de44a-82ef-4fcf-811e-9695a46b47df"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/cc0de44a-82ef-4fcf-811e-9695a46b47df"
+     "source": "https://brain-bbqs.org/id/role/cfcdf43e-bc65-4c3b-8046-9429be511ed1"
     },
     {
      "predicate": "on_project",
@@ -16725,19 +18328,19 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d7f6d7e4-401f-43ea-a3e2-ac34d7e73f1f"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/86821e6a-b746-49fd-b4b6-5ea4dd02e5d7"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/9478d651-eb81-4c6f-8b55-4cabb137e46d"
+     "source": "https://brain-bbqs.org/id/role/d7f6d7e4-401f-43ea-a3e2-ac34d7e73f1f"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/73cef7ce-8dbb-48ba-8ee3-bcc0cca5fce8"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/9478d651-eb81-4c6f-8b55-4cabb137e46d"
     }
    ],
    "dangling": [],
@@ -16882,11 +18485,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d2505ade-278d-4203-8ebf-bbc8ebfc48c9"
+     "source": "https://brain-bbqs.org/id/role/535c5cae-fbd2-4199-a1c2-02af47928538"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/535c5cae-fbd2-4199-a1c2-02af47928538"
+     "source": "https://brain-bbqs.org/id/role/d2505ade-278d-4203-8ebf-bbc8ebfc48c9"
     },
     {
      "predicate": "on_project",
@@ -17058,11 +18661,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c7360c73-0ef1-4e34-88ac-585b15257b2d"
+     "source": "https://brain-bbqs.org/id/role/d64865d3-893f-4968-bcba-e3b33a6a4f1b"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d64865d3-893f-4968-bcba-e3b33a6a4f1b"
+     "source": "https://brain-bbqs.org/id/role/c7360c73-0ef1-4e34-88ac-585b15257b2d"
     }
    ],
    "dangling": [],
@@ -17142,11 +18745,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/295a454b-56ba-4d13-b630-75e3a333f965"
+     "source": "https://brain-bbqs.org/id/role/60988e88-27ec-4264-9203-98d80d2f3489"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/60988e88-27ec-4264-9203-98d80d2f3489"
+     "source": "https://brain-bbqs.org/id/role/295a454b-56ba-4d13-b630-75e3a333f965"
     },
     {
      "predicate": "on_project",
@@ -17230,15 +18833,15 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/8c42852d-0c57-4a3e-b874-3ba8874287a7"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/a617a421-6fe5-4f66-9c63-ce24bbea02eb"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/d1c407f2-001d-44da-ada2-0c59c6f8503a"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/8c42852d-0c57-4a3e-b874-3ba8874287a7"
     }
    ],
    "dangling": [],
@@ -17462,11 +19065,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/fbe6026f-8aad-439e-8fe2-da3cce084d1c"
+     "source": "https://brain-bbqs.org/id/role/b0b35286-4168-48d3-93d4-75ef191c6174"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b0b35286-4168-48d3-93d4-75ef191c6174"
+     "source": "https://brain-bbqs.org/id/role/fbe6026f-8aad-439e-8fe2-da3cce084d1c"
     },
     {
      "predicate": "on_project",
@@ -17545,11 +19148,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/66819421-258e-42c3-b30a-5ed7345463e3"
+     "source": "https://brain-bbqs.org/id/role/173d4dd7-5a55-48f7-b5ee-e08bfe25ac71"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/173d4dd7-5a55-48f7-b5ee-e08bfe25ac71"
+     "source": "https://brain-bbqs.org/id/role/66819421-258e-42c3-b30a-5ed7345463e3"
     }
    ],
    "dangling": [],
@@ -17673,14 +19276,6 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/63cd8c2a-0860-4130-857c-c33765b115d5"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/4ee3ec6b-290f-4731-b8af-788bc47217e8"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/bd6b0699-938f-4117-94d2-97177837e94c"
     },
     {
@@ -17689,7 +19284,15 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/63cd8c2a-0860-4130-857c-c33765b115d5"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/caef691a-ad28-4fbe-b098-6536757b49d6"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/4ee3ec6b-290f-4731-b8af-788bc47217e8"
     }
    ],
    "dangling": [],
@@ -17826,15 +19429,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/6344ea60-1fad-4b96-ac49-43e00f2acf04"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/29154919-0da2-4db6-a005-c5cf8451746d"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/776f6ad8-5dbf-4a6b-a49e-4bdff826a969"
+     "source": "https://brain-bbqs.org/id/role/9217ceed-1e78-4c40-b15b-66077b5569db"
     },
     {
      "predicate": "on_project",
@@ -17842,7 +19437,15 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/9217ceed-1e78-4c40-b15b-66077b5569db"
+     "source": "https://brain-bbqs.org/id/role/29154919-0da2-4db6-a005-c5cf8451746d"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/6344ea60-1fad-4b96-ac49-43e00f2acf04"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/776f6ad8-5dbf-4a6b-a49e-4bdff826a969"
     }
    ],
    "dangling": [],
@@ -17901,15 +19504,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/bc9cb644-1dc5-4caf-ae76-da464cb8e2dc"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/182058c5-770d-4ac3-984a-ea1f4d8d48f1"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/a2f1ea9f-aab3-4407-b7d3-4570537c2678"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/bc9cb644-1dc5-4caf-ae76-da464cb8e2dc"
     },
     {
      "predicate": "on_project",
@@ -17989,15 +19592,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b87d800c-a0aa-4ea4-aa2e-4fba4fbf8480"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/baae3ddb-11fc-48ce-a5f1-23a481b233da"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/82015065-d290-4efc-982b-75d67daa4d00"
+     "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
     },
     {
      "predicate": "on_project",
@@ -18005,7 +19600,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
+     "source": "https://brain-bbqs.org/id/role/b87d800c-a0aa-4ea4-aa2e-4fba4fbf8480"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/baae3ddb-11fc-48ce-a5f1-23a481b233da"
     },
     {
      "predicate": "on_project",
@@ -18018,6 +19617,10 @@
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/4d3e76c2-2bbb-43b6-9950-982b6ac296cd"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/82015065-d290-4efc-982b-75d67daa4d00"
     }
    ],
    "dangling": [],
@@ -18176,7 +19779,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
+     "source": "https://brain-bbqs.org/id/role/63311822-3561-4d3f-929d-42da23209e90"
     },
     {
      "predicate": "on_project",
@@ -18184,7 +19787,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/63311822-3561-4d3f-929d-42da23209e90"
+     "source": "https://brain-bbqs.org/id/role/c325fdf0-4dc3-43aa-a2de-5a3607476ac5"
     },
     {
      "predicate": "on_project",
@@ -18192,7 +19795,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c325fdf0-4dc3-43aa-a2de-5a3607476ac5"
+     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
     }
    ],
    "dangling": [],
@@ -18314,19 +19917,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/da20601e-5e20-41cc-a57b-63e66c143df4"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/86c8c08c-3aa2-4ef9-a9a0-a7158781799b"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/53e6a0e7-68a8-457d-8fa8-0763d062dcda"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/f9acc694-4a05-45f7-b0be-24c6dd4a7637"
+     "source": "https://brain-bbqs.org/id/role/9200c2fb-5bea-4d89-9115-1064c1387222"
     },
     {
      "predicate": "on_project",
@@ -18338,7 +19933,15 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/9200c2fb-5bea-4d89-9115-1064c1387222"
+     "source": "https://brain-bbqs.org/id/role/da20601e-5e20-41cc-a57b-63e66c143df4"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/86c8c08c-3aa2-4ef9-a9a0-a7158781799b"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/f9acc694-4a05-45f7-b0be-24c6dd4a7637"
     }
    ],
    "dangling": [],
@@ -18418,27 +20021,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/540b143e-459b-41df-98bd-9ec0b18d9bd6"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d530f31d-a94a-4d0d-8e40-3c41610d768a"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/800262fc-b2dd-4041-ab94-e9cf166d50b3"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/39fa5a3f-6869-4e43-a085-b6d94ee497fa"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/57b86bca-ace5-49e8-8145-7c49011d8cd6"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c6847ede-7f3e-4557-9af6-0740d2a0babc"
+     "source": "https://brain-bbqs.org/id/role/eed7f06b-7ec2-42e5-8307-da70b41c7482"
     },
     {
      "predicate": "on_project",
@@ -18446,7 +20029,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/eed7f06b-7ec2-42e5-8307-da70b41c7482"
+     "source": "https://brain-bbqs.org/id/role/c70a461e-5956-4c4f-aaba-40f11cc7b350"
     },
     {
      "predicate": "on_project",
@@ -18454,11 +20037,31 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/57b86bca-ace5-49e8-8145-7c49011d8cd6"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/3df7974f-d227-4954-a984-3d403436fa70"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c70a461e-5956-4c4f-aaba-40f11cc7b350"
+     "source": "https://brain-bbqs.org/id/role/c6847ede-7f3e-4557-9af6-0740d2a0babc"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/540b143e-459b-41df-98bd-9ec0b18d9bd6"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/800262fc-b2dd-4041-ab94-e9cf166d50b3"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/d530f31d-a94a-4d0d-8e40-3c41610d768a"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/39fa5a3f-6869-4e43-a085-b6d94ee497fa"
     }
    ],
    "dangling": [],
@@ -27385,15 +28988,15 @@
     },
     {
      "predicate": "part_of_org",
+     "source": "https://brain-bbqs.org/id/7766280c-d6f3-4c55-8e7e-f9207dbc1d1f"
+    },
+    {
+     "predicate": "part_of_org",
      "source": "https://brain-bbqs.org/id/1cf7c61c-a403-4eb5-8a84-07a1e2da8fb4"
     },
     {
      "predicate": "part_of_org",
      "source": "https://brain-bbqs.org/id/7395b261-f13c-4d69-b455-6b58f52b0d5a"
-    },
-    {
-     "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/7766280c-d6f3-4c55-8e7e-f9207dbc1d1f"
     },
     {
      "predicate": "part_of_org",
@@ -29267,7 +30870,11 @@
    "in": [
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
+     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
     },
     {
      "predicate": "studies_species",
@@ -29275,7 +30882,7 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
+     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
     },
     {
      "predicate": "studies_species",
@@ -29287,11 +30894,7 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
+     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
     }
    ],
    "dangling": [],
@@ -29326,35 +30929,7 @@
    "in": [
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
-    },
-    {
-     "predicate": "studies_species",
      "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/8095d361-d12f-4015-86e7-67fced46f2e9"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
     },
     {
      "predicate": "studies_species",
@@ -29362,11 +30937,15 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/8095d361-d12f-4015-86e7-67fced46f2e9"
     },
     {
      "predicate": "studies_species",
@@ -29374,7 +30953,31 @@
     },
     {
      "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
+    },
+    {
+     "predicate": "studies_species",
      "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
     }
    ],
    "dangling": [],
@@ -29407,11 +31010,11 @@
    "in": [
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+     "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
+     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
     }
    ],
    "dangling": [],
@@ -29520,139 +31123,7 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ea29a939-e638-4a3c-8d28-1edda890490a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8c977c24-da2f-4866-b860-b71aa2540bd4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d0f582a1-20fd-43ca-a9f1-21bf0ee548c1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bab963f7-54f8-4b01-a914-de675535b004"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/24981995-2cd1-407a-9d2c-0f89f026edeb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1962a240-a592-484c-b812-122a5dad2951"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/00618660-a724-4059-85c1-c6ca3ccc1744"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ddf3df70-64df-4112-822c-1ebf2bb895e0"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ee077b61-eb2c-4cd9-b587-a46418c45265"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/88203e28-70c5-4730-af2d-93d7f09b4250"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3161638e-fa1b-4af1-a998-a34139b2a0b1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/af80d437-679c-42d0-aeed-fc7129b8a7b7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1f6fa922-b662-4325-aac7-cb622ac10ef3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/60b6dd1c-dbb1-46e3-9a33-abc7aca65a8a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+     "source": "https://brain-bbqs.org/id/5835b3d1-bdaf-4f30-a9e7-cf70d1861b61"
     },
     {
      "predicate": "member_of_group",
@@ -29660,135 +31131,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/41e042c3-81ad-486b-b933-bf77fcefd4f5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4b90a4f4-0010-4b31-8adb-db169e15a70a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f2372c9c-91ac-449f-8ae8-182327e93a85"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a7318228-623e-4f94-a7e6-5e3fed968e1a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/32937527-a5e9-4a99-84c0-719435f25f8b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a82b872c-fb47-43ba-9d01-258026913f06"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f4d7cfd7-30aa-4f19-8601-f85f9689884a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0da76ce9-654a-4940-a9c6-d0785167ebad"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/eaa38acf-84a1-44ce-a1c6-eda307583731"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2634f607-be46-4d8d-baae-6ec0d66a5436"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/732f511e-4b61-412b-b54d-9c8dbd93c273"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5835b3d1-bdaf-4f30-a9e7-cf70d1861b61"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c6056429-1e03-4506-8484-5be9acff8170"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/196ba606-dec6-4863-876e-907559234c80"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4cd9c282-4677-471a-81c0-aa97d94a687e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0b1dab3b-4478-4149-a41a-72cf69d47788"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0ded1b71-e572-475b-8457-bf370ed6335f"
+     "source": "https://brain-bbqs.org/id/93a3260d-e267-451b-9960-06cc9ae3a40c"
     },
     {
      "predicate": "member_of_group",
@@ -29796,31 +31139,23 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
+     "source": "https://brain-bbqs.org/id/1f6fa922-b662-4325-aac7-cb622ac10ef3"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
+     "source": "https://brain-bbqs.org/id/c6056429-1e03-4506-8484-5be9acff8170"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6119344c-d2da-45d1-8d69-ea22d8859dd3"
+     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/538a6b26-2685-4ea8-9f0d-91ae90693108"
+     "source": "https://brain-bbqs.org/id/32937527-a5e9-4a99-84c0-719435f25f8b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4f18ae48-4099-486d-8e89-1a8a736e59e4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
     },
     {
      "predicate": "member_of_group",
@@ -29828,143 +31163,19 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/189027bf-98cc-4173-8571-06759988ff2b"
+     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c140b518-3ea9-4cad-a8b2-c7b30385589b"
+     "source": "https://brain-bbqs.org/id/8c977c24-da2f-4866-b860-b71aa2540bd4"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bf6867b2-09d3-4cc3-89ba-b931b646cd42"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/67f260ea-2946-4086-9111-c926fb4e6df7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0f8bad99-d648-46e7-97cc-a669746511ee"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/afe5dc6f-8e97-48c9-bb79-5af130f1e62a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/93a3260d-e267-451b-9960-06cc9ae3a40c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6996650-b858-4ddb-b422-4fd92fdfaac4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d69b71df-b5e8-490c-8df0-5a7883fac0d5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9095f7a2-0d1a-4ac7-9cdd-12f28dbe42ea"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e058af74-abc7-453f-8aa6-93cd056c50e3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7a5a1c11-f5f8-4643-b444-71228b1f298a"
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
     },
     {
      "predicate": "member_of_group",
@@ -29972,7 +31183,399 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/af80d437-679c-42d0-aeed-fc7129b8a7b7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2634f607-be46-4d8d-baae-6ec0d66a5436"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0f8bad99-d648-46e7-97cc-a669746511ee"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/196ba606-dec6-4863-876e-907559234c80"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/88203e28-70c5-4730-af2d-93d7f09b4250"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f4d7cfd7-30aa-4f19-8601-f85f9689884a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4b90a4f4-0010-4b31-8adb-db169e15a70a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d0f582a1-20fd-43ca-a9f1-21bf0ee548c1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7a5a1c11-f5f8-4643-b444-71228b1f298a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/732f511e-4b61-412b-b54d-9c8dbd93c273"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6119344c-d2da-45d1-8d69-ea22d8859dd3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ea29a939-e638-4a3c-8d28-1edda890490a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bab963f7-54f8-4b01-a914-de675535b004"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4f18ae48-4099-486d-8e89-1a8a736e59e4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c140b518-3ea9-4cad-a8b2-c7b30385589b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/67f260ea-2946-4086-9111-c926fb4e6df7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/eaa38acf-84a1-44ce-a1c6-eda307583731"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ddf3df70-64df-4112-822c-1ebf2bb895e0"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f2372c9c-91ac-449f-8ae8-182327e93a85"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e058af74-abc7-453f-8aa6-93cd056c50e3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/00618660-a724-4059-85c1-c6ca3ccc1744"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0b1dab3b-4478-4149-a41a-72cf69d47788"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ee077b61-eb2c-4cd9-b587-a46418c45265"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a7318228-623e-4f94-a7e6-5e3fed968e1a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9095f7a2-0d1a-4ac7-9cdd-12f28dbe42ea"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/41e042c3-81ad-486b-b933-bf77fcefd4f5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/24981995-2cd1-407a-9d2c-0f89f026edeb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a82b872c-fb47-43ba-9d01-258026913f06"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6996650-b858-4ddb-b422-4fd92fdfaac4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1962a240-a592-484c-b812-122a5dad2951"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bf6867b2-09d3-4cc3-89ba-b931b646cd42"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0da76ce9-654a-4940-a9c6-d0785167ebad"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4cd9c282-4677-471a-81c0-aa97d94a687e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/189027bf-98cc-4173-8571-06759988ff2b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3161638e-fa1b-4af1-a998-a34139b2a0b1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/afe5dc6f-8e97-48c9-bb79-5af130f1e62a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/538a6b26-2685-4ea8-9f0d-91ae90693108"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0ded1b71-e572-475b-8457-bf370ed6335f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/60b6dd1c-dbb1-46e3-9a33-abc7aca65a8a"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/fa291a57-48b1-4ad1-87da-4a04a01787e8"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d69b71df-b5e8-490c-8df0-5a7883fac0d5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
     }
    ],
    "dangling": [],
@@ -29993,83 +31596,15 @@
    "in": [
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/9045540f-6ba2-4b95-bc69-98527f947a27"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b1b421fc-5477-4c2f-8968-ab757344ab2d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9fd2cbaa-449d-4c9d-bcbb-b627f245cbf3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
     },
     {
      "predicate": "member_of_group",
@@ -30077,19 +31612,99 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
+     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/03f8e307-5f04-4d22-9aef-c1bb9d3e6905"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/02f970e3-bc54-4d97-b033-fe732d43fbb3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f4d7cfd7-30aa-4f19-8601-f85f9689884a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
     },
     {
      "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
     },
     {
      "predicate": "member_of_group",
@@ -30101,19 +31716,23 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a3de5020-ea6c-41c1-b397-3e0f6d43e98a"
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b7b55255-04e1-45e6-934e-af38990ff414"
     },
     {
      "predicate": "member_of_group",
@@ -30121,43 +31740,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
+     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2c565ea-4b4a-4586-9543-e61df6570936"
+     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
     },
     {
      "predicate": "member_of_group",
@@ -30165,15 +31752,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f4d7cfd7-30aa-4f19-8601-f85f9689884a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
     },
     {
      "predicate": "member_of_group",
@@ -30185,15 +31764,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b7b55255-04e1-45e6-934e-af38990ff414"
+     "source": "https://brain-bbqs.org/id/b1b421fc-5477-4c2f-8968-ab757344ab2d"
     },
     {
      "predicate": "member_of_group",
@@ -30201,35 +31776,43 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b2c565ea-4b4a-4586-9543-e61df6570936"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9fd2cbaa-449d-4c9d-bcbb-b627f245cbf3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a3de5020-ea6c-41c1-b397-3e0f6d43e98a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/03f8e307-5f04-4d22-9aef-c1bb9d3e6905"
+     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
     },
     {
      "predicate": "member_of_group",
@@ -30237,11 +31820,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/02f970e3-bc54-4d97-b033-fe732d43fbb3"
+     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
     },
     {
      "predicate": "member_of_group",
@@ -30249,11 +31832,31 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
     }
    ],
    "dangling": [],
@@ -30274,43 +31877,7 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d25f9d24-5496-41a5-9a39-b686719d9eb7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/178d1833-2f0c-4a20-9f06-c3106f12b21c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d3b32f3b-0a12-4eec-b49e-b9274f934b5a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6a1a2d08-5aec-4450-a9db-8dad62b8f4c4"
+     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
     },
     {
      "predicate": "member_of_group",
@@ -30318,15 +31885,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
+     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
     },
     {
      "predicate": "member_of_group",
@@ -30338,87 +31901,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b359432d-39e2-4ab8-bb3b-16afe458820c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2febecec-70dd-4db0-8bed-2060a1d13b5e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
     },
     {
      "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5fd6169e-d169-41be-8cd0-e8a691f0b345"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b49aee4-301e-46c9-b22d-209481f68437"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6340c8ee-1d5b-45f0-87ff-c320a38df17d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/353d2c1b-0f19-47a0-98be-6a721845c0c2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/20d3bb9f-8cbe-45b8-974e-1c84e0d9631f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/aa8884d6-2eae-451a-828a-92e4595c273e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
     },
     {
      "predicate": "member_of_group",
@@ -30430,27 +31917,31 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6d4c722-8089-4163-901c-3a77f6a2a90b"
+     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
+     "source": "https://brain-bbqs.org/id/d25f9d24-5496-41a5-9a39-b686719d9eb7"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d2f77d44-3a20-4759-be29-69403ae039ef"
+     "source": "https://brain-bbqs.org/id/178d1833-2f0c-4a20-9f06-c3106f12b21c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a5644db3-8ade-4026-9139-c1945c0869d6"
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5fd6169e-d169-41be-8cd0-e8a691f0b345"
     },
     {
      "predicate": "member_of_group",
@@ -30458,15 +31949,127 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+     "source": "https://brain-bbqs.org/id/d2f77d44-3a20-4759-be29-69403ae039ef"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
+     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/aa8884d6-2eae-451a-828a-92e4595c273e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2febecec-70dd-4db0-8bed-2060a1d13b5e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a5644db3-8ade-4026-9139-c1945c0869d6"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d3b32f3b-0a12-4eec-b49e-b9274f934b5a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b359432d-39e2-4ab8-bb3b-16afe458820c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/20d3bb9f-8cbe-45b8-974e-1c84e0d9631f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6d4c722-8089-4163-901c-3a77f6a2a90b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
     },
     {
      "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/353d2c1b-0f19-47a0-98be-6a721845c0c2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b49aee4-301e-46c9-b22d-209481f68437"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6340c8ee-1d5b-45f0-87ff-c320a38df17d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6a1a2d08-5aec-4450-a9db-8dad62b8f4c4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
     }
    ],
    "dangling": [],
@@ -30487,19 +32090,39 @@
    "in": [
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0f3bb33c-e7ee-4013-af5d-894d1adfa0ee"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
     },
     {
      "predicate": "member_of_group",
@@ -30507,27 +32130,23 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
-    },
-    {
-     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/d2f77d44-3a20-4759-be29-69403ae039ef"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
     },
     {
      "predicate": "member_of_group",
@@ -30539,63 +32158,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b0b69ef8-90b3-481a-b095-a01f1ddf4663"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c9fb9f5b-29a9-4138-9434-894ab7b7a909"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5ed180e1-004a-49d3-a05f-e8a4da27718f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/43d7d5a8-8912-4a93-b571-f3c97f41bd9d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
     },
     {
      "predicate": "member_of_group",
@@ -30603,27 +32166,15 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0f3bb33c-e7ee-4013-af5d-894d1adfa0ee"
+     "source": "https://brain-bbqs.org/id/5ed180e1-004a-49d3-a05f-e8a4da27718f"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
+     "source": "https://brain-bbqs.org/id/c9fb9f5b-29a9-4138-9434-894ab7b7a909"
     },
     {
      "predicate": "member_of_group",
@@ -30631,15 +32182,67 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/43d7d5a8-8912-4a93-b571-f3c97f41bd9d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b0b69ef8-90b3-481a-b095-a01f1ddf4663"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
     }
    ],
    "dangling": [],
