@@ -153,12 +153,36 @@
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
   .panel { display: grid; gap: 8px; min-width: 0; }
 
+  /* Publications and Meetings */
+  .intro { margin: 0; max-width: 78ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .textbox { background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; max-height: 60vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.6; max-width: 80ch; }
+  details.q > summary .right { flex-wrap: wrap; justify-content: flex-end; }
+  .meet { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .facets select.search { padding: 6px 8px; }
+  .mtg { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: grid; gap: 8px; min-width: 0; }
+  .mtg header { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .mtg .date { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pt { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 2px 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .pt .kind { display: inline-flex; gap: 6px; align-items: center; align-self: start; font: 600 11px/1.9 var(--f-body); letter-spacing: .06em; text-transform: uppercase; }
+  mark.q { background: var(--accent-soft); color: inherit; padding: 0 2px; border-radius: 2px; }
+  .who { display: inline-flex; gap: 6px; align-items: baseline; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; cursor: pointer; }
+  .who:hover { border-color: var(--muted); }
+  .who .how { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  .who[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .who.unres { border-style: dashed; color: var(--warn); cursor: help; }
+  .linkbtn.quiet { color: var(--muted); font-size: 12px; }
+  .linkbtn.quiet:hover, .linkbtn.quiet:focus-visible { color: var(--accent); }
+
   @media (max-width: 1100px) {
     .ent { grid-template-columns: 200px minmax(0, 1fr); }
+    .meet { grid-template-columns: 200px minmax(0, 1fr); }
     .detail { grid-column: 1 / -1; position: static; max-height: none; }
   }
   @media (max-width: 720px) {
     .ent { grid-template-columns: minmax(0, 1fr); }
+    .meet { grid-template-columns: minmax(0, 1fr); }
+    .pt { grid-template-columns: minmax(0, 1fr); }
     .facets { position: static; }
     details.q > summary { grid-template-columns: 44px minmax(0, 1fr); }
     details.q > summary .right { grid-column: 2; }
@@ -171,6 +195,7 @@
     <div style="display:grid;gap:4px">
       <h1>BBQS Graph Inspector</h1>
       <p>Every node in the exported BBQS knowledge graph, with the structural, competency and consistency checks that <span class="mono">kg/quality.py</span> ran on it.</p>
+      <p class="note" id="internal-note" style="margin:0" hidden></p>
     </div>
     <div class="src" id="src"></div>
   </header>
@@ -184,6 +209,11 @@
 
 <script>
 const REPORT = /*__REPORT__*/null;
+// The artifact build's internal records (kg/quality.py --internal): the working-group meeting notes.
+// null on the public site and in the repo's copy.
+const INTERNAL = /*__INTERNAL__*/null;
+const PUBS = REPORT && REPORT.publications && Array.isArray(REPORT.publications.rows) ? REPORT.publications : null;
+const MT = INTERNAL && INTERNAL.kind === "bbqs-meetings" && Array.isArray(INTERNAL.items) ? INTERNAL : null;
 
 const AREA = {
   Investigator: "people", ProjectRole: "people", WorkingGroup: "people",
@@ -262,6 +292,9 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
     [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
     [fmt(REPORT.violation_count), "consistency violations", REPORT.violation_count ? "bad" : "ok"],
     ...(REPORT.warning_count ? [[fmt(REPORT.warning_count), "warnings", "warn"]] : []),
+    ...(PUBS ? [[`${PUBS.rows.filter(r => r.projects.length).length}/${PUBS.count}`, "publications tied to a project",
+                 PUBS.rows.every(r => r.projects.length) ? "ok" : "warn"]] : []),
+    ...(MT ? [[fmt(MT.items.length), `meeting points · ${fmt(MT.meetings.length)} meetings`, ""]] : []),
   ];
   $("#tiles").innerHTML = t.map(([b, s, c]) => `<div class="tile ${c}"><b>${b}</b><span>${esc(s)}</span></div>`).join("");
 })();
@@ -269,6 +302,8 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
 // ---- tabs --------------------------------------------------------------------------------------
 const TABS = [
   ["entities", "Entities", ENT.length],
+  ...(PUBS ? [["publications", "Publications", PUBS.count]] : []),
+  ...(MT ? [["meetings", "Meetings", MT.meetings.length]] : []),
   ["questions", "Questions", REPORT.competency.length],
   ["shapes", "Shapes", REPORT.shapes.length],
   ["structure", "Structure", CLASSES.length],
@@ -279,7 +314,7 @@ const TABS = [
 // Opened any other way (the public site, a local file) the page stays read-only.
 const KINDS = { wrong: "Wrong", missing: "Missing", duplicate: "Duplicate", suspicious: "Suspicious" };
 const RV = { db: null, uid: null, canWrite: null, readOnly: false, flags: new Map(), draft: null, status: "",
-             qflags: new Map(), qdraft: new Map(), qstatus: new Map() };
+             qflags: new Map(), qdraft: new Map(), qstatus: new Map(), mflags: new Map(), mdraft: null, mstatus: "" };
 const QKINDS = { wrong: "Answer is wrong", missing: "Answer is incomplete", question: "Question needs changing", idea: "Idea or follow-up" };
 const qOpen = new Set();
 const flagKey = iri => iri.replace("https://brain-bbqs.org/id/", "").replace(/\//g, "~");
@@ -348,6 +383,10 @@ async function initFlags() {
     RV.qflags = new Map(snap.docs.map(d => [d.data().cq, d.data()]));
     render();
   }, err => { RV.status = `Feedback stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
+  if (MT) db.collection("meeting_flags").onSnapshot(snap => {
+    RV.mflags = new Map(snap.docs.map(d => [d.data().item, d.data()]));
+    render();
+  }, err => { RV.status = `Meeting flags stopped updating (${err.code}). Reload the page to reconnect.`; render(); });
   render();
 }
 
@@ -481,7 +520,7 @@ function renderFlags() {
   $("#view").innerHTML = `<div style="display:grid;gap:12px">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
       <p style="margin:0;max-width:75ch">Entities flagged for review on this page${summary ? `: ${summary}` : ""}. Each flag keeps what it pointed at when it was made, and <b>Now</b> compares that with this build${nowSummary ? `: ${nowSummary}` : ""}. A flag that looks resolved stays until someone removes it.</p>
-      ${rows.length || qrows.length ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
+      ${rows.length || qrows.length || RV.mflags.size ? `<button class="copy" id="flags-json">Copy as JSON</button>` : ""}
     </div>
     ${qrows.length ? `<h2>Question feedback · ${qrows.length}</h2><div class="tbl"><table><thead><tr><th>Question</th><th>Feedback</th><th>Now</th><th>Note</th><th>Answer then</th><th>Flagged (UTC)</th><th>Built from</th></tr></thead><tbody>${qrows.map(f => `<tr>
       <td><button class="linkbtn" data-goq="${esc(f.cq)}">${esc(f.cq)}</button> ${esc(f.question || "")}</td>
@@ -494,10 +533,11 @@ function renderFlags() {
       <td><span class="pill flag">${esc(KINDS[f.kind] || f.kind)}</span></td><td>${nowPill(states.get(f))}</td><td>${esc(f.note || "")}</td>
       <td class="mono">${esc(flagWhen(f))}</td><td class="mono">${esc(f.report_commit || "")}</td></tr>`).join("")}</tbody></table></div>`
       : `<p class="empty">No entity flags yet. Open an entity on the Entities tab and use Review flag on anything that looks wrong.${qrows.length ? "" : " Feedback on a competency question is left on the Questions tab."}</p>`}
+    ${meetingFlagsHTML()}
   </div>`;
 }
 
-const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size + RV.qflags.size]] : TABS;
+const tabList = () => RV.db ? [...TABS, ["flags", "Flags", RV.flags.size + RV.qflags.size + RV.mflags.size]] : TABS;
 let tab = (location.hash.slice(1) && TABS.some(t => t[0] === location.hash.slice(1))) ? location.hash.slice(1) : store.get("tab", "entities");
 function renderTabs() {
   $("#tabs").innerHTML = tabList().map(([k, n, c]) =>
@@ -563,6 +603,7 @@ function detailHTML(e) {
       ${why}
     </div>
     ${flagSectionHTML(e)}
+    ${inMeetingsHTML(e)}
     ${e.violations.length ? `<section><h3>Consistency checks</h3>${e.violations.map(v =>
       `<div class="viol${isWarn(v) ? " w" : ""}"><b>${isWarn(v) ? "warning · " : ""}${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
     <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
@@ -655,7 +696,8 @@ $("#view").addEventListener("click", e => {
   if (e.target.id === "flags-json") {
     const b = e.target, withNow = (f, s) => ({ ...f, now: NOW[s.k].text, now_why: s.why }),
       text = JSON.stringify({ entities: [...RV.flags.values()].map(f => withNow(f, entityFlagState(f))),
-                              questions: [...RV.qflags.values()].map(f => withNow(f, questionFlagState(f))) }, null, 2);
+                              questions: [...RV.qflags.values()].map(f => withNow(f, questionFlagState(f))),
+                              ...(MT ? { meetings: [...RV.mflags.values()] } : {}) }, null, 2);
     const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy as JSON"), 1400); };
     try { navigator.clipboard.writeText(text).then(done, () => (b.textContent = "Copy failed")); } catch { b.textContent = "Copy failed"; }
     return;
@@ -747,18 +789,414 @@ function renderStructure() {
   </div>`;
 }
 
+// ---- publications ------------------------------------------------------------------------------
+// Each paper's tie to the grant it came from (kg/quality.py publications()), and its text. The text
+// is not in the export: publication_fulltext is admin-only, and licences are still being filled in.
+// Inside the artifact viewer a curator can read it through their own BBQS-MCP connector, with the
+// database's row-level security deciding what they see. Nothing read that way is stored in the page.
+const PCHECK = {
+  no_project: { cls: "bad", text: "no project", look: true, tip: "No project links to it, so it is tied to no grant." },
+  no_identifier: { cls: "bad", text: "no DOI or PMID", look: true, tip: "There is nothing to look the paper up by." },
+  no_roster_author: { cls: "warn", text: "no author on the roster", look: true,
+    tip: "None of its author ORCIDs belongs to someone on the project's roster, so the tie rests on the award credit alone. Rosters and ORCIDs are incomplete, so treat this as a prompt to look, not proof." },
+  same_title: { cls: "warn", text: "title appears twice", look: true,
+    tip: "Another record has the same title: usually a preprint and its published version, sometimes a duplicate." },
+  several_projects: { cls: "na", text: "two or more projects", tip: "Credited to more than one project." },
+  authors_unchecked: { cls: "na", text: "authors not checkable", tip: "The export has no author ORCIDs for it, so its authors can't be checked against the roster." },
+  no_text: { cls: "na", text: "no text in this export", tip: "The full text is kept in the database's admin-only tables, not in the export." },
+};
+const PUB_BY_ID = new Map((PUBS ? PUBS.rows : []).map(r => [r.id, r]));
+const ent = id => BY_ID.get(id) || { id, class: "Publication", label: shortId(id), facts: {}, out: [], in: [] };
+const fact = (e, k) => ((e.facts || {})[k] || [])[0] || "";
+const needsLook = r => r.checks.some(c => PCHECK[c] && PCHECK[c].look);
+const uuidOf = iri => { const m = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(iri || ""); return m ? m[1].toLowerCase() : null; };
+const one = x => Array.isArray(x) ? (x[0] || null) : (x || null);
+let pFilter = "all", pQ = "";
+const pOpen = new Set();
+
+const TEXT = { mcp: null, server: "BBQS-MCP", state: "idle", msg: "", rows: null, at: null, bodies: new Map() };
+async function initText() {
+  if (!PUBS || !window.claude || typeof window.claude.use !== "function") return;
+  const m = await window.claude.use("mcp");
+  if (!m) return;
+  TEXT.mcp = m;
+  if (tab === "publications") render();
+}
+function mcpMessage(err) {
+  const code = err && err.code, s = TEXT.server;
+  switch (code) {
+    case "needs_reauth": return `Reconnect ${s} in claude.ai Settings → Connectors, then try again.`;
+    case "server_not_connected": case "server_not_found":
+      return `Add the ${s} connector in claude.ai Settings → Connectors to read the text here. It answers curators only.`;
+    case "selection_required": return `You have more than one connector named ${s}. Choose one when claude.ai asks, then try again.`;
+    case "not_in_manifest": case "consent_required": return `${s} isn't allowed on this page for you. Allow it when the page asks, then try again.`;
+    case "blocked_by_policy": case "approval_required": return `Your organization's policy doesn't let this page use ${s}.`;
+    case "not_granted": case "capability_disabled": case "capability_removed": return "This view can't use connectors.";
+    case "tool_error": return `${s} refused: ${String(err.message || "no reason given").replace(/^Error:\s*/, "")}`;
+    case "server_unavailable": case "upstream_error": case "rate_limited": return `${s} didn't answer. Try again in a moment.`;
+    default: return `The text couldn't be read (${code || "unknown error"}).`;
+  }
+}
+async function kgQuery(path, staleTime) {
+  // kg_query is a read (a PostgREST path, run as the viewer). One retry, only where the error says so.
+  const call = () => TEXT.mcp.callTool(TEXT.server, "kg_query", { path }, { cache: { staleTime } });
+  let res;
+  try { res = await call(); } catch (e) {
+    if (!e || e.retryable !== true) throw e;
+    await new Promise(r => setTimeout(r, Math.min(e.retryAfterMs || 900 + Math.random() * 900, 10000)));
+    res = await call();
+  }
+  const rows = typeof res.payload === "string" ? JSON.parse(res.payload) : res.payload;
+  if (!Array.isArray(rows)) throw new SyntaxError("not a list of rows");
+  return { rows, at: res.cache ? res.cache.storedAt : Date.now() };
+}
+const notRows = `${TEXT.server} answered with something other than database rows.`;
+async function loadTextStatus() {
+  if (!TEXT.mcp || TEXT.state === "loading") return;
+  TEXT.state = "loading"; TEXT.msg = ""; render();
+  try {
+    const { rows, at } = await kgQuery("publications?select=resource_id,publication_fulltext(text_source,char_count,license,retrieved_at,figure_count)&limit=5000", 60000);
+    TEXT.rows = new Map(rows.filter(r => r && r.resource_id).map(r => [String(r.resource_id).toLowerCase(), one(r.publication_fulltext)]));
+    TEXT.at = at; TEXT.state = "ready";
+  } catch (e) { TEXT.state = "error"; TEXT.msg = e instanceof SyntaxError ? notRows : mcpMessage(e); }
+  render();
+}
+async function loadBody(iri) {
+  const id = uuidOf(iri);
+  if (!id || !TEXT.mcp || (TEXT.bodies.get(id) || {}).state === "loading") return;
+  TEXT.bodies.set(id, { state: "loading" }); render();
+  try {
+    const { rows } = await kgQuery(`publications?select=resource_id,publication_fulltext(text_source,license,char_count,publication_fulltext_body(body))&resource_id=eq.${id}`, 300000);
+    const ft = one((rows[0] || {}).publication_fulltext), body = ft && one(ft.publication_fulltext_body);
+    TEXT.bodies.set(id, body && typeof body.body === "string" ? { state: "ready", body: body.body, ft } : { state: "none" });
+  } catch (e) { TEXT.bodies.set(id, { state: "error", msg: e instanceof SyntaxError ? notRows : mcpMessage(e) }); }
+  render();
+}
+function textStatusHTML(r) {
+  if (r.texts.length) return r.texts.map(t => `<span>In this export: ${esc(Object.entries(t).filter(([k]) => k !== "id").map(([k, v]) => `${k} ${v}`).join(" · ") || "a text record")}</span>`).join("<br>");
+  if (!TEXT.rows) return `<span class="muted">Not in this export.</span>`;
+  const ft = TEXT.rows.get(uuidOf(r.id));
+  if (!TEXT.rows.has(uuidOf(r.id))) return `<span class="muted">The database has no publication with this id.</span>`;
+  if (!ft) return `<span class="muted">No text in the database, or none you can see.</span>`;
+  const licence = ft.license ? esc(ft.license) : `<span class="pill warn" title="Keep it inside the consortium until the licence is known">licence unknown</span>`;
+  return `<span>${fmt(ft.char_count || 0)} characters · from ${esc(ft.text_source || "an unnamed source")} · ${licence}${ft.figure_count ? ` · ${fmt(ft.figure_count)} figures` : ""}${ft.retrieved_at ? ` · retrieved ${esc(String(ft.retrieved_at).slice(0, 10))}` : ""}</span>`;
+}
+function bodyHTML(r) {
+  if (!TEXT.mcp) return "";
+  const id = uuidOf(r.id), b = TEXT.bodies.get(id);
+  const button = `<button class="btn ghost" data-pbody="${esc(r.id)}">${b && b.state === "ready" ? "Reload text" : "Read the text"}</button>`;
+  if (!b) return `<div class="row">${button}</div>`;
+  if (b.state === "loading") return `<p class="note" role="status">Reading the text through ${esc(TEXT.server)}…</p>`;
+  if (b.state === "error") return `<div class="viol w"><span>${esc(b.msg)}</span></div><div class="row">${button}</div>`;
+  if (b.state === "none") return `<p class="note">No text for this paper is visible to you. The text tables are admin-only.</p><div class="row">${button}</div>`;
+  return `<div class="row">${button}<span class="note">${fmt(b.body.length)} characters, read live for you; not saved in this page.${b.ft && !b.ft.license ? " Licence unknown: keep it inside the consortium." : ""}</span></div>
+    <div class="textbox" tabindex="0" aria-label="Full text">${esc(b.body)}</div>`;
+}
+function pubHay(r) {
+  const e = ent(r.id);
+  return [e.label, fact(e, "journal"), fact(e, "doi"), fact(e, "pmid"), fact(e, "year"),
+          ...r.projects.flatMap(p => [p.grant_number, ent(p.id).label])].join(" ").toLowerCase();
+}
+function pubLinks(e) {
+  const out = [], pmid = fact(e, "pmid"), doi = fact(e, "doi"), url = fact(e, "external_url");
+  if (pmid) out.push(`<a href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(pmid)}/" target="_blank" rel="noopener">PMID ${esc(pmid)}</a>`);
+  if (doi) out.push(`<a href="https://doi.org/${esc(doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, ""))}" target="_blank" rel="noopener">doi:${esc(doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, ""))}</a>`);
+  if (url && !/pubmed\.ncbi\.nlm\.nih\.gov\/\d+/.test(url)) out.push(`<a href="${esc(url)}" target="_blank" rel="noopener">record</a>`);
+  return out.join(" · ") || `<span class="muted">no identifier</span>`;
+}
+function pubRowHTML(r) {
+  const e = ent(r.id), year = fact(e, "year");
+  const pills = r.checks.filter(c => PCHECK[c] && c !== "no_text" && c !== "authors_unchecked").map(c => `<span class="pill ${PCHECK[c].cls}" title="${esc(PCHECK[c].tip)}">${esc(PCHECK[c].text)}</span>`).join("");
+  const grants = r.projects.map(p => `<span class="pill cls" style="color:${colorOf("Project")}">${esc(p.grant_number || "no grant number")}</span>`).join("");
+  const authors = r.author_orcids
+    ? `${r.author_orcids} author ORCID${r.author_orcids === 1 ? "" : "s"} in the export. ${r.investigator_authors.length
+        ? "BBQS investigators among them: " + r.investigator_authors.map(a => `${refLink(a.id)} <span class="pill ${a.on_roster ? "ok" : "na"}">${a.on_roster ? "on the project's roster" : "not on its roster"}</span>`).join(" ")
+        : "None of them is a BBQS investigator in the graph."}`
+    : "The export has no author ORCIDs for this paper, so its authors can't be checked against the roster.";
+  return `<details class="q" data-pub="${esc(r.id)}" ${pOpen.has(r.id) ? "open" : ""}>
+    <summary><span class="id">${esc(year || "—")}</span><span>${esc(e.label)}</span><span class="right">${grants}${pills}</span></summary>
+    <div class="body">
+      <dl class="kv">
+        <dt>record</dt><dd>${esc(fact(e, "journal") || "no journal")}${year ? ` · ${esc(year)}` : ""} · ${pubLinks(e)} · ${refLink(r.id)}</dd>
+        <dt>tied to</dt><dd>${r.projects.length ? r.projects.map(p => `${refLink(p.id)} <span class="muted">roster of ${p.roster}</span>`).join("<br>") : `<span class="pill bad">no project</span> Nothing ties it to a grant.`}</dd>
+        <dt>how</dt><dd class="note">A <code>produced</code> link from the project, which the exporter writes from <code>project_publications</code>: the NIH award credited on the paper's PubMed record.</dd>
+        <dt>authors</dt><dd>${authors}</dd>
+        <dt>text</dt><dd>${textStatusHTML(r)}</dd>
+      </dl>
+      ${bodyHTML(r)}
+      ${r.checks.filter(c => PCHECK[c] && PCHECK[c].look).map(c => `<div class="viol${PCHECK[c].cls === "warn" ? " w" : ""}"><b>${esc(PCHECK[c].text)}</b><span>${esc(PCHECK[c].tip)}</span></div>`).join("")}
+    </div></details>`;
+}
+function textLoaderHTML() {
+  if (!TEXT.mcp) return `<p class="note" style="margin:0">The full text is kept in the database's admin-only tables, so this export can't show it. Opened in the claude.ai artifact viewer, this page lets a curator read it through their BBQS-MCP connector.</p>`;
+  const when = TEXT.at ? ` Checked ${esc(new Date(TEXT.at).toISOString().slice(0, 16).replace("T", " "))} UTC.` : "";
+  const counts = TEXT.rows ? (() => { const v = [...TEXT.rows.values()]; const n = v.filter(Boolean).length;
+      return n ? `${n} of ${TEXT.rows.size} publications in the database ${n === 1 ? "has" : "have"} text.${when}` : `No text is visible to you.${when} The text tables are admin-only, so only an admin sees them.`; })() : "";
+  return `<div class="flagbox">
+    <span class="note" style="margin:0">The full text is kept in the database's admin-only tables, not in the export. Read it here through your <b>${esc(TEXT.server)}</b> connector: the database decides what you can see, and nothing is stored in this page.</span>
+    <div class="row"><button class="btn" id="ptext" ${TEXT.state === "loading" ? "disabled" : ""}>${TEXT.rows ? "Check again" : "Check the database for text"}</button>
+      <span class="note" role="status" style="margin:0">${TEXT.state === "loading" ? "Checking…" : TEXT.state === "error" ? esc(TEXT.msg) : counts}</span></div>
+  </div>`;
+}
+function renderPublications() {
+  if (!PUBS) { $("#view").innerHTML = `<p class="empty">This build has no publication checks. Rebuild it with the current <code>kg/quality.py</code>.</p>`; return; }
+  const rows = PUBS.rows, counts = { all: rows.length, look: rows.filter(needsLook).length };
+  for (const r of rows) for (const c of r.checks) counts[c] = (counts[c] || 0) + 1;
+  const tied = rows.filter(r => r.projects.length).length, checked = rows.filter(r => r.author_orcids).length;
+  const onRoster = rows.filter(r => r.investigator_authors.some(a => a.on_roster)).length;
+  const keys = ["all", "look", ...Object.keys(PCHECK).filter(k => counts[k])];
+  const label = k => k === "all" ? "All" : k === "look" ? "Needs a look" : PCHECK[k].text;
+  const q = pQ.trim().toLowerCase();
+  const shown = rows.filter(r => (pFilter === "all" || (pFilter === "look" ? needsLook(r) : r.checks.includes(pFilter))) && (!q || pubHay(r).includes(q)))
+    .sort((a, b) => fact(ent(b.id), "year").localeCompare(fact(ent(a.id), "year")) || ent(a.id).label.localeCompare(ent(b.id).label));
+  $("#view").innerHTML = `<div style="display:grid;gap:14px">
+    <p class="intro">Every publication in the export, the project and grant it is credited to, and what the export lets us check about that tie. <b>${tied} of ${rows.length}</b> are tied to a project${counts.several_projects ? ` (${counts.several_projects} to more than one)` : ""}. Only ${checked} carry author ORCIDs, and ${onRoster} of those ${onRoster === 1 ? "has" : "have"} an author on the project's roster.</p>
+    ${textLoaderHTML()}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input class="search" id="pq" type="search" placeholder="Search titles, journals, DOIs, grant numbers" value="${esc(pQ)}" aria-label="Search publications" style="max-width:360px">
+      <div class="filters">${keys.map(k => `<button data-pfilter="${k}" aria-pressed="${pFilter === k}">${esc(label(k))} · ${counts[k] || 0}</button>`).join("")}</div>
+    </div>
+    <div class="qgroup">${shown.map(pubRowHTML).join("") || `<p class="empty">No publication matches.</p>`}</div>
+  </div>`;
+}
+
+// ---- meetings (internal) -----------------------------------------------------------------------
+// Present only in the artifact build (kg/quality.py --internal): the working-group meeting records
+// from kg/meetings.py. They are summaries with attributions, not transcripts.
+const KIND = {
+  lesson: { text: "Lesson", plural: "Lessons", c: "species" },
+  agreement: { text: "Agreement", plural: "Agreements", c: "project" },
+  disagreement: { text: "Disagreement", plural: "Disagreements", c: "org" },
+  decision: { text: "Decision", plural: "Decisions", c: "people" },
+  action: { text: "Action", plural: "Actions", c: "product" },
+};
+const HOW = { attributed: "said", owner: "owns", named: "named", relayed: "relayed" };
+const HOW_TIP = { attributed: "The notes attribute this point to them", owner: "The notes give them this action",
+                  named: "The sentence names them; they may not have said it", relayed: "They passed the point on for someone else" };
+const MEET_BY = new Map(MT ? MT.meetings.map(m => [m.id, m]) : []);
+const ITEM_BY = new Map(MT ? MT.items.map(i => [i.id, i]) : []);
+const PEOPLE = new Map(MT ? MT.people.map(p => [p.name, p]) : []);
+const PERSON_OF = new Map();
+if (MT) for (const p of MT.people) for (const iri of p.investigators || []) PERSON_OF.set(iri, p.name);
+const ITEMS_OF = new Map();
+if (MT) for (const i of MT.items) { if (!ITEMS_OF.has(i.meeting)) ITEMS_OF.set(i.meeting, []); ITEMS_OF.get(i.meeting).push(i); }
+const MKINDS = { person: "Wrong person", missing: "Someone is missing", text: "The point is wrong", other: "Something else" };
+const MPAGE = 20;
+const mt = { q: "", kinds: new Set(), groups: new Set(), person: "", quoted: false, tied: false, newest: true, limit: MPAGE, flagging: null };
+
+function marked(text, quotes) {
+  // The words the notes put in quotation marks, highlighted; everything else escaped as it is.
+  let out = "", at = 0;
+  for (const q of quotes || []) {
+    const i = text.indexOf(q, at);
+    if (i < 0) continue;
+    out += esc(text.slice(at, i)) + `<mark class="q" title="In quotation marks in the notes">${esc(q)}</mark>`;
+    at = i + q.length;
+  }
+  return out + esc(text.slice(at));
+}
+function whoHTML(item) {
+  return item.who.map(w => w.name
+    ? `<button class="who" data-person="${esc(w.name)}" aria-pressed="${mt.person === w.name}" title="${esc(`${HOW_TIP[w.how] || ""}. The notes write “${w.as_written}”: ${w.basis}.`)}">${esc(w.name)}<span class="how">${esc(HOW[w.how] || w.how)}</span></button>`
+    : `<span class="who unres" tabindex="0" title="${esc(`Not resolved to one person: ${w.basis}.`)}">${esc(w.as_written)}?<span class="how">${esc(HOW[w.how] || w.how)}</span></span>`).join("");
+}
+const canFlag = () => RV.db && !(RV.readOnly || RV.canWrite === false);
+function itemFlagHTML(item) {
+  const cur = RV.mflags.get(item.id);
+  const pill = cur ? `<span class="pill flag" title="${esc(cur.note || "")}">${cur.flagged_by && cur.flagged_by === RV.uid ? "you flagged" : "flagged"}: ${esc((MKINDS[cur.problem] || cur.problem || "?").toLowerCase())}</span>` : "";
+  if (!canFlag()) return pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(cur.note)}</span>` : ""}</div>` : "";
+  if (mt.flagging !== item.id) return `<div class="chips">${pill}<button class="linkbtn quiet" data-mflag="${esc(item.id)}">${cur ? "Change flag" : "Flag this point"}</button></div>`;
+  const d = RV.mdraft && RV.mdraft.item === item.id ? RV.mdraft : { problem: (cur && cur.problem) || "person", note: (cur && cur.note) || "" };
+  return `<div class="flagbox">
+    <span class="note" style="margin:0">Flag a wrong attribution or point. It is saved with this page for whoever triages the notes.</span>
+    <div class="row"><label for="mflag-kind" class="muted" style="font-size:12.5px">Problem</label>
+      <select id="mflag-kind">${Object.entries(MKINDS).map(([k, v]) => `<option value="${k}" ${d.problem === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <textarea id="mflag-note" aria-label="What's wrong, and how you know" placeholder="What's wrong, and how you know (who really said it?)">${esc(d.note)}</textarea>
+    <div class="row"><button class="btn" data-mflagsave="${esc(item.id)}">${cur ? "Update flag" : "Save flag"}</button>
+      ${cur ? `<button class="btn ghost" data-mflagremove="${esc(item.id)}">Remove flag</button>` : ""}
+      <button class="btn ghost" data-mflagcancel="1">Cancel</button>
+      <span class="note" id="mflag-status" role="status" style="margin:0">${esc(RV.mstatus)}</span></div>
+  </div>`;
+}
+async function saveMeetingFlag(id) {
+  const item = ITEM_BY.get(id), m = item && MEET_BY.get(item.meeting);
+  if (!item || !RV.db) return;
+  const body = {
+    item: item.id, meeting: item.meeting, date: m.date, group: m.group, kind: item.kind,
+    text_at_flag: item.text, who_at_flag: item.who.map(w => w.name || `${w.as_written}?`),
+    problem: $("#mflag-kind").value, note: $("#mflag-note").value.trim(),
+    flagged_at: new Date().toISOString(), flagged_by: RV.uid, notes_sha256: (MT.source || {}).sha256 || null,
+  };
+  RV.mstatus = "Saving…"; const el = $("#mflag-status"); if (el) el.textContent = RV.mstatus;
+  try {
+    await withRetry(() => RV.db.collection("meeting_flags").doc(item.id).set(body));
+    RV.mdraft = null; mt.flagging = null; RV.mstatus = "";
+  } catch (err) { RV.mstatus = flagError(err); }
+  render();
+}
+async function removeMeetingFlag(id) {
+  if (!RV.db) return;
+  RV.mstatus = "Removing…";
+  try {
+    await withRetry(() => RV.db.collection("meeting_flags").doc(id).delete());
+    RV.mdraft = null; mt.flagging = null; RV.mstatus = "";
+  } catch (err) { RV.mstatus = flagError(err); }
+  render();
+}
+function itemMatches(i) {
+  const m = MEET_BY.get(i.meeting);
+  if (mt.kinds.size && !mt.kinds.has(i.kind)) return false;
+  if (mt.groups.size && !mt.groups.has(m.group)) return false;
+  if (mt.person && !i.who.some(w => w.name === mt.person)) return false;
+  if (mt.quoted && !i.quotes.length) return false;
+  if (mt.tied && !i.who.some(w => w.how === "attributed" || w.how === "owner")) return false;
+  if (mt.q) {
+    const hay = [i.text, m.title, m.group, m.as_named, m.date, ...i.who.map(w => w.name || w.as_written)].join(" ").toLowerCase();
+    if (!hay.includes(mt.q.toLowerCase())) return false;
+  }
+  return true;
+}
+const itemFilters = () => mt.kinds.size || mt.person || mt.quoted || mt.tied || mt.q;
+function meetingHTML(m, items) {
+  const order = Object.keys(KIND);
+  const rows = [...items].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.n - b.n);
+  const agenda = !itemFilters() && m.agenda.length ? `<p class="note" style="margin:0"><b>Agenda</b>: ${m.agenda.map(esc).join(" · ")}</p>` : "";
+  return `<article class="mtg" id="mtg-${esc(m.id)}">
+    <header><span class="date">${esc(m.date || "undated")}</span><span class="pill cls" style="color:var(--c-people)">${esc(m.group)}</span>
+      <h3>${esc(m.title || "Untitled meeting")}</h3>
+      ${m.note ? `<span class="pill na" title="Note on the source">${esc(m.note)}</span>` : ""}
+      <span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span></header>
+    ${agenda}
+    ${rows.map(i => `<div class="pt">
+      <span class="kind" style="color:var(--c-${KIND[i.kind].c})"><i class="swatch"></i>${esc(KIND[i.kind].text)}</span>
+      <div style="display:grid;gap:4px;min-width:0"><span>${marked(i.text, i.quotes)}</span>
+        ${i.who.length ? `<div class="chips">${whoHTML(i)}</div>` : ""}
+        ${itemFlagHTML(i)}</div></div>`).join("") || (agenda ? "" : `<p class="note" style="margin:0">No points recorded for this meeting.</p>`)}
+  </article>`;
+}
+function personHTML(name) {
+  const p = PEOPLE.get(name);
+  if (!p) return "";
+  const inv = p.investigators || [];
+  const kg = inv.length
+    ? `In the graph: ${inv.map(refLink).join(" · ")}${inv.length > 1 ? ` <span class="pill warn" title="The graph holds this person as ${inv.length} nodes">${inv.length} records</span>` : ""} <span class="note">(${esc(p.match)})</span>`
+    : `<span class="muted">No investigator in the graph matches this name.</span>`;
+  return `<div class="flagbox" style="background:var(--surface)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><h2>${esc(p.name)}</h2><button class="linkbtn" id="mperson-clear">Show everyone</button></div>
+    <span>Named as a speaker in ${p.meetings} meeting${p.meetings === 1 ? "" : "s"}${p.groups.length ? ` (${p.groups.map(esc).join(", ")})` : ""}. ${p.attributed} point${p.attributed === 1 ? "" : "s"} attributed, ${p.owns} action${p.owns === 1 ? "" : "s"} owned, named in ${p.named} more.</span>
+    <span>${kg}</span>
+  </div>`;
+}
+function renderMeetings() {
+  if (!MT) { $("#view").innerHTML = `<p class="empty">This copy of the page has no meeting notes.</p>`; return; }
+  const hits = MT.items.filter(itemMatches), byMeeting = new Map();
+  for (const i of hits) { if (!byMeeting.has(i.meeting)) byMeeting.set(i.meeting, []); byMeeting.get(i.meeting).push(i); }
+  let meetings = MT.meetings.filter(m => itemFilters() ? byMeeting.has(m.id) : (!mt.groups.size || mt.groups.has(m.group)));
+  if (mt.newest) meetings = [...meetings].reverse();
+  const kindCount = {}, groupCount = {};
+  for (const i of MT.items) kindCount[i.kind] = (kindCount[i.kind] || 0) + 1;
+  for (const m of MT.meetings) groupCount[m.group] = (groupCount[m.group] || 0) + 1;
+  const people = MT.people.filter(p => p.attributed + p.owns + p.named > 0).sort((a, b) => a.name.localeCompare(b.name));
+  const src = MT.source || {};
+  $("#view").innerHTML = `<div style="display:grid;gap:14px">
+    <div style="display:grid;gap:6px"><p class="intro">Lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date, with who each point is tied to: <b>said</b> (the notes attribute it to them), <b>owns</b> (their action), <b>named</b> (the sentence mentions them). Hover a name to see how it was matched.</p>
+      <p class="intro note"><span class="pill warn">not transcripts</span> ${esc(MT.caveat || "")}</p>
+      <p class="note" style="margin:0">${esc(src.description || "")} Built from <code>${esc(src.file || "the notes")}</code>${src.sha256 ? ` (sha256 ${esc(src.sha256.slice(0, 12))})` : ""}. Internal: this copy of the page only, never the public site.</p></div>
+    <div class="meet">
+      <aside class="facets">
+        <input class="search" id="mq" type="search" placeholder="Search points, meetings, people" value="${esc(mt.q)}" aria-label="Search meeting notes">
+        <fieldset><legend>Person</legend>
+          <select id="mperson" class="search" aria-label="Show one person's points"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p.name)}" ${mt.person === p.name ? "selected" : ""}>${esc(p.name)} · ${p.attributed + p.owns + p.named}</option>`).join("")}</select></fieldset>
+        <fieldset><legend>Kind</legend>${Object.entries(KIND).map(([k, v]) => `<label><input type="checkbox" data-mkind="${k}" ${mt.kinds.has(k) ? "checked" : ""}><i class="swatch" style="color:var(--c-${v.c})"></i>${v.plural}<span class="c">${kindCount[k] || 0}</span></label>`).join("")}</fieldset>
+        <fieldset><legend>Group</legend>${Object.keys(groupCount).sort().map(g => `<label><input type="checkbox" data-mgroup="${esc(g)}" ${mt.groups.has(g) ? "checked" : ""}>${esc(g)}<span class="c">${groupCount[g]}</span></label>`).join("")}</fieldset>
+        <fieldset><legend>Only</legend>
+          <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>Points tied to someone</label>
+          <label><input type="checkbox" id="mquoted" ${mt.quoted ? "checked" : ""}>Words in quotation marks</label></fieldset>
+        <button class="linkbtn" id="mclear">Clear filters</button>
+      </aside>
+      <div class="list">
+        ${mt.person ? personHTML(mt.person) : ""}
+        <div class="meta"><span>${fmt(hits.length)} of ${fmt(MT.items.length)} points · ${fmt(meetings.length)} meeting${meetings.length === 1 ? "" : "s"}</span>
+          <button class="linkbtn" id="morder">${mt.newest ? "Newest first" : "Oldest first"} ⇅</button></div>
+        ${meetings.slice(0, mt.limit).map(m => meetingHTML(m, byMeeting.get(m.id) || [])).join("") || `<p class="empty">No point matches these filters.</p>`}
+        ${meetings.length > mt.limit ? `<button class="copy more" id="mmore">Show ${Math.min(MPAGE, meetings.length - mt.limit)} more meetings</button>` : ""}
+      </div>
+    </div>
+  </div>`;
+}
+function meetingFlagsHTML() {
+  if (!MT) return "";
+  const rows = [...RV.mflags.values()].sort((a, b) => (b.flagged_at || "").localeCompare(a.flagged_at || ""));
+  if (!rows.length) return `<p class="empty">No meeting point flagged yet. Use “Flag this point” on the Meetings tab when an attribution looks wrong.</p>`;
+  return `<h2>Meeting notes · ${rows.length}</h2><div class="tbl"><table><thead><tr><th>Meeting</th><th>Point</th><th>Problem</th><th>Note</th><th>Now</th><th>Flagged (UTC)</th></tr></thead><tbody>${rows.map(f => {
+    const now = ITEM_BY.get(f.item);
+    const state = !now ? `<span class="pill warn">not in these notes</span>` : now.text !== f.text_at_flag ? `<span class="pill warn">text changed</span>` : `<span class="pill na">unchanged</span>`;
+    return `<tr><td class="mono">${esc(f.date || "")} · ${esc(f.group || "")}</td><td>${esc(f.text_at_flag || "")}<br><span class="note">${esc((f.who_at_flag || []).join(", "))}</span></td>
+      <td><span class="pill flag">${esc(MKINDS[f.problem] || f.problem || "")}</span></td><td>${esc(f.note || "")}</td><td>${state}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
+function inMeetingsHTML(e) {
+  const name = MT && e.class === "Investigator" ? PERSON_OF.get(e.id) : null, p = name && PEOPLE.get(name);
+  if (!p) return "";
+  return `<section><h3>In the meeting notes</h3><p style="margin:0">${esc(p.name)}: named as a speaker in ${p.meetings} meeting${p.meetings === 1 ? "" : "s"}; ${p.attributed} point${p.attributed === 1 ? "" : "s"} attributed, ${p.owns} action${p.owns === 1 ? "" : "s"} owned, named in ${p.named} more. <span class="note">(${esc(p.match)})</span></p>
+    <button class="btn ghost" style="justify-self:start" data-goperson="${esc(p.name)}">Show their points in Meetings</button></section>`;
+}
+
+// Events for the two tabs above. The listeners for the other tabs are where those tabs are built.
+$("#view").addEventListener("toggle", e => {
+  const d = e.target.closest && e.target.closest("details[data-pub]");
+  if (d) d.open ? pOpen.add(d.dataset.pub) : pOpen.delete(d.dataset.pub);
+}, true);
+$("#view").addEventListener("input", e => {
+  if (e.target.id === "pq") { pQ = e.target.value; render(); }
+  else if (e.target.id === "mq") { mt.q = e.target.value; mt.limit = MPAGE; render(); }
+  else if (e.target.id === "mflag-note") RV.mdraft = { item: mt.flagging, problem: $("#mflag-kind").value, note: e.target.value };
+});
+$("#view").addEventListener("change", e => {
+  const t = e.target, d = t.dataset || {};
+  if (t.id === "mflag-kind") { RV.mdraft = { item: mt.flagging, problem: t.value, note: $("#mflag-note").value }; return; }
+  if (d.mkind) t.checked ? mt.kinds.add(d.mkind) : mt.kinds.delete(d.mkind);
+  else if (d.mgroup) t.checked ? mt.groups.add(d.mgroup) : mt.groups.delete(d.mgroup);
+  else if (t.id === "mperson") mt.person = t.value;
+  else if (t.id === "mtied") mt.tied = t.checked;
+  else if (t.id === "mquoted") mt.quoted = t.checked;
+  else return;
+  mt.limit = MPAGE; render();
+});
+$("#view").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const d = t.dataset;
+  if (d.pfilter) { pFilter = d.pfilter; render(); }
+  else if (t.id === "ptext") loadTextStatus();
+  else if (d.pbody) loadBody(d.pbody);
+  else if (d.person) { mt.person = mt.person === d.person ? "" : d.person; mt.limit = MPAGE; render(); $("#view").scrollIntoView({ block: "start" }); }
+  else if (d.goperson) { mt.person = d.goperson; mt.limit = MPAGE; tab = "meetings"; store.set("tab", tab); render(); }
+  else if (t.id === "mperson-clear") { mt.person = ""; render(); }
+  else if (t.id === "mclear") { Object.assign(mt, { q: "", person: "", quoted: false, tied: false, limit: MPAGE }); mt.kinds.clear(); mt.groups.clear(); render(); }
+  else if (t.id === "morder") { mt.newest = !mt.newest; render(); }
+  else if (t.id === "mmore") { mt.limit += MPAGE; render(); }
+  else if (d.mflag) { mt.flagging = d.mflag; RV.mdraft = null; RV.mstatus = ""; render(); $("#mflag-note")?.focus(); }
+  else if (d.mflagcancel) { mt.flagging = null; RV.mdraft = null; render(); }
+  else if (d.mflagsave) saveMeetingFlag(d.mflagsave);
+  else if (d.mflagremove) removeMeetingFlag(d.mflagremove);
+});
+
 function render() {
   // A live flag update re-renders while someone may be typing: put focus and caret back.
   const a = document.activeElement, focusId = a && a.id;
   const caret = a && typeof a.selectionStart === "number" ? [a.selectionStart, a.selectionEnd] : null;
+  if (tab !== "flags" && !TABS.some(t => t[0] === tab)) tab = "entities";   // a tab this copy doesn't have
   renderTabs();
   try { history.replaceState(null, "", "#" + tab); } catch {}
   const views = { entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure,
+                  publications: renderPublications, meetings: renderMeetings,
                   flags: RV.db ? renderFlags : renderEntities };
   (views[tab] || renderEntities)();
   const el = focusId && document.getElementById(focusId);
   if (el && el !== document.activeElement) { el.focus(); if (caret && el.setSelectionRange) el.setSelectionRange(caret[0], caret[1]); }
 }
+if (MT) { const n = $("#internal-note"); n.textContent = "This copy also carries the working-group meeting notes, which are internal: the public Inspector never does."; n.hidden = false; }
 render();
 initFlags();
+initText();
 </script>

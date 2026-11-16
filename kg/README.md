@@ -130,6 +130,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `competency_questions.yaml` | The fixed questions the graph must answer, each with its SPARQL and the access level it needs. |
 | `competency_questions_extended.yaml` | CQ20-CQ42, the extended set proposed in #441, in the same layout. Not scored by `quality.py` until #441 adopts them; `bench_mcp_server.py` asks them. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
+| `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
 | `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
@@ -225,6 +226,33 @@ status and row count, or an entity's failing checks, whether it was isolated, an
 its facts and links. The Flags tab compares that with the build on screen and marks each flag
 *looks resolved*, *changed, recheck* or *unchanged*. It never clears a flag; removing one is the
 reviewer's call.
+
+**Publications tab.** One row per paper: the project and grant it is credited to (the `produced`
+link the exporter writes from `project_publications`, which is the NIH award credited on the paper's
+PubMed record), its PMID and DOI, and what the export lets us check about that tie: no project, more
+than one project, a title that appears twice (usually a preprint and its published version), and
+whether any author is on the project's roster, by ORCID. Only 21 of the 89 papers carry author
+ORCIDs, so most ties can't be checked that way. The full text is in no export:
+`publication_fulltext` is admin-only and its licences are still `unknown` (#444). In the artifact
+viewer a curator can read it through their own BBQS-MCP connector (`kg_query`, run as them, so the
+database's row-level security decides what they see); nothing read that way is stored in the page.
+
+**Meetings tab (artifact copy only).** The working-group meeting notes as `meetings.py` reads them:
+every lesson, agreement, disagreement, decision and action, by meeting and date, tied to the people
+the notes attribute it to (*said*), give it to (*owns*) or mention (*named*). Each name is resolved
+from the first name the notes use, from the meeting's own speakers first, and linked to the
+Investigator node where one matches; the page says how each match was made. The notes are summaries,
+not transcripts: only the words in quotation marks are quoted. They are internal, so they never go
+in the repo or on the public site:
+
+```bash
+python kg/meetings.py /path/to/meetings_extracted.json --out /outside/the/repo/meetings.json
+python kg/quality.py --fragment /outside/the/repo/inspector.html --internal /outside/the/repo/meetings.json
+```
+
+`quality.py` refuses either path inside the repository and never puts the notes in `--html` or
+`--json`. `tests/guards/inspector-internal-data.test.mjs` checks the committed copy, the workflows
+and the tree.
 
 **Online: https://brain-bbqs.org/kg/inspector/**. `publish.yml` rebuilds it on every deploy of
 `main` and daily at 06:17 UTC, from a fresh anon export. If that export fails it falls back to the

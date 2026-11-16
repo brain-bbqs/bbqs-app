@@ -10,9 +10,17 @@ Four measurements, one report:
                  the terms it checks (a shape whose inputs are absent passes vacuously)
   violations  -- the SHACL results, keyed by focus node, so each entity card can show its own
 
+and, for the Publications tab, each paper's tie to the grant it came from (publications()).
+
     python kg/quality.py                        # kg/export/bbqs.ttl, anon
     python kg/quality.py data.ttl --access full
     # writes kg/export/quality.json and kg/browser/index.html (self-contained, open it directly)
+
+The artifact build can also carry the working-group meeting records (kg/meetings.py), which are
+internal: `--internal` embeds them in the `--fragment` only, written outside the repository, and
+never in --html or --json, which the public site and the repo carry.
+
+    python kg/quality.py --fragment /elsewhere/inspector.html --internal /elsewhere/meetings.json
 
 Requires rdflib, pyshacl, PyYAML, click (all in kg/.venv).
 """
@@ -20,6 +28,7 @@ import json
 import os
 import re
 import subprocess
+import unicodedata
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,6 +74,35 @@ def commit_stamp() -> str:
 def local(term) -> str:
     s = str(term)
     return s.rsplit("#", 1)[-1] if "#" in s else s.rsplit("/", 1)[-1]
+
+
+def inside_repo(path: Path) -> bool:
+    try:
+        Path(path).resolve().relative_to(HERE.parent)
+        return True
+    except ValueError:
+        return False
+
+
+def bare_orcid(value) -> str:
+    """An ORCID as its 16-character id, however it was written (IRI, URL or bare)."""
+    m = re.search(r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]", str(value))
+    return m.group(0) if m else str(value).strip()
+
+
+_TRANSLIT = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "ae", "Ö": "oe", "Ü": "ue", "ß": "ss"})
+
+
+def fold_name(name) -> str:
+    """A person's name for matching only: case, accents, dots, spacing and any (note) ignored, so
+    "Oliver Rübel" = "Oliver Ruebel" and "Bijan  Pesaran" = "Bijan Pesaran"."""
+    text = re.sub(r"\(.*?\)", " ", str(name).translate(_TRANSLIT))
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return " ".join(text.replace(".", " ").casefold().split())
+
+
+# First-name forms the meeting notes use that are not a prefix of the name the graph holds.
+NAME_FORMS = {"joe": "joseph", "liz": "elizabeth", "lizzy": "elizabeth"}
 
 
 class KGQuality:
@@ -321,6 +359,114 @@ class KGQuality:
             })
         return cards
 
+    # ---- publications ------------------------------------------------------------------------------
+
+    def publications(self) -> dict:
+        """Each publication's tie to the grant it came from, and what this export holds of its text.
+
+        The tie is a Project's `produced` link, which the exporter writes from project_publications:
+        the NIH award credited on the paper's PubMed record. The export allows two checks of it:
+        whether an author is on the project's roster, by ORCID (most records carry no author ORCIDs,
+        so most cannot be checked), and whether another record has the same title (usually a preprint
+        and its published version). The text is not in an anon export: publication_fulltext is
+        admin-only, so `texts` lists only the text records this export holds (`text_of` links)."""
+        g, types = self.graph, self.types
+        pubs = sorted((n for n, c in types.items() if c == "Publication"), key=lambda n: (self.label(n).lower(), str(n)))
+        produced = defaultdict(set)
+        for proj, pub in g.subject_objects(BBQS.produced):
+            if types.get(pub) == "Publication" and types.get(proj) == "Project":
+                produced[pub].add(proj)
+        roster = defaultdict(set)
+        for rec, cls in types.items():
+            if cls == "ProjectRole":
+                proj, person = g.value(rec, BBQS.on_project), g.value(rec, BBQS.held_by)
+                if proj is not None and person is not None:
+                    roster[proj].add(person)
+        by_orcid = defaultdict(set)
+        for person, cls in types.items():
+            if cls == "Investigator":
+                for o in g.objects(person, BBQS.orcid):
+                    by_orcid[bare_orcid(o)].add(person)
+        texts = defaultdict(list)
+        for node, pub in g.subject_objects(BBQS.text_of):
+            if types.get(pub) == "Publication":
+                texts[pub].append({"id": str(node), **{local(p): str(o) for p, o in g.predicate_objects(node)
+                                                       if p != RDF.type and isinstance(o, Literal)}})
+
+        def title_key(n):
+            t = g.value(n, BBQS.title) or g.value(n, BBQS.name) or ""
+            return " ".join(re.sub(r"[\W_]+", " ", str(t).casefold()).split())
+
+        same = Counter(title_key(n) for n in pubs)
+        by_label = lambda n: (self.label(n), str(n))
+        rows = []
+        for pub in pubs:
+            projects = sorted(produced[pub], key=by_label)
+            orcids = sorted({bare_orcid(o) for o in g.objects(pub, BBQS.author_orcids)})
+            members = set().union(*(roster[p] for p in projects))
+            authors = sorted({p for o in orcids for p in by_orcid.get(o, ())}, key=by_label)
+            checks = []
+            if not projects:
+                checks.append("no_project")
+            if len(projects) > 1:
+                checks.append("several_projects")
+            if not orcids:
+                checks.append("authors_unchecked")
+            elif not any(p in members for p in authors):
+                checks.append("no_roster_author")
+            if title_key(pub) and same[title_key(pub)] > 1:
+                checks.append("same_title")
+            if g.value(pub, BBQS.doi) is None and g.value(pub, BBQS.pmid) is None:
+                checks.append("no_identifier")
+            if not texts[pub]:
+                checks.append("no_text")
+            rows.append({
+                "id": str(pub),
+                "projects": [{"id": str(p), "grant_number": str(g.value(p, BBQS.grant_number) or ""),
+                              "roster": len(roster[p])} for p in projects],
+                "author_orcids": len(orcids),
+                "investigator_authors": [{"id": str(p), "on_roster": p in members} for p in authors],
+                "texts": texts[pub],
+                "checks": checks,
+            })
+        return {"count": len(rows), "checks": dict(Counter(c for r in rows for c in r["checks"])), "rows": rows}
+
+    def link_people(self, internal: dict) -> dict:
+        """Tie each person the meeting records name to the Investigator nodes that are the same person,
+        saying how: the same name; the same first and last name; the same last name with the first
+        name shortened ("Kris" for Kristofer, "Joe" for Joseph); or, where the notes give a first name
+        only, the one investigator who has it. More than one node means the graph holds the person twice."""
+        investigators = [(n, fold_name(self.label(n)).split()) for n, c in self.types.items() if c == "Investigator"]
+
+        def short_for(a, b):
+            a = NAME_FORMS.get(a, a)
+            return a == b or (len(a) >= 3 and b.startswith(a)) or (len(b) >= 3 and a.startswith(b))
+
+        rules = [
+            ("same name", lambda w, x: x == w),
+            ("same first and last name", lambda w, x: len(w) > 1 and len(x) > 1 and (x[0], x[-1]) == (w[0], w[-1])),
+            ("same last name, and the first name is a short form of it",
+             lambda w, x: len(w) > 1 and len(x) > 1 and x[-1] == w[-1] and short_for(w[0], x[0])),
+        ]
+        for person in internal.get("people") or []:
+            w = fold_name(person.get("name", "")).split()
+            person.pop("investigators", None)
+            person.pop("match", None)
+            if not w:
+                continue
+            for how, rule in rules:
+                hits = [n for n, x in investigators if rule(w, x)]
+                if hits:
+                    break
+            else:
+                hits = [n for n, x in investigators if len(w) == 1 and x[:1] == w]
+                hits, how = (hits, "first name only: the notes give no last name, and one investigator has it") \
+                    if len(hits) == 1 else ([], None)
+            if hits:
+                person["investigators"] = sorted(str(n) for n in hits)
+                person["match"] = how
+        return internal
+
     # ---- report ------------------------------------------------------------------------------------
 
     def report(self) -> dict:
@@ -341,15 +487,26 @@ class KGQuality:
             "violation_count": sum(v["severity"] == "violation" for vs in violations.values() for v in vs),
             "warning_count": sum(v["severity"] == "warning" for vs in violations.values() for v in vs),
             "entities": self.entities(degree, violations),
+            "publications": self.publications(),
         }
 
     @staticmethod
-    def render_html(report: dict, out_path: Path, standalone: bool = True) -> Path:
+    def render_html(report: dict, out_path: Path, standalone: bool = True, internal: dict | None = None) -> Path:
         """Inline the report into browser/template.html. The template is a body fragment (the form
-        an Artifact publish wants); standalone=True adds the doctype + metas a local file needs."""
+        an Artifact publish wants); standalone=True adds the doctype + metas a local file needs.
+        `internal` (meeting records, kg/meetings.py) fills the second placeholder; without it the
+        page carries none. Both are filled in one pass over the template, so text inside one payload
+        is never read as a placeholder."""
         template = KGQuality.TEMPLATE.read_text(encoding="utf-8")
-        payload = json.dumps(report, ensure_ascii=False).replace("</", "<\\/")
-        html = template.replace("/*__REPORT__*/null", payload)
+
+        def script_json(value) -> str:      # JSON as a script literal: no "<" left to open or close a tag
+            return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c")
+
+        fill = {"REPORT": script_json(report), "INTERNAL": script_json(internal) if internal else "null"}
+        parts = re.split(r"/\*__(REPORT|INTERNAL)__\*/null", template)
+        if parts[1::2] != ["REPORT", "INTERNAL"]:
+            raise ValueError("browser/template.html must hold /*__REPORT__*/null and then /*__INTERNAL__*/null, once each")
+        html = "".join(fill[part] if i % 2 else part for i, part in enumerate(parts))
         if standalone:
             html = ('<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n'
                     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' + html)
@@ -370,6 +527,11 @@ class KGQuality:
         for q in report["competency"]:
             extra = f"unmodeled: {', '.join(q['unmodeled'])}" if q["unmodeled"] else f"{q['row_count']} rows"
             lines.append(f"  {q['id']} {q['status']:<9} {q['question']}  [{extra}]")
+        pubs = report.get("publications")
+        if pubs:
+            tied = sum(1 for r in pubs["rows"] if r["projects"])
+            lines += ["", f"publications: {pubs['count']}, {tied} tied to a project; checks: "
+                      + ", ".join(f"{k} {v}" for k, v in sorted(pubs["checks"].items()))]
         lines += ["", f"shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
         for sh in report["shapes"]:
             absent = f" (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else ""
@@ -391,14 +553,29 @@ class KGQuality:
               help="Also write the page without doctype/head, for publishing as an Artifact.")
 @click.option("--source", default=None,
               help="How the data was produced, shown in the page's build stamp (default: the file path).")
-def main(data_file, access, json_path, html_path, fragment_path, source):
+@click.option("--internal", "internal_path", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              default=None,
+              help="Meeting records from kg/meetings.py, for the Meetings tab. Internal: embedded in the "
+                   "--fragment only, which must be written outside the repository.")
+def main(data_file, access, json_path, html_path, fragment_path, source, internal_path):
     """Measure DATA_FILE (default kg/export/bbqs.ttl) and build the entity browser from it."""
-    report = KGQuality(data_file, access=access, source=source).report()
+    internal = None
+    if internal_path:
+        if not fragment_path:
+            raise click.UsageError("--internal goes into the artifact fragment only: give --fragment as well.")
+        for path, what in ((internal_path, "--internal"), (fragment_path, "--fragment")):
+            if inside_repo(path):
+                raise click.UsageError(f"{what} {path} is inside the repository. Meeting notes are internal: "
+                                       "keep them, and any page built with them, outside it.")
+    kg = KGQuality(data_file, access=access, source=source)
+    report = kg.report()
+    if internal_path:
+        internal = kg.link_people(json.loads(internal_path.read_text(encoding="utf-8")))
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-    KGQuality.render_html(report, html_path)
+    KGQuality.render_html(report, html_path)                  # never the internal records
     if fragment_path:
-        KGQuality.render_html(report, fragment_path, standalone=False)
+        KGQuality.render_html(report, fragment_path, standalone=False, internal=internal)
     click.echo(KGQuality.summary(report))
     click.echo(f"\nwrote {shown(json_path)} and {shown(html_path)}")
 
