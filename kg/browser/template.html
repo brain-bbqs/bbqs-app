@@ -181,7 +181,38 @@
   .evrow { border-left: 2px solid var(--line); padding-left: 8px; font-size: 13px; }
   .linkbtn.quiet:hover, .linkbtn.quiet:focus-visible { color: var(--accent); }
 
+  .gwrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+  .gstage { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; overflow: hidden; }
+  .gstage canvas { display: block; width: 100%; height: min(76vh, 820px, calc(100vw + 60px)); min-height: 380px; cursor: grab; touch-action: none; }
+  .gsvg { display: block; width: 100%; height: auto; max-height: max(600px, 86vh); margin: 0 auto; }
+  .gsvg text { font: 12.5px var(--f-body); fill: var(--fg); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+  .gsvg .gpred { font: 11px var(--f-mono); fill: var(--muted); pointer-events: none; }
+  .gsvg .gfocuslabel { font: 600 15px var(--f-display); pointer-events: none; }
+  .glink { stroke: var(--line); stroke-width: 1.2; }
+  .glink.far { stroke-dasharray: 3 3; }
+  .gnode { cursor: pointer; }
+  .gnode:focus { outline: none; }
+  .gnode circle { stroke: var(--surface); stroke-width: 1.5; }
+  .gnode:hover circle, .gnode:focus-visible circle { stroke: var(--fg); stroke-width: 2.5; }
+  .gnode:hover .glink, .gnode:focus-visible .glink { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; }
+  .gnode:hover text, .gnode:focus-visible text { font-weight: 600; }
+  .gnode.gfocus circle { stroke: var(--fg); stroke-width: 3; }
+  .gnote { margin: 0; padding: 0 12px 10px; }
+  .gpanel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 14px; min-width: 0; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); overflow: auto; }
+  .gpanel h2 { overflow-wrap: anywhere; }
+  .gresults { display: grid; gap: 3px; }
+  .gchain { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; font-size: 12.5px; }
+  .gpath { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .gpath li { display: grid; }
+  details.gnb > summary { cursor: pointer; font-size: 12.5px; padding: 2px 0; }
+  .gtip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 12px; line-height: 1.35; padding: 4px 8px; border-radius: 4px; max-width: 280px; z-index: 2; }
+  .gzoom { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+  .gzoom button { min-width: 30px; height: 28px; border: 1px solid var(--line); background: var(--surface); border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 8px; }
+  .gzoom button:hover { border-color: var(--accent); color: var(--accent); }
+
   @media (max-width: 1100px) {
+    .gwrap { grid-template-columns: minmax(0, 1fr); }
+    .gpanel { position: static; max-height: none; }
     .ent { grid-template-columns: 200px minmax(0, 1fr); }
     .meet { grid-template-columns: 200px minmax(0, 1fr); }
     .detail { grid-column: 1 / -1; position: static; max-height: none; }
@@ -317,6 +348,7 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
 // ---- tabs --------------------------------------------------------------------------------------
 const TABS = [
   ["entities", "Entities", ENT.length],
+  ["graph", "Graph", ENT.filter(e => e.class !== "ProjectRole").length],
   ...(PUBS ? [["publications", "Publications", PUBS.count]] : []),
   ...(MT ? [["meetings", "Meetings", MT.meetings.length]] : []),
   ...(DV ? [["devices", "Devices", DV.devices.length]] : []),
@@ -621,7 +653,7 @@ function detailHTML(e) {
     <div style="display:grid;gap:6px">
       <span class="pill cls" style="color:${colorOf(e.class)};justify-self:start"><i class="swatch"></i>${esc(e.class)}</span>
       <h2>${esc(e.label)}</h2>
-      <div class="iri"><code>${esc(e.id)}</code><button class="copy" data-copy="${esc(e.id)}">Copy IRI</button></div>
+      <div class="iri"><code>${esc(e.id)}</code><button class="copy" data-copy="${esc(e.id)}">Copy IRI</button>${e.class !== "ProjectRole" ? `<button class="copy" data-gofocus="${esc(e.id)}">Show in graph</button>` : ""}</div>
       ${e.flags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${e.flags.map(f => `<span class="pill ${FLAG[f].cls}">${FLAG[f].text}</span>`).join("")}</div>` : ""}
       ${why}
     </div>
@@ -1459,6 +1491,540 @@ $("#view").addEventListener("click", e => {
   else if (d.dflagremove) removeDeviceFlag(d.dflagremove);
 });
 
+// ---- graph -------------------------------------------------------------------------------------
+// The graph as nodes in 2D, two ways. "Around a node" puts one node in the middle and its
+// neighbours on a ring (a second ring with "2 links out"); click any node to move to it, and the
+// trail walks back. "Whole graph" draws every node at once, placed by a force layout: each link
+// pulls its two nodes together and every node pushes the others away; drag to pan, scroll or pinch
+// to zoom. Role records are drawn as person–project links carrying the role, the way the MCP
+// server folds them. Self-contained: the layout and the pan and zoom are written here, so there is
+// no library to fetch and the page draws the same offline, on the public site and in the artifact.
+const GHUB = 30;                 // more links than this makes a node a hub: today, the four working groups
+const GV = { mode: store.get("gmode", "around") === "whole" ? "whole" : "around", focus: store.get("gfocus", null),
+             trail: [], hops: 1, expand: false, hideIsolated: true, hidden: new Set(), q: "", pathQ: "", pathTo: null,
+             viaHubs: false, t: null, hover: null, pan: null, layouts: {}, redraw: null };
+let GRAPH = null;
+const AREA_ORDER = Object.keys(AREA_NAME);
+const gPlural = (n, word) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
+const gClip = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+const gKind = (a, b) => AREA_ORDER.indexOf(a.area) - AREA_ORDER.indexOf(b.area) || a.cls.localeCompare(b.cls) || a.label.localeCompare(b.label);
+
+function graphData() {
+  if (GRAPH) return GRAPH;
+  const nodes = new Map();
+  for (const e of ENT) if (e.class !== "ProjectRole") nodes.set(e.id, { id: e.id, label: e.label, cls: e.class, area: areaOf(e.class) });
+  const adj = new Map([...nodes.keys()].map(id => [id, new Map()])), pairs = new Map();
+  const add = (from, to, pred) => {
+    if (from === to || !nodes.has(from) || !nodes.has(to)) return;
+    for (const [a, b, dir] of [[from, to, "out"], [to, from, "in"]]) {
+      const m = adj.get(a);
+      if (!m.has(b)) m.set(b, []);
+      if (!m.get(b).some(s => s.pred === pred && s.dir === dir)) m.get(b).push({ pred, dir });
+    }
+    const [a, b] = from < to ? [from, to] : [to, from];
+    pairs.set(a + "\u0001" + b, [a, b]);
+  };
+  for (const e of ENT) {
+    if (e.class === "ProjectRole") {             // person —role→ project, in place of the record
+      const on = e.out.find(l => l.predicate === "on_project"), by = e.out.find(l => l.predicate === "held_by");
+      if (on && by) add(by.target, on.target, `role: ${(e.facts.project_role || ["unnamed"])[0]}`);
+      continue;
+    }
+    for (const l of e.out) add(e.id, l.target, l.predicate);
+  }
+  for (const n of nodes.values()) n.degree = adj.get(n.id).size;
+  const hubs = [...nodes.values()].filter(n => n.degree > GHUB).sort((a, b) => b.degree - a.degree);
+  GRAPH = { nodes, adj, pairs: [...pairs.values()], hubs };
+  return GRAPH;
+}
+const gnode = id => graphData().nodes.get(id);
+function defaultFocus() {
+  const all = [...graphData().nodes.values()].sort((a, b) => b.degree - a.degree);
+  return (all.find(n => n.cls === "Project") || all[0] || {}).id || null;
+}
+function setFocus(id) {
+  GV.focus = id; GV.expand = false; GV.pathTo = null; GV.pathQ = "";
+  if (GV.mode === "whole") GV.pan = id;
+  store.set("gfocus", id);
+}
+function goFocus(id) {                           // move, and remember where we came from
+  if (!gnode(id) || id === GV.focus) return;
+  if (GV.focus) GV.trail = [...GV.trail.filter(x => x !== GV.focus && x !== id), GV.focus].slice(-12);
+  setFocus(id);
+}
+function stageWidth() {
+  const w = $("#view").clientWidth || 1000;
+  return window.matchMedia("(max-width: 1100px)").matches ? w : w - 356;
+}
+
+// -- around a node: the focus in the middle, its neighbours on a ring, grouped by kind ----------
+function aroundSVG(focusId, width) {
+  const g = graphData(), f = gnode(focusId);
+  if (!f) return `<p class="empty" style="padding:16px">Pick a node to start from.</p>`;
+  const compact = width < 640, two = GV.hops === 2, CH = 6.9;          // CH: one character's width at 12.5px
+  const all = [...g.adj.get(f.id).keys()].map(gnode).sort(gKind);
+  const cap = compact ? 24 : 48, shown = GV.expand ? all : all.slice(0, cap), n = shown.length;
+  const L1 = compact ? 12 : two ? 16 : 30, L2 = compact ? 10 : 20;      // label lengths, inner and outer ring
+  const longest = (list, max) => Math.max(4, ...list.map(d => Math.min(d.label.length, max)));
+  const named = n <= 14 && !compact;            // few enough to write each link's name on its line
+  const R1 = Math.max(compact ? 100 : named ? 190 : 150, (n * 24) / (2 * Math.PI));
+  const pos = new Map([[f.id, { x: 0, y: 0, a: 0 }]]);
+  shown.forEach((d, i) => { const a = -Math.PI / 2 + (2 * Math.PI * i) / Math.max(n, 1); pos.set(d.id, { x: R1 * Math.cos(a), y: R1 * Math.sin(a), a }); });
+  const outer = [];
+  if (two) {
+    const seen = new Set([f.id, ...shown.map(d => d.id)]), per = Math.max(1, Math.min(6, Math.floor(180 / Math.max(n, 1))));
+    const span = Math.min(0.5, (2 * Math.PI) / Math.max(n, 1)) * 0.8;
+    for (const d of shown) {
+      if (d.degree > GHUB) continue;              // a hub's members would bury the ring
+      const kids = [...g.adj.get(d.id).keys()].filter(id => !seen.has(id)).map(gnode).sort(gKind).slice(0, per);
+      const { a } = pos.get(d.id);
+      kids.forEach((k, j) => { seen.add(k.id); outer.push({ node: k, parent: d.id, a: a + (kids.length > 1 ? (j / (kids.length - 1) - 0.5) * span : 0) }); });
+    }
+  }
+  const R2 = Math.max(R1 + 40 + longest(shown, L1) * CH, (outer.length * 16) / (2 * Math.PI));
+  for (const o of outer) pos.set(o.node.id, { x: R2 * Math.cos(o.a), y: R2 * Math.sin(o.a), a: o.a });
+  const reach = Math.ceil(outer.length ? R2 + 30 + longest(outer.map(o => o.node), L2) * CH : R1 + 30 + longest(shown, L1) * CH);
+  const r = node => 5 + Math.min(9, Math.sqrt(node.degree));
+  const how = (from, to) => [...new Set((g.adj.get(from).get(to) || []).map(s => s.dir === "out" ? `${s.pred} →` : `← ${s.pred}`))].join(", ");
+  const xy = p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  const label = (node, p, len) => {
+    const right = Math.cos(p.a) >= -1e-9, deg = (p.a * 180) / Math.PI + (right ? 0 : 180), off = r(node) + 4;
+    return `<text transform="translate(${xy(p)}) rotate(${deg.toFixed(1)})" x="${right ? off : -off}" dy="0.32em" text-anchor="${right ? "start" : "end"}">${esc(gClip(node.label, len))}</text>`;
+  };
+  const nodeG = (node, from, ring, len) => {
+    const p = pos.get(node.id), q = pos.get(from), link = how(from, node.id);
+    return `<g class="gnode${ring === 2 ? " far" : ""}" data-gfocus="${esc(node.id)}" tabindex="0" role="button" aria-label="${esc(`${node.label}, ${node.cls}, ${gPlural(node.degree, "link")}; ${link}`)}">
+      <title>${esc(`${node.label}\n${node.cls} · ${gPlural(node.degree, "link")}\n${link}`)}</title>
+      <line class="glink${ring === 2 ? " far" : ""}" x1="${q.x.toFixed(1)}" y1="${q.y.toFixed(1)}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"></line>
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r(node)}" style="fill:var(--c-${node.area}, var(--muted))"></circle>${label(node, p, len)}</g>`;
+  };
+  const preds = named ? shown.map(d => { const p = pos.get(d.id); return `<text class="gpred" x="${(p.x * 0.6).toFixed(1)}" y="${(p.y * 0.6).toFixed(1)}" text-anchor="middle" dy="0.32em">${esc(gClip(how(f.id, d.id), 28))}</text>`; }).join("") : "";
+  const more = all.length > cap
+    ? `<p class="note gnote">${GV.expand ? `All ${fmt(all.length)} neighbours shown.` : `${cap} of ${fmt(all.length)} neighbours shown.`} <button class="linkbtn" id="gexpand">${GV.expand ? "Show fewer" : `Show all ${fmt(all.length)}`}</button></p>` : "";
+  const alone = !all.length ? `<p class="note gnote">Nothing links to or from this node: it is one of the ${fmt([...g.nodes.values()].filter(x => !x.degree).length)} isolated nodes.</p>` : "";
+  const hubsHere = two ? shown.filter(d => d.degree > GHUB) : [];
+  const skipped = hubsHere.length ? `<p class="note gnote">A hub's own neighbours are left off the outer ring: ${esc(hubsHere.map(d => d.label).join(", "))}.</p>` : "";
+  return `<svg class="gsvg" viewBox="${-reach} ${-reach} ${2 * reach} ${2 * reach}" style="max-width:${Math.round(2 * reach * 1.05)}px" role="group" aria-label="${esc(`${f.label} and its ${gPlural(all.length, "neighbour")}`)}">
+    ${outer.map(o => nodeG(o.node, o.parent, 2, L2)).join("")}
+    ${shown.map(d => nodeG(d, f.id, 1, L1)).join("")}
+    ${preds}
+    <g class="gnode gfocus" data-gfocus="${esc(f.id)}" tabindex="0" role="button" aria-label="${esc(`${f.label}, ${f.cls}, ${gPlural(f.degree, "link")}: the node in the middle`)}">
+      <title>${esc(`${f.label}\n${f.cls} · ${gPlural(f.degree, "link")}`)}</title><circle cx="0" cy="0" r="14" style="fill:var(--c-${f.area}, var(--muted))"></circle></g>
+    <text class="gfocuslabel" x="0" y="34" text-anchor="middle">${esc(gClip(f.label, Math.max(12, Math.floor((1.7 * R1) / 8.4))))}</text>
+  </svg>${more}${skipped}${alone}`;
+}
+
+// -- the whole graph: a force layout, computed once per view and kept ---------------------------
+// The forces and constants are d3-force's (link, many-body, x/y centring, velocity decay 0.4,
+// 300 ticks), with the many-body sum done exactly: a few hundred nodes don't need Barnes–Hut.
+// A fixed seed makes the drawing the same on every load.
+function forceLayout(nodes, links) {
+  let seed = 1;
+  const jiggle = () => ((seed = (1664525 * seed + 1013904223) % 4294967296) / 4294967296 - 0.5) * 1e-6;
+  const step = Math.PI * (3 - Math.sqrt(5));
+  nodes.forEach((d, i) => { const rr = 10 * Math.sqrt(0.5 + i), a = i * step; d.x = rr * Math.cos(a); d.y = rr * Math.sin(a); d.vx = d.vy = 0; });
+  const count = nodes.map(() => 0);
+  for (const [s, t] of links) { count[s]++; count[t]++; }
+  const lk = links.map(([s, t]) => ({ s: nodes[s], t: nodes[t], str: 1 / Math.min(count[s], count[t]), bias: count[s] / (count[s] + count[t]),
+                                      len: 16 + 3 * Math.sqrt(Math.min(nodes[s].degree, nodes[t].degree)) }));
+  const CHARGE = -22, FAR2 = 260 * 260, decay = 1 - Math.pow(0.001, 1 / 300);
+  let alpha = 1;
+  for (let tick = 0; tick < 300; tick++) {
+    alpha += -alpha * decay;
+    for (const l of lk) {
+      let x = l.t.x + l.t.vx - l.s.x - l.s.vx || jiggle(), y = l.t.y + l.t.vy - l.s.y - l.s.vy || jiggle();
+      const d = Math.sqrt(x * x + y * y), k = ((d - l.len) / d) * alpha * l.str;
+      x *= k; y *= k;
+      l.t.vx -= x * l.bias; l.t.vy -= y * l.bias;
+      l.s.vx += x * (1 - l.bias); l.s.vy += y * (1 - l.bias);
+    }
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        let x = b.x - a.x, y = b.y - a.y, d2 = x * x + y * y;
+        if (d2 >= FAR2) continue;
+        if (x === 0) { x = jiggle(); d2 += x * x; }
+        if (y === 0) { y = jiggle(); d2 += y * y; }
+        if (d2 < 1) d2 = Math.sqrt(d2);
+        const w = (CHARGE * alpha) / d2;
+        a.vx += x * w; a.vy += y * w; b.vx -= x * w; b.vy -= y * w;
+      }
+    }
+    for (const d of nodes) {
+      d.vx += -d.x * 0.05 * alpha; d.vy += -d.y * 0.05 * alpha;
+      d.x += d.vx *= 0.6; d.y += d.vy *= 0.6;
+    }
+  }
+}
+function gLayout() {
+  const key = GV.hideIsolated ? "linked" : "all";
+  if (GV.layouts[key]) return GV.layouts[key];
+  const g = graphData();
+  const nodes = [...g.nodes.values()].filter(n => !GV.hideIsolated || n.degree)
+    .sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id))      // hubs start in the middle
+    .map(n => ({ id: n.id, label: n.label, cls: n.cls, area: n.area, degree: n.degree, r: 2.5 + Math.min(10, Math.sqrt(n.degree) * 1.3) }));
+  const index = new Map(nodes.map((n, i) => [n.id, i]));
+  const links = g.pairs.filter(([a, b]) => index.has(a) && index.has(b)).map(([a, b]) => [index.get(a), index.get(b)]);
+  forceLayout(nodes, links);
+  return (GV.layouts[key] = { nodes, links, byId: new Map(nodes.map(n => [n.id, n])) });
+}
+function gTokens() {
+  const css = getComputedStyle(document.documentElement), v = name => css.getPropertyValue(name).trim();
+  const c = { line: v("--line"), fg: v("--fg"), muted: v("--muted"), accent: v("--accent"), surface: v("--surface"), font: v("--f-body") };
+  for (const a of AREA_ORDER) c[a] = v(`--c-${a}`) || c.muted;
+  return c;
+}
+const gRadius = (n, k) => Math.max(2, Math.min(36, n.r * Math.sqrt(k)));
+function gFit(L, w, h) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const n of L.nodes) if (!GV.hidden.has(n.area)) { x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x); y0 = Math.min(y0, n.y); y1 = Math.max(y1, n.y); }
+  if (!isFinite(x0)) return { k: 1, x: w / 2, y: h / 2 };
+  const k = Math.max(0.15, Math.min(14, 0.9 * Math.min(w / Math.max(1, x1 - x0), h / Math.max(1, y1 - y0))));
+  return { k, x: w / 2 - (k * (x0 + x1)) / 2, y: h / 2 - (k * (y0 + y1)) / 2 };
+}
+function drawOverview() {
+  const canvas = $("#gcanvas");
+  if (!canvas) return;
+  const L = gLayout(), g = graphData(), w = canvas.clientWidth, h = canvas.clientHeight, dpr = window.devicePixelRatio || 1;
+  if (!w || !h) return;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+  if (!GV.t) GV.t = gFit(L, w, h);
+  if (GV.pan) {                                  // a node picked in the panel: bring it to the middle
+    const n = L.byId.get(GV.pan);
+    if (n) GV.t = { k: GV.t.k, x: w / 2 - n.x * GV.t.k, y: h / 2 - n.y * GV.t.k };
+    GV.pan = null;
+  }
+  const ctx = canvas.getContext("2d");
+  const draw = () => {
+    const t = GV.t, c = gTokens(), vis = n => !GV.hidden.has(n.area);
+    const fid = GV.hover || GV.focus, f = fid ? L.byId.get(fid) : null, near = f ? g.adj.get(f.id) : null;
+    const dim = GV.hover ? 0.18 : 0.5;            // a hover is a quick look, a selection stays on while you pan
+    const X = n => n.x * t.k + t.x, Y = n => n.y * t.k + t.y;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.lineWidth = 0.8; ctx.strokeStyle = c.line; ctx.globalAlpha = f && near.size ? dim : 1;
+    ctx.beginPath();
+    for (const [i, j] of L.links) { const a = L.nodes[i], b = L.nodes[j]; if (vis(a) && vis(b)) { ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); } }
+    ctx.stroke();
+    if (f && vis(f)) {
+      ctx.globalAlpha = 1; ctx.strokeStyle = c.accent; ctx.lineWidth = 1.6; ctx.beginPath();
+      for (const id of near.keys()) { const o = L.byId.get(id); if (o && vis(o)) { ctx.moveTo(X(f), Y(f)); ctx.lineTo(X(o), Y(o)); } }
+      ctx.stroke();
+    }
+    for (const n of L.nodes) {
+      if (!vis(n)) continue;
+      ctx.globalAlpha = !f || n === f || near.has(n.id) ? 1 : dim;
+      ctx.fillStyle = c[n.area] || c.muted;
+      ctx.beginPath(); ctx.arc(X(n), Y(n), gRadius(n, t.k), 0, 2 * Math.PI); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const sel = GV.focus && L.byId.get(GV.focus);
+    if (sel && vis(sel)) { ctx.lineWidth = 2.5; ctx.strokeStyle = c.fg; ctx.beginPath(); ctx.arc(X(sel), Y(sel), gRadius(sel, t.k) + 2.5, 0, 2 * Math.PI); ctx.stroke(); }
+    ctx.font = `12px ${c.font}`; ctx.textBaseline = "middle"; ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = c.surface; ctx.fillStyle = c.fg;
+    // Labels by priority (the hovered or selected node, hubs, its neighbours, then whatever the
+    // zoom makes room for), each drawn only where it overlaps none drawn before it.
+    const cand = [];
+    for (const n of L.nodes) {
+      if (!vis(n)) continue;
+      const pri = n === f ? 0 : n.id === GV.focus ? 1 : n.degree > GHUB ? 2 : f && near.has(n.id) ? 3
+        : (t.k >= 2.2 && n.degree >= 3) || t.k >= 4.5 ? 4 : -1;
+      if (pri < 0) continue;
+      const x = X(n) + gRadius(n, t.k) + 3, y = Y(n);
+      if (x < -300 || x > w + 10 || y < -10 || y > h + 10) continue;
+      cand.push({ n, pri, x, y });
+    }
+    cand.sort((a, b) => a.pri - b.pri || b.n.degree - a.n.degree);
+    const placed = [];
+    for (const { n, pri, x, y } of cand) {
+      const s = gClip(n.label, pri <= 1 ? 60 : 32), box = [x - 2, y - 8, x + ctx.measureText(s).width + 2, y + 8];
+      if (pri > 1 && placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      placed.push(box);
+      ctx.strokeText(s, x, y); ctx.fillText(s, x, y);
+    }
+  };
+  GV.redraw = () => { if (canvas.isConnected) draw(); };
+  bindCanvas(canvas, L);
+  draw();
+}
+function gZoom(how) {
+  const canvas = $("#gcanvas");
+  if (!canvas || !GV.t) return;
+  if (how === "fit") { GV.t = null; drawOverview(); return; }
+  const w = canvas.clientWidth, h = canvas.clientHeight, t = GV.t, k = Math.max(0.15, Math.min(14, t.k * (how === "in" ? 1.5 : 1 / 1.5)));
+  GV.t = { k, x: w / 2 - ((w / 2 - t.x) * k) / t.k, y: h / 2 - ((h / 2 - t.y) * k) / t.k };
+  GV.redraw && GV.redraw();
+}
+function bindCanvas(canvas, L) {
+  if (canvas.dataset.bound) return;
+  canvas.dataset.bound = "1";
+  const tip = $("#gtip"), pts = new Map();
+  let drag = null, pinch = null;
+  const local = e => { const b = canvas.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+  const clampK = k => Math.max(0.15, Math.min(14, k));
+  const pick = ([mx, my], slop) => {
+    const t = GV.t, layout = GV.layouts[GV.hideIsolated ? "linked" : "all"] || L;
+    let best = null, bestD = Infinity;
+    for (const n of layout.nodes) {
+      if (GV.hidden.has(n.area)) continue;
+      const d = Math.hypot(n.x * t.k + t.x - mx, n.y * t.k + t.y - my);
+      if (d < bestD && d <= gRadius(n, t.k) + slop) { best = n; bestD = d; }
+    }
+    return best;
+  };
+  const hideTip = () => { tip.hidden = true; };
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    const [mx, my] = local(e), t = GV.t;
+    const k = clampK(t.k * Math.pow(2, -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002) * (e.ctrlKey ? 10 : 1)));
+    GV.t = { k, x: mx - ((mx - t.x) * k) / t.k, y: my - ((my - t.y) * k) / t.k };
+    GV.redraw();
+  }, { passive: false });
+  canvas.addEventListener("pointerdown", e => {
+    if (e.button && e.button !== 0) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch {}
+    pts.set(e.pointerId, local(e));
+    if (pts.size === 1) drag = { start: local(e), t: { ...GV.t }, moved: false, touch: e.pointerType === "touch" };
+    else if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], t: { ...GV.t } };
+      drag = null;
+    }
+  });
+  canvas.addEventListener("pointermove", e => {
+    const p = local(e);
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, p);
+    if (pinch) {
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()], s = pinch.t, k = clampK((s.k * Math.hypot(a[0] - b[0], a[1] - b[1])) / pinch.d);
+        const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], wx = (pinch.mid[0] - s.x) / s.k, wy = (pinch.mid[1] - s.y) / s.k;
+        GV.t = { k, x: mid[0] - wx * k, y: mid[1] - wy * k };
+        GV.redraw();
+      }
+      return;
+    }
+    if (drag) {
+      const dx = p[0] - drag.start[0], dy = p[1] - drag.start[1];
+      if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; hideTip(); canvas.style.cursor = "grabbing"; }
+      if (drag.moved) { GV.t = { k: drag.t.k, x: drag.t.x + dx, y: drag.t.y + dy }; GV.redraw(); }
+      return;
+    }
+    const hit = pick(p, 6), id = hit ? hit.id : null;
+    canvas.style.cursor = hit ? "pointer" : "grab";
+    if (id !== GV.hover) { GV.hover = id; GV.redraw(); }
+    if (hit) {
+      tip.hidden = false;
+      tip.textContent = `${hit.label} · ${hit.cls} · ${gPlural(hit.degree, "link")}`;
+      tip.style.left = Math.max(4, Math.min(p[0] + 14, canvas.clientWidth - tip.offsetWidth - 4)) + "px";
+      tip.style.top = Math.min(p[1] + 14, canvas.clientHeight - tip.offsetHeight - 4) + "px";
+    } else hideTip();
+  });
+  const up = e => {
+    const p = pts.get(e.pointerId) || local(e);
+    pts.delete(e.pointerId);
+    if (pinch) { if (!pts.size) pinch = null; return; }
+    const d = drag; drag = null; canvas.style.cursor = "";
+    if (!d || d.moved || e.type !== "pointerup") return;
+    const hit = pick(p, d.touch ? 14 : 6);
+    if (!hit && !GV.focus) return;
+    if (hit) goFocus(hit.id);
+    else { GV.focus = null; store.set("gfocus", null); }   // empty space: nothing selected
+    GV.pan = null; GV.hover = null; hideTip();
+    const panel = $("#gpanel");
+    if (panel) panel.outerHTML = graphPanelHTML();
+    GV.redraw();
+  };
+  canvas.addEventListener("pointerup", up);
+  canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("pointerleave", () => { if (!pts.size && GV.hover) { GV.hover = null; hideTip(); GV.redraw(); } else if (!pts.size) hideTip(); });
+  canvas.addEventListener("dblclick", e => {
+    const hit = pick(local(e), 6);
+    if (!hit) return;
+    goFocus(hit.id); GV.mode = "around"; store.set("gmode", "around"); render();
+  });
+}
+
+// -- the panel: find a node, its neighbours by link, the trail, a path to another node ----------
+function gNodeButton(id) {
+  const n = gnode(id);
+  return n ? `<button class="linkbtn" data-gfocus="${esc(id)}">${esc(n.label)}</button> <span class="pill cls" style="color:${colorOf(n.cls)}">${esc(n.cls)}</span>` : "";
+}
+function graphSearch(q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return [];
+  const starts = n => n.label.toLowerCase().startsWith(s) ? 0 : 1;
+  return [...graphData().nodes.values()].filter(n => n.label.toLowerCase().includes(s) || n.id.toLowerCase().endsWith(s))
+    .sort((a, b) => starts(a) - starts(b) || b.degree - a.degree || a.label.localeCompare(b.label)).slice(0, 8);
+}
+function shortestPath(from, to, viaHubs) {
+  const g = graphData(), prev = new Map([[from, null]]), queue = [from];
+  for (let i = 0; i < queue.length && !prev.has(to); i++) {
+    const x = queue[i];
+    if (x !== from && !viaHubs && gnode(x).degree > GHUB) continue;     // a hub can end a path, not carry one
+    for (const y of g.adj.get(x).keys()) if (!prev.has(y)) { prev.set(y, x); queue.push(y); }
+  }
+  if (!prev.has(to)) return null;
+  const path = [];
+  for (let x = to; x != null; x = prev.get(x)) path.unshift(x);
+  return path;
+}
+function pathHTML() {
+  const g = graphData();
+  if (!GV.focus) return "";
+  const hubNames = g.hubs.map(h => h.label).join(", ");
+  let body;
+  if (GV.pathTo && gnode(GV.pathTo)) {
+    let path = shortestPath(GV.focus, GV.pathTo, GV.viaHubs), widened = false;
+    if (!path && !GV.viaHubs) { path = shortestPath(GV.focus, GV.pathTo, true); widened = !!path; }
+    const through = path ? path.slice(1, -1).filter(id => gnode(id).degree > GHUB).map(id => gnode(id).label) : [];
+    body = `<div style="display:grid;gap:4px"><span class="note">From ${esc(gnode(GV.focus).label)} to</span><span>${gNodeButton(GV.pathTo)}</span></div>
+      ${path ? `<ol class="gpath">${path.map((id, i) => {
+          const s = i ? (g.adj.get(path[i - 1]).get(id) || [])[0] : null;
+          return `<li>${s ? `<span class="mono note">${esc(s.dir === "out" ? `${s.pred} →` : `← ${s.pred}`)}</span>` : ""}<span>${gNodeButton(id)}</span></li>`;
+        }).join("")}</ol>
+        <span class="note">${gPlural(path.length - 1, "link")}.${widened ? ` Every path goes through a hub (${esc(through.join(", "))}).` : ""}</span>`
+      : `<p class="note" style="margin:0">No path: they are in separate pieces of the graph.</p>`}
+      <button class="linkbtn" id="gpathclear" style="justify-self:start">Clear</button>`;
+  } else {
+    const hits = graphSearch(GV.pathQ).filter(n => n.id !== GV.focus);
+    body = `<input class="search" id="gpath" type="search" placeholder="Another node" value="${esc(GV.pathQ)}" aria-label="Find how this node connects to another">
+      ${hits.length ? `<div class="gresults">${hits.map(n => `<span><button class="linkbtn" data-gpathto="${esc(n.id)}">${esc(n.label)}</button> <span class="note">${esc(n.cls)}</span></span>`).join("")}</div>`
+        : GV.pathQ.trim() ? `<span class="note">No node matches.</span>` : ""}`;
+  }
+  return `<section style="display:grid;gap:6px"><h3>How does it connect to…</h3>${body}
+    ${g.hubs.length ? `<label class="note" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" id="gviahubs" ${GV.viaHubs ? "checked" : ""}><span>Let paths go through hubs (${esc(hubNames)}): nearly everyone is a member, so a path through one says little.</span></label>` : ""}
+  </section>`;
+}
+function startPoints() {
+  const best = new Map();
+  for (const n of graphData().nodes.values()) if (n.degree && (!best.has(n.cls) || n.degree > best.get(n.cls).degree)) best.set(n.cls, n);
+  return ["Project", "Investigator", "ResearchOrganization", "Species", "Device", "Publication", "WorkingGroup"].map(c => best.get(c)).filter(Boolean);
+}
+function graphPanelHTML() {
+  const g = graphData(), f = GV.focus && gnode(GV.focus), hits = graphSearch(GV.q);
+  let body = `<p class="empty">Find a node, or click one in the drawing.</p>`;
+  if (f) {
+    const groups = new Map();
+    for (const [id, steps] of g.adj.get(f.id)) for (const s of steps) {
+      const key = s.dir === "out" ? `${s.pred} →` : `← ${s.pred}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(id);
+    }
+    body = `<section style="display:grid;gap:6px">
+        <span class="pill cls" style="color:${colorOf(f.cls)};justify-self:start"><i class="swatch"></i>${esc(f.cls)}</span>
+        <h2>${esc(f.label)}</h2>
+        <span class="note">${gPlural(f.degree, "neighbour")}${f.degree > GHUB ? " · a hub" : ""}</span>
+        <div class="chips">${GV.mode === "whole" ? `<button class="btn" data-gexplore="${esc(f.id)}">Explore around it</button>` : ""}${BY_ID.has(f.id) ? `<button class="btn ghost" data-go="${esc(f.id)}">Open its card</button>` : ""}</div>
+      </section>
+      ${GV.trail.length ? `<section style="display:grid;gap:6px"><h3>Trail</h3>
+        <div class="gchain">${GV.trail.map(id => gnode(id) ? `<button class="linkbtn" data-gtrail="${esc(id)}">${esc(gClip(gnode(id).label, 28))}</button><span class="note" aria-hidden="true">›</span>` : "").join("")}<b>${esc(gClip(f.label, 28))}</b></div>
+        <button class="linkbtn" id="gback" style="justify-self:start">← Back</button></section>` : ""}
+      <section style="display:grid;gap:4px"><h3>Neighbours by link</h3>${groups.size ? [...groups].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([key, ids]) =>
+        `<details class="gnb" ${ids.length <= 8 || groups.size === 1 ? "open" : ""}><summary><span class="mono">${esc(key)}</span> <span class="note">${fmt(ids.length)}</span></summary>
+          <div class="gresults" style="padding-left:12px">${ids.slice(0, 60).map(id => `<span>${gNodeButton(id)}</span>`).join("")}${ids.length > 60 ? `<span class="note">and ${fmt(ids.length - 60)} more: explore around it to see them all</span>` : ""}</div></details>`).join("")
+        : `<p class="empty">Nothing links to or from it.</p>`}</section>
+      ${pathHTML()}`;
+  }
+  const starts = !GV.q.trim() ? startPoints() : [];
+  return `<aside class="gpanel" id="gpanel" aria-label="The selected node">
+    <div style="display:grid;gap:4px">
+      <input class="search" id="gq" type="search" placeholder="Find a person, project, species…" value="${esc(GV.q)}" aria-label="Find a node in the graph">
+      ${hits.length ? `<div class="gresults">${hits.map(n => `<span><button class="linkbtn" data-gfocus="${esc(n.id)}">${esc(n.label)}</button> <span class="note">${esc(n.cls)} · ${fmt(n.degree)}</span></span>`).join("")}</div>`
+        : GV.q.trim() ? `<span class="note">No node matches.</span>` : ""}
+      ${starts.length ? `<div class="chips" style="font-size:12.5px"><span class="note">Start from the busiest:</span>${starts.map(n => `<button class="copy" data-gfocus="${esc(n.id)}" title="${esc(`${n.label} (${n.cls}, ${gPlural(n.degree, "link")})`)}">${esc(n.cls === "Project" ? n.label.split(" · ")[0] : gClip(n.label, 22))}</button>`).join("")}</div>` : ""}
+    </div>
+    ${body}
+  </aside>`;
+}
+function renderGraph() {
+  const g = graphData();
+  if (GV.focus && !gnode(GV.focus)) GV.focus = null;
+  if (!GV.focus && GV.mode === "around") GV.focus = defaultFocus();
+  const linked = [...g.nodes.values()].filter(n => n.degree).length, isolated = g.nodes.size - linked;
+  const present = new Set([...g.nodes.values()].filter(n => GV.mode === "whole" ? !GV.hideIsolated || n.degree : n.id === GV.focus || (GV.focus && g.adj.get(GV.focus).has(n.id))).map(n => n.area));
+  const areas = AREA_ORDER.filter(a => present.has(a));
+  const legend = GV.mode === "whole"
+    ? `<div class="legend" role="group" aria-label="Show or hide each kind of node">${areas.map(a => `<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-garea="${a}" ${GV.hidden.has(a) ? "" : "checked"}><i class="swatch" style="color:var(--c-${a}, var(--muted))"></i>${esc(AREA_NAME[a] || a)}</label>`).join("")}</div>`
+    : `<div class="legend">${areas.map(a => `<span><i class="swatch" style="color:var(--c-${a}, var(--muted))"></i>${esc(AREA_NAME[a] || a)}</span>`).join("")}</div>`;
+  const stage = GV.mode === "whole"
+    ? `<div class="gstage" id="gstage"><canvas id="gcanvas" role="img" aria-label="${esc(`The whole graph: ${gPlural(GV.hideIsolated ? linked : g.nodes.size, "node")}. Drag to pan, scroll or pinch to zoom, click a node to select it, double-click to explore around it. The panel lists the selected node's neighbours.`)}"></canvas>
+        <div class="gtip" id="gtip" hidden></div>
+        <div class="gzoom" role="group" aria-label="Zoom"><button data-gzoom="in" aria-label="Zoom in">+</button><button data-gzoom="out" aria-label="Zoom out">−</button><button data-gzoom="fit">Fit</button></div></div>`
+    : `<div class="gstage">${aroundSVG(GV.focus, stageWidth())}</div>`;
+  $("#view").innerHTML = `<div style="display:grid;gap:12px">
+    <div style="display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+      <div class="filters" role="group" aria-label="View">
+        <button data-gmode="around" aria-pressed="${GV.mode === "around"}">Around a node</button>
+        <button data-gmode="whole" aria-pressed="${GV.mode === "whole"}">Whole graph</button>
+      </div>
+      ${GV.mode === "around"
+        ? `<div class="filters" role="group" aria-label="How far out"><button data-ghops="1" aria-pressed="${GV.hops === 1}">1 link out</button><button data-ghops="2" aria-pressed="${GV.hops === 2}">2 links out</button></div>`
+        : `<label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gisolated" ${GV.hideIsolated ? "checked" : ""}>Hide the ${fmt(isolated)} isolated nodes</label>`}
+    </div>
+    <p class="note" style="margin:0;max-width:95ch">${GV.mode === "around"
+      ? "Click any node to move to it; the trail takes you back. Hover a node for how it links to the one in the middle. Role records are drawn as person–project links carrying the role."
+      : `${gPlural(GV.hideIsolated ? linked : g.nodes.size, "node")} and ${gPlural(g.pairs.length, "link")}, placed by a force layout: linked nodes pull together and the rest push apart, so groups that share links sit side by side. The tiles count more because here the ${fmt(ENT.length - g.nodes.size)} role records are drawn as person–project links, and a pair linked both ways is one line. Drag to pan, scroll or pinch to zoom, click a node to select it (empty space clears it), double-click to explore around it.`}</p>
+    ${legend}
+    <div class="gwrap">${stage}${graphPanelHTML()}</div>
+  </div>`;
+  if (GV.mode === "whole") drawOverview();
+  else gWide = stageWidth() >= 640;
+}
+$("#view").addEventListener("click", e => {
+  const t = e.target.closest("[data-gfocus],[data-gmode],[data-ghops],[data-gexplore],[data-gtrail],[data-gpathto],[data-gofocus],[data-gzoom],#gback,#gexpand,#gpathclear");
+  if (!t) return;
+  const d = t.dataset;
+  if (d.gzoom) { gZoom(d.gzoom); return; }
+  const moved = !!(d.gfocus || d.gtrail || d.gexplore || d.gofocus || t.id === "gback");
+  if (d.gfocus) { goFocus(d.gfocus); GV.q = ""; }
+  else if (d.gmode) { GV.mode = d.gmode; GV.hover = null; store.set("gmode", GV.mode); }
+  else if (d.ghops) GV.hops = Number(d.ghops);
+  else if (d.gexplore) { GV.mode = "around"; store.set("gmode", "around"); goFocus(d.gexplore); }
+  else if (d.gtrail) { const i = GV.trail.indexOf(d.gtrail); GV.trail = GV.trail.slice(0, Math.max(0, i)); setFocus(d.gtrail); }
+  else if (d.gpathto) { GV.pathTo = d.gpathto; GV.pathQ = ""; }
+  else if (d.gofocus) { GV.mode = "around"; store.set("gmode", "around"); goFocus(d.gofocus); tab = "graph"; store.set("tab", tab); }
+  else if (t.id === "gback") { const last = GV.trail.pop(); if (last) setFocus(last); }
+  else if (t.id === "gexpand") GV.expand = !GV.expand;
+  else if (t.id === "gpathclear") { GV.pathTo = null; GV.pathQ = ""; }
+  render();
+  if (moved) { const s = $(".gstage"), r = s && s.getBoundingClientRect(); if (r && (r.top < 0 || r.top > innerHeight * 0.6)) s.scrollIntoView({ block: "start" }); }
+});
+$("#view").addEventListener("keydown", e => {
+  const t = e.target.closest && e.target.closest("g[data-gfocus]");
+  if (!t || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault(); goFocus(t.dataset.gfocus); GV.q = ""; render(); $("g.gfocus")?.focus();
+});
+$("#view").addEventListener("input", e => {
+  const id = e.target.id;
+  if (id !== "gq" && id !== "gpath") return;
+  if (id === "gq") GV.q = e.target.value; else GV.pathQ = e.target.value;
+  const pos = e.target.selectionStart, p = $("#gpanel");
+  if (!p) return;
+  p.outerHTML = graphPanelHTML();
+  const box = document.getElementById(id);
+  if (box) { box.focus(); box.setSelectionRange(pos, pos); }
+});
+$("#view").addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.garea) { t.checked ? GV.hidden.delete(t.dataset.garea) : GV.hidden.add(t.dataset.garea); GV.redraw && GV.redraw(); }
+  else if (t.id === "gisolated") { GV.hideIsolated = t.checked; GV.t = null; render(); }
+  else if (t.id === "gviahubs") { GV.viaHubs = t.checked; render(); }
+});
+let gResize = null, gWide = null;
+window.addEventListener("resize", () => {
+  clearTimeout(gResize);
+  gResize = setTimeout(() => {
+    if (tab !== "graph") return;
+    if (GV.mode === "whole") drawOverview();
+    else if (gWide !== null && gWide !== (stageWidth() >= 640)) render();
+    gWide = stageWidth() >= 640;
+  }, 120);
+});
+try {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => GV.redraw && GV.redraw());
+  new MutationObserver(() => GV.redraw && GV.redraw()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class", "style"] });
+} catch {}
+
 function render() {
   // A live flag update re-renders while someone may be typing: put focus and caret back.
   const a = document.activeElement, focusId = a && a.id;
@@ -1467,7 +2033,7 @@ function render() {
   if (tab !== "flags" && !TABS.some(t => t[0] === tab)) tab = "entities";   // a tab this copy doesn't have
   renderTabs();
   try { history.replaceState(null, "", "#" + tab); } catch {}
-  const views = { entities: renderEntities, questions: renderQuestions, shapes: renderShapes, structure: renderStructure,
+  const views = { entities: renderEntities, graph: renderGraph, questions: renderQuestions, shapes: renderShapes, structure: renderStructure,
                   publications: renderPublications, meetings: renderMeetings, devices: renderDevices,
                   flags: RV.db ? renderFlags : renderEntities };
   (views[tab] || renderEntities)();

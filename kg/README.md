@@ -227,6 +227,19 @@ its facts and links. The Flags tab compares that with the build on screen and ma
 *looks resolved*, *changed, recheck* or *unchanged*. It never clears a flag; removing one is the
 reviewer's call.
 
+**Graph tab.** The graph drawn as nodes in 2D, for walking it rather than reading cards. *Around a
+node* puts one node in the middle and its neighbours on a ring, grouped by kind (a second ring with
+*2 links out*; a hub's own members are left off it); click any node, or press Enter on it, to move
+there, and the trail walks back. *Whole graph* draws every linked node (the isolated ones on
+request) placed by a force layout, on a canvas you drag, scroll or pinch; click a node to light up
+its links, double-click to explore around it. The panel beside either view finds a node by name,
+lists its neighbours by link, and finds the shortest path to another node; paths avoid the hubs
+(nodes with more than 30 links: today the four working groups, which nearly everyone belongs to) unless you let them, or unless every
+path goes through one. Role records are drawn as person–project links carrying the role, the way
+the MCP server folds them, so the tab counts the nodes less the role records. The layout is d3-force's
+algorithm written into the page, with a fixed seed: no library is fetched, and the drawing is the
+same every time.
+
 **Publications tab.** One row per paper: the project and grant it is credited to (the `produced`
 link the exporter writes from `project_publications`, which is the NIH award credited on the paper's
 PubMed record), its PMID and DOI, and what the export lets us check about that tie: no project, more
