@@ -7,8 +7,10 @@
 // 20261116150000. Nothing stopped the next one: the schema declared no key but `id`, the database
 // had unique constraints on three columns, and each write path matched on its own spelling.
 //
-// Now each key (ORCID, DOI, PMID, FON, award number, organization name, URL) has ONE rule, stated in
-// kg/identity_keys.json together with the vectors that pin it down, and four layers carry it:
+// Now each key (ORCID, DOI, PMID, FON, award number, organization name) has ONE rule, stated in
+// kg/identity_keys.json together with the vectors that pin it down, and four layers carry it. (A URL
+// has a rule too, which kg/quality.py and the write paths compare by, but no index: a URL can be a
+// landing page several records share. So do the pairing rule's parts: title, preprint, chronology.)
 //   database  public.kg_<key>_key and the uq_* indexes on them (supabase/migrations/*_prevent_duplicates.sql)
 //   writers   supabase/functions/_shared/identity-keys.ts (tests/guards/identity-normalization)
 //   schema    kg/bbqs.linkml.yaml unique_keys (gen-owl turns each into an owl:hasKey axiom)
@@ -30,7 +32,10 @@ const read = (p) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n");
 const MIGRATIONS = process.env.KG_MIGRATIONS_DIR || join(ROOT, "supabase", "migrations");
 
 // The keys the design fixes (kg/README.md, "Modelling rule: link, don't copy"). More may be added.
-const REQUIRED = ["orcid", "doi", "pmid", "fon", "award", "nih_award_core", "name", "url", "title", "preprint"];
+const REQUIRED = ["orcid", "doi", "pmid", "fon", "award", "nih_award_core", "name", "url", "title", "preprint", "chronology"];
+// The identifiers kg/quality.py duplicates() must compare, each by its rule. A shorter list is a
+// check that quietly stopped: ci_check's RED fixture is only as good as what it is asked to find.
+const REQUIRED_IDENTIFIERS = ["orcid", "doi", "pmid", "fon", "grant_number", "url", "external_url", "repo_url"];
 
 function spec() {
   const path = join(ROOT, "kg", "identity_keys.json");
@@ -139,27 +144,53 @@ function sqlLiteral(src, i) {
   }
 }
 
-function selfTestRows(text) {
-  const block = text.match(/-- identity-vectors:begin[^\n]*\n([\s\S]*?)\n[ \t]*-- identity-vectors:end/);
-  assert.ok(block, "the migration has no -- identity-vectors:begin ... -- identity-vectors:end block (keys-02)");
+/** One SQL value at src[i]: a literal (sqlLiteral), an integer, or true / false. */
+function sqlValue(src, i) {
+  const rest = src.slice(i);
+  let m;
+  if ((m = /^-?[0-9]+\b/.exec(rest))) return { value: Number(m[0]), end: i + m[0].length };
+  if ((m = /^(true|false)\b/i.exec(rest))) return { value: m[1].toLowerCase() === "true", end: i + m[0].length };
+  return sqlLiteral(src, i);
+}
+
+/** The rows of one generated vector block of the migration (between -- <marker>:begin and :end). */
+function vectorBlock(text, marker, width) {
+  const block = text.match(new RegExp(`-- ${marker}:begin[^\\n]*\\n([\\s\\S]*?)\\n[ \\t]*-- ${marker}:end`));
+  assert.ok(block, `the migration has no -- ${marker}:begin ... -- ${marker}:end block (keys-02)`);
   return block[1].split("\n").filter((l) => l.trim() && !l.trim().startsWith("--")).map((line) => {
     const row = [];
     let i = line.indexOf("(");
-    assert.ok(i >= 0, `self-test line is not a row: ${line}`);
+    assert.ok(i >= 0, `${marker} line is not a row: ${line}`);
     i += 1;
     for (;;) {
       while (/\s/.test(line[i])) i++;
-      const lit = sqlLiteral(line, i);
-      row.push(lit.value);
-      i = lit.end;
+      const v = sqlValue(line, i);
+      row.push(v.value);
+      i = v.end;
       while (/\s/.test(line[i])) i++;
       if (line[i] === ",") { i++; continue; }
-      assert.equal(line[i], ")", `self-test row not closed: ${line}`);
+      assert.equal(line[i], ")", `${marker} row not closed: ${line}`);
       break;
     }
-    assert.equal(row.length, 4, `self-test row is not (kind, input, second input, want): ${line}`);
+    assert.equal(row.length, width, `${marker} row has ${row.length} values, not ${width}: ${line}`);
     return row;
   });
+}
+
+// (kind, input, second input, want) for the one- and two-argument rules, and (preprint year,
+// preprint pmid, published year, published pmid, want) for the order of two versions.
+const selfTestRows = (text) => vectorBlock(text, "identity-vectors", 4);
+const chronologyRows = (text) => vectorBlock(text, "chronology-vectors", 5);
+
+/** The body of one public.kg_* function as the migration writes it (to its closing $fn$;). */
+function functionBody(fn) {
+  const { name, text } = preventDuplicates();
+  const sql = code(text);
+  const at = sql.search(new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+public\\.${escapeRe(fn)}\\s*\\(`, "i"));
+  assert.ok(at >= 0, `${name} does not define public.${fn}`);
+  const end = sql.indexOf("$fn$;", at);
+  assert.ok(end > at, `${name}: public.${fn} has no $fn$ ... $fn$; body`);
+  return { name, body: sql.slice(at, end) };
 }
 
 test("kg/identity_keys.json states each identity key: its rule, its implementations, and vectors", () => {
@@ -171,11 +202,13 @@ test("kg/identity_keys.json states each identity key: its rule, its implementati
     for (const field of ["rule", "ts", "py"]) assert.ok(k[field], `${name}: no "${field}"`);
     if ((k.db || []).length) assert.ok(k.sql, `${name}: indexed in the database (${k.db.map((d) => d.index).join(", ")}) but no "sql" function`);
     assert.ok(Array.isArray(k.vectors) && k.vectors.length >= 3, `${name}: fewer than 3 vectors`);
+    // A rule of several arguments names them ("args"), and each of its vectors gives all of them.
     for (const v of k.vectors) {
       assert.ok(Array.isArray(v) && v.length === 2, `${name}: a vector is not [input, want]: ${JSON.stringify(v)}`);
-      if (name === "preprint") assert.ok(Array.isArray(v[0]) && v[0].length === 2, `preprint: an input is not [journal, doi]`);
+      if (k.args) assert.ok(Array.isArray(v[0]) && v[0].length === k.args.length, `${name}: an input is not [${k.args.join(", ")}]: ${JSON.stringify(v)}`);
+      else assert.ok(!Array.isArray(v[0]), `${name}: an input is a list, but the rule names no args: ${JSON.stringify(v)}`);
     }
-    const nullIn = name === "preprint" ? (v) => v[0][0] === null && v[0][1] === null : (v) => v[0] === null;
+    const nullIn = (v) => (Array.isArray(v[0]) ? v[0].every((x) => x === null) : v[0] === null);
     assert.ok(k.vectors.some(nullIn), `${name}: no vector for a missing value (null)`);
     assert.match(py, new RegExp(`^def ${k.py}\\(`, "m"), `${name}: kg/identity_keys.py defines no ${k.py}()`);
   }
@@ -229,6 +262,8 @@ test("kg/quality.py checks each key it is listed for, with the same Python rule"
   assert.ok(fold, "no FOLD = {...} in kg/quality.py: it maps each identifier to its kg/identity_keys.py rule");
   const folds = Object.fromEntries([...fold[1].matchAll(/"([a-z_]+)":\s*([a-z_]+)/g)].map((m) => [m[1], m[2]]));
   assert.deepEqual(Object.keys(folds).sort(), [...identifiers].sort(), "FOLD and IDENTIFIERS list different identifiers");
+  const dropped = REQUIRED_IDENTIFIERS.filter((x) => !identifiers.includes(x));
+  assert.deepEqual(dropped, [], "kg/quality.py IDENTIFIERS no longer compares these identifiers (a tool's homepage and repository among them)");
   for (const [name, k] of Object.entries(spec().keys)) {
     if (!k.quality) continue;
     assert.ok(identifiers.includes(k.quality), `${name}: kg/quality.py IDENTIFIERS lacks "${k.quality}"`);
@@ -236,28 +271,26 @@ test("kg/quality.py checks each key it is listed for, with the same Python rule"
   }
 });
 
-test("the migration creates each unique index on its key function", () => {
-  const { name } = preventDuplicates();
-  const text = code(preventDuplicates().text);
-  const missing = [];
-  for (const [key, k] of Object.entries(spec().keys)) {
-    for (const d of k.db || []) {
-      const expr = new RegExp(`public\\.${escapeRe(fnName(k.sql))}\\(\\s*${escapeRe(d.column)}\\s*\\)`);
-      const table = new RegExp(`\\b${escapeRe(d.table)}\\b`);
-      // the index named near (within 600 characters of) its table and its key expression
-      const near = [...text.matchAll(new RegExp(`\\b${escapeRe(d.index)}\\b`, "g"))]
-        .some((m) => { const w = text.slice(Math.max(0, m.index - 600), m.index + 600); return expr.test(w) && table.test(w); });
-      if (!near) missing.push(`${key}: ${d.index} on ${d.table} (public.${fnName(k.sql)}(${d.column}))`);
-    }
-  }
-  assert.deepEqual(missing, [], `${name} does not create these indexes on their key functions`);
+test("the migration creates each unique index on its key function, and no other", () => {
+  // Each index is one call of the migration's helper, pg_temp.kg_unique_key('<index>', '<table>',
+  // '<expression>', '<label>'), and the call is read whole: an index named next to another call's
+  // table passed a check by proximity, and the helper reports a column the table lacks as "not
+  // applied yet", so a wrong table would leave the index never built while the run says APPLIED.
+  const { name, text } = preventDuplicates();
+  const calls = [...code(text).matchAll(/kg_unique_key\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,/g)]
+    .map((m) => `${m[1]} on ${m[2]} (${m[3]})`).sort();
+  const want = Object.values(spec().keys)
+    .flatMap((k) => (k.db || []).map((d) => `${d.index} on ${d.table} (public.${fnName(k.sql)}(${d.column}))`)).sort();
+  assert.ok(want.length >= 7, `kg/identity_keys.json lists only ${want.length} indexes`);
+  assert.deepEqual(calls, want,
+    `${name}'s kg_unique_key(...) calls are not kg/identity_keys.json's indexes (index on table (key expression)): one is missing, extra, on another table or another key`);
 });
 
 test("the migration's self-test vectors are kg/identity_keys.json's", () => {
   const { name, text } = preventDuplicates();
   const want = [];
   for (const [kind, k] of Object.entries(spec().keys)) {
-    if (!k.sql) continue;
+    if (!k.sql || kind === "chronology") continue;
     for (const [input, out] of k.vectors) {
       const [a, b] = kind === "preprint" ? input : [input, null];
       want.push([kind, a, b, typeof out === "boolean" ? String(out) : out]);
@@ -266,6 +299,10 @@ test("the migration's self-test vectors are kg/identity_keys.json's", () => {
   assert.ok(want.length >= 60, `only ${want.length} vectors for the SQL rules`);
   assert.deepEqual(selfTestRows(text), want,
     `${name}'s identity-vectors block is not kg/identity_keys.json: regenerate it from the JSON, so Postgres is tested on the same cases as Python and TypeScript`);
+  const order = spec().keys.chronology;
+  assert.ok(order && order.sql, "kg/identity_keys.json has no chronology rule for the SQL pairing rule");
+  assert.deepEqual(chronologyRows(text), order.vectors.map(([input, out]) => [...input, out]),
+    `${name}'s chronology-vectors block is not kg/identity_keys.json's chronology vectors: regenerate it from the JSON`);
 });
 
 test("each kg_* key function is defined in exactly one migration", () => {
@@ -282,24 +319,35 @@ test("each kg_* key function is defined in exactly one migration", () => {
       "CREATE OR REPLACE changes an indexed function without a word, and the index keeps the old keys");
 });
 
-test("the preprint venues and DOI prefixes are the same in kg/identity_keys.py, the JSON and the SQL", () => {
+test("the preprint venues, DOI prefixes and DOI shapes are the same in kg/identity_keys.py, the JSON and the SQL", () => {
   const p = spec().keys.preprint;
   const py = read("kg/identity_keys.py");
   const tuple = (name) => {
-    const m = py.match(new RegExp(`^${name} = \\(([^)]*)\\)`, "m"));
-    assert.ok(m, `no ${name} = (...) in kg/identity_keys.py`);
-    return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort();
+    // one line, to its last parenthesis: a pattern in the tuple has parentheses of its own
+    const m = py.match(new RegExp(`^${name} = \\((.*)\\)[ \\t]*$`, "m"));
+    assert.ok(m, `no one-line ${name} = (...) in kg/identity_keys.py`);
+    // "..." or r"..." strings, read as Python reads them (a raw string keeps its backslashes)
+    return [...m[1].matchAll(/(r?)"([^"]+)"/g)].map((x) => (x[1] ? x[2] : x[2].replace(/\\\\/g, "\\"))).sort();
   };
   assert.deepEqual(tuple("PREPRINT_VENUES"), [...p.venues].sort(), "PREPRINT_VENUES: kg/identity_keys.py vs the JSON");
   assert.deepEqual(tuple("PREPRINT_DOI_PREFIXES"), [...p.doi_prefixes].sort(), "PREPRINT_DOI_PREFIXES: kg/identity_keys.py vs the JSON");
-  const { name } = preventDuplicates();
-  const text = code(preventDuplicates().text);
-  const at = text.search(new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+public\\.${escapeRe(fnName(p.sql))}\\s*\\(`, "i"));
-  assert.ok(at >= 0, `${name} does not define ${p.sql}`);
-  const body = text.slice(at, at + 2500);
-  const venues = body.match(/'\(([a-z ]+(?:\|[a-z ]+)+)\)'/);
-  const prefixes = body.match(/\^10\\{1,2}\.\(([0-9]+(?:\|[0-9]+)+)\)\//);
-  assert.ok(venues && prefixes, `${name}: could not read the venue and DOI-prefix alternations of ${p.sql}`);
+  assert.deepEqual(tuple("PREPRINT_DOI_PATTERNS"), [...(p.doi_patterns || [])].sort(), "PREPRINT_DOI_PATTERNS: kg/identity_keys.py vs the JSON");
+  const { name, body } = functionBody(fnName(p.sql));
+  // Every regular expression the function matches with, in order: the venues, the prefixes, the shapes.
+  const res = [...body.matchAll(/~\s*'((?:[^']|'')*)'/g)].map((m) => m[1].replace(/''/g, "'"));
+  const venues = res.length && res[0].match(/^\(([a-z ]+(?:\|[a-z ]+)+)\)$/);
+  const prefixes = res.length > 1 && res[1].match(/^\^10\\\.\(([0-9]+(?:\|[0-9]+)+)\)\/$/);
+  assert.ok(venues && prefixes, `${name}: could not read the venue and DOI-prefix alternations of ${p.sql} (got ${JSON.stringify(res)})`);
   assert.deepEqual(venues[1].split("|").sort(), [...p.venues].sort(), `${p.sql}: venues differ from the JSON`);
   assert.deepEqual(prefixes[1].split("|").map((x) => `10.${x}/`).sort(), [...p.doi_prefixes].sort(), `${p.sql}: DOI prefixes differ from the JSON`);
+  assert.deepEqual(res.slice(2).sort(), [...(p.doi_patterns || [])].sort(), `${p.sql}: DOI shapes differ from the JSON`);
+});
+
+test("kg_name_key spells out the JSON's Greek letters", () => {
+  const greek = spec().keys.name.greek;
+  assert.ok(greek && Object.keys(greek).length >= 49, "kg/identity_keys.json's name rule has no Greek table");
+  const { name, body } = functionBody("kg_name_key");
+  const pairs = {};
+  for (const m of body.matchAll(/\(\s*([Ee]?'(?:[^']|'')*')\s*,\s*'([a-z]+)'\s*\)/g)) pairs[sqlLiteral(m[1], 0).value] = m[2];
+  assert.deepEqual(pairs, greek, `${name}: kg_name_key's Greek letters differ from kg/identity_keys.json's name.greek`);
 });

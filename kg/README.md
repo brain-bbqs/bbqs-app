@@ -86,18 +86,23 @@ holding a sentence. Those are Supabase data-entry mistakes to fix upstream, not 
 `.github/workflows/kg.yml` runs `ci_check.py` on every PR that touches `kg/` (other PRs pass in
 seconds, so the `kg` check can be required). It fails on a **regression**, never on a known gap:
 
-1. every validation shape still fires on `fixtures/contradictions.ttl` (RED), and `quality.py`
-   `duplicates()` still finds there a pair of every identifier it compares written two ways (an
-   ORCID with x and with X, a DOI with and without its resolver, a FON without hyphens, ...) and an
-   unlinked preprint + published pair;
-2. `fixtures/clean.ttl` still conforms (GREEN), with no possible duplicate and no pair left to
-   link: its same-title pair is linked by `revision_of`;
+1. on `fixtures/contradictions.ttl` (RED) every validation shape reports exactly the focus nodes and
+   values planted for it, `quality.py` `duplicates()` exactly the groups planted, each with its kind
+   (a pair of every identifier it compares written two ways: an ORCID with x and with X, a DOI with
+   and without its resolver, a FON without hyphens, ...; unlinked preprint + published pairs; the
+   same-title groups no link resolves), and `revision_links()` exactly the links planted
+   (`ci_check.py` `RED_EXPECTED`). "Fires at least once" is not enough: a shape keyed on the wrong
+   slot still fires, on another shape's pair;
+2. `fixtures/clean.ttl` still conforms (GREEN), with no possible duplicate, no pair left to link and
+   no `revision_of` to check: its same-title pairs are linked by `revision_of`, and its records that
+   share only a URL are advisory (`GREEN_EXPECTED`);
 3. `identity_keys.py` gives every vector's `want` in `identity_keys.json`, and its preprint lists
-   are the JSON's;
+   and Greek table are the JSON's;
 4. no shape fires on `export/bbqs.ttl` more often than `quality_baseline.json` allows;
 5. every competency question answered in the baseline still answers, every shape that had data
-   to check still does, and there are no more possible duplicates, or unlinked preprint + published
-   pairs, than the baseline has;
+   to check still does, and there are no more possible duplicates, unlinked preprint + published
+   pairs, or `revision_of` links to check (from a preprint, or between two titles) than the
+   baseline has;
 6. `bbqs.owl.ttl` / `bbqs.shapes.gen.ttl` say what the pinned `gen-owl` / `gen-shacl` produce
    from `bbqs.linkml.yaml` (`--check-generated`), statement for statement, each blank node written
    out in full; a stale file prints the statements that differ.
@@ -110,6 +115,12 @@ unique key moved to another slot (`owl:hasKey ( bbqs:scholar_id )` where it was 
 with the OWL left stale passed the comparison this gate used before (triple counts and the triples
 without a blank node) and fails this one; so does a vector changed in `identity_keys.json`, a folded
 pair dropped from the RED fixture, and a sixth unlinked preprint + published pair in an export.
+With the per-node expectations, each of 21 mutations of the shapes, `version_kind()`,
+`revision_links()`, `duplicates()` and `identity_keys.py` fails it (2026-11-17), where the gate that
+only asked each shape to fire passed 9 of the 10 the review tried: #21 keyed on `pmid`, #22 on `doi`,
+any one of #25's branches removed, `version_kind()` without its DOI/PMID check, with two published
+records allowed, or resolving a group on any one link, and `external_url` / `repo_url` dropped from
+`IDENTIFIERS`.
 
 `.github/CODEOWNERS` makes `kg/` changes need the KG owner's review. The `dev` ruleset makes both binding: every change to `dev` goes through a PR, the `kg` check must pass, and a PR touching `kg/` needs code-owner approval. Repo admins are not exempt.
 
@@ -137,7 +148,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | Path | What it is |
 |---|---|
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates the OWL TBox and structural SHACL (no JSON-LD context generated yet). |
-| `identity_keys.json` | **The identity keys**: one rule per key (ORCID, DOI, PMID, FON, award, organization name, URL; the preprint test), with the vectors every implementation must pass, and which database index, LinkML key, shape and `quality.py` identifier carries each (see [Modelling rule](#modelling-rule-link-dont-copy)). |
+| `identity_keys.json` | **The identity keys**: one rule per key (ORCID, DOI, PMID, FON, award, organization name), the URL fold (compared, never a key), and the pairing rule's parts (title, preprint, chronology), with the vectors every implementation must pass, and which database index, LinkML key, shape and `quality.py` identifier carries each (see [Modelling rule](#modelling-rule-link-dont-copy)). |
 | `identity_keys.py` | Those rules in Python (stdlib only), for `quality.py` and the exporter; the SQL and TypeScript copies are held to the same vectors. `python kg/identity_keys.py` checks it. |
 | `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, tracked; commit anon exports only). |
@@ -191,44 +202,79 @@ refused when it is written, not found later. What makes two records one thing is
 and each key has one rule, stated once in `identity_keys.json` with the vectors that pin it down (a
 tab, a no-break space, the Kelvin sign, ß, İ, full-width digits, markup in a title):
 
-| Key | Rule | Declared (`bbqs.linkml.yaml` unique_keys) | Refused (database, `20261117181500`) | Checked (export) |
+| Key | Rule | Declared (`bbqs.linkml.yaml` unique_keys) | Refused in the database | Checked (export) |
 |---|---|---|---|---|
-| ORCID | the iD anywhere in the value, X in capitals | `Investigator.investigator_orcid` | `uq_investigators_orcid_key` | #14, `duplicates()` |
-| DOI | resolver or `doi:` off, lower-case, trailing `/` off | `Publication.publication_doi` | `uq_publications_doi_key` | #21, `duplicates()` |
-| PMID | digits only, no leading zeros | `Publication.publication_pmid` | `uq_publications_pmid_key` | #22, `duplicates()` |
-| FON | letters and digits, capitals | `FundingOpportunity.funding_fon` | `uq_funding_opportunities_fon_key` | #23, `duplicates()` |
-| award | the NIH core: `1R34DA059723-01` is `R34DA059723` | `Project.project_award` | `uq_grants_award_key`, `uq_projects_award_key` | #24, `duplicates()` |
-| organization name | NFKD, then a-z and 0-9 only | `ResearchOrganization.organization_name` | `uq_organizations_name_key` | `duplicates()` (name groups) |
-| notice URL | scheme, `www.` and trailing `/` off, lower-case | `FundingOpportunity.funding_url` | `uq_funding_opportunities_url_key` | `duplicates()` |
-| email | `lower(btrim(email))` | `Investigator.investigator_email` | `investigators_email_unique_ci` | #15 (full-access export) |
-| dandiset | archive and id | `Dandiset.dandiset_archive_id` | `UNIQUE (instance, dandiset_id)` | — |
-| ROR | declared for when organizations has a ROR column | `ResearchOrganization.organization_ror` | — | — |
+| ORCID | the iD anywhere in the value, X in capitals | `Investigator.investigator_orcid` (its `owl:hasKey` is declarative only: the export writes an ORCID iD as an IRI, `orcid` is a datatype property) | `uq_investigators_orcid_key`: planned (`20261117181500`, not applied) | #14, `duplicates()` |
+| DOI | resolver (`https://doi.org/`, `doi.org/`, `www.doi.org/`, `dx.doi.org/`) or `doi:` / `doi ` off, lower-case, trailing `/` off | `Publication.publication_doi` | `uq_publications_doi_key`: planned (`20261117181500`, not applied) | #21, `duplicates()` |
+| PMID | `PMID:` / `PMID ` off, digits only, no leading zeros | `Publication.publication_pmid` | `uq_publications_pmid_key`: planned (`20261117181500`, not applied) | #22, `duplicates()` |
+| FON | letters and digits, capitals | `FundingOpportunity.funding_fon` | `uq_funding_opportunities_fon_key`: planned (`20261117181500`, not applied); the exact `funding_opportunities_fon_key` is in force | #23, `duplicates()` |
+| award | the NIH core: `1R34DA059723-01` is `R34DA059723` | `Project.project_award` | `uq_grants_award_key`, `uq_projects_award_key`: planned (`20261117181500`, not applied) | #24, `duplicates()` |
+| organization name | NFKD, Greek letters by name, then a-z and 0-9 only: it folds case, punctuation, spacing and accents, never wording | `ResearchOrganization.organization_name` | `uq_organizations_name_key`: planned (`20261117181500`, not applied) | `duplicates()` name groups, by its own fold (`fold_label`, which also folds ß to ss), not by this key |
+| email | `lower(btrim(email))` | `Investigator.investigator_email` | `investigators_email_unique_ci`: in force (`20260807190000`) | #15 (full-access export) |
+| dandiset | archive and id | `Dandiset.dandiset_archive_id` | `UNIQUE (instance, dandiset_id)`: in force (`20260524231145`) | — |
+| ROR | declared for when organizations has a ROR column: an organization's identity, which the name key is not | `ResearchOrganization.organization_ror` | — | — |
+
+A URL is no key. A funding call's notice URL can be a landing page (an NIH highlighted-topic page)
+that lists several calls, and a lab's homepage serves several tools, so nothing refuses a second
+record with a URL another holds. `identity_keys.json` still states how a URL is folded (scheme and
+`www.` off, with or without a scheme, trailing `/` off, lower-case): the write paths look up by it,
+and `duplicates()` counts a shared URL as a possible duplicate only when the records share a name as
+well; a shared URL alone is listed as *advisory* and not counted.
 
 Each rule is implemented three times, identically: in SQL (`public.kg_<key>_key`), in TypeScript
 (`supabase/functions/_shared/identity-keys.ts`, what the write paths look up by) and in Python
 (`identity_keys.py`). Case and whitespace are ASCII-only, the one definition Postgres (`COLLATE
-"C"`), JavaScript and Python share, and a missing value is no key, so it never collides. The
-database refuses a second row with an equal key: an expression unique index on the key function,
-created once the live rows satisfy it (until then the migration lists the colliding rows to merge).
-A write path looks up by the same key first and reuses the row it finds ("already in the KG"). The
-export is checked: the SHACL shapes compare exact terms, which is what the exporter writes for one
-key, and `quality.py` `duplicates()` folds each identifier by its key; `ci_check.py` fails when that
-count rises above the baseline. A node has one detail row per table, too (`uq_<table>_resource_id`,
-catalogue #2), so the exporter never folds two rows into one node. Names of people are not a key:
-namesakes exist, and `duplicates()` reports a shared name for a person to look at.
+"C"`), JavaScript and Python share, and a missing value is no key, so it never collides. Once
+`20261117181500_prevent_duplicates` is applied (planned, not applied yet: it ships as a dry run),
+the database refuses a second row with an equal key: an expression unique index on the key
+function, which that script creates only where the live rows satisfy it already. A group of rows
+that share a key skips its index and is listed for a curator to merge; until the next run after
+the merge, that key is not enforced. A write path looks up by the same key first and reuses the
+row it finds ("already in the KG"). The export is checked: the SHACL shapes compare exact terms,
+which is what the exporter writes for one key, and `quality.py` `duplicates()` folds each
+identifier by its key, or, where the rule cannot read a value (a DOI with a space inside), as it is
+written (trimmed, lower-cased), so the same spelling twice is still found; `ci_check.py` fails
+when that count rises above the baseline. A node has one detail row per table, too
+(`uq_<table>_resource_id`, catalogue #2: planned, not applied), which once applied stops the
+exporter folding two rows into one node. Names of people are not a key: namesakes exist, and
+`duplicates()` reports a shared name for a person to look at.
+
+The organization name key catches spelling: case, punctuation, spacing, accents ("UNIVERSITY OF
+CALIFORNIA, SAN DIEGO" is "University of California San Diego"). It does not catch wording,
+abbreviations or stop words, and is not meant to: the 2026-11-17 export holds "STATE UNIVERSITY NEW
+YORK STONY BROOK" (4 members) and "State University of New York at Stony Brook" (one `part_of_org`
+link) as two nodes of one institution. That is a **known duplicate, for a curator to merge**; no key
+or check here reports it. An organization's ROR id is its identity, declared (`organization_ror`)
+for when `organizations` has a ROR column.
+
+Before the database step, every write path that will meet these indexes has to expect 23505 (named
+in the migration's PRECONDITIONS): the six edge functions, `member_self_update()` (the profile
+editor and the MCP `update_my_profile`: an ORCID iD held by another record refuses the whole save),
+`AddFundingOpportunityDialog.tsx`, the Publications page's insert, the `create_grant` and
+`repoint_grant` RPCs from callers besides the MCP, and `../bbqs-agent`, which shares the database
+and must be checked for direct writes to the keyed columns first.
 
 **Versions are linked, never merged.** A preprint and its published version share a title but have
 two PMIDs, two DOIs and two dates: two records of one work. They are linked with `revision_of`, from
 the published paper to its preprint (PROV's newer `prov:wasRevisionOf` older), a `resource_links`
 row the exporter writes as `bbqs:revision_of`. The pairing rule is written once, in SQL
-(`public.kg_link_publication_versions`): the same title (`kg_title_key`, at least 20 characters),
-one of the two a preprint (`kg_is_preprint`: by venue or DOI prefix), exactly one record of that
-title that is not, and a project that credits both (`project_publications`, the RePORTER credit).
-The importer runs it for new papers. `duplicates()` only detects: a same-title group joined by
-`revision_of` is resolved (`linked_versions`), a preprint and its published version not linked yet
-are a pair to link (`versions`; the gate fails when there are more than the baseline's), and any
-other same-title group is a possible duplicate. Two records with one DOI or one PMID are one record
-whatever links them.
+(`public.kg_link_publication_versions`): the same title (`kg_title_key`, at least 20 characters; a
+Greek letter is spelled out, so α-synuclein and β-synuclein are two titles), one of the two a
+preprint (`kg_is_preprint`: by venue, DOI prefix, or the shape of a bioRxiv/medRxiv DOI, `10.1101/`
+then an optional date and six or more digits, since Genome Res, Genes Dev and Learn Mem publish
+under `10.1101/` too), exactly one record of that title that is not, the preprint not later than
+the paper (`kg_preprint_is_later`: by year, else by PubMed id; a later "preprint" is another work
+with the same title, or a wrong year), and a project that credits both (`project_publications`, the
+RePORTER credit). The importer runs it for new papers. `duplicates()` only detects, grouping
+publications by `title_key` of their `bbqs:title` as the database pairs them: a group with one
+published record whose `revision_of` links all run from it to its preprints, each linked, is
+resolved (`linked_versions`); the same not all linked yet, each preprint still to link no later
+than the paper, is a pair to link (`versions`; the gate fails when there are more than the
+baseline's); any other same-title group is a possible duplicate, whatever links it: two published
+records, a link from a preprint, a "preprint" later than the paper. Two records with one DOI or
+one PMID are one record whatever links them. `revision_links()` checks each link on its own: one
+that runs from a preprint to a published paper, or between two titles, is a link to correct, and
+the gate fails when there are more than the baseline's (0).
 
 Keeping the copies equal is a machine's job, not a reviewer's: `tests/guards/kg-identity-keys`
 holds the LinkML keys, the shapes, `quality.py` and the migration (its key functions, its indexes and
@@ -254,7 +300,7 @@ check; see [shape coverage](#quality-evaluation). Today 16 of 21 shapes have dat
 | # | Invariant (must hold) | Contradiction it catches | Enforced by | Status |
 |---|---|---|---|---|
 | 1 | One node has one `resource_type`, matching the table it came from | a `grants` node also typed `investigator`; a `grant` resource with no `grants` row | SHACL (`OneClassPerNodeShape`, `ProjectIsAnAwardShape`) | **live** (1 hit: Psych-DS, a data standard filed as a `grant`) |
-| 2 | One IRI per entity; no two typed rows share a `resource_id` | two rows collapse into one node | DB (`uq_<table>_resource_id` on the 13 node tables, `20261117181500`) | **live (DB)**: the exporter would merge two such rows into one node without a word, so the database refuses the second |
+| 2 | One IRI per entity; no two typed rows share a `resource_id` | two rows collapse into one node | DB (`uq_<table>_resource_id` on the 13 node tables, `20261117181500`) | planned (`20261117181500`, not applied): the exporter would merge two such rows into one node without a word, so the database is to refuse the second; a table whose rows collide already keeps no index until a curator resolves them |
 | 3 | Core classes mutually disjoint (Person/Org/Dataset/Project/Species/Event) | a node typed Person and Product | SHACL (`OneClassPerNodeShape`: the export mints one class per node, so any second class is a clash) | **live** (0 hits) |
 | 4 | `ProjectRole.project_role` is a canonical token | role = "Principal Investigator" free text | SHACL `sh:in` | **live** |
 | 5 | PI standing comes only from `ProjectRole` (roster), never `consortium_role` | free-text label asserts PI with no roster row (#283) | SHACL SPARQL (`ConsortiumRoleNotAProjectRoleShape`): a machine role token in the label, or a PI label with no PI `ProjectRole` | **live** (0 hits: all 73 people labelled "Principal Investigator (PI)" are PIs on a roster) |
@@ -266,18 +312,18 @@ check; see [shape coverage](#quality-evaluation). Today 16 of 21 shapes have dat
 | 11 | Numeric/temporal sanity: amount >= 0, budget_floor <= ceiling, open <= expiration | expiration date before open date | SHACL SPARQL | planned |
 | 12 | No two *verified* sources disagree on one field | two trusted `field_provenance` rows conflict | SHACL SPARQL | **live** |
 | 13 | Schema `resource_type_enum` == the DB enum | schema/DB drift ("code shipped, migration didn't") | Node guard | **live** |
-| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | DB (`uq_investigators_orcid_key`) + SHACL SPARQL, which names the twin | **live** (0 hits on 112 ORCIDs; a hit names the other node, to merge) |
+| 14 | One ORCID → one Investigator node | two Investigator nodes share an `orcid` | SHACL SPARQL, which names the twin; DB (`uq_investigators_orcid_key`) planned (`20261117181500`, not applied) | **live** in SHACL (0 hits on 112 ORCIDs; a hit names the other node, to merge) |
 | 15 | One email (primary or secondary) → one Investigator node | same address as one node's `email` and another's `secondary_emails` (the `lyc5332@psu.edu` failure) | SHACL SPARQL | **live** (no targets — `email`/`secondary_emails` are PII, restricted from anon export) |
 | 16 | One person has one role per grant (per-edge role is fine across *different* grants) | two `ProjectRole` edges for the same `held_by`+`on_project` pair assert different `project_role` values | SHACL SPARQL | **live** |
 | 17 | `Publication.author_orcids` resolves to an Investigator node | an author ORCID with no matching Investigator (graded, not dropped — mirrors #7) | SHACL SPARQL, **warning** | **live**, as a warning (147 hits: author lists name outside co-authors, and only 3 of 126 author ORCIDs are BBQS investigators, 2026-10-21) |
 | 18 | A grade-1 (curator) provenance claim is never contradicted by a grade-3 (harvested) claim on the same field | harvested value disagrees with a manually-verified one (field_provenance is append-only) | SHACL SPARQL | **live** (no targets — same RLS gate as #12) |
 | 20 | Every award identifier on a Project names the same award as its `grant_number` (`name`, `reporter_project_num`, `nih_link`, `external_url`) | a renumbering updated `grants` but not `resources` | SHACL SPARQL | **live** (2 hits: BARD.CC's `name` and `external_url` still say U24MH136628) |
 | 19 | A node cannot exist with zero provenance claims | a node with no `field_provenance` row at all ("unknown" is a value, not an absence) | SHACL SPARQL | **live** (scoped to `Project`; no targets on anon export — same RLS gate as #12) |
-| 21 | One DOI → one Publication node | two Publication nodes share a `doi` (a preprint and its published version have two DOIs: they are linked, #25) | DB (`uq_publications_doi_key`) + SHACL SPARQL (`DoiUniquePerPublicationShape`) | **live** (0 hits on 78 DOIs) |
-| 22 | One PMID → one Publication node | two Publication nodes share a `pmid` | DB (`uq_publications_pmid_key`) + SHACL SPARQL (`PmidUniquePerPublicationShape`) | **live** (0 hits on 89 PMIDs) |
-| 23 | One FON → one FundingOpportunity node | two calls share a `fon`; a final notice supersedes its forecast in place instead | DB (`uq_funding_opportunities_fon_key`) + SHACL SPARQL (`FonUniquePerCallShape`) | **live** (0 hits on 13 calls) |
-| 24 | One award → one Project node | two Project nodes share a `grant_number` (the database compares NIH cores) | DB (`uq_grants_award_key`, `uq_projects_award_key`) + SHACL SPARQL (`AwardUniquePerProjectShape`) | **live** (0 hits on 33 projects) |
-| 25 | `revision_of` links one Publication to another, one way | a `revision_of` to a node that is not a Publication, to itself, or both ways | DB (`resource_links_check_types`) + SHACL SPARQL (`RevisionOfLinksTwoPublicationsShape`) | **live** (no targets yet: the export after `20261117181500` carries its 5 links) |
+| 21 | One DOI → one Publication node | two Publication nodes share a `doi` (a preprint and its published version have two DOIs: they are linked, #25) | SHACL SPARQL (`DoiUniquePerPublicationShape`); DB (`uq_publications_doi_key`) planned (`20261117181500`, not applied) | **live** in SHACL (0 hits on 78 DOIs) |
+| 22 | One PMID → one Publication node | two Publication nodes share a `pmid` | SHACL SPARQL (`PmidUniquePerPublicationShape`); DB (`uq_publications_pmid_key`) planned (`20261117181500`, not applied) | **live** in SHACL (0 hits on 89 PMIDs) |
+| 23 | One FON → one FundingOpportunity node | two calls share a `fon`; a final notice supersedes its forecast in place instead | SHACL SPARQL (`FonUniquePerCallShape`); DB: the exact `funding_opportunities_fon_key` in force, the folded `uq_funding_opportunities_fon_key` planned (`20261117181500`, not applied) | **live** in SHACL (0 hits on 13 calls) |
+| 24 | One award → one Project node | two Project nodes share a `grant_number` (the database compares NIH cores) | SHACL SPARQL (`AwardUniquePerProjectShape`); DB (`uq_grants_award_key`, `uq_projects_award_key`) planned (`20261117181500`, not applied) | **live** in SHACL (0 hits on 33 projects) |
+| 25 | `revision_of` links one Publication to another, one way, from the published paper to an earlier preprint of the same title | a `revision_of` to or from a node that is not a Publication, to itself, or both ways (SHACL); from a preprint to a published paper, or between two titles (`quality.py` `revision_links()`) | SHACL SPARQL (`RevisionOfLinksTwoPublicationsShape`, four disjoint branches) + `revision_links()`, gated; DB (`resource_links_check_types`) planned (`20261117181500`, not applied) | **live** (no targets yet: the first export after `20261117181500` carries its 5 links) |
 
 ## Quality evaluation
 
@@ -395,7 +441,7 @@ shows up after `dev` → `main`.
 | Structure | 758 nodes, 1,046 links. **76 isolated (10%)**, in 104 connected pieces (largest 572). Links: `member_of_group` 268, `members` 165, `on_project` 128, `uses_device_category` 127, `held_by` 126, `produced` 89, `part_of_org` 36, `device_category` 35, `manufacturer` 35, `studies_species` 32, `funded_datasets` 5. On 2026-11-04 it was 189 of 808 isolated (23%); on 2026-09-30, 453 of 693 (65%), with only the last four kinds. |
 | Competency questions | **34 of 42 answered** as the KG gate counts: 32 return rows and 2 "which ... has no ..." questions (CQ27, CQ42) find none missing. 3 need what anon can't read, provenance (CQ19, CQ30, CQ40); CQ24, CQ31 and CQ39 find nothing in this export, and CQ36 and CQ37 nothing yet (see [Jobs](#jobs)). Scored with the job questions as they have read since 2026-11-17; the export is the same. |
 | Shape coverage | **16 of 21 shapes have data to check** (12 of 16 before #21-#25; 7 on 2026-09-30). Of the other 5, four need what anon can't read, `email` (#15) and provenance (#12, #18, #19), and #25 has no `revision_of` link to check before the export after `20261117181500`. |
-| Possible duplicates | **0** (14 on 2026-11-04, all removed by `20261116150000_link_isolated_nodes`), with a call's FON and notice page and a project's grant number now compared too. 5 preprint + published pairs are not linked yet: `20261117181500_prevent_duplicates` links them (`revision_of`), and the gate fails if more appear. |
+| Possible duplicates | **0** (14 on 2026-11-04, all removed by `20261116150000_link_isolated_nodes`), with a call's FON and a project's grant number now compared too, and a call's notice page as a signal (a shared URL alone is advisory: 0). Not counted, as no key or check sees other wording: the two Stony Brook organization nodes, a known duplicate to merge. 5 preprint + published pairs are not linked yet: `20261117181500_prevent_duplicates` links them (`revision_of`) once applied, and the gate fails if more appear. |
 | Violations | 0. Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
 
 On 2026-09-30, ten questions came back empty because the exporter didn't turn anon-readable data
@@ -837,3 +883,5 @@ benchmark's walks were broken 62 ways in the same way, and its tests caught ever
 - **Full-access export**: run with a key that can read investigators / field_provenance / working-group detail; map `field_provenance` → PROV (needed by shapes 5 and 12).
 - **`owl:disjointWith` axioms**: no longer needed for #1/#3, which SHACL now enforces (`OneClassPerNodeShape`). #411's axioms, the distinct-node declaration and its reasoner failing cases are the starting point if the reasoner gets a real job, e.g. once the Marr layer adds inference chains.
 - **Data fixes in Supabase, not exporter changes:** the two non-URI values in URI fields (`Job.external_url` with two links; EMBER's `Project.website` holding a sentence — see above), and one investigator whose `name` has an email address appended, which puts the address in the public export.
+- **Known duplicate, to merge by hand:** "STATE UNIVERSITY NEW YORK STONY BROOK" and "State University of New York at Stony Brook" are two `ResearchOrganization` nodes of one institution (2026-11-17 export). The name key folds spelling, not wording, so neither the planned `uq_organizations_name_key` nor `duplicates()` reports them. An `organizations.ror_id` column, filled and keyed (`organization_ror`), is what would.
+- **The ORCID `owl:hasKey`** is declarative only: gen-owl makes `orcid` a datatype property (range `xsd:anyURI`) while the exporter writes an ORCID iD as an IRI, so a reasoner never applies the key. Modelling `orcid` as an object property would make it apply; the checks that act on it today are #14, `duplicates()` and (planned) `uq_investigators_orcid_key`.

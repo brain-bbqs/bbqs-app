@@ -17,11 +17,14 @@
 # ── IDENTITY KEYS: LINK, DON'T COPY ───────────────────────────────────────────
 # A class's unique_keys say what makes two records one thing: an ORCID, a DOI, a FON. Each key's
 # normalization rule is stated once, in kg/identity_keys.json (with the vectors that pin it), and
-# the same rule is refused in the database (uq_* indexes on public.kg_*_key), looked up by the
-# write paths (supabase/functions/_shared/identity-keys.ts) and checked in the export (SHACL #14,
-# #21-#24; kg/quality.py duplicates()). gen-owl writes each key as owl:hasKey; gen-shacl writes
-# nothing for them. tests/guards/kg-identity-keys keeps these keys equal to the JSON's. A missing
-# value never collides (consider_nulls_inequal), as in Postgres and OWL.
+# the same rule is looked up by the write paths (supabase/functions/_shared/identity-keys.ts),
+# checked in the export (SHACL #14, #21-#24; kg/quality.py duplicates()) and, once
+# 20261117181500_prevent_duplicates is applied (planned, not applied yet), refused in the database
+# by uq_* indexes on public.kg_*_key: that script builds each index only where the live rows do not
+# collide already, and lists the rows that do. gen-owl writes each key as owl:hasKey; gen-shacl
+# writes nothing for them. tests/guards/kg-identity-keys keeps these keys equal to the JSON's. A
+# missing value never collides (consider_nulls_inequal), as in Postgres and OWL. A URL is no key: a
+# notice or a tool's homepage can be a landing page that several records share.
 id: https://brain-bbqs.org/schema/bbqs
 name: bbqs
 title: BBQS Knowledge Graph Schema
@@ -138,15 +141,19 @@ classes:
         consider_nulls_inequal: true
         description: >-
           One ORCID iD, one person (rule "orcid" in kg/identity_keys.json). Refused in the database
-          by uq_investigators_orcid_key on public.kg_orcid_key(orcid); found in an export by
-          OrcidUniquePerPersonShape (#14) and kg/quality.py duplicates().
+          by uq_investigators_orcid_key on public.kg_orcid_key(orcid) (20261117181500, planned, not
+          applied yet); found in an export by OrcidUniquePerPersonShape (#14) and kg/quality.py
+          duplicates(). Its owl:hasKey is declarative only: gen-owl makes orcid a datatype property
+          (range xsd:anyURI), while the exporter writes each ORCID iD as an IRI
+          (<https://orcid.org/...>), so a reasoner never applies the key to an export. The checks
+          that act on it are the database index, #14 and duplicates().
       investigator_email:
         unique_key_slots: [email]
         consider_nulls_inequal: true
         description: >-
-          One email address, one person. Refused in the database by investigators_email_unique_ci
-          on lower(btrim(email)); found in a full-access export by EmailUniquePerPersonShape (#15),
-          which compares secondary_emails too.
+          One email address, one person. Refused in the database, in force since 20260807190000,
+          by investigators_email_unique_ci on lower(btrim(email)); found in a full-access export by
+          EmailUniquePerPersonShape (#15), which compares secondary_emails too.
 
   ResearchOrganization:
     is_a: Entity
@@ -160,15 +167,23 @@ classes:
         unique_key_slots: [ror_id]
         consider_nulls_inequal: true
         description: >-
-          One ROR id, one organization. Declared so the rule is stated when organizations gets a
-          ROR column; it has none yet, so nothing enforces this key today.
+          One ROR id, one organization. ROR is an organization's identity; the name key below only
+          catches spelling variants of one name. Declared so the rule is stated when organizations
+          gets a ROR column; it has none yet, so nothing enforces this key today.
       organization_name:
         unique_key_slots: [name]
         consider_nulls_inequal: true
         description: >-
-          One organization per name, compared without case, accents, punctuation or spacing (rule
-          "name"). Refused in the database by uq_organizations_name_key on public.kg_name_key(name);
-          found in an export by kg/quality.py duplicates() (its name groups).
+          One organization per name, compared without case, punctuation, spacing or accents, with
+          Greek letters by name (rule "name"). It catches "UNIVERSITY OF CALIFORNIA, SAN DIEGO" =
+          "University of California San Diego"; it misses other wording, abbreviations and stop
+          words: "STATE UNIVERSITY NEW YORK STONY BROOK" and "State University of New York at Stony
+          Brook" are two name keys, and the 2026-11-17 export holds both as two nodes of one
+          institution, a known duplicate for a curator to merge. ROR (organization_ror) is the
+          identity for that. Refused in the database by uq_organizations_name_key on
+          public.kg_name_key(name) (20261117181500, planned, not applied yet); in an export,
+          kg/quality.py duplicates() groups organization names with its own fold (fold_label, which
+          also folds ß to ss), not with this key.
 
   Consortium:
     is_a: Entity
@@ -254,8 +269,9 @@ classes:
         description: >-
           One NIH award, one project: grant numbers compared by their NIH core, so 1R34DA059723-01
           and R34DA059723 are one award (rule "award"). Refused in the database by
-          uq_grants_award_key and uq_projects_award_key on public.kg_award_key(grant_number); found
-          in an export by AwardUniquePerProjectShape (#24) and kg/quality.py duplicates().
+          uq_grants_award_key and uq_projects_award_key on public.kg_award_key(grant_number)
+          (20261117181500, planned, not applied yet); found in an export by
+          AwardUniquePerProjectShape (#24) and kg/quality.py duplicates().
 
   ProjectRole:
     class_uri: prov:Association
@@ -283,16 +299,18 @@ classes:
         consider_nulls_inequal: true
         description: >-
           One DOI, one publication (rule "doi"). Refused in the database by uq_publications_doi_key
-          on public.kg_doi_key(doi); found in an export by DoiUniquePerPublicationShape (#21) and
-          kg/quality.py duplicates(). A preprint and its published version have two DOIs: they are
-          two records linked by revision_of, never one record.
+          on public.kg_doi_key(doi) (20261117181500, planned, not applied yet); found in an export
+          by DoiUniquePerPublicationShape (#21) and kg/quality.py duplicates(). A preprint and its
+          published version have two DOIs: they are two records linked by revision_of, never one
+          record.
       publication_pmid:
         unique_key_slots: [pmid]
         consider_nulls_inequal: true
         description: >-
           One PubMed id, one publication (rule "pmid"). Refused in the database by
-          uq_publications_pmid_key on public.kg_pmid_key(pmid); found in an export by
-          PmidUniquePerPublicationShape (#22) and kg/quality.py duplicates().
+          uq_publications_pmid_key on public.kg_pmid_key(pmid) (20261117181500, planned, not
+          applied yet); found in an export by PmidUniquePerPublicationShape (#22) and kg/quality.py
+          duplicates().
 
   Dataset:
     is_a: Entity
@@ -314,8 +332,8 @@ classes:
         unique_key_slots: [dandi_instance, dandiset_id]
         consider_nulls_inequal: true
         description: >-
-          One dandiset per archive and id. Refused in the database by the dandisets UNIQUE
-          (instance, dandiset_id) of 20260524231145.
+          One dandiset per archive and id. Refused in the database, in force since 20260524231145,
+          by the dandisets UNIQUE (instance, dandiset_id).
 
   Benchmark:
     is_a: Dataset
@@ -442,17 +460,13 @@ classes:
         consider_nulls_inequal: true
         description: >-
           One funding opportunity number, one call, compared by letters and digits only (rule "fon").
-          Refused in the database by uq_funding_opportunities_fon_key on public.kg_fon_key(fon),
-          beside the exact funding_opportunities_fon_key; found in an export by
-          FonUniquePerCallShape (#23) and kg/quality.py duplicates(). A final notice supersedes its
-          forecast in place: the call keeps its node and takes the new FON.
-      funding_url:
-        unique_key_slots: [url]
-        consider_nulls_inequal: true
-        description: >-
-          One notice page, one call (rule "url"). Refused in the database by
-          uq_funding_opportunities_url_key on public.kg_url_key(url); found in an export by
-          kg/quality.py duplicates().
+          Refused in the database by uq_funding_opportunities_fon_key on public.kg_fon_key(fon)
+          (20261117181500, planned, not applied yet), beside the exact funding_opportunities_fon_key
+          (in force); found in an export by FonUniquePerCallShape (#23) and kg/quality.py
+          duplicates(). A final notice supersedes its forecast in place: the call keeps its node and
+          takes the new FON. A call's URL is no key: a notice URL can be a landing page (an NIH
+          highlighted-topic page, a programme page) that lists several calls, so kg/quality.py
+          compares it as a signal only, a possible duplicate when the names match as well.
 
   Event:
     is_a: Entity
@@ -626,7 +640,7 @@ slots:
   year:        { slot_uri: schema:datePublished, range: integer }
   citations:   { range: integer }
   rcr:         { range: float, description: "Relative Citation Ratio." }
-  revision_of: { slot_uri: bbqs:revision_of, exact_mappings: [prov:wasRevisionOf], range: Publication, multivalued: true, description: "The earlier version this publication revises: a published paper points at its preprint(s), as PROV's newer prov:wasRevisionOf older. Two records linked, never merged, so each keeps its own PMID, DOI and date. Written from resource_links (predicate revision_of), where public.kg_link_publication_versions records a pair: the same title, one of them a preprint, both credited to one project." }
+  revision_of: { slot_uri: bbqs:revision_of, exact_mappings: [prov:wasRevisionOf], range: Publication, multivalued: true, description: "The earlier version this publication revises: a published paper points at its preprint(s), as PROV's newer prov:wasRevisionOf older. Two records linked, never merged, so each keeps its own PMID, DOI and date. Written from resource_links (predicate revision_of), where public.kg_link_publication_versions records a pair: the same title, one of them a preprint that is not later than the other (by year, then PubMed id), both credited to one project." }
 
   # ---- datasets / software / models ----------------------------------------
   license:     { slot_uri: schema:license }

@@ -1,5 +1,5 @@
 {
- "about": "The BBQS identity keys: one normalization rule per key, written once here and implemented identically in SQL (public.kg_*_key, created by supabase/migrations/20261117181500_prevent_duplicates.sql, which builds the uq_* indexes on them), TypeScript (supabase/functions/_shared/identity-keys.ts, what the write paths look up by) and Python (kg/identity_keys.py, what kg/quality.py and the exporter use). Every implementation must return `want` for every vector: kg/ci_check.py checks Python, tests/guards/identity-normalization.test.mjs checks TypeScript, and the migration's self-test block (keys-02, generated from this file) checks Postgres when it is applied. tests/guards/kg-identity-keys.test.mjs keeps the LinkML unique_keys, the SHACL shapes, kg/quality.py and the migration in step with this file; tests/guards/kg-resource-links-parity.test.mjs does the same for resource_link_predicates.",
+ "about": "The BBQS identity keys: one normalization rule per key, written once here and implemented identically in SQL (public.kg_*_key and the pairing helpers, created by supabase/migrations/20261117181500_prevent_duplicates.sql, which builds the uq_* indexes on the identity keys), TypeScript (supabase/functions/_shared/identity-keys.ts, what the write paths look up by) and Python (kg/identity_keys.py, what kg/quality.py and the exporter use). Every implementation must return `want` for every vector: kg/ci_check.py checks Python, tests/guards/identity-normalization.test.mjs checks TypeScript, and the migration's self-test block (keys-02, generated from this file) checks Postgres when it is applied. tests/guards/kg-identity-keys.test.mjs keeps the LinkML unique_keys, the SHACL shapes, kg/quality.py and the migration in step with this file; tests/guards/kg-resource-links-parity.test.mjs does the same for resource_link_predicates.",
  "conventions": {
   "whitespace": "ASCII only: space, \\t, \\n, \\v, \\f, \\r. 'trim' strips these at both ends.",
   "case": "ASCII only: A-Z <-> a-z; every other character is left as it is (Postgres COLLATE \"C\").",
@@ -70,7 +70,7 @@
    ]
   },
   "doi": {
-   "rule": "trim; remove one leading https?://(dx.)?doi.org/ or doi: plus whitespace (case-insensitive); lower-case; remove trailing '/'; must then match ^10\\.[0-9.]+/[^whitespace]+$, else null",
+   "rule": "trim; remove one leading resolver (an optional https?://, an optional dx. or www., then doi.org/) or 'doi' with an optional ':' and then whitespace (case-insensitive); lower-case; remove trailing '/'; must then match ^10\\.[0-9.]+/[^whitespace]+$, else null",
    "sql": "public.kg_doi_key",
    "ts": "doiKey",
    "py": "doi_key",
@@ -110,6 +110,30 @@
      "10.1000/x"
     ],
     [
+     "doi.org/10.1000/ABC.1",
+     "10.1000/abc.1"
+    ],
+    [
+     "https://www.doi.org/10.1000/XYZ.2",
+     "10.1000/xyz.2"
+    ],
+    [
+     "dx.doi.org/10.1000/x",
+     "10.1000/x"
+    ],
+    [
+     "DOI 10.1000/x",
+     "10.1000/x"
+    ],
+    [
+     "doi10.1000/x",
+     "10.1000/x"
+    ],
+    [
+     "https://doi.org/doi:10.1000/x",
+     null
+    ],
+    [
      "\t10.1000/x\n",
      "10.1000/x"
     ],
@@ -140,7 +164,7 @@
    ]
   },
   "pmid": {
-   "rule": "trim; remove one leading pmid: plus whitespace (case-insensitive); must be all [0-9]; remove leading zeros; null if nothing is left",
+   "rule": "trim; remove one leading 'pmid' with an optional ':' and then whitespace (case-insensitive); must be all [0-9]; remove leading zeros; null if nothing is left",
    "sql": "public.kg_pmid_key",
    "ts": "pmidKey",
    "py": "pmid_key",
@@ -177,6 +201,14 @@
     ],
     [
      "pmid:41331138",
+     "41331138"
+    ],
+    [
+     "PMID 41331138",
+     "41331138"
+    ],
+    [
+     "pmid\t0041331138",
      "41331138"
     ],
     [
@@ -342,7 +374,7 @@
    ]
   },
   "name": {
-   "rule": "Unicode NFKD; lower-case; delete every character that is not a-z or 0-9; null if empty",
+   "rule": "Unicode NFKD; each Greek letter written as its name (the table `greek`: α and Α are alpha; NFKD makes the micro sign mu and the ohm sign omega); lower-case; delete every character that is not a-z or 0-9; null if empty",
    "sql": "public.kg_name_key",
    "ts": "nameKey",
    "py": "name_key",
@@ -362,6 +394,57 @@
      ]
     }
    ],
+   "greek": {
+    "Α": "alpha",
+    "Β": "beta",
+    "Γ": "gamma",
+    "Δ": "delta",
+    "Ε": "epsilon",
+    "Ζ": "zeta",
+    "Η": "eta",
+    "Θ": "theta",
+    "Ι": "iota",
+    "Κ": "kappa",
+    "Λ": "lambda",
+    "Μ": "mu",
+    "Ν": "nu",
+    "Ξ": "xi",
+    "Ο": "omicron",
+    "Π": "pi",
+    "Ρ": "rho",
+    "Σ": "sigma",
+    "Τ": "tau",
+    "Υ": "upsilon",
+    "Φ": "phi",
+    "Χ": "chi",
+    "Ψ": "psi",
+    "Ω": "omega",
+    "α": "alpha",
+    "β": "beta",
+    "γ": "gamma",
+    "δ": "delta",
+    "ε": "epsilon",
+    "ζ": "zeta",
+    "η": "eta",
+    "θ": "theta",
+    "ι": "iota",
+    "κ": "kappa",
+    "λ": "lambda",
+    "μ": "mu",
+    "ν": "nu",
+    "ξ": "xi",
+    "ο": "omicron",
+    "π": "pi",
+    "ρ": "rho",
+    "ς": "sigma",
+    "σ": "sigma",
+    "τ": "tau",
+    "υ": "upsilon",
+    "φ": "phi",
+    "χ": "chi",
+    "ψ": "psi",
+    "ω": "omega"
+   },
    "vectors": [
     [
      "UNIVERSITY OF CALIFORNIA, SAN DIEGO",
@@ -396,6 +479,22 @@
      "bijanpesaran"
     ],
     [
+     "Laboratory of α-Synuclein Biology",
+     "laboratoryofalphasynucleinbiology"
+    ],
+    [
+     "Σ-Ω Center",
+     "sigmaomegacenter"
+    ],
+    [
+     "\u00b5-Lab",
+     "mulab"
+    ],
+    [
+     "Λόγος Institute",
+     "lambdaomicrongammaomicronsigmainstitute"
+    ],
+    [
      "北京大学",
      null
     ],
@@ -410,26 +509,9 @@
    ]
   },
   "url": {
-   "rule": "trim; remove one leading https?:// and then www. (case-insensitive); remove trailing '/'; lower-case; null if empty",
-   "sql": "public.kg_url_key",
+   "rule": "trim; remove one leading https?:// if there is one, and then one leading www. if there is one (case-insensitive); remove trailing '/'; lower-case; null if empty. Not an identity key: a URL can be a landing page that several records share (a programme or topic page lists many funding calls; a lab's homepage, many tools), so no database index is built on it, and kg/quality.py duplicates() counts a shared URL as a possible duplicate only when the names match too (otherwise it is advisory)",
    "ts": "urlKey",
    "py": "url_key",
-   "db": [
-    {
-     "table": "funding_opportunities",
-     "column": "url",
-     "index": "uq_funding_opportunities_url_key"
-    }
-   ],
-   "linkml": [
-    {
-     "class": "FundingOpportunity",
-     "key": "funding_url",
-     "slots": [
-      "url"
-     ]
-    }
-   ],
    "quality": "url",
    "vectors": [
     [
@@ -439,6 +521,18 @@
     [
      "HTTP://grants.nih.gov/grants/guide/rfa-files/RFA-NS-27-002.html/",
      "grants.nih.gov/grants/guide/rfa-files/rfa-ns-27-002.html"
+    ],
+    [
+     "www.example.org/a",
+     "example.org/a"
+    ],
+    [
+     "https://example.org/a",
+     "example.org/a"
+    ],
+    [
+     "WWW.Example.org/A/",
+     "example.org/a"
     ],
     [
      "https://example.org/cafÉ",
@@ -455,7 +549,7 @@
    ]
   },
   "title": {
-   "rule": "remove every <...> tag, then the name rule. Not a key: it pairs a preprint with its published version.",
+   "rule": "remove every <...> tag, then the name rule (so Greek letters count: α-synuclein and β-synuclein are two titles). Not a key: it pairs a preprint with its published version.",
    "sql": "public.kg_title_key",
    "ts": "titleKey",
    "py": "title_key",
@@ -473,16 +567,36 @@
      "ca2imaging"
     ],
     [
+     "α-synuclein aggregation in dopaminergic neurons",
+     "alphasynucleinaggregationindopaminergicneurons"
+    ],
+    [
+     "β-synuclein aggregation in dopaminergic neurons",
+     "betasynucleinaggregationindopaminergicneurons"
+    ],
+    [
+     "\u00b5-opioid receptors and θ/γ coupling",
+     "muopioidreceptorsandthetagammacoupling"
+    ],
+    [
+     "μ-opioid receptors and Θ/Γ coupling",
+     "muopioidreceptorsandthetagammacoupling"
+    ],
+    [
      null,
      null
     ]
    ]
   },
   "preprint": {
-   "rule": "lower-cased journal contains one of the venues, or the DOI key starts with one of the prefixes",
+   "rule": "the lower-cased journal contains one of the venues, or the DOI key starts with one of the doi_prefixes, or matches one of the doi_patterns: a bioRxiv or medRxiv DOI is 10.1101/, an optional posting date (YYYY.MM.DD.) and at least six digits. The Cold Spring Harbor journals publish under 10.1101/ too (Genome Res 10.1101/gr..., Genes Dev 10.1101/gad..., Learn Mem 10.1101/lm...): those are not preprints",
    "sql": "public.kg_is_preprint",
    "ts": "isPreprint",
    "py": "is_preprint",
+   "args": [
+    "journal",
+    "doi"
+   ],
    "venues": [
     "biorxiv",
     "medrxiv",
@@ -494,13 +608,15 @@
     "preprints"
    ],
    "doi_prefixes": [
-    "10.1101/",
     "10.64898/",
     "10.48550/",
     "10.21203/",
     "10.2139/",
     "10.31234/",
     "10.20944/"
+   ],
+   "doi_patterns": [
+    "^10\\.1101/([0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.)?[0-9]{6,}"
    ],
    "vectors": [
     [
@@ -540,6 +656,48 @@
     ],
     [
      [
+      "Learn Mem",
+      "10.1101/lm.054001.124"
+     ],
+     false
+    ],
+    [
+     [
+      "Genome Res",
+      "https://doi.org/10.1101/gr.279001.124"
+     ],
+     false
+    ],
+    [
+     [
+      null,
+      "10.1101/gad.350000.122"
+     ],
+     false
+    ],
+    [
+     [
+      null,
+      "10.1101/2024.05.01.590001"
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      "10.1101/087593"
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      "doi:10.1101/2020.03.17.20037572"
+     ],
+     true
+    ],
+    [
+     [
       "Elife",
       "10.7554/eLife.89892"
      ],
@@ -547,6 +705,128 @@
     ],
     [
      [
+      null,
+      null
+     ],
+     false
+    ]
+   ]
+  },
+  "chronology": {
+   "rule": "is the preprint later than its published version? By year, when both years are known and differ; otherwise by PubMed id (their pmid keys, compared as numbers: PubMed numbers its records in the order it adds them), when both have one; otherwise false, as nothing says so. A preprint that is later is no earlier version: public.kg_link_publication_versions skips the pair and says why, and kg/quality.py does not count it as a pair to link. The database records a year and no date.",
+   "sql": "public.kg_preprint_is_later",
+   "ts": "preprintIsLater",
+   "py": "preprint_is_later",
+   "args": [
+    "preprint_year",
+    "preprint_pmid",
+    "published_year",
+    "published_pmid"
+   ],
+   "vectors": [
+    [
+     [
+      2025,
+      "41040807",
+      2026,
+      "42131509"
+     ],
+     false
+    ],
+    [
+     [
+      2025,
+      "99999999",
+      2026,
+      "10000000"
+     ],
+     false
+    ],
+    [
+     [
+      2025,
+      "37425712",
+      2019,
+      "41331138"
+     ],
+     true
+    ],
+    [
+     [
+      2026,
+      "90000017",
+      2026,
+      "90000016"
+     ],
+     true
+    ],
+    [
+     [
+      2026,
+      "90000016",
+      2026,
+      "90000017"
+     ],
+     false
+    ],
+    [
+     [
+      null,
+      "200002",
+      null,
+      "200001"
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      "PMID: 0200001",
+      2026,
+      "200002"
+     ],
+     false
+    ],
+    [
+     [
+      2026,
+      "123456789012345678901",
+      null,
+      "99"
+     ],
+     true
+    ],
+    [
+     [
+      2026,
+      "abc",
+      2026,
+      "123"
+     ],
+     false
+    ],
+    [
+     [
+      2025,
+      null,
+      2026,
+      null
+     ],
+     false
+    ],
+    [
+     [
+      2026,
+      null,
+      2025,
+      null
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      null,
       null,
       null
      ],

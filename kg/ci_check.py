@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """CI gate for the knowledge graph (build phase 7). Fails on a regression, never on a known gap.
 
-  1. RED   -- every validation shape fires on fixtures/contradictions.ttl, and kg/quality.py
-              duplicates() finds there a folded pair for every identifier it checks (an ORCID
-              written with x and with X, a DOI with and without its resolver, ...) and an unlinked
-              preprint + published pair
-  2. GREEN -- fixtures/clean.ttl conforms, holds no possible duplicate and no unlinked pair, and its
-              same-title pair linked by revision_of counts as linked
+  1. RED   -- on fixtures/contradictions.ttl each validation shape reports exactly the focus nodes
+              and values planted for it, kg/quality.py duplicates() exactly the groups planted
+              (each with its kind: a folded pair for every identifier it checks, an ORCID written
+              with x and with X, a DOI with and without its resolver, ...; unlinked preprint +
+              published pairs; same-title groups a link must not resolve), and revision_links()
+              exactly the links planted (RED_EXPECTED below). "Fires at least once" is not enough:
+              a shape keyed on the wrong slot still fires, on another shape's pair.
+  2. GREEN -- fixtures/clean.ttl conforms, holds no possible duplicate, no unlinked pair and no
+              revision_of to check; its same-title pairs linked by revision_of count as linked and
+              its records that share only a URL as advisory (GREEN_EXPECTED)
   3. identity -- kg/identity_keys.py gives every vector's `want` in kg/identity_keys.json
   4. export -- no shape fires on the export more often than quality_baseline.json allows,
                and no shape that is quiet in the baseline starts firing
   5. quality -- every competency question answered in the baseline still answers, every shape
-               that had data to check still does, and there are no more possible duplicates or
-               unlinked preprint + published pairs than the baseline has
+               that had data to check still does, and there are no more possible duplicates,
+               unlinked preprint + published pairs, or revision_of links to check (reversed, or
+               between two titles) than the baseline has
   6. generated (--check-generated, needs linkml) -- bbqs.owl.ttl and bbqs.shapes.gen.ttl say what
                gen-owl / gen-shacl produce from bbqs.linkml.yaml today, statement for statement,
                blank nodes included (an owl:hasKey list, an OWL restriction, a SHACL property shape)
@@ -35,7 +40,7 @@ from rdflib.collection import Collection
 from rdflib.namespace import RDF, SH
 
 import identity_keys
-from quality import BBQS, FOLD, HERE, IDENTIFIERS, KGQuality
+from quality import BBQS, BID, FOLD, HERE, IDENTIFIERS, KGQuality, folded
 
 BASELINE = HERE / "quality_baseline.json"
 RED = HERE / "fixtures" / "contradictions.ttl"
@@ -46,11 +51,125 @@ GREEN = HERE / "fixtures" / "clean.ttl"
 UNORDERED = {SH.ignoredProperties}
 SHOWN = 10                     # differing statements printed for a stale file
 
+# The identifiers duplicates() must compare, each with a folded pair in the RED fixture. Pinned here
+# so that dropping one from quality.py IDENTIFIERS fails the gate instead of shrinking the check.
+REQUIRED_IDENTIFIERS = ("orcid", "doi", "pmid", "fon", "grant_number", "url", "external_url", "repo_url")
 
-def shape_counts(q: KGQuality, severity: str | None = None) -> Counter:
-    """Results per shape; severity=None counts warnings too (the RED/GREEN fixtures test both)."""
-    return Counter(v["shape"] for vs in q.violations().values() for v in vs
-                   if severity is None or v["severity"] == severity)
+# What the fixtures must report, node for node: bid: local names, values as the shape reports them
+# (a bbqs: class as bbqs:<Name>). Edit these by hand with the fixture, never from a run's output:
+# each entry is the one result its planted case exists for. A shape keyed on the wrong slot, a
+# branch of a shape removed, or a rule of version_kind() loosened changes a row here.
+RED_EXPECTED = {
+    "shapes": {
+        "AuthorOrcidResolvesShape": {("pub-1", "pub-1")},
+        "AwardUniquePerProjectShape": {("proj-a", "proj-b")},
+        "ConflictingVerifiedProvenanceShape": {("prov-a", "prov-a")},
+        "ConsortiumRoleNotAProjectRoleShape": {("inv-pi-label", "Principal Investigator (PI)"), ("inv-token", "postdoc")},
+        "DoiUniquePerPublicationShape": {("pub-doi-a", "pub-doi-b")},
+        "EmailUniquePerPersonShape": {("inv-email-a", "inv-email-a")},
+        "FonUniquePerCallShape": {("fo-a", "fo-b")},
+        "GradedProvenancePrecedenceShape": {("prov-c", "prov-c")},
+        "HeldByResolvesShape": {("role-dangling", "ghost-investigator"), ("role-two", "")},
+        "MechanismMatchesGrantNumberShape": {("proj-1", "proj-1")},
+        "NodeHasProvenanceShape": {("proj-a", "proj-a"), ("proj-b", "proj-b"), ("proj-award-a", "proj-award-a"),
+                                   ("proj-award-b", "proj-award-b"), ("proj-no-prov", "proj-no-prov")},
+        "OneClassPerNodeShape": {("dual-1", "bbqs:ResearchOrganization")},
+        "OneRolePerPersonPerGrantShape": {("role-1", "role-1")},
+        "OrcidUniquePerPersonShape": {("inv-dup-a", "inv-dup-b")},
+        "PmidUniquePerPublicationShape": {("pub-pmid-a", "pub-pmid-b")},
+        "ProjectIdentifiersAgreeShape": {("proj-renumbered", "U24MH136628")},
+        "ProjectIsAnAwardShape": {("proj-no-award", "")},
+        "ProjectRoleTokenShape": {("role-1", "Principal Investigator")},
+        # #25, one row per branch: an object that is no Publication, a subject that is none, a link
+        # to itself, a link both ways (both ends report it)
+        "RevisionOfLinksTwoPublicationsShape": {("pub-rev-a", "ds-rev"), ("ds-rev-subject", "pub-rev-target"),
+                                                ("pub-rev-self", "pub-rev-self"), ("pub-rev-x", "pub-rev-y"),
+                                                ("pub-rev-y", "pub-rev-x")},
+        "StudiesSpeciesResolvesShape": {("proj-1", "Freely moving animals")},
+        "UrlFieldsAreUrlsShape": {("job-1", "https://jobs.example.org/one ; https://jobs.example.org/two")},
+    },
+    # (by, kind, nodes) for every group duplicates() reports
+    "groups": {
+        ("orcid", "duplicate", ("inv-dup-a", "inv-dup-b")),
+        ("orcid", "duplicate", ("inv-orcid-X", "inv-orcid-x")),
+        ("doi", "duplicate", ("pub-doi-a", "pub-doi-b")),
+        ("doi", "duplicate", ("pub-doi-c", "pub-doi-d")),
+        ("doi", "duplicate", ("pub-doi-e", "pub-doi-f")),          # unreadable, compared as written
+        ("doi", "duplicate", ("pub-doi-g", "pub-doi-h")),          # doi.org/ and www.doi.org/
+        ("doi", "duplicate", ("pub-vkd-paper", "pub-vkd-pre1")),
+        ("pmid", "duplicate", ("pub-pmid-a", "pub-pmid-b")),
+        ("pmid", "duplicate", ("pub-pmid-c", "pub-pmid-d")),
+        ("fon", "duplicate", ("fo-a", "fo-b")),
+        ("fon", "duplicate", ("fo-c", "fo-d")),
+        ("grant_number", "duplicate", ("proj-a", "proj-b")),
+        ("grant_number", "duplicate", ("proj-award-a", "proj-award-b")),
+        ("url", "duplicate", ("fo-e", "fo-f")),                    # a URL with a name match
+        ("external_url", "duplicate", ("sw-a", "sw-b")),
+        ("repo_url", "duplicate", ("sw-c", "sw-d")),
+        ("title", "versions", ("pub-ver-preprint", "pub-ver-published")),
+        ("title", "versions", ("pub-lm-paper", "pub-lm-pre")),     # 10.1101/lm... is a journal's DOI
+        ("title", "versions", ("pub-alpha-paper", "pub-alpha-pre")),   # by bbqs:title; beta stays out
+        ("title", "duplicate", ("pub-vk2-a", "pub-vk2-b", "pub-vk2-pre")),     # two papers, linked
+        ("title", "duplicate", ("pub-vk3-a", "pub-vk3-b", "pub-vk3-pre")),     # two papers, unlinked
+        ("title", "duplicate", ("pub-vkd-paper", "pub-vkd-pre1", "pub-vkd-pre2")),   # one DOI twice
+        ("title", "duplicate", ("pub-late-paper", "pub-late-pre")),          # preprint later
+        ("title", "duplicate", ("pub-wrongway-paper", "pub-wrongway-pre")),  # link from the preprint
+    },
+    # (subject, object, problems) for every link revision_links() reports
+    "revision_links": {
+        ("pub-wrongway-pre", "pub-wrongway-paper", ("reversed",)),
+        ("pub-other-paper", "pub-other-pre", ("titles_differ",)),
+        ("pub-rev-x", "pub-rev-y", ("titles_differ",)),
+        ("pub-rev-y", "pub-rev-x", ("titles_differ",)),
+    },
+}
+GREEN_EXPECTED = {
+    "shapes": {},
+    "groups": {
+        ("title", "linked_versions", ("pub-preprint", "pub-published")),
+        ("title", "linked_versions", ("pub-lm-preprint", "pub-lm-published")),
+        ("external_url", "advisory", ("sw-dlc", "sw-dlc-live")),   # one lab homepage, two tools
+        ("url", "advisory", ("fo-topic-1", "fo-topic-2")),         # one NIH topic page, two calls
+    },
+    "revision_links": set(),
+}
+
+
+def compact(value: str) -> str:
+    """A node or value as RED_EXPECTED writes it: bid: local name, bbqs: prefix, literal as is."""
+    v = str(value)
+    if v.startswith(BID):
+        return v[len(BID):]
+    return "bbqs:" + v[len(str(BBQS)):] if v.startswith(str(BBQS)) else v
+
+
+def fixture_results(q: KGQuality) -> dict:
+    """What a fixture reports, in RED_EXPECTED's form."""
+    shapes = {}
+    for focus, results in q.violations().items():
+        for r in results:
+            shapes.setdefault(r["shape"], set()).add((compact(focus), compact(r["value"])))
+    groups = {(g["by"], g["kind"], tuple(sorted(compact(n) for n in g["nodes"]))) for g in q.duplicates()["groups"]}
+    links = {(compact(r["subject"]), compact(r["object"]), tuple(r["problems"])) for r in q.revision_links()["links"]}
+    return {"shapes": shapes, "groups": groups, "revision_links": links}
+
+
+def compare_fixture(label: str, got: dict, want: dict, errors: list[str]) -> bool:
+    """Every difference between what a fixture reports and what it must, one error per section."""
+    ok = True
+    for shape in sorted(set(got["shapes"]) | set(want["shapes"])):
+        have, need = got["shapes"].get(shape, set()), want["shapes"].get(shape, set())
+        if have != need:
+            ok = False
+            errors.append(f"{label} fixture: {shape} reports {sorted(have) or 'nothing'}, it must report "
+                          f"{sorted(need) or 'nothing'} (missing {sorted(need - have)}, unexpected {sorted(have - need)})")
+    for section in ("groups", "revision_links"):
+        missing, unexpected = want[section] - got[section], got[section] - want[section]
+        if missing or unexpected:
+            ok = False
+            errors.append(f"{label} fixture: {'duplicates()' if section == 'groups' else 'revision_links()'} "
+                          f"is missing {sorted(missing)} and reports unexpected {sorted(unexpected)}")
+    return ok
 
 
 def validation_shape_names(q: KGQuality) -> set[str]:
@@ -147,36 +266,41 @@ def check_identity(errors: list[str]):
         print(f"ok  identity keys: kg/identity_keys.py gives all {sum(len(k['vectors']) for k in spec['keys'].values())} vectors")
 
 
-def check_fixture_duplicates(red: KGQuality, green: KGQuality, errors: list[str]):
-    """duplicates() bites on RED and is quiet on GREEN. A group is folded when its nodes hold the
-    identifier in different spellings that are one key; every identifier needs one, or its fold is
-    untested."""
-    d = red.duplicates()
-    folded = set()
-    for grp in d["groups"]:
+def check_fixtures(red: KGQuality, green: KGQuality, errors: list[str]):
+    """Each fixture reports exactly what it must (RED_EXPECTED, GREEN_EXPECTED), every validation
+    shape has its RED results pinned, and duplicates() folds a pair of every required identifier: a
+    group whose nodes hold the identifier in different spellings that are one value."""
+    shapes = validation_shape_names(red)
+    unpinned = sorted(shapes - set(RED_EXPECTED["shapes"]))
+    if unpinned:
+        errors.append(f"RED fixture: no expected results for {', '.join(unpinned)}: plant a case for each new "
+                      "shape in contradictions.ttl and pin what it must report in ci_check.py RED_EXPECTED")
+    dropped = [by for by in REQUIRED_IDENTIFIERS if by not in IDENTIFIERS]
+    if dropped:
+        errors.append(f"quality.py IDENTIFIERS no longer compares {', '.join(dropped)}")
+    red_ok = compare_fixture("RED", fixture_results(red), RED_EXPECTED, errors)
+    folds = set()
+    for grp in red.duplicates()["groups"]:
         by = grp["by"]
         if grp["kind"] == "duplicate" and by in FOLD:
             spellings = {str(o) for n in grp["nodes"] for o in red.graph.objects(URIRef(n), BBQS[by])
-                         if FOLD[by](o) == grp["value"]}
+                         if folded(by, o) == grp["value"]}
             if len(spellings) > 1:
-                folded.add(by)
-    unfolded = [by for by in IDENTIFIERS if by not in folded]
+                folds.add(by)
+    unfolded = [by for by in sorted(set(REQUIRED_IDENTIFIERS) | set(IDENTIFIERS)) if by not in folds]
     if unfolded:
         errors.append(f"RED fixture: duplicates() folds no pair of {', '.join(unfolded)} in contradictions.ttl "
                       "(two nodes with one identifier spelled two ways)")
-    if not d["versions"]:
-        errors.append("RED fixture: duplicates() finds no unlinked preprint + published pair in contradictions.ttl")
-    if not unfolded and d["versions"]:
-        print(f"ok  RED fixture: duplicates() folds a pair of each of {len(IDENTIFIERS)} identifiers "
-              f"and finds {d['versions']} unlinked preprint + published pair(s)")
-    g = green.duplicates()
-    if g["count"] or g["versions"]:
-        errors.append(f"GREEN fixture: duplicates() finds {g['count']} possible duplicate(s) and {g['versions']} "
-                      f"unlinked pair(s) in clean.ttl: {[x for x in g['groups'] if x['kind'] != 'linked_versions']}")
-    if not g["linked_versions"]:
-        errors.append("GREEN fixture: duplicates() resolves no same-title pair linked by revision_of in clean.ttl")
-    if not (g["count"] or g["versions"]) and g["linked_versions"]:
-        print(f"ok  GREEN fixture: no possible duplicates, {g['linked_versions']} pair(s) linked by revision_of")
+    if red_ok and not unfolded and not unpinned:
+        rr = RED_EXPECTED
+        print(f"ok  RED fixture: {len(rr['shapes'])} shapes report their {sum(map(len, rr['shapes'].values()))} planted "
+              f"results; duplicates() its {len(rr['groups'])} groups (a folded pair of each of "
+              f"{len(REQUIRED_IDENTIFIERS)} identifiers); revision_links() its {len(rr['revision_links'])} links")
+    if compare_fixture("GREEN", fixture_results(green), GREEN_EXPECTED, errors):
+        gg = GREEN_EXPECTED["groups"]
+        print(f"ok  GREEN fixture conforms: no possible duplicate, {sum(k == 'linked_versions' for _b, k, _n in gg)} "
+              f"pairs linked by revision_of, {sum(k == 'advisory' for _b, k, _n in gg)} shared URLs advisory, "
+              "no revision_of to check")
 
 
 @click.command()
@@ -202,6 +326,8 @@ def main(export_path, check_generated, update_baseline):
         "duplicates": report["duplicates"]["count"],
         # Preprint + published pairs with one title and no revision_of link between them yet.
         "versions": report["duplicates"]["versions"],
+        # revision_of links the pairing rule never makes: from a preprint, or between two titles.
+        "revision_links": report["revision_links"]["count"],
     }
     if update_baseline:
         BASELINE.write_text(json.dumps(now, indent=2) + "\n", encoding="utf-8")
@@ -212,19 +338,7 @@ def main(export_path, check_generated, update_baseline):
     base = json.loads(BASELINE.read_text(encoding="utf-8"))
 
     red_q, green_q = KGQuality(RED), KGQuality(GREEN)
-    red = shape_counts(red_q)
-    silent = sorted(validation_shape_names(q) - set(red))
-    if silent:
-        errors.append(f"RED fixture: these shapes no longer fire on contradictions.ttl: {', '.join(silent)}")
-    else:
-        print(f"ok  RED fixture fires all {len(red)} shapes")
-
-    green = shape_counts(green_q)
-    if green:
-        errors.append(f"GREEN fixture no longer conforms: {dict(green)}")
-    else:
-        print("ok  GREEN fixture conforms")
-    check_fixture_duplicates(red_q, green_q, errors)
+    check_fixtures(red_q, green_q, errors)
     check_identity(errors)
 
     for shape, n in sorted(now["violations"].items()):
@@ -264,6 +378,18 @@ def main(export_path, check_generated, update_baseline):
             improved.append(f"unlinked preprint + published pairs {base['versions']} -> {now['versions']}")
         print(f"{'ok ' if now['versions'] <= base['versions'] else 'BAD'} unlinked preprint + published pairs: "
               f"{now['versions']} (baseline {base['versions']}); {report['duplicates']['linked_versions']} linked")
+    # A version link runs from the published paper to its preprint, between two records of one title.
+    allowed = base.get("revision_links", 0)
+    if now["revision_links"] > allowed:
+        errors.append(f"quality: revision_of links to check rose to {now['revision_links']} (baseline {allowed}): "
+                      + "; ".join(f"{r['subject']} -> {r['object']} ({', '.join(r['problems'])})"
+                                  for r in report["revision_links"]["links"][:SHOWN])
+                      + ". Correct or delete each in resource_links: a published paper revises its preprint, of the same title")
+    elif now["revision_links"] < allowed:
+        improved.append(f"revision_of links to check {allowed} -> {now['revision_links']}")
+    print(f"{'ok ' if now['revision_links'] <= allowed else 'BAD'} revision_of links to check (reversed, or two titles): "
+          f"{now['revision_links']} (baseline {allowed}); shared URL only (advisory, not gated): "
+          f"{report['duplicates'].get('advisory', 0)}")
 
     if check_generated:
         check_generated_artifacts(errors)

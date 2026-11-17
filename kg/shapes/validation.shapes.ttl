@@ -452,7 +452,10 @@ bbqs:AwardUniquePerProjectShape
 # A published paper is a revision_of its preprint (PROV: the newer wasRevisionOf the older): two
 # records, each with its own PMID, DOI and date, linked instead of merged. The link joins two
 # Publication nodes, never a node to itself, and never both ways (the database refuses the
-# reverse of a link it holds: resource_links_check_types).
+# reverse of a link it holds: resource_links_check_types). The four branches are disjoint on
+# purpose (a self link is not also "both ways"), so the RED fixture's case for each one tests it.
+# What SPARQL cannot see without folding (a link from a preprint to its paper, a link between two
+# titles) kg/quality.py revision_links() checks.
 bbqs:RevisionOfLinksTwoPublicationsShape
   a sh:NodeShape ;
   sh:targetSubjectsOf bbqs:revision_of ;
@@ -465,7 +468,7 @@ bbqs:RevisionOfLinksTwoPublicationsShape
         FILTER(?value = $this
                || NOT EXISTS { $this a bbqs:Publication }
                || NOT EXISTS { ?value a bbqs:Publication }
-               || EXISTS { ?value bbqs:revision_of $this })
+               || (?value != $this && EXISTS { ?value bbqs:revision_of $this }))
       }
     """ ;
   ] .

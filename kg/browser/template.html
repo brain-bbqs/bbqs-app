@@ -895,7 +895,7 @@ const PCHECK = {
   versions_linked: { cls: "na", text: "linked to its other version",
     tip: "A preprint and its published version, linked by revision_of: two records of one work, each with its own PMID, DOI and date." },
   same_title: { cls: "warn", text: "title appears twice", look: true,
-    tip: "Another record has the same title, and the two are not a paper and its preprint: possibly a duplicate to merge (two published records, two preprints, or one DOI or PMID held twice)." },
+    tip: "Another record has the same title, and the two are not a paper and its preprint: possibly a duplicate to merge (two published records, two preprints, or one DOI or PMID held twice), a version link that points the wrong way (from the preprint), or a \"preprint\" later than the paper, which is another work with the same title or a record with a wrong year." },
   several_projects: { cls: "na", text: "two or more projects", tip: "Credited to more than one project." },
   roster_unchecked: { cls: "na", text: "roster has no ORCIDs", tip: "It has author ORCIDs, but no one on the project's roster has an ORCID in the export, so they can't be compared." },
   authors_unchecked: { cls: "na", text: "authors not checkable", tip: "The export has no author ORCIDs for it, so its authors can't be checked against the roster." },

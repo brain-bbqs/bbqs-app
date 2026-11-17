@@ -1,6 +1,8 @@
 # The same graph as contradictions.ttl, corrected. Every validation shape passes (conforms), and
 # kg/quality.py duplicates() finds no possible duplicate and no pair left to link: its same-title
-# preprint and published paper are linked by revision_of. This is the GREEN half of the pair.
+# preprints and published papers are linked by revision_of, and the records that share only a URL
+# are advisory. revision_links() finds nothing. This is the GREEN half of the pair; kg/ci_check.py
+# holds what it must report (GREEN_EXPECTED).
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
@@ -112,19 +114,53 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:held_by bid:inv-dup-a ;
   bbqs:on_project bid:proj-renumbered .
 
-# #21, #22, #25 — a published paper and its preprint: one title, each its own DOI and PMID, two
-# records linked by revision_of (published -> preprint), so duplicates() counts them as linked versions
+# #21, #22, #25 — a published paper and its preprint: one title, each its own DOI and PMID, the
+# preprint the earlier, two records linked by revision_of (published -> preprint), so duplicates()
+# counts them as linked versions
 bid:pub-published a bbqs:Publication ;
   bbqs:title "Mapping social behavior across five species" ;
   bbqs:journal "Nat Methods" ;
   bbqs:doi "10.1038/s41592-000-0001-x"^^xsd:anyURI ;
-  bbqs:pmid "200001" ;
+  bbqs:pmid "200002" ;
+  bbqs:year 2026 ;
   bbqs:revision_of bid:pub-preprint .
 bid:pub-preprint a bbqs:Publication ;
   bbqs:title "Mapping social behavior across five species" ;
   bbqs:journal "bioRxiv" ;
   bbqs:doi "10.1101/2025.01.01.000001"^^xsd:anyURI ;
-  bbqs:pmid "200002" .
+  bbqs:pmid "200001" ;
+  bbqs:year 2025 .
+# the same for a Learning & Memory paper: its 10.1101/ DOI is a journal's, not a preprint's
+bid:pub-lm-published a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "Learn Mem" ;
+  bbqs:doi "10.1101/lm.054001.124"^^xsd:anyURI ;
+  bbqs:pmid "300402" ;
+  bbqs:year 2025 ;
+  bbqs:revision_of bid:pub-lm-preprint .
+bid:pub-lm-preprint a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2024.05.01.590001"^^xsd:anyURI ;
+  bbqs:pmid "300401" ;
+  bbqs:year 2024 .
+
+# a URL alone is no identity: two tools on one lab homepage, two calls on one NIH topic page. Each
+# pair shares a URL key but not a name, so duplicates() lists it as advisory and counts nothing
+bid:sw-dlc a bbqs:SoftwareTool ;
+  bbqs:name "DeepLabCut" ;
+  bbqs:external_url "https://www.mackenziemathislab.org/deeplabcut"^^xsd:anyURI .
+bid:sw-dlc-live a bbqs:SoftwareTool ;
+  bbqs:name "DeepLabCut-Live" ;
+  bbqs:external_url "https://www.mackenziemathislab.org/deeplabcut/"^^xsd:anyURI .
+bid:fo-topic-1 a bbqs:FundingOpportunity ;
+  bbqs:name "A notice listed on a highlighted-topic page" ;
+  bbqs:fon "NOT-XX-27-005" ;
+  bbqs:url "https://grants.nih.gov/funding/find-a-fit-for-your-research/highlighted-topics/18"^^xsd:anyURI .
+bid:fo-topic-2 a bbqs:FundingOpportunity ;
+  bbqs:name "Another notice on the same topic page" ;
+  bbqs:fon "NOT-XX-27-006" ;
+  bbqs:url "https://grants.nih.gov/funding/find-a-fit-for-your-research/highlighted-topics/18"^^xsd:anyURI .
 
 # #23 — two funding calls, two FONs and two notice pages
 bid:fo-a a bbqs:FundingOpportunity ;
