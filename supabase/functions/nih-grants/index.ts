@@ -2,7 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
 import { requireCuratorOrService } from "../_shared/auth.ts";
 import { awardKey, nihAwardCore } from "../_shared/identity-keys.ts";
-import { findOrCreateInvestigator, findOrCreateOrganization, kgSession, type KgSession } from "../_shared/kg-write.ts";
+import {
+  findOrCreateInvestigator, findOrCreateOrganization, isUniqueViolation, kgSession, uniqueViolationText, type KgSession,
+} from "../_shared/kg-write.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -296,7 +298,10 @@ async function seedGrantEntities(supabase: any, kg: KgSession, grantNumber: stri
     : supabase.from("grants").insert({ grant_number: nihAwardCore(grantNumber) ?? grantNumber, ...fields });
   const { data: grantRow, error: grantErr } = await write.select("id, grant_number, resource_id").single();
   if (grantErr || !grantRow) {
-    throw new Error(`grant ${grantNumber} was not written: ${grantErr?.message ?? "no row returned"}`);
+    // A 23505 here is another writer's row for this award (uq_grants_award_key), written after the read.
+    throw new Error(isUniqueViolation(grantErr)
+      ? `grant ${grantNumber} was not written: it is already in the KG (${uniqueViolationText(grantErr)}), written in the meantime; refresh again to update that row`
+      : `grant ${grantNumber} was not written: ${grantErr?.message ?? "no row returned"}`);
   }
 
   const grantId = grantRow.id;
@@ -397,8 +402,13 @@ async function seedGrantEntities(supabase: any, kg: KgSession, grantNumber: stri
         grant_number: storedNumber,
         grant_id: grantId,
       });
-    if (error) warnings.push(`${storedNumber}: project row not written: ${error.message}`);
-    else console.log(`Created project metadata for ${storedNumber}`);
+    if (error) {
+      warnings.push(isUniqueViolation(error)
+        ? `${storedNumber}: project row not added: one is already in the KG for this award (${uniqueViolationText(error)}), written in the meantime`
+        : `${storedNumber}: project row not written: ${error.message}`);
+    } else {
+      console.log(`Created project metadata for ${storedNumber}`);
+    }
   }
   return warnings;
 }

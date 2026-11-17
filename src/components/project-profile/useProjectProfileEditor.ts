@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useFieldProvenance } from "@/hooks/useFieldProvenance";
 import { TOP_LEVEL_FIELDS, COMPLETENESS_FIELDS } from "@/data/questionnaire-fields";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 
 export function useProjectProfileEditor(grantNumber: string | null, canEdit: boolean) {
   const { user } = useAuth();
@@ -133,7 +134,10 @@ export function useProjectProfileEditor(grantNumber: string | null, canEdit: boo
       // showing the value that was just replaced.
       queryClient.invalidateQueries({ queryKey: ["kg-projects"] });
     } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+      // The upsert matches the project by its exact grant_number, so a project row holding this award
+      // under another spelling of its number is refused by uq_projects_award_key (20261117181500):
+      // said as such. Any other error as it came.
+      toast({ title: "Save failed", description: alreadyInKgMessage(e, { award: data?.grant?.grant_number }) ?? e.message, variant: "destructive" });
     } finally {
       setIsCommitting(false);
     }

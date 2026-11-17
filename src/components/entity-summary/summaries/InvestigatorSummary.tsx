@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, FileText, User, Pencil, Check, X, UserCheck, UserPlus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 // Editable inline field
@@ -511,8 +512,11 @@ export function InvestigatorSummary({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["investigator-private", id] });
       toast({ title: "Updated", description: "Profile field saved." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to save. Try again.", variant: "destructive" });
+    // An ORCID iD (uq_investigators_orcid_key, 20261117181500), email or name already on another
+    // record is said as such; any other error as it came, never a bare "try again".
+    onError: (err: any, vars) => {
+      const dup = alreadyInKgMessage(err, { [vars.field]: vars.value });
+      toast({ title: dup ? "Not saved" : "Error", description: dup ?? err?.message ?? "Failed to save. Try again.", variant: "destructive" });
     },
   });
 

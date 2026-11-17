@@ -2,9 +2,9 @@ import { McpServer, StreamableHttpTransport } from "npm:mcp-lite@^0.10.0";
 import { Hono } from "npm:hono@^4.9.7";
 import { searchProjects, listSpecies } from "../_shared/kg.ts";
 import { askKG } from "../_shared/rag.ts";
-import { awardKey, fonKey, nameKey, nihAwardCore } from "../_shared/identity-keys.ts";
+import { awardKey, fonKey, nihAwardCore } from "../_shared/identity-keys.ts";
 import {
-  isUniqueViolation, matchFundingCalls, matchOrganizations, matchResources, violatedConstraint, violationDetail,
+  decideFundingCall, decideResource, isUniqueViolation, matchOrganizations, uniqueViolationText, violatedConstraint,
   type CallRow, type OrgRow, type ResourceRow,
 } from "../_shared/kg-write.ts";
 
@@ -219,7 +219,7 @@ async function logCall(jwt: string, meta: RequestMeta, e: CallLog, clientTag?: s
 }
 
 function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.5.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.6.0" });
   // mcp-lite 0.10 builds serverInfo from name and version only and returns that same object in the
   // initialize result, so the spec's display fields (title, websiteUrl, icons) are set on it here.
   const serverInfo = (mcp as unknown as { serverInfo?: Record<string, unknown> }).serverInfo;
@@ -243,6 +243,16 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       offset += page.length;
     }
     return out;
+  };
+  /** An RPC whose write a unique index may refuse (the uq_* identity keys, 20261117181500): a 23505
+   *  is said as what it is, every other error is thrown as it came. */
+  const keyedRpcC = async (fn: string, args: unknown, refused: string) => {
+    try {
+      return await rpcC(fn, args);
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+      throw new Error(`${refused} (${uniqueViolationText(e)}), under another spelling or written in the meantime. Nothing was written.`);
+    }
   };
 
   // Register every tool through T: a thrown error becomes a returned isError result carrying the
@@ -330,7 +340,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   });
 
   T("update_my_profile", {
-    description: "[sign-in] Edit your OWN profile: institution, ORCID, research areas, skills, secondary emails. Cannot set your role or mailing-list groups — use request_working_groups for those.",
+    description: "[sign-in] Edit your OWN profile: institution, ORCID, research areas, skills, secondary emails. Cannot set your role or mailing-list groups — use request_working_groups for those. An ORCID iD that is already on another person's record is not saved (one ORCID iD, one person: a curator merges the two records); the other fields still are, and the result names what was not saved.",
     parameters: obj({
       institution: { type: "string" },
       orcid: { type: "string" },
@@ -338,11 +348,31 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       skills: { type: "array", items: { type: "string" } },
       secondary_emails: { type: "array", items: { type: "string" } },
     }),
-    handler: async (a: Record<string, unknown>) => text(await rpcC( "member_self_update", {
-      _institution: a.institution ?? null, _orcid: a.orcid ?? null,
-      _research_areas: a.research_areas ?? null, _skills: a.skills ?? null,
-      _secondary_emails: a.secondary_emails ?? null, _requested_working_groups: null,
-    })),
+    handler: async (a: Record<string, unknown>) => {
+      const args = {
+        _institution: a.institution ?? null, _orcid: a.orcid ?? null,
+        _research_areas: a.research_areas ?? null, _skills: a.skills ?? null,
+        _secondary_emails: a.secondary_emails ?? null, _requested_working_groups: null,
+      };
+      try {
+        return text(await rpcC("member_self_update", args));
+      } catch (e) {
+        if (!isUniqueViolation(e)) throw e;
+        // member_self_update writes one row in one statement, so the refusal saved nothing. Of its
+        // fields only the ORCID is an identity key (uq_investigators_orcid_key); with _orcid null the
+        // RPC keeps the stored ORCID, so the other fields can be saved without it.
+        const constraint = violatedConstraint(e);
+        if (!/orcid/i.test(uniqueViolationText(e))) {
+          throw new Error(`Nothing was saved: the database refused it as a duplicate of another record (${uniqueViolationText(e)}). Ask a curator.`);
+        }
+        const orcidNotSaved = `The ORCID iD ${a.orcid} is already on another person's record in the KG (${constraint ?? "its ORCID key"}), ` +
+          "so it was not saved: one ORCID iD is one person. If that record is you, ask a curator to merge the two records.";
+        const others = ["institution", "research_areas", "skills", "secondary_emails"].filter((k) => a[k] != null);
+        if (!others.length) throw new Error(`${orcidNotSaved} Nothing else was asked, so nothing was saved.`);
+        const saved = await rpcC("member_self_update", { ...args, _orcid: null });
+        return text({ ...(saved && typeof saved === "object" ? saved : {}), saved: others, orcid_not_saved: orcidNotSaved });
+      }
+    },
   });
 
   T("request_working_groups", {
@@ -577,11 +607,11 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
         const orgs = await restAllC("organizations?select=id,name") as OrgRow[];
         institution = matchOrganizations(orgs, institution).row?.name ?? institution;
       }
-      return text(await rpcC("create_grant", {
+      return text(await keyedRpcC("create_grant", {
         _grant_number: award, _title: a.title,
         _fiscal_year: a.fiscal_year ?? null, _institution: institution,
         _study_human: a.study_human ?? null, _contact_pi_email: a.contact_pi_email ?? null,
-      }));
+      }, `Not created: the award ${award}${institution ? ` or the institution ${institution}` : ""} is already in the KG`));
     },
   });
 
@@ -634,11 +664,11 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       if (taken) {
         throw new Error(`Another grant already holds ${target} (as ${taken.grant_number}); repoint would make one award two grants. Nothing was written.`);
       }
-      return text(await rpcC("repoint_grant", {
+      return text(await keyedRpcC("repoint_grant", {
         _grant_number: current[0]?.grant_number ?? a.grant_number,
         _new_grant_number: target,
         _reporter_project_num: a.reporter_project_num ?? null,
-      }));
+      }, `Not repointed: another grant or project already holds ${target}`));
     },
   });
 
@@ -707,7 +737,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   });
 
   T("add_funding_opportunity", {
-    description: "[curator] Add/refresh a funding opportunity (NIH/NSF/etc.). fon + title required. A call already in the KG is matched by its FON (case, spaces and dashes aside) and updated with the fields you pass, so re-running fills gaps and never duplicates; it appears on the public Funding page. A notice URL another call already holds is refused, unless this is the final notice that supersedes that forecast: pass supersedes=<the forecast's FON> and the forecast's row becomes this call in place, its old FON kept in notes. THE tool for \"add this solicitation to funding announcements\" — never fall back to SQL.",
+    description: "[curator] Add/refresh a funding opportunity (NIH/NSF/etc.). fon + title required. A call already in the KG is matched by its FON (case, spaces and dashes aside) and updated with the fields you pass, so re-running fills gaps and never duplicates; it appears on the public Funding page. The FON is the call's identity; its URL is not, because a landing page can list several calls: a URL another call already has is reported in the result's note, never refused. A final notice that replaces its forecast: pass supersedes=<the forecast's FON> and the forecast's row becomes this call in place, its old FON kept in notes. THE tool for \"add this solicitation to funding announcements\" — never fall back to SQL.",
     parameters: obj({
       fon: { type: "string", description: "Funding Opportunity Number, e.g. 'NSF 26-526' or 'RFA-MH-25-xxx'" },
       title: { type: "string" },
@@ -737,59 +767,70 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       if (a.relevance_tags != null) body.relevance_tags = coerceArray(a.relevance_tags);
       if (a.due_dates != null) body.due_dates = coerceArray(a.due_dates, true);
 
-      // One call, one row (D5): found by its FON key, then by its notice URL's key, the keys
-      // uq_funding_opportunities_fon_key and _url_key refuse a second row by.
+      // One call, one row (D5): found by its FON key, the key uq_funding_opportunities_fon_key
+      // refuses a second row by. A notice URL another call also holds is a hint, never an identity:
+      // a landing page can list several calls (_shared/kg-write.ts decideFundingCall).
       const calls = await restAllC("funding_opportunities?select=id,fon,url,notes") as CallRow[];
-      const { byFon, byUrl } = matchFundingCalls(calls, { fon, url: a.url as string | undefined });
-      const superseded = a.supersedes == null ? [] : calls.filter((r) => fonKey(r.fon) === fonKey(String(a.supersedes)) && !byFon.includes(r));
-      const update = async (row: CallRow, patch: Record<string, unknown>, matched_by: string, note?: string) => {
-        const rows = await restC(`funding_opportunities?id=eq.${row.id}`, {
-          method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
-        });
+      const decision = decideFundingCall(calls, { fon, url: a.url as string | undefined, supersedes: a.supersedes as string | undefined });
+      if (decision.action === "refuse") throw new Error(decision.error);
+      const notes = decision.notes;
+      const note = notes.length ? { note: notes.join(" ") } : {};
+      // What a unique index refused, said as what it is: the FON another call holds (written in the
+      // meantime, or not readable to this account), or the notice URL, which only a database that
+      // still has uq_funding_opportunities_url_key refuses: then say which call holds it, and that
+      // supersedes is how a final notice replaces its forecast.
+      const sharing = decision.sharing;
+      const refusedBy = (e: unknown, updating?: CallRow) => {
+        const subject = updating ? `${updating.fon} (id ${updating.id}) was not updated` : `${fon} was not added`;
+        if (!/url/i.test(violatedConstraint(e) ?? "")) {
+          return new Error(`${subject}: that FON is already in the KG (${uniqueViolationText(e)}), written in the meantime or not readable ` +
+            "to this account. Nothing was written; list_funding_opportunities shows it.");
+        }
+        const holder = sharing.length
+          ? `It is on ${sharing.map((r) => `${r.fon} (id ${r.id})`).join(", ")}. ` +
+            (updating
+              ? "If that is this call's forecast, merge it into this one. "
+              : `If ${fon} is the final notice that replaces that forecast, call again with supersedes="${sharing[0].fon}". `) +
+            "If it is a different call on the same landing page, this database's uq_funding_opportunities_url_key has to be dropped " +
+            "first (a URL is not a call's identity): ask an admin."
+          : "That call was written in the meantime or is not readable to this account; list_funding_opportunities shows it.";
+        return new Error(`${subject}: its notice URL is already on another call, and this database still refuses a shared ` +
+          `notice URL (${uniqueViolationText(e)}). Nothing was written. ${holder}`);
+      };
+
+      if (decision.action === "update") {
+        const row = decision.row;
+        let patch = body;
+        if (decision.matchedBy === "supersedes") {
+          // The final notice takes over its forecast's row, in place: one call, one node.
+          const kept = String(body.notes ?? row.notes ?? "");
+          const stamp = `Supersedes ${row.fon} (${new Date().toISOString().slice(0, 10)})`;
+          patch = { ...body, fon, notes: kept.includes(String(row.fon)) ? kept : kept.trim() ? `${kept}\n${stamp}` : stamp };
+        }
+        let rows: unknown;
+        try {
+          rows = await restC(`funding_opportunities?id=eq.${row.id}`, {
+            method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
+          });
+        } catch (e) {
+          if (!isUniqueViolation(e)) throw e;
+          throw refusedBy(e, row);
+        }
         // RLS filters a forbidden UPDATE to zero rows instead of erroring; say so rather than "updated".
         if (!Array.isArray(rows) || !rows.length) {
           throw new Error(`${row.fon} is in the KG (id ${row.id}) but RLS did not let this account update it; nothing changed.`);
         }
-        return text({ action: "already_in_kg", matched_by, id: row.id, ...(note ? { note } : {}), rows });
-      };
-
-      if (byFon.length > 1 || superseded.length > 1) {
-        const dup = byFon.length > 1 ? byFon : superseded;
-        throw new Error(`${dup.map((r) => `${r.fon} (id ${r.id})`).join(", ")} are one call recorded ${dup.length} times: merge them first. Nothing was written.`);
-      }
-      if (byFon.length === 1) {
-        // Already in the KG under this FON: fill it in (the stored FON spelling is kept).
-        const twin = superseded[0] ?? byUrl.find((r) => r.id !== byFon[0].id);
-        return update(byFon[0], body, "fon", twin
-          ? `${twin.fon} (id ${twin.id}) is still a separate row for this call (its forecast?): merge it into this one`
-          : undefined);
-      }
-      const clash = byUrl.filter((r) => r.id !== superseded[0]?.id);
-      if (clash.length) {
-        throw new Error(`The notice URL ${a.url} already belongs to ${clash.map((r) => `${r.fon} (id ${r.id})`).join(", ")}. ` +
-          `If ${fon} is the final notice that supersedes that forecast, call again with supersedes="${clash[0].fon}": its row becomes ${fon}, the old FON kept in notes. ` +
-          "If it is a different call, give it its own URL. Nothing was written.");
-      }
-      if (superseded.length === 1) {
-        // The final notice takes over its forecast's row, in place: one call, one node.
-        const old = superseded[0];
-        const notes = String(body.notes ?? old.notes ?? "");
-        const stamp = `Supersedes ${old.fon} (${new Date().toISOString().slice(0, 10)})`;
-        return update(old, { ...body, fon, notes: notes.includes(String(old.fon)) ? notes : notes.trim() ? `${notes}\n${stamp}` : stamp },
-          "supersedes", `${old.fon} is now ${fon}; its old FON is kept in notes`);
+        return text({ action: "already_in_kg", matched_by: decision.matchedBy, id: row.id, ...note, rows });
       }
 
       try {
         const rows = await restC("funding_opportunities", {
           method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: "open", ...body, fon }),
         });
-        return text({ action: "inserted", rows,
-          ...(a.supersedes != null ? { note: `No call with FON ${a.supersedes} is in the KG, so nothing was superseded` } : {}) });
+        return text({ action: "inserted", rows, ...note });
       } catch (e) {
         if (!isUniqueViolation(e)) throw e;
-        const detail = violationDetail(e);
-        throw new Error(`${fon} is already in the KG (${violatedConstraint(e) ?? "a unique key"}${detail ? `: ${detail}` : ""}), written in the meantime or not readable to this account. ` +
-          "Nothing was written; list_funding_opportunities shows it.");
+        throw refusedBy(e);
       }
     },
   });
@@ -802,9 +843,10 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   };
 
   T("add_resource", {
-    description: "[curator] Add a tool/library/model/dataset/benchmark/protocol to the public Resources page. name + category required. Matches a row of the same type already in the KG by its name (case, spacing and punctuation aside), its homepage URL or its repository URL, and fills only the fields you pass on that row (action already_in_kg), so re-running never duplicates; two matches are refused until they are merged. THE tool for \"add X to the resources page\" — never fall back to SQL.",
+    description: "[curator] Add a tool/library/model/dataset/benchmark/protocol to the public Resources page. name + category required. Matches a row of the same type already in the KG by its name (case, spacing and punctuation aside) and fills only the fields you pass on that row (action already_in_kg), so re-running never duplicates; two rows with that name are refused until they are merged. A homepage or repository URL is not an identity (a lab's tools share its homepage): a different-named row with the same URL is never changed, only named in the result's note. To update a row that has another name (an alias or rename), pass same_as=<its id>. THE tool for \"add X to the resources page\" — never fall back to SQL.",
     parameters: obj({
       name: { type: "string" },
+      same_as: { type: "string", description: "Optional: the id of the resource already in the KG that this one IS, when its name there differs (an alias or rename). That row is updated instead of a new one added." },
       category: { type: "string", enum: Object.keys(RESOURCE_CATEGORY_TYPE) },
       url: { type: "string", description: "Homepage or docs URL (aliases accepted: link, website, homepage, external_url)" },
       description: { type: "string", description: "One line: what it does" },
@@ -838,17 +880,14 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       if (meta.containerized != null) meta.containerized = meta.containerized === true || meta.containerized === "true";
 
       const name = String(a.name).trim();
-      // The same thing already in the KG: the same resource_type, and the same name key or URL key
-      // (homepage or repository; _shared/kg-write.ts). Never across types: a dataset and the tool
-      // that made it may share a name.
+      // The same thing already in the KG: the same resource_type and the same name key, or the record
+      // same_as names (_shared/kg-write.ts decideResource). Never across types: a dataset and the tool
+      // that made it may share a name. Never by a URL alone: a lab's tools share its homepage.
       const all = await restAllC("resources?select=id,name,resource_type,external_url,metadata->>repoUrl") as ResourceRow[];
-      const hits = matchResources(all, { type: resource_type, name, url: a.url, repoUrl: a.repo_url });
-      if (hits.length > 1) {
-        throw new Error(`${hits.length} ${resource_type} records match "${name}": ${hits.map((h) => `${h.row.name} (id ${h.row.id}, by ${h.by.join(" and ")})`).join("; ")}. ` +
-          "Merge them first; nothing was written.");
-      }
-      if (hits.length === 1) {
-        const { row, by } = hits[0];
+      const decision = decideResource(all, { type: resource_type, name, url: a.url, repoUrl: a.repo_url, sameAs: a.same_as });
+      if (decision.action === "refuse") throw new Error(decision.error);
+      if (decision.action === "update") {
+        const row = decision.row;
         const [current] = await restC(`resources?id=eq.${row.id}&select=metadata`) as Array<{ metadata: Record<string, unknown> | null }>;
         const patch: Record<string, unknown> = { metadata: { ...(current?.metadata ?? {}), ...meta } };
         if (a.url != null) patch.external_url = a.url;
@@ -860,8 +899,8 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
         if (!Array.isArray(rows) || !rows.length) {
           throw new Error(`"${name}" exists (id ${row.id}) but RLS did not let this account update it; nothing changed. Ask an admin to apply the edit.`);
         }
-        return text({ action: "already_in_kg", matched_by: by.join("+"), id: row.id,
-          ...(row.name !== name ? { name_in_kg: row.name } : {}), rows });
+        return text({ action: "already_in_kg", matched_by: decision.matchedBy, id: row.id,
+          ...(row.name !== name ? { name_in_kg: row.name } : {}), ...(decision.note ? { note: decision.note } : {}), rows });
       }
       if (!("mcpStatus" in meta)) meta.mcpStatus = "not-started";
       const rows = await restC("resources", {
@@ -871,11 +910,8 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
           name, resource_type, description: a.description ?? null, external_url: a.url ?? null, metadata: meta,
         }),
       });
-      const key = nameKey(name);
-      const namesakes = key ? all.filter((r) => r.resource_type !== resource_type && nameKey(r.name) === key) : [];
-      return text({ action: "inserted", rows, ...(namesakes.length ? {
-        note: `Also in the KG under another type: ${namesakes.map((r) => `${r.resource_type} "${r.name}" (id ${r.id})`).join(", ")}. If it is the same thing, retype one and merge them.`,
-      } : {}) });
+      // A record that shares only a URL, or the same name under another type: named in the note.
+      return text({ action: "inserted", rows, ...(decision.note ? { note: decision.note } : {}) });
     },
   });
 

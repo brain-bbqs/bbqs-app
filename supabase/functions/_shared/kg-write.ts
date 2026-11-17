@@ -80,12 +80,17 @@ export function isMissingFunction(e: unknown, status?: number): boolean {
   return code === "PGRST202" || code === "42883" || status === 404 || /PGRST202|Could not find the function/i.test(errText(e));
 }
 
-function alreadyInKg(e: unknown, what: string): Found<never> {
+/** What a unique violation refused, for a message: '<constraint>: Key (...)=(...) already exists.' */
+export function uniqueViolationText(e: unknown): string {
   const constraint = violatedConstraint(e);
   const detail = violationDetail(e);
+  return `${constraint ?? "a unique key"}${detail ? `: ${detail}` : ""}`;
+}
+
+function alreadyInKg(e: unknown, what: string): Found<never> {
   return {
-    ok: false, already_in_kg: true, constraint, detail,
-    error: `${what} is already in the KG (${constraint ?? "a unique key"}${detail ? `: ${detail}` : ""}), but it could not be read back; nothing was written`,
+    ok: false, already_in_kg: true, constraint: violatedConstraint(e), detail: violationDetail(e),
+    error: `${what} is already in the KG (${uniqueViolationText(e)}), but it could not be read back; nothing was written`,
   };
 }
 
@@ -126,7 +131,13 @@ export const loadPublications = (kg: KgSession, refresh = false) => readAll<PubR
 const asciiLower = (s: string) => s.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
 const asciiTrim = (s: string) => s.replace(/^[ \t\n\v\f\r]+|[ \t\n\v\f\r]+$/g, "");
 
-/** An email compared the way investigators_email_unique_ci compares it: trimmed, ASCII lower-cased. */
+/** An email as the write paths compare it: ASCII whitespace trimmed, ASCII letters lower-cased.
+ *  Close to investigators_email_unique_ci, which is lower(btrim(email)), but not the same rule:
+ *  btrim strips spaces only, where this also strips tabs and newlines, and lower() also folds
+ *  non-ASCII capitals under a UTF-8 locale, which this leaves alone. So an address with a tab
+ *  around it is one person here and two to the index: the row is reused, never inserted.
+ *  'JOSÉ@x.org' next to 'josé@x.org' is two here and one to the index: the insert is refused
+ *  with 23505 and reported as already in the KG, never written twice. */
 export const emailKey = (v: Text): string | null => (v == null ? null : asciiLower(asciiTrim(String(v))) || null);
 
 const profileKey = (v: unknown): string | null => (v == null ? null : asciiTrim(String(v)) || null);
@@ -165,7 +176,15 @@ export const PERSON_KEYS: PersonKey[] = ["orcid", "reporter_profile_id", "email"
 export interface PersonQuery {
   name?: Text; email?: Text; secondaryEmails?: Text[] | null; orcid?: Text; reporterProfileId?: number | string | null;
 }
-export interface PersonMatch { row: PersonRow | null; by: PersonKey | null; candidates: PersonRow[]; ambiguous: boolean }
+export interface PersonMatch {
+  row: PersonRow | null; by: PersonKey | null; candidates: PersonRow[]; ambiguous: boolean;
+  /** When `ambiguous`: why no record was taken, for the curator who has to decide. */
+  reason: string | null;
+}
+
+/** The keys that only guess from a name. The others identify a person. */
+const NAME_GUESSES: ReadonlySet<PersonKey> = new Set(["name", "first_last"]);
+const personLabel = (rows: PersonRow[]) => rows.map((r) => `"${r.name}" (id ${r.id})`).join("; ");
 
 function peopleBy(key: PersonKey, rows: PersonRow[], p: PersonQuery): PersonRow[] {
   switch (key) {
@@ -194,20 +213,48 @@ function peopleBy(key: PersonKey, rows: PersonRow[], p: PersonQuery): PersonRow[
 }
 
 /** The person a record describes, by the first key in `order` that finds anyone. ORCID, RePORTER
- *  profile id, email and name are identities: several records with one of them are one person
- *  recorded twice, and the curated one is reused. First + last name is a guess: it is taken only
- *  when it is unique, or unique among the records that carry an email (nih-grants' rule); otherwise
- *  the match is `ambiguous` and nothing should be written. */
+ *  profile id and email are identities: several records with one of them are one person recorded
+ *  twice, and the curated one is reused.
+ *
+ *  The name and first + last name are guesses, because namesakes exist (design D3), so a guess is
+ *  `ambiguous` (nothing should be written, and `reason` says why) when:
+ *  - the query carries an email and a record the name finds carries another one: that record is
+ *    somebody else, or a twin only a curator can tell apart. (A record with this person's email was
+ *    found by the email step already; a record with no email, a RePORTER twin, is still reused.)
+ *  - the name key finds more than one record;
+ *  - first + last name finds several and not exactly one of them carries an email (nih-grants' rule). */
 export function matchPeople(rows: PersonRow[], p: PersonQuery, order: PersonKey[] = PERSON_KEYS): PersonMatch {
+  const asked = [p.email, ...(p.secondaryEmails ?? [])].map(emailKey).filter((e): e is string => !!e);
   for (const key of order) {
     const hits = peopleBy(key, rows, p);
     if (!hits.length) continue;
-    if (key !== "first_last") return { row: pickPerson(hits), by: key, candidates: hits, ambiguous: false };
+    if (!NAME_GUESSES.has(key)) return { row: pickPerson(hits), by: key, candidates: hits, ambiguous: false, reason: null };
+    const how = key === "name" ? "name" : "first and last name";
+    const elsewhere = asked.length ? hits.filter((r) => { const e = emailKey(r.email); return !!e && !asked.includes(e); }) : [];
+    if (elsewhere.length) {
+      return {
+        row: null, by: key, candidates: hits, ambiguous: true,
+        reason: `matched only by ${how} to ${personLabel(elsewhere)}, whose email is not this person's: perhaps another person, ` +
+          "so nothing was written to it. If they are one person, add this person's address to that record or merge them.",
+      };
+    }
+    if (key === "name") {
+      if (hits.length === 1) return { row: hits[0], by: key, candidates: hits, ambiguous: false, reason: null };
+      return {
+        row: null, by: key, candidates: hits, ambiguous: true,
+        reason: `${hits.length} records match by name (${personLabel(hits)}); nothing was written. ` +
+          "Merge them, or record the person's ORCID, RePORTER profile id or email.",
+      };
+    }
     const withEmail = hits.filter((r) => emailKey(r.email));
     const one = hits.length === 1 ? hits[0] : withEmail.length === 1 ? withEmail[0] : null;
-    return { row: one, by: key, candidates: hits, ambiguous: !one };
+    return {
+      row: one, by: key, candidates: hits, ambiguous: !one,
+      reason: one ? null : `${hits.length} records match by first and last name (${personLabel(hits)}); nothing was written. ` +
+        "Merge them, or record the person's ORCID or RePORTER profile id.",
+    };
   }
-  return { row: null, by: null, candidates: [], ambiguous: false };
+  return { row: null, by: null, candidates: [], ambiguous: false, reason: null };
 }
 
 export interface PubMatch { row: PubRow | null; by: "pmid" | "doi" | null; candidates: PubRow[]; note: string | null }
@@ -238,23 +285,98 @@ export function matchPublications(rows: PubRow[], q: { pmid?: Text; doi?: Text }
 
 const repoUrlOf = (r: ResourceRow) => (r.repoUrl ?? r.metadata?.repoUrl ?? null) as Text;
 
-/** Resources of the same resource_type that are the same thing: by name key, or by a URL key (the
- *  homepage or the repository, either way round). Each row comes with the keys it matched by. */
+/** A resource the query may describe, and the keys it agrees on. `same` is whether it IS the query's
+ *  record: only the name says so. */
+export interface ResourceHit { row: ResourceRow; by: string[]; same: boolean }
+
+/** Resources of the same resource_type that agree with the query on its name key (the exact name,
+ *  for a name with no name key), its homepage URL key or its repository URL key (either way round).
+ *  A URL is not an identity for a tool-like resource (design D7): a lab's tools share its homepage,
+ *  a maker's devices share the maker's, and two tools can live in one repository. So a hit by URL
+ *  alone is `same: false`, a hint for a curator, unless the query gives no name to compare. */
 export function matchResources(
   rows: ResourceRow[], q: { type: string; name?: Text; url?: Text; repoUrl?: Text },
-): Array<{ row: ResourceRow; by: string[] }> {
-  const nk = nameKey(q.name);
+): ResourceHit[] {
+  const name = q.name == null ? "" : asciiTrim(String(q.name));
+  const nk = nameKey(name);
   const want = new Set([urlKey(q.url), urlKey(q.repoUrl)].filter((u): u is string => !!u));
-  const out: Array<{ row: ResourceRow; by: string[] }> = [];
+  const out: ResourceHit[] = [];
   for (const r of rows) {
     if (r.resource_type !== q.type) continue;
     const by: string[] = [];
-    if (nk && nameKey(r.name) === nk) by.push("name");
+    if (name && (nk ? nameKey(r.name) === nk : asciiTrim(String(r.name ?? "")) === name)) by.push("name");
     if (want.has(urlKey(r.external_url) ?? "")) by.push("url");
     if (want.has(urlKey(repoUrlOf(r)) ?? "")) by.push("repo_url");
-    if (by.length) out.push({ row: r, by });
+    if (by.length) out.push({ row: r, by, same: by.includes("name") || !name });
   }
   return out;
+}
+
+/** What add_resource does with a query: update the one record that is this resource, insert a new
+ *  one, or refuse. */
+export type ResourceDecision =
+  | { action: "update"; row: ResourceRow; matchedBy: string; note: string | null }
+  | { action: "insert"; note: string | null }
+  | { action: "refuse"; error: string };
+
+const resourceLabel = (r: ResourceRow) => `"${r.name}" (id ${r.id})`;
+
+/** add_resource's rule. The record of this resource_type with the same name is updated; two are a
+ *  duplicate to merge first. A record that shares only a homepage or repository URL is never
+ *  updated: the new resource is inserted and the other one named in the note. `sameAs` (an id, or a
+ *  name of this type) is the explicit way to say "this is that record under another name". */
+export function decideResource(
+  rows: ResourceRow[], q: { type: string; name?: Text; url?: Text; repoUrl?: Text; sameAs?: Text },
+): ResourceDecision {
+  const name = q.name == null ? "" : asciiTrim(String(q.name));
+  const hits = matchResources(rows, q);
+  const refuse = (error: string): ResourceDecision => ({ action: "refuse", error });
+  let target: { row: ResourceRow; by: string[] } | null = null;
+
+  const sameAs = q.sameAs == null ? "" : asciiTrim(String(q.sameAs));
+  if (sameAs) {
+    const byId = rows.find((r) => r.id === sameAs) ?? null;
+    const sk = nameKey(sameAs);
+    const named = byId || !sk ? [] : rows.filter((r) => r.resource_type === q.type && nameKey(r.name) === sk);
+    const row = byId ?? (named.length === 1 ? named[0] : null);
+    if (!row) {
+      return refuse(named.length > 1
+        ? `same_as="${sameAs}" names ${named.length} ${q.type} records (${named.map(resourceLabel).join("; ")}): merge them first, or pass one id. Nothing was written.`
+        : `same_as="${sameAs}" names no ${q.type} in the KG: pass the id of the record this one is. Nothing was written.`);
+    }
+    if (row.resource_type !== q.type) {
+      return refuse(`same_as="${sameAs}" is the ${row.resource_type} ${resourceLabel(row)}, not a ${q.type}. Nothing was written.`);
+    }
+    const named2 = hits.filter((h) => h.same && h.row.id !== row.id);
+    if (named2.length) {
+      return refuse(`"${name}" is already in the KG as ${named2.map((h) => resourceLabel(h.row)).join("; ")}, not ${resourceLabel(row)} ` +
+        "as same_as says: correct same_as, or merge them first. Nothing was written.");
+    }
+    target = { row, by: ["same_as"] };
+  } else {
+    const same = hits.filter((h) => h.same);
+    if (same.length > 1) {
+      return refuse(`${same.length} ${q.type} records match "${name}": ${same.map((h) => `${h.row.name} (id ${h.row.id}, by ${h.by.join(" and ")})`).join("; ")}. ` +
+        "Merge them first; nothing was written.");
+    }
+    target = same[0] ?? null;
+  }
+
+  // Records that share only a URL with this one: named, never written.
+  const urlOnly = hits.filter((h) => !h.same && h.row.id !== target?.row.id);
+  const shared = urlOnly.length
+    ? `${urlOnly.map((h) => `The ${q.type} ${resourceLabel(h.row)} has the same ${h.by.map((b) => (b === "url" ? "homepage" : "repository")).join(" and ")} URL`).join("; ")}. ` +
+      `${urlOnly.length === 1 ? "It was" : "They were"} not changed: a URL can be shared by different things (a lab's tools, a maker's devices), so it does not make them one record.`
+    : null;
+  if (target) return { action: "update", row: target.row, matchedBy: target.by.join("+"), note: shared };
+  const key = nameKey(name);
+  const namesakes = key ? rows.filter((r) => r.resource_type !== q.type && nameKey(r.name) === key) : [];
+  const notes = [
+    shared ? `Added as its own record. ${shared} If this is the same ${q.type} under another name, remove the new record and call again ` +
+      `with same_as="${urlOnly.length === 1 ? urlOnly[0].row.id : "<its id>"}".` : null,
+    namesakes.length ? `Also in the KG under another type: ${namesakes.map((r) => `${r.resource_type} "${r.name}" (id ${r.id})`).join(", ")}. If it is the same thing, retype one and merge them.` : null,
+  ].filter(Boolean);
+  return { action: "insert", note: notes.length ? notes.join(" ") : null };
 }
 
 /** Funding calls with the same FON key, and calls whose notice URL has the same URL key. */
@@ -265,6 +387,46 @@ export function matchFundingCalls(rows: CallRow[], q: { fon?: Text; url?: Text }
     byFon: fk ? rows.filter((r) => fonKey(r.fon) === fk) : [],
     byUrl: uk ? rows.filter((r) => urlKey(r.url) === uk) : [],
   };
+}
+
+/** What add_funding_opportunity does with a call: update the one row that is this call, insert a new
+ *  one, or refuse. `notes` are for the curator; `sharing` are the other calls with its URL key. */
+export type CallDecision =
+  | { action: "update"; row: CallRow; matchedBy: "fon" | "supersedes"; notes: string[]; sharing: CallRow[] }
+  | { action: "insert"; notes: string[]; sharing: CallRow[] }
+  | { action: "refuse"; error: string };
+
+const callLabel = (r: CallRow) => `${r.fon} (id ${r.id})`;
+
+/** add_funding_opportunity's rule. A call is its FON key: that row is updated, two are a duplicate to
+ *  merge first. The notice URL is a hint, never an identity: a landing page (an NIH highlighted
+ *  topic, a program page) lists several calls, so another call with the same URL key is named in a
+ *  note and nothing is refused for it. `supersedes` (the forecast's FON) is the one way a final
+ *  notice takes over its forecast's row. */
+export function decideFundingCall(rows: CallRow[], q: { fon: Text; url?: Text; supersedes?: Text }): CallDecision {
+  const { byFon, byUrl } = matchFundingCalls(rows, q);
+  const sk = q.supersedes == null ? null : fonKey(q.supersedes);
+  const superseded = sk ? rows.filter((r) => fonKey(r.fon) === sk && !byFon.includes(r)) : [];
+  const dup = byFon.length > 1 ? byFon : superseded.length > 1 ? superseded : null;
+  if (dup) return { action: "refuse", error: `${dup.map(callLabel).join(", ")} are one call recorded ${dup.length} times: merge them first. Nothing was written.` };
+
+  const target = byFon[0] ?? superseded[0] ?? null;
+  const notes: string[] = [];
+  if (byFon[0] && superseded[0]) notes.push(`${callLabel(superseded[0])} is still a separate row for this call (its forecast?): merge it into this one`);
+  const sharing = byUrl.filter((r) => r.id !== target?.id && r.id !== superseded[0]?.id);
+  if (sharing.length) {
+    notes.push(`Its notice URL is also on ${sharing.map(callLabel).join(", ")}. A URL can be a landing page that lists several calls, ` +
+      "so that is only a hint and nothing was refused for it. " +
+      (target
+        ? "If one of them is this same call (its forecast), merge it into this one."
+        : `If ${String(q.fon).trim()} is the final notice that replaces one of them, that forecast's row should have become this call: merge the two (supersedes="<the forecast's FON>" does it in one step when the final notice is added).`));
+  }
+  if (byFon[0]) return { action: "update", row: byFon[0], matchedBy: "fon", notes, sharing };
+  if (superseded[0]) {
+    return { action: "update", row: superseded[0], matchedBy: "supersedes", notes: [`${superseded[0].fon} is now ${String(q.fon).trim()}; its old FON is kept in notes`, ...notes], sharing };
+  }
+  if (q.supersedes != null) notes.push(`No call with FON ${q.supersedes} is in the KG, so nothing was superseded`);
+  return { action: "insert", notes, sharing };
 }
 
 // ── Find or create ──────────────────────────────────────────────────────────────────────────────
@@ -308,13 +470,9 @@ export async function findOrCreateInvestigator(
     const all = await loadPeople(kg);
     const m = matchPeople(all, p, order);
     if (m.row) return { ok: true, row: m.row, created: false, matchedBy: m.by, candidates: m.candidates.length };
-    if (m.ambiguous) {
-      return {
-        ok: false, ambiguous: m.candidates.map((r) => r.id),
-        error: `${name}: ${m.candidates.length} records match by first and last name (${m.candidates.map((r) => r.name).join("; ")}); ` +
-          "nothing was written. Merge them, or record the person's ORCID or RePORTER profile id.",
-      };
-    }
+    // A name that fits a record with another email, or several records: not this person's to create
+    // (a second record) or to reuse (another person's). A curator decides; nothing is written.
+    if (m.ambiguous) return { ok: false, ambiguous: m.candidates.map((r) => r.id), error: `${name}: ${m.reason}` };
 
     // 1. The person.
     const row: Record<string, unknown> = { name };
@@ -330,6 +488,12 @@ export async function findOrCreateInvestigator(
       // name key (no Latin letters or digits) is looked up exactly.
       const fresh = await loadPeople(kg, true);
       const m2 = matchPeople(fresh, p, order);
+      if (m2.ambiguous) {
+        return {
+          ok: false, already_in_kg: true, constraint: violatedConstraint(ins.error), detail: violationDetail(ins.error),
+          ambiguous: m2.candidates.map((r) => r.id), error: `${name}: refused by ${violatedConstraint(ins.error) ?? "a unique key"}, and ${m2.reason}`,
+        };
+      }
       const again = m2.row ?? fresh.find((r) => (r.name ?? "").trim() === name) ?? null;
       if (again) {
         return { ok: true, row: again, created: false, matchedBy: m2.row ? m2.by : "exact name", note: `already in the KG (${violatedConstraint(ins.error) ?? "unique key"})` };

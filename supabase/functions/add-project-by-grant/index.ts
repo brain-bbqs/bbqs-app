@@ -12,7 +12,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
 import { awardKey, nihAwardCore } from "../_shared/identity-keys.ts";
-import { findOrCreateInvestigator, findOrCreateOrganization, kgSession } from "../_shared/kg-write.ts";
+import { findOrCreateInvestigator, findOrCreateOrganization, isUniqueViolation, kgSession, uniqueViolationText } from "../_shared/kg-write.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -255,6 +255,10 @@ Deno.serve(async (req) => {
 
   if (grantErr || !grantRow) {
     console.error("Failed to write grant:", grantErr);
+    // A 23505 is another writer's row for this award (uq_grants_award_key), written after the read.
+    if (isUniqueViolation(grantErr)) {
+      return fail(`Grant ${grantNumber} is already in the KG (written in the meantime); add it again to see that record`, { details: uniqueViolationText(grantErr) });
+    }
     return fail("Failed to register grant locally", { details: grantErr?.message });
   }
   const storedNumber: string = grantRow.grant_number;
@@ -323,7 +327,11 @@ Deno.serve(async (req) => {
     grant_id: grantRow.id,
     last_edited_by: userRes.user.email || "reporter-import",
   });
-  if (projectErr) warnings.push(`project row not written: ${projectErr.message}`);
+  if (projectErr) {
+    warnings.push(isUniqueViolation(projectErr)
+      ? `project row not added: one is already in the KG for this award (${uniqueViolationText(projectErr)}), written in the meantime`
+      : `project row not written: ${projectErr.message}`);
+  }
 
   // Newly created → no questionnaire fields populated yet
   return ok({

@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, requireAdmin } from "../_shared/auth.ts";
 import { orcidKey } from "../_shared/identity-keys.ts";
-import { findOrCreateInvestigator, kgSession, loadPeople, matchPeople, type PersonKey } from "../_shared/kg-write.ts";
+import { emailKey, findOrCreateInvestigator, kgSession, loadPeople, matchPeople, type PersonKey } from "../_shared/kg-write.ts";
 
 interface ConsortiumPerson {
   name: string;
@@ -2021,7 +2021,12 @@ Deno.serve(async (req) => {
 
     // The people, read once and matched here (_shared/kg-write.ts): by email, primary or secondary
     // on either side (an email ilike on the primary column alone missed a member whose form address
-    // is their second one), then by ORCID, then by name key.
+    // is their second one), then by ORCID, then by name key. A name is a guess (namesakes exist):
+    // a record it finds that carries another email, or one of several records with the name, is
+    // somebody a curator has to tell apart, so nothing is written to it (matchPeople's `ambiguous`).
+    // So a name only ever reuses a record that has no email (a RePORTER twin), and the
+    // sync_member_groups trigger, which skips a record without an email and otherwise keys Google
+    // Groups on it, is never fired for another person's address by a working_groups write from here.
     const kg = kgSession(supabase);
     const people = await loadPeople(kg);
     const ORDER: PersonKey[] = ["email", "orcid", "name"];
@@ -2036,7 +2041,20 @@ Deno.serve(async (req) => {
           const k = orcidKey(person.orcid);
           return !!k && people.some((r) => r.id !== id && orcidKey(r.orcid) === k);
         };
-        const existing = matchPeople(people, query, ORDER).row;
+        const match = matchPeople(people, query, ORDER);
+        // A name may only reuse a record that has no email. matchPeople already refuses one with
+        // another email when this person has an email; this also holds for a roster entry without one.
+        const nameOnly = match.by === "name" && !!match.row;
+        if (match.ambiguous || (nameOnly && emailKey(match.row!.email))) {
+          // For a curator: nothing is written to the record(s) found, and no second record is made.
+          errors.push(`${person.name}: ${match.reason ?? `matched only by name to "${match.row!.name}" (id ${match.row!.id}), ` +
+            "which has an email this roster entry has none to compare with: nothing was written to it"}`);
+          continue;
+        }
+        const existing = match.row;
+        if (nameOnly) {
+          notes.push(`${person.name}: matched by name only, to "${existing!.name}" (id ${existing!.id}), which has no email: updated it; its email was left for a curator to confirm`);
+        }
 
         if (existing) {
           const { data: current, error: readErr } = await supabase
