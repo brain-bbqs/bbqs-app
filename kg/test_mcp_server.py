@@ -1426,9 +1426,13 @@ class TheExport(unittest.TestCase):
         self.assertLess(sent(["House Mouse", "WG-Devices", "WG-Analytics", "R34DA059723", "Human"]), 20_000)
         self.assertLess(max(sent(node.iri, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 60_000)
         # Naming types lifts the cap from 10 to 25, but only for up to three of them: naming every
-        # type came to 72,000 when it lifted the cap for all.
+        # type came to 72,000 when it lifted the cap for all. Naming every type gets the lists naming
+        # none does (plus an empty one per type not reached), so it has the same budget. It was 40,000
+        # until the export of 2026-11-17 joined the device catalog to the projects: three more types
+        # within reach of a person, 46,700 for the largest (the cap per list is checked in
+        # test_what_the_descriptions_say_about_the_ranking_is_what_the_server_does).
         every, most = list(self.kg.types), [kind for kind, _ in Counter(n.type for n in self.kg.nodes.values()).most_common(3)]
-        self.assertLess(max(sent(node.iri, type=every, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 40_000)
+        self.assertLess(max(sent(node.iri, type=every, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 60_000)
         self.assertLess(max(sent(node.iri, type=most, limit=25, max_hops=m.MAX_HOPS) for node in linked[::25]), 45_000)
 
     def test_every_shown_id_leads_back_to_its_node(self):
@@ -2452,7 +2456,9 @@ class TheBenchmark(unittest.TestCase):
                          + asked["could_not_be_asked"], silent)
         full = {q["id"] for q in bench.load_questions()[0] if q["access"] == "full"}
         self.assertLessEqual({q["id"] for q in asked["questions"] if q["status"] == "needs the full export"}, full)
-        self.assertEqual(next(q["status"] for q in asked["questions"] if q["id"] == "CQ14"), "none in this export")
+        # CQ14 found nothing until the export of 2026-11-17, the first written by an exporter that reads
+        # project_device_usage
+        self.assertEqual(next(q["status"] for q in asked["questions"] if q["id"] == "CQ14"), "answered")
 
     def test_the_readme_says_which_questions_have_no_rows_on_the_committed_export(self):
         # kg/README.md ("Benchmark") names the questions with no rows today and why. When a new export
@@ -2462,10 +2468,10 @@ class TheBenchmark(unittest.TestCase):
         for q in asked["questions"]:
             status.setdefault(q["status"], []).append(q["id"])
         self.assertEqual(status, {
-            "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 23, 25, 26,
-                                                28, 29, 32, 33, 34, 38, 41)],
+            "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23,
+                                                25, 26, 28, 29, 32, 33, 34, 38, 41)],
             "needs the full export": ["CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40"],
-            "none in this export": ["CQ14", "CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
+            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
         readme = (HERE / "README.md").read_text(encoding="utf8")
         for name in status["needs the full export"] + status["none in this export"] + status.get("not modelled", []):
             self.assertIn(name, readme)

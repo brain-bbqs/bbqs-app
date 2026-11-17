@@ -318,14 +318,15 @@ in the sitemap or navigation), but anyone with the link can open it, so it only 
 anon view. The data is live, but the exporter and quality code come from `main`: a change on `dev`
 shows up after `dev` → `main`.
 
-**Latest run (anon export, 2026-10-21, after #421):**
+**Latest run (anon export, 2026-11-17, after `20261116150000_link_isolated_nodes`):**
 
 | Measure | Result |
 |---|---|
-| Structure | 808 nodes, 868 links. **189 isolated (23%)**, in 214 connected pieces (largest 516). Links: `member_of_group` 268, `members` 136, `on_project` 128, `held_by` 126, `produced` 89, `manufacturer` 35, `device_category` 35, `studies_species` 32, `part_of_org` 15, `funded_datasets` 4. On 2026-09-30 it was 453 of 693 isolated (65%), with only the last four kinds. |
-| Competency questions | **16 of 19 answered** (was 6), 2 n/a on anon (jobs, provenance), 1 unmodeled (CQ14) |
+| Structure | 758 nodes, 1,046 links. **76 isolated (10%)**, in 104 connected pieces (largest 572). Links: `member_of_group` 268, `members` 165, `on_project` 128, `uses_device_category` 127, `held_by` 126, `produced` 89, `part_of_org` 36, `device_category` 35, `manufacturer` 35, `studies_species` 32, `funded_datasets` 5. On 2026-11-04 it was 189 of 808 isolated (23%); on 2026-09-30, 453 of 693 (65%), with only the last four kinds. |
+| Competency questions | **32 of 42 answered** as the KG gate counts: 30 return rows and 2 "which ... has no ..." questions (CQ27, CQ42) find none missing. 7 need what anon can't read (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40); CQ24, CQ31 and CQ39 find nothing in this export. |
 | Shape coverage | **12 of 16 shapes have data to check** (was 7). The other 4 need what anon can't read: `email` (#15) and provenance (#12, #18, #19). |
-| Violations | 11: #7 ×6 (species), #20 ×2 and #1 ×1 (project identity), #10 ×2 (URLs). Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
+| Possible duplicates | **0** (14 on 2026-11-04, all removed by `20261116150000_link_isolated_nodes`). 5 preprint + published pairs remain, to be linked as versions. |
+| Violations | 0. Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
 
 On 2026-09-30, ten questions came back empty because the exporter didn't turn anon-readable data
 into links. #421 wrote these links:
@@ -344,8 +345,8 @@ into links. #421 wrote these links:
 
 CQ14 (device categories per project) was **unmodeled**: `project_device_usage` has 131 anon rows,
 but the schema had no Project → DeviceCategory slot. It has one now, `uses_device_category`, which
-the exporter writes from that view; the committed export predates it, so CQ14 finds nothing until
-the next export. The exporter also writes the rest of what the device catalog declares: a model's
+the exporter writes from that view. The export of 2026-11-17 is the first to carry it: 127 links,
+and CQ14 has rows. The exporter also writes the rest of what the device catalog declares: a model's
 aliases, output signals, price tier, regulatory class and product, manual and SDK links; a
 category's typical use cases and schema.org type; a maker's country.
 

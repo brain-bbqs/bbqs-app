@@ -17,6 +17,7 @@
     "CQ11",
     "CQ12",
     "CQ13",
+    "CQ14",
     "CQ15",
     "CQ16",
     "CQ17",
@@ -50,7 +51,7 @@
     "StudiesSpeciesResolvesShape",
     "UrlFieldsAreUrlsShape"
   ],
-  "isolated": 189,
-  "nodes": 808,
-  "duplicates": 14
+  "isolated": 76,
+  "nodes": 758,
+  "duplicates": 0
 }

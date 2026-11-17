@@ -67,20 +67,20 @@ To serve it on a public URL for a claude.ai connector, see [On a public URL](kg/
 ### Benchmark
 
 <!-- kg-mcp-benchmark:start -->
-Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
+Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 
 | | Result |
 |---|---|
-| Competency questions that return rows on this export | **29 of 42** |
-| Those 29, asked as SPARQL through the server: same rows as the export queried directly | **29 of 29** |
-| Those 29, asked without SPARQL through the graph tools: same rows again | **29 of 29** |
-| The other 13 (7 need the full export, 6 find none in this export): no rows either way | **13 of 13** |
-| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,383 cases) | **62%** (65% looking up to 8 links) |
-| The same for `get_neighbors`, which lists by distance alone | 45% (47% walking through hubs) |
-| Strengths equal to a slow second version of the rule, exactly | **515 of 515** starting nodes |
-| A `find_related` call (median; 95th percentile) | 6 ms; 10 ms |
-| A `find_paths` call | 4 ms; 14 ms |
-| A `find_related` reply (median; largest of the 103 timed) | 7.6 kB; 12.2 kB |
+| Competency questions that return rows on this export | **30 of 42** |
+| Those 30, asked as SPARQL through the server: same rows as the export queried directly | **30 of 30** |
+| Those 30, asked without SPARQL through the graph tools: same rows again | **30 of 30** |
+| The other 12 (7 need the full export, 5 find none in this export): no rows either way | **12 of 12** |
+| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,689 cases) | **67%** (68% looking up to 8 links) |
+| The same for `get_neighbors`, which lists by distance alone | 50% (53% walking through hubs) |
+| Strengths equal to a slow second version of the rule, exactly | **578 of 578** starting nodes |
+| A `find_related` call (median; 95th percentile) | 13 ms; 22 ms |
+| A `find_paths` call | 10 ms; 21 ms |
+| A `find_related` reply (median; largest of the 116 timed) | 13.4 kB; 17.8 kB |
 
 <details><summary>All 42 questions, both ways</summary>
 
@@ -91,23 +91,23 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | CQ03 | Which institution hosts each project? | 3 | same | same | from each project, the organization one link away |
 | CQ04 | Who holds a role on R34DA059723, and what role? | 2 | same | same | find the project by grant number; its people, with the role on each link |
 | CQ05 | Which investigators hold roles on more than one project? | 7 | same | same | from each project, its people; count the projects per person |
-| CQ06 | Which organization is each investigator affiliated with? | 136 | same | same | from each organization, the people one link away |
+| CQ06 | Which organization is each investigator affiliated with? | 165 | same | same | from each organization, the people one link away |
 | CQ07 | Which investigators have an ORCID? | 112 | same | same | list the investigators; read each one's ORCID |
 | CQ08 | Who are the members of WG-Devices? | 66 | same | same | find the working group by name; from it, the people one link away |
 | CQ09 | Which projects study the house mouse? | 7 | same | same | find the species by its common name; from it, the projects one link away |
 | CQ10 | Which projects study mammals? | 25 | same | same | find the mammal species; from each, its projects |
 | CQ11 | Which projects name no resolvable species, and is that by design? | 4 | same | same | list the projects; keep those with no species named |
 | CQ12 | Which publications came out of which project? | 89 | same | same | from each project, the publications one link away |
-| CQ13 | Which datasets were produced under which project? | 4 | same | same | from each project, the datasets one link away |
-| CQ14 | Which device categories does each project use? *(none in this export)* | 0 | none | none | from each project, the device categories one link away |
+| CQ13 | Which datasets were produced under which project? | 5 | same | same | from each project, the datasets one link away |
+| CQ14 | Which device categories does each project use? | 127 | same | same | from each project, the device categories one link away |
 | CQ15 | Which devices does each manufacturer make, by category? | 35 | same | same | from each device, its maker and its category |
 | CQ16 | Which software tools does the consortium provide, with their repositories? | 18 | same | same | list the software tools; read each one's repository |
-| CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 5 | same | same | list the funding calls; keep those still open |
+| CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 4 | same | same | list the funding calls; keep those still open |
 | CQ18 | Which jobs are posted, and by which institution? *(needs the full export)* | 0 | none | none | list the jobs; read each one's institution |
 | CQ19 | Where did R34DA059723's title come from (source class and grade)? *(needs the full export)* | 0 | none | none | list the provenance records; keep the project's title; read the source's grade |
 | CQ20 | Which investigators are on more than one project, and which projects? | 7 | same | same | from each project, its people; keep those on more than one |
-| CQ21 | Which investigators have no ORCID recorded? | 150 | same | same | list the investigators; keep those with no ORCID |
-| CQ22 | Which organization is each investigator tied to, directly or through a project? | 139 | same | same | from each person, their organization, and their projects' organizations |
+| CQ21 | Which investigators have no ORCID recorded? | 134 | same | same | list the investigators; keep those with no ORCID |
+| CQ22 | Which organization is each investigator tied to, directly or through a project? | 168 | same | same | from each person, their organization, and their projects' organizations |
 | CQ23 | Who is in each working group, and on which projects are they? | 272 | same | same | from each working group, its members; from each member, their projects |
 | CQ24 | Which investigators hold more than one kind of role? *(none in this export)* | 0 | none | none | from each project, its people and the role on each link |
 | CQ25 | Which projects study the house mouse, whichever of its names is used? | 14 | same | same | find the species by any of its names; from it, its projects |
@@ -117,8 +117,8 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | CQ29 | How many publications came out of each investigator's projects, and which projects? | 83 | same | same | from each project, its people and its publications |
 | CQ30 | Which produced datasets have no provenance recorded? *(needs the full export)* | 0 | none | none | list the datasets; keep the produced ones no provenance record names |
 | CQ31 | Which benchmarks is each ML model evaluated by, and which project produced it? *(none in this export)* | 0 | none | none | from each model, its benchmarks and the project that produced it |
-| CQ32 | How many members does each organization have? | 57 | same | same | from each organization, count the members one link away |
-| CQ33 | Which organizations have no members recorded? | 21 | same | same | list the organizations; keep those with no member |
+| CQ32 | How many members does each organization have? | 59 | same | same | from each organization, count the members one link away |
+| CQ33 | Which organizations have no members recorded? | 17 | same | same | list the organizations; keep those with no member |
 | CQ34 | Which organizations have investigators on more than one project? | 10 | same | same | from each organization, its members; from each member, their projects |
 | CQ35 | Which jobs does each institution advertise? *(needs the full export)* | 0 | none | none | list the jobs; group them by institution |
 | CQ36 | Which kinds of role are being advertised? *(needs the full export)* | 0 | none | none | list the jobs; count them by kind |
@@ -126,7 +126,7 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | CQ38 | Which projects have no outputs recorded? | 12 | same | same | list the projects; keep those that produced nothing |
 | CQ39 | Which funding opportunities expire between 2026-10-14 and 2027-04-14? *(none in this export)* | 0 | none | none | list the funding calls; keep those expiring in the window |
 | CQ40 | How many values come from a source graded below 3, by source and table? *(needs the full export)* | 0 | none | none | list the provenance records; read each source's grade |
-| CQ41 | Which datasets did each grant fund, and who are its PIs? | 4 | same | same | from each project, the datasets it funded and its PIs |
+| CQ41 | Which datasets did each grant fund, and who are its PIs? | 7 | same | same | from each project, the datasets it funded and its PIs |
 | CQ42 | Which working groups have no member with a role on any project? *(none in this export)* | 0 | none | none | from each working group, its members; see whether any has a project |
 
 All 42 are the questions the knowledge graph is scored on ([`kg/competency_questions.yaml`](kg/competency_questions.yaml)). A question of the form "which X has no Y" lists every X with no Y *recorded*, which in a graph still being linked is not the same as having none.
