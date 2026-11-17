@@ -2,7 +2,7 @@
 """Run the whole BBQS KG pipeline, as one object, with one command:
 
     1. export()              -- pull from Supabase into instance Turtle
-    2. validate()             -- check the export against the SHACL consistency shapes
+    2. validate()             -- check the export against the SHACL validation shapes
     3. reason()               -- check the export + OWL TBox for logical contradictions (HermiT)
     4. export_explorer_json() -- build the BBQS Explorer JSON from the same graph
 

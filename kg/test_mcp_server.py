@@ -2204,7 +2204,7 @@ bid:p1 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:grant_number "R34DA059723
     bbqs:produced bid:pub1, bid:ds2, bid:tool1, bid:model1 ; bbqs:funded_datasets bid:ds1 ;
     bbqs:uses_device_category bid:cat1 .
 bid:p2 a bbqs:Project ; bbqs:name "U01DA000002" ; bbqs:grant_number "U01DA000002" ; bbqs:mechanism "U01" ;
-    bbqs:award_amount 250 ; bbqs:study_scope "All Species" ; bbqs:studies_species_name "zebra finch" ;
+    bbqs:award_amount 250 ; bbqs:study_scope "All Species" ; bbqs:studies_species_unresolved "zebra finch" ;
     bbqs:funded_datasets bid:ds3 .
 bid:p3 a bbqs:Project ; bbqs:name "R34DA000003" ; bbqs:grant_number "R34DA000003" ; bbqs:mechanism "R34" ;
     bbqs:award_amount 50 ; bbqs:studies_species bid:rat ; bbqs:produced bid:ds4 .
@@ -2289,7 +2289,7 @@ bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ; b
     bbqs:funded_datasets bid:d1, bid:gone1, bid:gone2 ; bbqs:produced bid:d1 ; bbqs:studies_species bid:m1, bid:m2 .
 bid:q2 a bbqs:Project ; bbqs:grant_number "U01DA000002", "U01DA000002-S1" ; bbqs:funded_datasets bid:gone2 ;
     bbqs:mechanism "R34" ;
-    bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_name "marmoset" .
+    bbqs:produced bid:gone3 ; bbqs:studies_species bid:gone4 ; bbqs:studies_species_unresolved "marmoset" .
 bid:q3 a bbqs:Project ; bbqs:name "R34DA059723" ; bbqs:produced bid:net, bid:d2, bid:pub9 .
 bid:q6 a bbqs:Project ; bbqs:grant_number "U01DA000002" .
 bid:pub9 a bbqs:Publication ; bbqs:name "Q3 paper" .
@@ -2391,6 +2391,7 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 4, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
                 "CQ15": 2, "CQ16": 1, "CQ17": 4,
                 "CQ18": 5, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
+                "CQ27": 2,   # q2's unresolved "marmoset", once per grant number, beside its (dangling) linked species
                 "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 2, "CQ36": 2, "CQ37": 4, "CQ38": 2,
                 "CQ39": 2, "CQ40": 2, "CQ41": 12, "CQ42": 1}
 

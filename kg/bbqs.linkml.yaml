@@ -198,7 +198,7 @@ classes:
       - website
       - keywords
       - studies_species      # study_species[] → Species (resolved)
-      - studies_species_name # study_species[] raw claim, verbatim
+      - studies_species_unresolved # a study_species[] claim no Species matches yet
       - study_scope          # study_species[] value that names no species by design
       - studies_human
       - metadata_completeness
@@ -503,7 +503,7 @@ slots:
   website:     { slot_uri: schema:url, range: uriorcurie }
   keywords:    { slot_uri: schema:keywords, multivalued: true }
   studies_species: { slot_uri: schema:about, range: Species, multivalued: true, description: "study_species[] names → Species nodes (resolved)." }
-  studies_species_name: { multivalued: true, description: "Raw study_species[] free-text claim, verbatim. Must resolve to a Species via studies_species (#7)." }
+  studies_species_unresolved: { multivalued: true, description: "A species named in the project's study_species[] that no Species node matches yet, as written. Only these are written as text: a claim that resolves is a studies_species link and is not repeated as a name (link, do not copy). A curator clears one by adding the species or an alias for the name (#7)." }
   study_scope: { multivalued: true, description: "A study_species[] value that names no species by design (e.g. 'All Species' for infrastructure awards). Recorded as scope, not a species claim, so #7 does not flag it." }
   studies_human: { range: boolean }
   metadata_completeness: { range: float }

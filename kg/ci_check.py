@@ -39,7 +39,7 @@ def shape_counts(q: KGQuality, severity: str | None = None) -> Counter:
                    if severity is None or v["severity"] == severity)
 
 
-def consistency_shape_names(q: KGQuality) -> set[str]:
+def validation_shape_names(q: KGQuality) -> set[str]:
     return {r["shape"] for r in q.shape_exercise()}
 
 
@@ -87,6 +87,8 @@ def main(export_path, check_generated, update_baseline):
         "exercised": sorted(s["shape"] for s in report["shapes"] if s["exercised"]),
         "isolated": report["structure"]["isolated"],
         "nodes": report["structure"]["nodes"],
+        # Groups of same-class nodes sharing a name or identifier (kg/quality.py duplicates()).
+        "duplicates": report["duplicates"]["count"],
     }
     if update_baseline:
         BASELINE.write_text(json.dumps(now, indent=2) + "\n", encoding="utf-8")
@@ -97,7 +99,7 @@ def main(export_path, check_generated, update_baseline):
     base = json.loads(BASELINE.read_text(encoding="utf-8"))
 
     red = shape_counts(KGQuality(RED))
-    silent = sorted(consistency_shape_names(q) - set(red))
+    silent = sorted(validation_shape_names(q) - set(red))
     if silent:
         errors.append(f"RED fixture: these shapes no longer fire on contradictions.ttl: {', '.join(silent)}")
     else:
@@ -128,6 +130,14 @@ def main(export_path, check_generated, update_baseline):
             improved.append(f"{label} gained: {', '.join(gained)}")
         print(f"{'ok ' if not lost else 'BAD'} {label}: {len(now[key])} (baseline {len(base[key])})")
     print(f"--  isolated nodes: {now['isolated']} of {now['nodes']} (baseline {base['isolated']} of {base['nodes']})")
+    # A duplicate is stopped when it arrives, not cleaned later: more groups than the baseline fails.
+    if "duplicates" in base:
+        if now["duplicates"] > base["duplicates"]:
+            errors.append(f"quality: possible duplicates rose to {now['duplicates']} groups (baseline {base['duplicates']}); "
+                          "merge them in the database, or fix the write path that made them")
+        elif now["duplicates"] < base["duplicates"]:
+            improved.append(f"possible duplicates {base['duplicates']} -> {now['duplicates']}")
+        print(f"{'ok ' if now['duplicates'] <= base['duplicates'] else 'BAD'} possible duplicates: {now['duplicates']} groups (baseline {base['duplicates']})")
 
     if check_generated:
         check_generated_artifacts(errors)

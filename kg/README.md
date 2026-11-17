@@ -44,7 +44,7 @@ This table is the running status of the whole effort, updated as each phase land
 One `BBQSKnowledgeGraph` object (`bbqs_kg.py`), one command, four steps in order:
 
 1. **`export()`** — pull from Supabase into instance Turtle (`kg/export/bbqs.ttl`).
-2. **`validate()`** — check that export against the SHACL consistency shapes.
+2. **`validate()`** — check that export against the SHACL validation shapes.
 3. **`reason()`** — check the export + the OWL TBox (`bbqs.owl.ttl`) for logical contradictions
    with a DL reasoner (HermiT, via `owlready2`): disjoint classes and literals outside their
    datatype, which SHACL's shape checks can't catch.
@@ -86,7 +86,7 @@ holding a sentence. Those are Supabase data-entry mistakes to fix upstream, not 
 `.github/workflows/kg.yml` runs `ci_check.py` on every PR that touches `kg/` (other PRs pass in
 seconds, so the `kg` check can be required). It fails on a **regression**, never on a known gap:
 
-1. every consistency shape still fires on `fixtures/contradictions.ttl` (RED);
+1. every validation shape still fires on `fixtures/contradictions.ttl` (RED);
 2. `fixtures/clean.ttl` still conforms (GREEN);
 3. no shape fires on `export/bbqs.ttl` more often than `quality_baseline.json` allows;
 4. every competency question answered in the baseline still answers, and every shape that had data
@@ -131,8 +131,8 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
 | `devices.py` | The consortium device list → the Inspector's Devices records (by award, each line with its tier: slide, workshop, notes, AI-predicted). Internal: reads and writes files outside the repo only. |
-| `shapes/consistency.shapes.ttl` | Hand-written SHACL for the cross-field/cross-node **contradiction** checks (what gen-shacl can't produce). |
-| `fixtures/contradictions.ttl` | A graph seeded with one violation per consistency shape (the RED case). |
+| `shapes/validation.shapes.ttl` | Hand-written SHACL validation for the cross-field/cross-node **contradiction** checks and dangling claims (what gen-shacl can't produce). |
+| `fixtures/contradictions.ttl` | A graph seeded with one violation per validation shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
 | `validate.py` | pyshacl runner CLI: `python kg/validate.py <data.ttl> [shapes…]`. |
 | `reason.py` | HermiT (via `owlready2`) DL-reasoner CLI: `python kg/reason.py [data.ttl] [--owl bbqs.owl.ttl]`. |
@@ -153,6 +153,29 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 1. **Guards (Node, runnable now, zero-dep)** — schema↔DB drift, e.g. `tests/guards/kg-resource-type-parity.test.mjs` ties this schema's `resource_type_enum` to the live Postgres enum. Runs under `npm run test:guards`.
 2. **SHACL (pyshacl)** — contradiction checks over an instance graph, in `shapes/`. The generated structural shapes (`bbqs.shapes.gen.ttl`) are not run yet; they don't match the export's IRIs (#422).
 3. **OWL reasoning (`reason()`, partial)** — a DL reasoner (HermiT, via `owlready2`; needs a separately installed Java runtime) checks disjoint classes and literals outside their datatype. It cannot catch cardinality or range mismatches between IRIs (no unique-name assumption, open world). Class-level disjointness is a no-op until `bbqs.owl.ttl` gets `owl:disjointWith` axioms (tracked in "Not yet built").
+
+## Modelling rule: link, don't copy
+
+When a value names another node, the export writes the link and not the name again: the name lives on
+that node, and a second copy would only drift from it. A project's species is the `studies_species`
+link to the Species node, not also its name as text. Text is written only when there is nothing to
+link to yet, in a slot that says so (`studies_species_unresolved`); a curator clears it by adding the
+node or an alias, and the next export turns it into a link. A field that is the record's own data
+stays text: a paper's printed author list, a species' common name. Settled 2026-11-17 on Tek's
+review: a graph has to pick one way and keep to it.
+
+The same reasoning applies to duplicates: a graph built from a database inherits its duplicate rows,
+and cleaning them gets harder as the graph grows. So `quality.py` counts groups of same-class nodes
+that share a folded name (case, accents, punctuation and spacing ignored; for people, first and last
+name) or an identifier (ORCID, DOI, PMID, and a URL for things a URL names), and `ci_check.py` fails
+when that count rises above the baseline. A new duplicate is stopped at the next export instead of
+being found later; the fix belongs in the database and in the write path that made it. A preprint and
+its published version share a title but are one work recorded twice, so they are counted apart, to be
+linked as versions rather than merged.
+
+**Wording.** The shapes in `shapes/` are SHACL *validation* checks, and the Inspector calls them that.
+"Consistency" in the strict, logical sense (a reasoner finding the ontology and data contradictory)
+is the separate OWL pass, layer 3 above.
 
 ## Consistency-invariant catalog
 
@@ -203,7 +226,7 @@ built one at a time, and each gets a board issue under #386 while it's in progre
 | 1 | **Competency questions** | Can the graph answer what it's for? | `competency_questions.yaml`: 42 SPARQL questions pinned to real entities (R34DA059723, House Mouse, WG-Devices). Each is *answered*, *empty* (exporter gap), *n/a* (RLS-gated on anon) or *unmodeled* (schema gap); a "which X has no Y" question is *none* when nothing is missing. | **live** (`quality.py`) |
 | 2 | **Structural metrics** | Is it one graph or a pile of records? | Nodes and links per class, isolated nodes, connected pieces, dangling links, and the class→predicate→class link matrix. | **live** (`quality.py`) |
 | 3 | **Cross-artifact conformance** | Do the export, the OWL and the generated SHACL use the same terms? | Every predicate and class the export emits must be declared in `bbqs.owl.ttl` *and* be a path in `bbqs.shapes.gen.ttl`. Today they disagree: the export and OWL use `bbqs:<slot>`, gen-shacl uses the mapped `slot_uri` (`schema:*`, `prov:*`), so the generated shapes target nothing. | planned (needs one IRI convention) |
-| 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL consistency shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
+| 4 | **Consistency** | Does any part contradict another, and did each check have data? | Node guards (schema↔DB drift), SHACL validation shapes (the catalog above), the OWL reasoner, plus **shape coverage**: which shapes had inputs to check, so a vacuous pass is visible. | **live**: guards, SHACL, reasoner; shape coverage in `quality.py` |
 | 5 | **Accuracy and round trip** | Does the graph say everything the database says, and could the database be rebuilt from it? | `roundtrip.py`: every non-null fact cell of every KG-backed table is checked against its row's node in a fresh export (*carried* or *dropped*), plus a person's review of entity cards against the site (the Inspector's review flags). | **live** (DB half: 71.7% of fact cells carried, anon) |
 | 6 | **Coverage** | How much of each record made it in? | Per-class fill rates and external-ID coverage (ORCID, DOI, NCBITaxon). Informational only: it guides enrichment and is not a consistency goal. | planned |
 
@@ -672,7 +695,7 @@ apart, as could not be asked, and fails the run.
 On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
 provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
 asks for a link the committed export predates (CQ14, `uses_device_category`). Five are understood
-and have nothing to list today: nobody holds two kinds of role (CQ24), every free-text species is also resolved (CQ27), no
+and have nothing to list today: nobody holds two kinds of role (CQ24), no species claim is left unresolved (CQ27), no
 model has a benchmark linked (CQ31), no funding call expires in CQ39's window, and every working
 group has a member with a role (CQ42). A question of the form "which X has no Y" (CQ21, CQ27,
 CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is

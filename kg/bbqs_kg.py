@@ -51,7 +51,7 @@ def _shown(path) -> str:
 
 
 class BBQSKnowledgeGraph:
-    """Exports the BBQS KG from Supabase and validates it against the SHACL consistency shapes."""
+    """Exports the BBQS KG from Supabase and validates it against the SHACL validation shapes."""
 
     DEFAULT_EXPORT_PATH = HERE / "export" / "bbqs.ttl"
     DEFAULT_SHAPES_DIR = HERE / "shapes"
@@ -246,11 +246,13 @@ class BBQSKnowledgeGraph:
                 if str(name).strip().lower() in not_applicable:
                     self.add(n, "study_scope", name)   # names no species by design (e.g. infra awards)
                     continue
-                self.add(n, "studies_species_name", name)  # the raw claim, verbatim
+                # Link, don't copy: a claim that resolves is the studies_species link alone (the name
+                # is the Species node's); only a claim with no node to link to is kept as text.
                 target = resolve_species(name)
                 if target is not None:
                     g.add((n, BBQS["studies_species"], target))
                 else:
+                    self.add(n, "studies_species_unresolved", name)
                     dangling_species.append((p["grant_number"], name))
 
         # Device categories (build key -> node for device_models), then models and manufacturers.

@@ -1,4 +1,4 @@
-# BBQS KG consistency shapes — the CONTRADICTION checks, hand-written.
+# BBQS KG validation shapes — the hand-written SHACL checks for contradictions and dangling claims.
 #
 # These are the shapes LinkML's gen-shacl cannot produce: cross-field and cross-node SPARQL
 # constraints that catch "one part of the graph disagrees with another". The boilerplate node/
@@ -116,21 +116,19 @@ bbqs:MechanismMatchesGrantNumberShape
 # projects.study_species[] is free text ("Mus musculus", "Humans", "All Species"). Each raw claim
 # must resolve to a real Species node (by name or common_name); one that does not is a dangling
 # reference — the graph asserts a subject that isn't in it.
+# The exporter writes a study_species claim as a studies_species link when a Species matches it, and
+# as studies_species_unresolved text only when none does (link, don't copy). So the check is simply:
+# any unresolved claim fires. Finding none is the pass, which bbqs:readsAbsence tells the coverage
+# report (kg/quality.py), the way `reads: absence` does for a competency question.
 bbqs:StudiesSpeciesResolvesShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Project ;
+  bbqs:readsAbsence true ;
   sh:sparql [
-    sh:message "study_species does not resolve to a Species node -- dangling reference (#7)." ;
+    sh:message "A study_species claim does not resolve to a Species node (#7): add the species, or an alias for this name." ;
     sh:prefixes bbqs:prefixes ;
     sh:select """
-      SELECT $this ?value WHERE {
-        $this bbqs:studies_species_name ?value .
-        FILTER NOT EXISTS {
-          $this bbqs:studies_species ?sp .
-          { ?sp bbqs:name ?n } UNION { ?sp bbqs:common_name ?n } UNION { ?sp bbqs:aliases ?n }
-          FILTER(LCASE(STR(?n)) = LCASE(STR(?value)))
-        }
-      }
+      SELECT $this ?value WHERE { $this bbqs:studies_species_unresolved ?value . }
     """ ;
   ] .
 

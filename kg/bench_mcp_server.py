@@ -464,8 +464,8 @@ def cq26(c):
 
 
 def cq27(c):
-    return [[number, raw] for p in c.all_of("Project") if not c.has(p["id"], "studies_species")
-            for number in c.values(p["id"], "grant_number") for raw in c.values(p["id"], "studies_species_name")]
+    return [[number, raw] for p in c.all_of("Project")
+            for number in c.values(p["id"], "grant_number") for raw in c.values(p["id"], "studies_species_unresolved")]
 
 
 def cq28(c):
@@ -616,7 +616,7 @@ WALKS = {
     "CQ24": (cq24, "from each project, its people and the role on each link"),
     "CQ25": (cq25, "find the species by any of its names; from it, its projects"),
     "CQ26": (cq26, "from each project, its species; count the projects per species"),
-    "CQ27": (cq27, "list the projects; keep those naming a species only in free text"),
+    "CQ27": (cq27, "list the projects' species claims that no species node matches"),
     "CQ28": (cq28, "from each project, count what it produced, by type"),
     "CQ29": (cq29, "from each project, its people and its publications"),
     "CQ30": (cq30, "list the datasets; keep the produced ones no provenance record names"),

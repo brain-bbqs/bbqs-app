@@ -253,7 +253,7 @@
   <header class="top">
     <div style="display:grid;gap:4px">
       <h1>BBQS Graph Inspector</h1>
-      <p>Every node in the exported BBQS knowledge graph, with the structural, competency and consistency checks that <span class="mono">kg/quality.py</span> ran on it.</p>
+      <p>Every node in the exported BBQS knowledge graph, with the structural, competency and SHACL validation checks that <span class="mono">kg/quality.py</span> ran on it.</p>
       <p class="note" id="internal-note" style="margin:0" hidden></p>
     </div>
     <div class="src" id="src"></div>
@@ -292,8 +292,9 @@ const AREA_NAME = { people: "People & roles", org: "Organizations", project: "Pr
 const FLAG = {
   isolated: { cls: "warn", text: "isolated", tip: "No link to or from any other node" },
   dangling: { cls: "bad", text: "dangling link", tip: "Points at an IRI that has no node" },
-  violation: { cls: "bad", text: "violation", tip: "A consistency shape fired on this node" },
+  violation: { cls: "bad", text: "violation", tip: "A SHACL validation rule failed on this node" },
   warning: { cls: "warn", text: "warning", tip: "A warning-level shape fired: worth a look, not an error" },
+  duplicate: { cls: "warn", text: "possible duplicate", tip: "Shares its name or an identifier with another node of the same kind. Merge them in the database they came from: cleaning the graph afterwards does not stop the next one" },
 };
 const STATUS = {
   answered: { cls: "ok", text: "answered", tip: "Returned rows" },
@@ -356,7 +357,9 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
     [`${answered}/${cq.length}`, scored.length < cq.length ? `questions answered (${scoredAnswered}/${scored.length} scored by the CI gate)` : "questions answered",
      answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
     [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
-    [fmt(REPORT.violation_count), "consistency violations", REPORT.violation_count ? "bad" : "ok"],
+    [fmt(REPORT.violation_count), "SHACL violations", REPORT.violation_count ? "bad" : "ok"],
+    ...(REPORT.duplicates ? [[fmt(REPORT.duplicates.count), `possible duplicates · ${fmt(REPORT.duplicates.versions)} preprint + published pairs`,
+                              REPORT.duplicates.count ? "warn" : "ok"]] : []),
     ...(REPORT.warning_count ? [[fmt(REPORT.warning_count), "warnings", "warn"]] : []),
     ...(PUBS ? [[`${PUBS.rows.filter(r => r.projects.length).length}/${PUBS.count}`, "publications tied to a project",
                  PUBS.rows.every(r => r.projects.length) ? "ok" : "warn"]] : []),
@@ -677,11 +680,12 @@ function detailHTML(e) {
       <div class="iri"><code>${esc(e.id)}</code><button class="copy" data-copy="${esc(e.id)}">Copy IRI</button>${e.class !== "ProjectRole" ? `<button class="copy" data-gofocus="${esc(e.id)}">Show in graph</button>` : ""}</div>
       ${e.flags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${e.flags.map(f => `<span class="pill ${FLAG[f].cls}">${FLAG[f].text}</span>`).join("")}</div>` : ""}
       ${why}
+      ${(e.duplicates || []).length ? `<div class="viol w"><b>Possible duplicate</b>${e.duplicates.map(d => `<span>Same ${esc(d.by)} as ${d.others.map(refLink).join(", ")}</span>`).join("")}<span class="note">Merge them in the database they came from, so the next export has one node.</span></div>` : ""}
     </div>
     ${flagSectionHTML(e)}
     ${inMeetingsHTML(e)}
     ${onDeviceListHTML(e)}
-    ${e.violations.length ? `<section><h3>Consistency checks</h3>${e.violations.map(v =>
+    ${e.violations.length ? `<section><h3>SHACL validation</h3>${e.violations.map(v =>
       `<div class="viol${isWarn(v) ? " w" : ""}"><b>${isWarn(v) ? "warning · " : ""}${esc(v.shape)}</b><span>${esc(v.message)}</span>${v.value ? `<span class="mono muted">value: ${esc(v.value)}</span>` : ""}</div>`).join("")}</section>` : ""}
     <section><h3>Facts</h3>${facts.length ? `<dl class="kv">${facts.map(([p, vs]) =>
       `<dt>${esc(p)}</dt><dd>${vs.map(v => /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v)).join("<br>")}</dd>`).join("")}</dl>` : `<p class="empty">No literal facts.</p>`}</section>
@@ -703,7 +707,7 @@ function renderEntities() {
     lastArea = a;
     return `${head}<label><input type="checkbox" data-class="${c}" ${st.classes.has(c) ? "checked" : ""}><i class="swatch" style="color:${colorOf(c)}"></i>${c}<span class="c">${counts[c] || 0}</span></label>`;
   }).join("");
-  const flagRows = [["violation", "Has a violation"], ["warning", "Has a warning"], ["dangling", "Has a dangling link"], ["isolated", "Isolated"], ["linked", "Linked to something"],
+  const flagRows = [["violation", "Has a violation"], ["warning", "Has a warning"], ["dangling", "Has a dangling link"], ["duplicate", "Possible duplicate"], ["isolated", "Isolated"], ["linked", "Linked to something"],
                     ...(RV.db ? [["flagged", "Flagged for review"]] : [])]
     .map(([f, t]) => `<label><input type="checkbox" data-flag="${f}" ${st.flags.has(f) ? "checked" : ""}>${t}<span class="c">${fcount(f)}</span></label>`).join("");
   $("#view").innerHTML = `<div class="ent">
@@ -886,8 +890,10 @@ const PCHECK = {
   no_identifier: { cls: "bad", text: "no DOI or PMID", look: true, tip: "There is nothing to look the paper up by." },
   no_roster_author: { cls: "warn", text: "no author on the roster", look: true,
     tip: "None of its author ORCIDs belongs to someone on the project's roster, so the tie rests on the award credit alone. Rosters and ORCIDs are incomplete, so treat this as a prompt to look, not proof." },
+  preprint_pair: { cls: "warn", text: "preprint + published version", look: true,
+    tip: "One work recorded twice: the preprint and the published paper, each with its own PMID and DOI. They should be one work with the two versions linked; the importer adds the second as a new paper because it matches on PMID and DOI only." },
   same_title: { cls: "warn", text: "title appears twice", look: true,
-    tip: "Another record has the same title: usually a preprint and its published version, sometimes a duplicate." },
+    tip: "Another record has the same title and neither is a preprint: possibly a duplicate to merge." },
   several_projects: { cls: "na", text: "two or more projects", tip: "Credited to more than one project." },
   roster_unchecked: { cls: "na", text: "roster has no ORCIDs", tip: "It has author ORCIDs, but no one on the project's roster has an ORCID in the export, so they can't be compared." },
   authors_unchecked: { cls: "na", text: "authors not checkable", tip: "The export has no author ORCIDs for it, so its authors can't be checked against the roster." },

@@ -112,7 +112,7 @@ Graph: 703 nodes, 791 links, export of 2026-11-05. Server 0.2.0.
 | CQ24 | Which investigators hold more than one kind of role? *(none in this export)* | 0 | none | none | from each project, its people and the role on each link |
 | CQ25 | Which projects study the house mouse, whichever of its names is used? | 14 | same | same | find the species by any of its names; from it, its projects |
 | CQ26 | How many projects study each species? | 13 | same | same | from each project, its species; count the projects per species |
-| CQ27 | Which projects name a species in free text that is not resolved to a species node? *(none in this export)* | 0 | none | none | list the projects; keep those naming a species only in free text |
+| CQ27 | Which projects name a species in free text that is not resolved to a species node? *(none in this export)* | 0 | none | none | list the projects' species claims that no species node matches |
 | CQ28 | How many publications, datasets, tools and models did each project produce? | 33 | same | same | from each project, count what it produced, by type |
 | CQ29 | How many publications came out of each investigator's projects, and which projects? | 83 | same | same | from each project, its people and its publications |
 | CQ30 | Which produced datasets have no provenance recorded? *(needs the full export)* | 0 | none | none | list the datasets; keep the produced ones no provenance record names |

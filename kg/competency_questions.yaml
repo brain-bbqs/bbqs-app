@@ -315,9 +315,8 @@ questions:
     reads: absence
     sparql: |
       SELECT ?grant ?raw WHERE {
-        ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:studies_species_name ?raw .
-        FILTER NOT EXISTS { ?project bbqs:studies_species ?sp }
-      } ORDER BY ?grant
+        ?project a bbqs:Project ; bbqs:grant_number ?grant ; bbqs:studies_species_unresolved ?raw .
+      } ORDER BY ?grant ?raw
 
   # ── Outputs ─────────────────────────────────────────────────────────────────
   - id: CQ28

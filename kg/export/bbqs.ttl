@@ -3116,7 +3116,6 @@ complex collective behaviors in a large-brained highly social animal model.""" ;
     bbqs:reporter_project_num "5R34DA059514-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:ec95cd91-709c-41ac-8bfb-bfdf3e2ea89c ;
-    bbqs:studies_species_name "Ovis aries" ;
     bbqs:title "Towards High-Resolution Neuro-Behavioral Quantification of Sheep in the Field to Study Complex Social Behaviors" .
 
 bid:38fab5c5-6eb6-4ba1-980a-78e5c2bf2312 a bbqs:Publication ;
@@ -3696,7 +3695,6 @@ freely moving human behavior in naturalistic and ecologically valid environments
     bbqs:reporter_project_num "7R61MH135106-03" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Synchronized neuronal and peripheral biomarker recordings in freely moving humans" .
 
 bid:820bf47c-7868-47f1-a5a7-b4a900ee16de a bbqs:Publication ;
@@ -4148,7 +4146,6 @@ general principles of behavioral control, particularly via distributed computati
     bbqs:reporter_project_num "5R34DA061984-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:d6fbdcc7-30d7-48ba-9c46-b70e227c59cf ;
-    bbqs:studies_species_name "Hofstenia miamia" ;
     bbqs:title "Quantifying organism-environment interactions in a new model system for neuroscience" .
 
 bid:cf033709-106e-4288-a326-f7bb353ba0a4 a bbqs:Investigator ;
@@ -4592,7 +4589,6 @@ in general.""" ;
     bbqs:reporter_project_num "5R34DA059723-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "Multimodal behavioral analysis of oromanual food-handling in freely moving animals" .
 
 bid:2dd8fea9-363a-43da-8bd1-6ae4674c60b9 a bbqs:Investigator ;
@@ -4652,7 +4648,6 @@ autobiographical memory formation, and synchronize this data with direct neural 
     bbqs:reporter_project_num "5R61MH135109-03" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans (Epilepsy Patients)" ;
     bbqs:title "Capturing Autobiographical memory formation in People moving Through real-world spaces Using synchronized wearables and intracranial Recordings of EEG" .
 
 bid:3516554a-8253-4773-af22-a89b3ccb3267 a bbqs:Investigator ;
@@ -4706,7 +4701,6 @@ tool for facilitating social interaction.""" ;
     bbqs:reporter_project_num "5R61MH138705-02" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Neural and Behavioral Correlates of Live Face-to-Face Interactions" .
 
 bid:3a4fb38d-dc54-4d06-a1cf-a5a959d3321b a bbqs:Project ;
@@ -4775,7 +4769,6 @@ unique brain-behavior insights into human emotion functioning applicable to broa
     bbqs:reporter_project_num "5R61MH135407-03" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Novel multimodal neural, physiological, and behavioral sensing and machine learning for mental states" .
 
 bid:3be49154-45d9-45b4-9872-3271a67a5225 a bbqs:Investigator ;
@@ -5057,7 +5050,6 @@ significant step towards bridging the gap between basic neuroscience research an
     bbqs:reporter_project_num "5R61MH138966-02" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "A naturalistic multimodal platform for capturing brain-body interactions in people during physical effort-based decision making" .
 
 bid:afe5dc6f-8e97-48c9-bb79-5af130f1e62a a bbqs:Investigator ;
@@ -5226,7 +5218,6 @@ way for a large-scale R01.""" ;
     bbqs:reporter_project_num "5R34DA059510-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:7b2f0bde-f010-4315-b856-c217e8ca7788 ;
-    bbqs:studies_species_name "Cichlidae" ;
     bbqs:title "A modeling framework and arena for measuring contextual influences of behavior" .
 
 bid:e5bdf58e-a1ff-4f5f-aa6d-667de414e16e a bbqs:Investigator ;
@@ -5403,7 +5394,6 @@ unprecedented resolution.""" ;
     bbqs:reporter_project_num "5R34DA059718-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mouse" ;
     bbqs:title "Harnessing biological rhythms for a resilient social motif generator" .
 
 bid:24981995-2cd1-407a-9d2c-0f89f026edeb a bbqs:Investigator ;
@@ -5482,7 +5472,6 @@ auditory/behavioral covariates (encoding models).""" ;
     bbqs:reporter_project_num "5R34DA059513-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 ;
-    bbqs:studies_species_name "Gerbil" ;
     bbqs:title "Computational attribution and fusion of vocalizations, social behavior, and neural recordings in a naturalistic environment" .
 
 bid:4f2619b1-a6a4-48e5-b21a-0f5455354ea9 a bbqs:Project ;
@@ -5520,8 +5509,6 @@ quantitative descriptions of animal behavior.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:5a248695-86a9-44ac-b923-a3050572afba,
         bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mouse",
-        "Rat" ;
     bbqs:title "High-resolution 3D tracking of social behaviors for deep phenotypic analysis" .
 
 bid:7a2ad901-f50d-40bc-a404-b4ef0c33944b a bbqs:Investigator ;
@@ -5570,7 +5557,6 @@ to develop future neuromodulatory therapeutic approaches to facilitate the retur
     bbqs:reporter_project_num "1R61MH138612-01" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SeeMe: A multimodal behavioral-electrophysiological tool for real-time detection of consciousness" .
 
 bid:851882bb-3321-45ed-af75-6ae08836c1fc a bbqs:DeviceCategory ;
@@ -5626,7 +5612,6 @@ streaming delays. We will also develop computational frameworks for analyses of 
     bbqs:reporter_project_num "5R34DA059716-02" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Interpersonal behavioral synchrony in virtual and in-person dyadic conversation" .
 
 bid:b050adf2-88b1-42e2-912b-2843d5b96854 a bbqs:Investigator ;
@@ -5688,7 +5673,6 @@ To study these important epidemiological and biological questions in a controlle
     bbqs:reporter_project_num "1R34DA062119-01" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "Adversity and Resilience Consortium (ARC): A collaboration for the standardized study of experience-dependent brain and behavioral development" .
 
 bid:fe4790d5-bf32-469d-b098-cb4f44f6fa19 a bbqs:Investigator ;
@@ -5762,7 +5746,6 @@ Aim 1 – as well as to explore the potential to address targeted research quest
     bbqs:reporter_project_num "5R34DA059509-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mouse" ;
     bbqs:title "Behavioral quantification through active learning and multidimensional physiological monitoring" .
 
 bid:0f0ad5c2-496b-42a8-91b7-b798742bcdc3 a bbqs:Investigator ;
@@ -5817,7 +5800,6 @@ to inform translational science and ultimately enhance our understanding of huma
     bbqs:reporter_project_num "5R34DA061925-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:491ac537-b3f6-45b9-93f3-1249fd809ebc ;
-    bbqs:studies_species_name "Cebus imitator" ;
     bbqs:title "Building an “AI Forest” to identify the social and environmental factors underlying complex behavioral traits in wild primates." .
 
 bid:1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8 a bbqs:Project ;
@@ -5864,7 +5846,6 @@ wide range of new research into brain function and treatments for neurological d
     bbqs:reporter_project_num "5R34DA059512-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "High-throughput, high-resolution 3D measurement of ethologically relevant rodent behavior in a dynamic environment" .
 
 bid:22e61529-38ba-465f-b38b-274e24160fb6 a bbqs:Project ;
@@ -5913,7 +5894,6 @@ subjects.""" ;
     bbqs:reporter_project_num "5R61MH135405-03" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Developing the Context-Aware Multimodal Ecological Research and Assessment (CAMERA) Platform for Continuous Measurement and Prediction of Anxiety and Memory State" .
 
 bid:3161638e-fa1b-4af1-a998-a34139b2a0b1 a bbqs:Investigator ;
@@ -5962,8 +5942,6 @@ collaborative team to pursue this work.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:436525a6-acbf-4066-ac75-82845a8db8cc,
         bid:8e40951f-ace0-4470-ab0f-3dd6bc366c8b ;
-    bbqs:studies_species_name "Danio rerio",
-        "Drosophila melanogaster" ;
     bbqs:title "Transformative Optical Imaging of Brain & Behavior in Navigating Genetic Species" .
 
 bid:4614269a-0d7f-4390-b4cc-568a09fa6a45 a bbqs:Project ;
@@ -6010,7 +5988,6 @@ intellectual development in children with neurodevelopmental disorders.""" ;
     bbqs:reporter_project_num "5R61MH135114-02" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans (Pediatric)" ;
     bbqs:title "Integrated movement tracking for pediatric OPM-MEG studies of intellectual disability" .
 
 bid:68fe4ee2-5beb-4a6e-ac58-2d31ad350cfd a bbqs:Investigator ;
@@ -6076,7 +6053,6 @@ individual brain states and hormone systems on survival strategies.""" ;
     bbqs:reporter_project_num "1U01DA063565-01" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:9f227f88-53ba-4c7c-91e7-334641e4b759 ;
-    bbqs:studies_species_name "Mus musculus" ;
     bbqs:title "Neurobehavioral Mechanisms of Social Behavior and Familial Structure" .
 
 bid:cbc8640e-6d05-4872-bf01-6e3f7d89c349 a bbqs:Project ;
@@ -6196,7 +6172,6 @@ activity.""" ;
     bbqs:reporter_project_num "5R34DA059507-02" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:77f3b242-4db9-4080-843c-d868a6d4f465 ;
-    bbqs:studies_species_name "Molothrus ater" ;
     bbqs:title "Development of a \"smart aviary\" to probe neural dynamics of complex social behaviors in a gregarious songbird" .
 
 bid:208980e9-92b9-447e-a2ca-e83bf61db159 a bbqs:ResearchOrganization ;
@@ -6255,7 +6230,6 @@ world. For example, the response of the brain to """ ;
     bbqs:reporter_project_num "1R61MH138967-01" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Human" ;
     bbqs:title "A Day in the Life of the Human Brain: Investigating the Dynamic Interrelationship Between Brain, Cognition, Behavior, and Physiology" .
 
 bid:a98fe953-d2ad-4770-8c8c-1759f8500c4a a bbqs:Project ;
@@ -6309,7 +6283,6 @@ during sound-driven social interactions.""" ;
     bbqs:reporter_project_num "1U01DA063581-01" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 ;
-    bbqs:studies_species_name "Meriones unguiculatus" ;
     bbqs:title "Computational Analyses of Family Auditory Communication: Linking Behavior, Vocalization, and Neural Dynamics" .
 
 bid:d663edcd-08bc-426b-b97d-a45cd47a97c0 a bbqs:Project ;
@@ -6364,8 +6337,6 @@ psychosocial interventions.""" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:311017ec-9209-4d63-95fb-1967bc8a81b7,
         bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Homo sapiens",
-        "Mustela putorius furo" ;
     bbqs:title "Mapping dynamic transitions across neural, behavioral, and social scales in interacting animals" .
 
 bid:f70949e4-d1f6-4364-a940-741c96057bae a bbqs:Project ;
@@ -6428,7 +6399,6 @@ of determining sources of inattention on individual basis, thus allowing for mor
     bbqs:reporter_project_num "5R61MH138713-02" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Humans" ;
     bbqs:title "Combining neural oscillations, physiology and privacy-preserving LiDAR/millimeter wave sensing technology to track attention states in natural contexts" .
 
 bid:829b9463-611f-45d6-bd24-262a5410c325 a bbqs:DeviceCategory ;
@@ -6477,7 +6447,6 @@ electroencephalographic (iEEG) recordings from DBS""" ;
     bbqs:reporter_project_num "1U01MH144347-01" ;
     bbqs:studies_human true ;
     bbqs:studies_species bid:63464d21-4ef2-4405-a192-4b60e344ff40 ;
-    bbqs:studies_species_name "Homo sapiens" ;
     bbqs:title "SMART-DBS: A Symptom-Manipulating, Adaptive and Responsive Therapy for continuous brain-behavioral recording and stimulation" .
 
 bid:9f227f88-53ba-4c7c-91e7-334641e4b759 a bbqs:Species ;
@@ -6536,7 +6505,6 @@ understanding of primate social interactions to date, along with novel generativ
     bbqs:reporter_project_num "1U01DA063534-01" ;
     bbqs:studies_human false ;
     bbqs:studies_species bid:bef479f9-d7a4-472b-8ff7-eb0b098beb7c ;
-    bbqs:studies_species_name "Marmosets" ;
     bbqs:title "Toward comprehensive models of naturalistic cooperation and competition in primates" .
 
 bid:4a00b65d-6b1b-4385-86c7-9f72c2724152 a bbqs:Project ;

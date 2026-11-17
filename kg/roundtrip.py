@@ -70,9 +70,11 @@ def node_values(g: Graph, node) -> set[str]:
             out.add(str(o))
             if str(o).startswith("https://orcid.org/"):
                 out.add(str(o).removeprefix("https://orcid.org/"))
-            # A cell the exporter turned into a link (working_groups -> member_of_group) is carried
-            # when the linked node's name equals the value: that is how a rebuild would recover it.
-            out.update(str(n).strip() for n in g.objects(o, BBQS.name))
+            # A cell the exporter turned into a link (working_groups -> member_of_group, study_species
+            # -> studies_species) is carried when the linked node answers to the value: its name, or
+            # for a species its common name or an alias, the forms the exporter resolves through.
+            for p2 in (BBQS.name, BBQS.common_name, BBQS.aliases):
+                out.update(str(n).strip() for n in g.objects(o, p2))
     return out
 
 

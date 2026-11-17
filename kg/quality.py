@@ -9,7 +9,7 @@ Four measurements, one report:
                  (or "none" for a question that asks what is missing, when nothing is). A file of
                  questions proposed but not adopted yet, competency_questions_proposed.yaml, is run too
                  when there is one, for the Inspector only: the gate (ci_check.py) scores the adopted file
-  shapes      -- per consistency shape: how many nodes it targets, and whether the data even contains
+  shapes      -- per SHACL validation shape: how many nodes it targets, and whether the data even contains
                  the terms it checks (a shape whose inputs are absent passes vacuously)
   violations  -- the SHACL results, keyed by focus node, so each entity card can show its own
 
@@ -46,6 +46,50 @@ BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = "https://brain-bbqs.org/id/"
 
 LABEL_PREDICATES = ("name", "title", "label", "common_name", "model_name")
+IDENTIFIERS = ("orcid", "doi", "pmid", "external_url", "repo_url")
+# A URL names the thing itself for these classes; jobs and announcements share programme pages.
+URL_IDENTIFIES = {"SoftwareTool", "MLModel", "Dataset", "Benchmark", "Protocol", "Standard", "Device",
+                  "DeviceManufacturer", "FundingOpportunity", "ResearchOrganization"}
+# Where a preprint lives: by venue name, or by DOI prefix (bioRxiv/medRxiv, arXiv, Research Square,
+# SSRN, PsyArXiv, Preprints.org).
+PREPRINT_VENUES = {"biorxiv", "medrxiv", "arxiv", "research square", "ssrn", "psyarxiv", "preprints"}
+PREPRINT_DOI = ("10.1101/", "10.48550/", "10.21203/", "10.2139/", "10.31234/", "10.20944/")
+
+
+def fold_label(text) -> str:
+    """A name with markup, case, accents, punctuation and spacing folded away, as publications() compares
+    titles: "Bijan  Pesaran" = "Bijan Pesaran", "Ca<sup>2+</sup>" = "Ca[2+]"."""
+    s = unicodedata.normalize("NFKD", re.sub(r"<[^>]+>", "", str(text or "")))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[\W_]+", "", s.casefold())
+
+
+def first_last(text) -> str:
+    """A person's first and last name, without middle names or initials: "AVNIEL S GHUMAN" = "Avniel Ghuman"."""
+    parts = [p for p in re.split(r"[\s,]+", unicodedata.normalize("NFKD", str(text or "")).casefold()) if p]
+    parts = ["".join(c for c in p if c.isalnum()) for p in parts]
+    parts = [p for p in parts if p]
+    return f"{parts[0]} {parts[-1]}" if len(parts) >= 2 else ""
+
+
+def fold_identifier(kind: str, value) -> str:
+    """An identifier as it is compared: ORCID bare, DOI lower-case, a URL without scheme, www or trailing slash."""
+    v = str(value or "").strip()
+    if not v:
+        return ""
+    if kind == "orcid":
+        return v.removeprefix("https://orcid.org/").removeprefix("http://orcid.org/").upper()
+    if kind == "doi":
+        return re.sub(r"^(https?://(dx\.)?doi\.org/|doi:)", "", v, flags=re.I).lower()
+    if kind in ("external_url", "repo_url"):
+        return re.sub(r"^https?://(www\.)?", "", v, flags=re.I).rstrip("/").lower()
+    return v
+
+
+def is_preprint(g, node) -> bool:
+    venue = " ".join(str(o).casefold() for o in g.objects(node, BBQS.journal))
+    doi = " ".join(str(o).lower() for o in g.objects(node, BBQS.doi))
+    return any(v in venue for v in PREPRINT_VENUES) or any(p in doi for p in PREPRINT_DOI)
 ROW_LIMIT = 25
 
 
@@ -261,7 +305,7 @@ class KGQuality:
         """Questions proposed but not adopted yet, if there is such a file: shown, not counted by the gate."""
         return self.competency(self.cq_proposed_file, "proposed") if self.cq_proposed_file.exists() else []
 
-    # ---- consistency shapes: exercise + violations ------------------------------------------------
+    # ---- SHACL validation shapes: exercise + violations --------------------------------------------
 
     def _present(self, term: str) -> bool:
         """Is bbqs:<term> in the data -- as a predicate, or (capitalised) as an instantiated class?
@@ -295,7 +339,10 @@ class KGQuality:
                        for sp in sg.objects(shape, SH.sparql)]
             terms = paths.union(*queries)
             missing = sorted(t for t in terms if not self._present(t))
-            checking = (any(self._present(t) for t in paths)
+            # A shape marked bbqs:readsAbsence passes by finding nothing (an unresolved claim, say), so
+            # an absent input there is the good outcome, not a vacuous check.
+            absence = (shape, BBQS["readsAbsence"], Literal(True)) in sg
+            checking = (absence or any(self._present(t) for t in paths)
                         or any(all(self._present(t) for t in q) for q in queries))
             out.append({
                 "shape": local(shape),
@@ -339,6 +386,12 @@ class KGQuality:
             if p != RDF.type and isinstance(o, URIRef) and str(o).startswith(BID) and o not in self.types:
                 dangling_out[s].append({"predicate": local(p), "target": str(o)})
 
+        dupes = defaultdict(list)
+        for d in self.duplicates()["groups"]:
+            if d["kind"] != "duplicate":
+                continue
+            for n in d["nodes"]:
+                dupes[URIRef(n)].append({"by": d["by"], "value": d["value"], "others": [o for o in d["nodes"] if o != n]})
         cards = []
         for node, cls in sorted(self.types.items(), key=lambda kv: (kv[1], self.label(kv[0]).lower())):
             facts, links = defaultdict(list), []
@@ -358,6 +411,8 @@ class KGQuality:
                 flags.append("dangling")
             severities = {v["severity"] for v in violations.get(str(node), [])}
             flags += [s for s in ("violation", "warning") if s in severities]
+            if dupes.get(node):
+                flags.append("duplicate")
             cards.append({
                 "id": str(node),
                 "class": cls,
@@ -370,8 +425,54 @@ class KGQuality:
                 "degree": degree[node],
                 "flags": flags,
                 "violations": violations.get(str(node), []),
+                **({"duplicates": dupes[node]} if dupes.get(node) else {}),
             })
         return cards
+
+    # ---- possible duplicates -----------------------------------------------------------------------
+
+    def duplicates(self) -> dict:
+        """Nodes of one class that share a name (folded: case, accents, punctuation, spacing) or an
+        identifier (ORCID, DOI, PMID, URL). A graph built from a database inherits its duplicates, and
+        cleaning them gets harder as it grows, so they are counted here and the CI gate fails when the
+        count rises: a new one is stopped at the next export, not found later. A publication title
+        shared by a preprint and its published version is kept apart as `versions`: one work recorded
+        twice, to be linked as versions rather than merged. Role records are skipped: their labels
+        ("co_pi on <grant>") repeat by design."""
+        if getattr(self, "_dupes", None) is not None:
+            return self._dupes
+        g = self.graph
+        groups = defaultdict(set)
+        for node, cls in self.types.items():
+            if cls == "ProjectRole":
+                continue
+            name = fold_label(self.label(node))
+            if name:
+                groups[(cls, "name", name)].add(node)
+            if cls == "Investigator" and first_last(self.label(node)):
+                groups[(cls, "first and last name", first_last(self.label(node)))].add(node)
+            for by in IDENTIFIERS:
+                if by in ("external_url", "repo_url") and cls not in URL_IDENTIFIES:
+                    continue
+                for o in g.objects(node, BBQS[by]):
+                    v = fold_identifier(by, o)
+                    if v:
+                        groups[(cls, by, v)].add(node)
+        out, seen = [], set()
+        order = {"orcid": 0, "doi": 0, "pmid": 0, "external_url": 1, "repo_url": 1, "name": 2, "first and last name": 3}
+        for (cls, by, value), nodes in sorted(groups.items(), key=lambda kv: (order.get(kv[0][1], 9), kv[0])):
+            if len(nodes) < 2 or frozenset(nodes) in seen:
+                continue
+            seen.add(frozenset(nodes))
+            kinds = {is_preprint(g, n) for n in nodes}
+            kind = "versions" if cls == "Publication" and kinds == {True, False} else "duplicate"
+            out.append({"class": cls, "by": by, "value": value, "kind": kind,
+                        "nodes": sorted(str(n) for n in nodes)})
+        dup = [d for d in out if d["kind"] == "duplicate"]
+        self._dupes = {"groups": out, "count": len(dup),
+                       "nodes": len({n for d in dup for n in d["nodes"]}),
+                       "versions": sum(1 for d in out if d["kind"] == "versions")}
+        return self._dupes
 
     # ---- publications ------------------------------------------------------------------------------
 
@@ -413,6 +514,10 @@ class KGQuality:
             return re.sub(r"[\W_]+", "", re.sub(r"<[^>]+>", "", str(t)).casefold())
 
         same = Counter(title_key(n) for n in pubs)
+        preprint = {n for n in pubs if is_preprint(g, n)}
+        group_has_preprint = defaultdict(set)              # title -> {True, False}: preprints and not
+        for n in pubs:
+            group_has_preprint[title_key(n)].add(n in preprint)
         by_label = lambda n: (self.label(n), str(n))
         with_orcid = {p for people in by_orcid.values() for p in people}
         rows = []
@@ -433,7 +538,8 @@ class KGQuality:
             elif not any(p in members for p in authors):
                 checks.append("no_roster_author")
             if title_key(pub) and same[title_key(pub)] > 1:
-                checks.append("same_title")
+                # A preprint and its published version are one work recorded twice, not a stray copy.
+                checks.append("preprint_pair" if group_has_preprint[title_key(pub)] == {True, False} else "same_title")
             if g.value(pub, BBQS.doi) is None and g.value(pub, BBQS.pmid) is None:
                 checks.append("no_identifier")
             if not texts[pub]:
@@ -586,6 +692,7 @@ class KGQuality:
             "warning_count": sum(v["severity"] == "warning" for vs in violations.values() for v in vs),
             "entities": self.entities(degree, violations),
             "publications": self.publications(),
+            "duplicates": self.duplicates(),
         }
 
     @staticmethod
@@ -635,7 +742,10 @@ class KGQuality:
             tied = sum(1 for r in pubs["rows"] if r["projects"])
             lines += ["", f"publications: {pubs['count']}, {tied} tied to a project; checks: "
                       + ", ".join(f"{k} {v}" for k, v in sorted(pubs["checks"].items()))]
-        lines += ["", f"shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
+        d = report.get("duplicates") or {}
+        lines += ["", f"possible duplicates: {d.get('count', 0)} groups ({d.get('nodes', 0)} nodes); "
+                      f"{d.get('versions', 0)} preprint + published pairs to link as versions"]
+        lines += ["", f"SHACL validation shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
         for sh in report["shapes"]:
             absent = f" (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else ""
             state = ("exercised" + absent if sh["exercised"] else
