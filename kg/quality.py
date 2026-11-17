@@ -41,19 +41,32 @@ import yaml
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, SH
 
+from identity_keys import award_key, doi_key, fon_key, orcid_key, pmid_key, url_key
+from identity_keys import is_preprint as preprint_by
+
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = "https://brain-bbqs.org/id/"
 
 LABEL_PREDICATES = ("name", "title", "label", "common_name", "model_name")
-IDENTIFIERS = ("orcid", "doi", "pmid", "external_url", "repo_url")
+# The identifiers duplicates() compares, each folded by its rule in kg/identity_keys.py: the rule the
+# database's uq_* indexes and the write paths use for the same key, so one decision is made one way
+# everywhere. fon, grant_number and url (a funding call's notice page) joined on 2026-11-17.
+IDENTIFIERS = ("orcid", "doi", "pmid", "fon", "grant_number", "url", "external_url", "repo_url")
+FOLD = {
+    "orcid": orcid_key,
+    "doi": doi_key,
+    "pmid": pmid_key,
+    "fon": fon_key,
+    "grant_number": award_key,
+    "url": url_key,
+    "external_url": url_key,
+    "repo_url": url_key,
+}
+URLS = {"url", "external_url", "repo_url"}
 # A URL names the thing itself for these classes; jobs and announcements share programme pages.
 URL_IDENTIFIES = {"SoftwareTool", "MLModel", "Dataset", "Benchmark", "Protocol", "Standard", "Device",
                   "DeviceManufacturer", "FundingOpportunity", "ResearchOrganization"}
-# Where a preprint lives: by venue name, or by DOI prefix (bioRxiv/medRxiv, arXiv, Research Square,
-# SSRN, PsyArXiv, Preprints.org).
-PREPRINT_VENUES = {"biorxiv", "medrxiv", "arxiv", "research square", "ssrn", "psyarxiv", "preprints"}
-PREPRINT_DOI = ("10.1101/", "10.48550/", "10.21203/", "10.2139/", "10.31234/", "10.20944/")
 
 
 def fold_label(text) -> str:
@@ -72,24 +85,14 @@ def first_last(text) -> str:
     return f"{parts[0]} {parts[-1]}" if len(parts) >= 2 else ""
 
 
-def fold_identifier(kind: str, value) -> str:
-    """An identifier as it is compared: ORCID bare, DOI lower-case, a URL without scheme, www or trailing slash."""
-    v = str(value or "").strip()
-    if not v:
-        return ""
-    if kind == "orcid":
-        return v.removeprefix("https://orcid.org/").removeprefix("http://orcid.org/").upper()
-    if kind == "doi":
-        return re.sub(r"^(https?://(dx\.)?doi\.org/|doi:)", "", v, flags=re.I).lower()
-    if kind in ("external_url", "repo_url"):
-        return re.sub(r"^https?://(www\.)?", "", v, flags=re.I).rstrip("/").lower()
-    return v
-
-
 def is_preprint(g, node) -> bool:
-    venue = " ".join(str(o).casefold() for o in g.objects(node, BBQS.journal))
-    doi = " ".join(str(o).lower() for o in g.objects(node, BBQS.doi))
-    return any(v in venue for v in PREPRINT_VENUES) or any(p in doi for p in PREPRINT_DOI)
+    """A preprint by its venue or its DOI's prefix: kg/identity_keys.py's rule, which
+    public.kg_is_preprint applies when it pairs a preprint with its published version."""
+    journals = [str(o) for o in g.objects(node, BBQS.journal)] or [None]
+    dois = [str(o) for o in g.objects(node, BBQS.doi)] or [None]
+    return any(preprint_by(j, d) for j in journals for d in dois)
+
+
 ROW_LIMIT = 25
 
 
@@ -132,9 +135,8 @@ def inside_repo(path: Path) -> bool:
 
 
 def bare_orcid(value) -> str:
-    """An ORCID as its 16-character id, however it was written (IRI, URL or bare)."""
-    m = re.search(r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]", str(value))
-    return m.group(0) if m else str(value).strip()
+    """An ORCID as its 16-character id, however it was written (IRI, URL or bare): the ORCID key."""
+    return orcid_key(value) or str(value).strip()
 
 
 _TRANSLIT = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "ae", "Ö": "oe", "Ü": "ue", "ß": "ss"})
@@ -431,14 +433,49 @@ class KGQuality:
 
     # ---- possible duplicates -----------------------------------------------------------------------
 
+    def version_kind(self, nodes) -> str:
+        """What publications sharing one title are. "linked_versions": revision_of links join them all,
+        so the versions are recorded and nothing is left to do. "versions": one published paper and
+        its preprint(s), not all linked yet, which public.kg_link_publication_versions links once a
+        project credits both. "duplicate": anything else, such as two published records or two
+        preprints with one title, which are merged before any version link (the function skips them),
+        or two records with one DOI or PMID, which are one record whatever links them."""
+        nodes = set(nodes)
+        for by in ("doi", "pmid"):
+            held = set()
+            for n in nodes:
+                keys = {FOLD[by](o) for o in self.graph.objects(n, BBQS[by])} - {None}
+                if keys & held:
+                    return "duplicate"
+                held |= keys
+        parent = {n: n for n in nodes}
+
+        def find(n):
+            while parent[n] != n:
+                parent[n] = parent[parent[n]]
+                n = parent[n]
+            return n
+
+        for s, o in self.graph.subject_objects(BBQS.revision_of):
+            if s in nodes and o in nodes:
+                parent[find(s)] = find(o)
+        if len({find(n) for n in nodes}) == 1:
+            return "linked_versions"
+        preprints = sum(1 for n in nodes if is_preprint(self.graph, n))
+        return "versions" if preprints and len(nodes) - preprints == 1 else "duplicate"
+
     def duplicates(self) -> dict:
         """Nodes of one class that share a name (folded: case, accents, punctuation, spacing) or an
-        identifier (ORCID, DOI, PMID, URL). A graph built from a database inherits its duplicates, and
-        cleaning them gets harder as it grows, so they are counted here and the CI gate fails when the
-        count rises: a new one is stopped at the next export, not found later. A publication title
-        shared by a preprint and its published version is kept apart as `versions`: one work recorded
-        twice, to be linked as versions rather than merged. Role records are skipped: their labels
-        ("co_pi on <grant>") repeat by design."""
+        identifier (ORCID, DOI, PMID, FON, grant number, URL; each folded by its kg/identity_keys.py
+        rule, the database's). A graph built from a database inherits its duplicates, and cleaning
+        them gets harder as it grows, so they are counted here and the CI gate fails when the count
+        rises: a new one is stopped at the next export, not found later.
+
+        A title shared by publications is one of three things (version_kind()): versions already
+        linked by revision_of (`linked_versions`, resolved, not counted); a preprint and its
+        published version not linked yet (`versions`, counted apart: linked, never merged); or a
+        duplicate. Two publications with one DOI or one PMID are one record whatever links them.
+        Role records are skipped: their labels ("co_pi on <grant>") repeat by design."""
         if getattr(self, "_dupes", None) is not None:
             return self._dupes
         g = self.graph
@@ -452,26 +489,26 @@ class KGQuality:
             if cls == "Investigator" and first_last(self.label(node)):
                 groups[(cls, "first and last name", first_last(self.label(node)))].add(node)
             for by in IDENTIFIERS:
-                if by in ("external_url", "repo_url") and cls not in URL_IDENTIFIES:
+                if by in URLS and cls not in URL_IDENTIFIES:
                     continue
                 for o in g.objects(node, BBQS[by]):
-                    v = fold_identifier(by, o)
+                    v = FOLD[by](o)
                     if v:
                         groups[(cls, by, v)].add(node)
         out, seen = [], set()
-        order = {"orcid": 0, "doi": 0, "pmid": 0, "external_url": 1, "repo_url": 1, "name": 2, "first and last name": 3}
+        order = {**{by: (1 if by in URLS else 0) for by in IDENTIFIERS}, "name": 2, "first and last name": 3}
         for (cls, by, value), nodes in sorted(groups.items(), key=lambda kv: (order.get(kv[0][1], 9), kv[0])):
             if len(nodes) < 2 or frozenset(nodes) in seen:
                 continue
             seen.add(frozenset(nodes))
-            kinds = {is_preprint(g, n) for n in nodes}
-            kind = "versions" if cls == "Publication" and kinds == {True, False} else "duplicate"
+            kind = self.version_kind(nodes) if cls == "Publication" and by == "name" else "duplicate"
             out.append({"class": cls, "by": by, "value": value, "kind": kind,
                         "nodes": sorted(str(n) for n in nodes)})
         dup = [d for d in out if d["kind"] == "duplicate"]
         self._dupes = {"groups": out, "count": len(dup),
                        "nodes": len({n for d in dup for n in d["nodes"]}),
-                       "versions": sum(1 for d in out if d["kind"] == "versions")}
+                       "versions": sum(1 for d in out if d["kind"] == "versions"),
+                       "linked_versions": sum(1 for d in out if d["kind"] == "linked_versions")}
         return self._dupes
 
     # ---- publications ------------------------------------------------------------------------------
@@ -483,9 +520,12 @@ class KGQuality:
         the NIH award credited on the paper's PubMed record. The export allows two checks of it:
         whether an author is on the project's roster, by ORCID, which can only be asked where the
         paper has author ORCIDs and someone on the roster has an ORCID too (otherwise the tie is
-        "roster_unchecked"), and whether another record has the same title (usually a preprint and
-        its published version). The text is not in an anon export: publication_fulltext is
-        admin-only, so `texts` lists only the text records this export holds (`text_of` links)."""
+        "roster_unchecked"), and whether another record has the same title: a preprint and its
+        published version linked by revision_of ("versions_linked"), such a pair not linked yet
+        ("preprint_pair"), or a possible duplicate ("same_title"), as duplicates() decides it. Each
+        row lists the paper's linked versions (`versions`: the one it revises, or is revised by). The
+        text is not in an anon export: publication_fulltext is admin-only, so `texts` lists only the
+        text records this export holds (`text_of` links)."""
         g, types = self.graph, self.types
         pubs = sorted((n for n, c in types.items() if c == "Publication"), key=lambda n: (self.label(n).lower(), str(n)))
         produced = defaultdict(set)
@@ -509,15 +549,21 @@ class KGQuality:
                 texts[pub].append({"id": str(node), **{local(p): str(o) for p, o in g.predicate_objects(node)
                                                        if p != RDF.type and isinstance(o, Literal)}})
 
-        def title_key(n):                  # markup and punctuation out: "Ca<sup>2+</sup>" = "Ca[2+]"
-            t = g.value(n, BBQS.title) or g.value(n, BBQS.name) or ""
-            return re.sub(r"[\W_]+", "", re.sub(r"<[^>]+>", "", str(t)).casefold())
-
-        same = Counter(title_key(n) for n in pubs)
-        preprint = {n for n in pubs if is_preprint(g, n)}
-        group_has_preprint = defaultdict(set)              # title -> {True, False}: preprints and not
+        # Same title (markup and punctuation out: "Ca<sup>2+</sup>" = "Ca[2+]"), as duplicates() folds it.
+        same_title = defaultdict(set)
         for n in pubs:
-            group_has_preprint[title_key(n)].add(n in preprint)
+            if fold_label(self.label(n)):
+                same_title[fold_label(self.label(n))].add(n)
+        title_kind = {}
+        for nodes in same_title.values():
+            if len(nodes) > 1:
+                kind = self.version_kind(nodes)
+                title_kind.update(dict.fromkeys(nodes, kind))
+        versions = defaultdict(list)                        # revision_of, read from both ends
+        for newer, older in g.subject_objects(BBQS.revision_of):
+            if types.get(newer) == "Publication" and types.get(older) == "Publication":
+                versions[newer].append({"id": str(older), "relation": "revises"})
+                versions[older].append({"id": str(newer), "relation": "revised_by"})
         by_label = lambda n: (self.label(n), str(n))
         with_orcid = {p for people in by_orcid.values() for p in people}
         rows = []
@@ -537,9 +583,13 @@ class KGQuality:
                 checks.append("roster_unchecked")
             elif not any(p in members for p in authors):
                 checks.append("no_roster_author")
-            if title_key(pub) and same[title_key(pub)] > 1:
-                # A preprint and its published version are one work recorded twice, not a stray copy.
-                checks.append("preprint_pair" if group_has_preprint[title_key(pub)] == {True, False} else "same_title")
+            # A preprint and its published version are one work in two records: linked, never merged.
+            if title_kind.get(pub) == "versions":
+                checks.append("preprint_pair")
+            elif title_kind.get(pub) == "duplicate":
+                checks.append("same_title")
+            elif versions[pub]:
+                checks.append("versions_linked")
             if g.value(pub, BBQS.doi) is None and g.value(pub, BBQS.pmid) is None:
                 checks.append("no_identifier")
             if not texts[pub]:
@@ -551,6 +601,7 @@ class KGQuality:
                 "author_orcids": len(orcids),
                 "investigator_authors": [{"id": str(p), "on_roster": p in members} for p in authors],
                 "texts": texts[pub],
+                "versions": sorted(versions[pub], key=lambda v: (v["relation"], v["id"])),
                 "checks": checks,
             })
         return {"count": len(rows), "checks": dict(Counter(c for r in rows for c in r["checks"])), "rows": rows}
@@ -744,7 +795,8 @@ class KGQuality:
                       + ", ".join(f"{k} {v}" for k, v in sorted(pubs["checks"].items()))]
         d = report.get("duplicates") or {}
         lines += ["", f"possible duplicates: {d.get('count', 0)} groups ({d.get('nodes', 0)} nodes); "
-                      f"{d.get('versions', 0)} preprint + published pairs to link as versions"]
+                      f"preprint + published pairs: {d.get('versions', 0)} to link, "
+                      f"{d.get('linked_versions', 0)} linked (revision_of)"]
         lines += ["", f"SHACL validation shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
         for sh in report["shapes"]:
             absent = f" (absent: {', '.join(sh['missing_inputs'])})" if sh["missing_inputs"] else ""

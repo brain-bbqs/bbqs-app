@@ -358,7 +358,7 @@ for (const e of ENT) for (const v of e.violations) { const m = isWarn(v) ? shape
      answered === cq.length ? "ok" : answered >= cq.length / 2 ? "warn" : "bad"],
     [`${ex}/${REPORT.shapes.length}`, "shapes with data to check", ex === REPORT.shapes.length ? "ok" : "warn"],
     [fmt(REPORT.violation_count), "SHACL violations", REPORT.violation_count ? "bad" : "ok"],
-    ...(REPORT.duplicates ? [[fmt(REPORT.duplicates.count), `possible duplicates · ${fmt(REPORT.duplicates.versions)} preprint + published pairs`,
+    ...(REPORT.duplicates ? [[fmt(REPORT.duplicates.count), `possible duplicates · preprint + published pairs: ${fmt(REPORT.duplicates.versions)} to link, ${fmt(REPORT.duplicates.linked_versions || 0)} linked`,
                               REPORT.duplicates.count ? "warn" : "ok"]] : []),
     ...(REPORT.warning_count ? [[fmt(REPORT.warning_count), "warnings", "warn"]] : []),
     ...(PUBS ? [[`${PUBS.rows.filter(r => r.projects.length).length}/${PUBS.count}`, "publications tied to a project",
@@ -890,10 +890,12 @@ const PCHECK = {
   no_identifier: { cls: "bad", text: "no DOI or PMID", look: true, tip: "There is nothing to look the paper up by." },
   no_roster_author: { cls: "warn", text: "no author on the roster", look: true,
     tip: "None of its author ORCIDs belongs to someone on the project's roster, so the tie rests on the award credit alone. Rosters and ORCIDs are incomplete, so treat this as a prompt to look, not proof." },
-  preprint_pair: { cls: "warn", text: "preprint + published version", look: true,
-    tip: "One work recorded twice: the preprint and the published paper, each with its own PMID and DOI. They should be one work with the two versions linked; the importer adds the second as a new paper because it matches on PMID and DOI only." },
+  preprint_pair: { cls: "warn", text: "preprint + published, not linked yet", look: true,
+    tip: "Not linked yet: the preprint and the published paper have one title and each its own PMID and DOI, so they are two records of one work, to be linked as versions (revision_of), never merged. The importer links a pair once a project credits both (public.kg_link_publication_versions); a pair it cannot link needs a curator." },
+  versions_linked: { cls: "na", text: "linked to its other version",
+    tip: "A preprint and its published version, linked by revision_of: two records of one work, each with its own PMID, DOI and date." },
   same_title: { cls: "warn", text: "title appears twice", look: true,
-    tip: "Another record has the same title and neither is a preprint: possibly a duplicate to merge." },
+    tip: "Another record has the same title, and the two are not a paper and its preprint: possibly a duplicate to merge (two published records, two preprints, or one DOI or PMID held twice)." },
   several_projects: { cls: "na", text: "two or more projects", tip: "Credited to more than one project." },
   roster_unchecked: { cls: "na", text: "roster has no ORCIDs", tip: "It has author ORCIDs, but no one on the project's roster has an ORCID in the export, so they can't be compared." },
   authors_unchecked: { cls: "na", text: "authors not checkable", tip: "The export has no author ORCIDs for it, so its authors can't be checked against the roster." },
@@ -1015,6 +1017,7 @@ function pubRowHTML(r) {
         <dt>record</dt><dd>${esc(fact(e, "journal") || "no journal")}${year ? ` · ${esc(year)}` : ""} · ${pubLinks(e)} · ${refLink(r.id)}</dd>
         <dt>tied to</dt><dd>${r.projects.length ? r.projects.map(p => `${refLink(p.id)} <span class="muted">roster of ${p.roster}</span>`).join("<br>") : `<span class="pill bad">no project</span> Nothing ties it to a grant.`}</dd>
         <dt>how</dt><dd class="note">A <code>produced</code> link from the project, which the exporter writes from <code>project_publications</code>: the NIH award credited on the paper's PubMed record.</dd>
+        ${(r.versions || []).length ? `<dt>versions</dt><dd>${r.versions.map(v => `${v.relation === "revises" ? "Revision of" : "Revised by"} ${refLink(v.id)}`).join("<br>")}</dd>` : ""}
         <dt>authors</dt><dd>${authors}</dd>
         <dt>text</dt><dd>${textStatusHTML(r)}</dd>
       </dl>
@@ -1040,13 +1043,14 @@ function renderPublications() {
   const tied = rows.filter(r => r.projects.length).length, checked = rows.filter(r => r.author_orcids).length;
   const onRoster = rows.filter(r => r.investigator_authors.some(a => a.on_roster)).length;
   const comparable = rows.filter(r => r.author_orcids && !r.checks.includes("roster_unchecked")).length;
+  const linkedPapers = rows.filter(r => (r.versions || []).length).length, toLink = counts.preprint_pair || 0;
   const keys = ["all", "look", ...Object.keys(PCHECK).filter(k => counts[k])];
   const label = k => k === "all" ? "All" : k === "look" ? "Needs a look" : PCHECK[k].text;
   const q = pQ.trim().toLowerCase();
   const shown = rows.filter(r => (pFilter === "all" || (pFilter === "look" ? needsLook(r) : r.checks.includes(pFilter))) && (!q || pubHay(r).includes(q)))
     .sort((a, b) => fact(ent(b.id), "year").localeCompare(fact(ent(a.id), "year")) || ent(a.id).label.localeCompare(ent(b.id).label));
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
-    <p class="intro">Every publication in the export, the project and grant it is credited to, and what the export lets us check about that tie. <b>${tied} of ${rows.length}</b> are tied to a project${counts.several_projects ? ` (${counts.several_projects} to more than one)` : ""}. Only ${checked} carry author ORCIDs, and for ${comparable} of those someone on the project's roster has an ORCID to compare them with; ${onRoster} ${onRoster === 1 ? "has" : "have"} an author on the roster.</p>
+    <p class="intro">Every publication in the export, the project and grant it is credited to, and what the export lets us check about that tie. <b>${tied} of ${rows.length}</b> are tied to a project${counts.several_projects ? ` (${counts.several_projects} to more than one)` : ""}. Only ${checked} carry author ORCIDs, and for ${comparable} of those someone on the project's roster has an ORCID to compare them with; ${onRoster} ${onRoster === 1 ? "has" : "have"} an author on the roster. ${linkedPapers} ${linkedPapers === 1 ? "is" : "are"} linked to another version of the same work (revision_of); ${toLink} ${toLink === 1 ? "is" : "are"} a preprint or published version not linked yet.</p>
     ${textLoaderHTML()}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <input class="search" id="pq" type="search" placeholder="Search titles, journals, DOIs, grant numbers" value="${esc(pQ)}" aria-label="Search publications" style="max-width:360px">

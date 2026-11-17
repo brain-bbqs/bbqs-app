@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, requireAuth } from "../_shared/auth.ts";
+import { findOrCreateOrganization, isUniqueViolation, kgSession } from "../_shared/kg-write.ts";
 
 interface Mismatch {
   investigator_id: string;
@@ -126,7 +127,11 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // ?action=fix writes with the service role, so the writes name themselves and the caller
+  // (Principle X); without the header they read 'unknown' in data_audit_log. Server-side client only.
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    global: { headers: { "x-bbqs-client": `verify-affiliations:${auth.user?.email ?? auth.user?.id ?? "unknown-user"}` } },
+  });
 
   try {
     const url = new URL(req.url);
@@ -252,40 +257,31 @@ Deno.serve(async (req) => {
 
     // If action is "fix", auto-update mismatched affiliations
     if (action === "fix") {
+      const kg = kgSession(supabase);
       for (const r of results.filter((r) => r.status === "mismatch" && r.nih_org)) {
-        // Find or create the organization
-        const { data: existingOrg } = await supabase
-          .from("organizations")
-          .select("id")
-          .ilike("name", r.nih_org)
-          .maybeSingle();
-
-        let orgId: string;
-        if (existingOrg) {
-          orgId = existingOrg.id;
-        } else {
-          const { data: newOrg, error: newOrgErr } = await supabase
-            .from("organizations")
-            .insert({ name: r.nih_org })
-            .select("id")
-            .single();
-          if (newOrgErr) {
-            console.error(`Failed to create org ${r.nih_org}:`, newOrgErr);
-            continue;
-          }
-          orgId = newOrg.id;
+        // The organization first, found by name key ("UNIVERSITY OF X" is the curated "University of
+        // X"), created only if it is not in the KG; nothing is relinked if it cannot be written.
+        const org = await findOrCreateOrganization(kg, r.nih_org);
+        if (!org.ok) {
+          console.error(`Failed to find or create org ${r.nih_org}:`, org.error);
+          continue;
         }
+        const orgId = org.row.id;
 
-        // Remove old org links for this investigator
+        // Link the new organization, then remove the old links, so a failed insert never leaves the
+        // person with none.
+        const { error: linkErr } = await supabase
+          .from("investigator_organizations")
+          .insert({ investigator_id: r.investigator_id, organization_id: orgId });
+        if (linkErr && !isUniqueViolation(linkErr)) {
+          console.error(`Failed to link ${r.name} to ${r.nih_org}:`, linkErr);
+          continue;
+        }
         await supabase
           .from("investigator_organizations")
           .delete()
-          .eq("investigator_id", r.investigator_id);
-
-        // Insert new link
-        await supabase
-          .from("investigator_organizations")
-          .insert({ investigator_id: r.investigator_id, organization_id: orgId });
+          .eq("investigator_id", r.investigator_id)
+          .neq("organization_id", orgId);
 
         r.status = "verified" as any;
       }

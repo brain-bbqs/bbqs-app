@@ -1,5 +1,7 @@
-# Deliberately-inconsistent graph. Every consistency shape should fire on exactly one node here.
-# This is the RED half of the RED/GREEN pair that proves the shapes actually bite.
+# Deliberately-inconsistent graph. Every validation shape fires here (most on exactly one node),
+# and kg/quality.py duplicates() finds a folded pair of every identifier it checks and an unlinked
+# preprint + published pair (the last block). This is the RED half of the RED/GREEN pair that proves
+# the shapes and the duplicate count actually bite; kg/ci_check.py fails when one stops.
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
@@ -48,7 +50,7 @@ bid:role-dangling a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:ghost-investigator .
 
-# #14 — two Investigator nodes share one ORCID (merge candidate)
+# #14 — two Investigator nodes share one ORCID (merge candidate); the result names the other node
 bid:inv-dup-a a bbqs:Investigator ;
   bbqs:name "Alex Kim" ;
   bbqs:orcid <https://orcid.org/0000-0002-1111-2222> .
@@ -122,3 +124,115 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-dup-a , bid:inv-email-a ;
   bbqs:on_project bid:proj-renumbered .
+
+# #21 — two Publication nodes with one DOI: one record held twice
+bid:pub-doi-a a bbqs:Publication ;
+  bbqs:title "A paper held twice, by its DOI" ;
+  bbqs:doi "10.1000/abc.123"^^xsd:anyURI .
+bid:pub-doi-b a bbqs:Publication ;
+  bbqs:title "The same paper, entered again" ;
+  bbqs:doi "10.1000/abc.123"^^xsd:anyURI .
+
+# #22 — two Publication nodes with one PMID
+bid:pub-pmid-a a bbqs:Publication ;
+  bbqs:title "A paper held twice, by its PMID" ;
+  bbqs:pmid "123456" .
+bid:pub-pmid-b a bbqs:Publication ;
+  bbqs:title "Its second record" ;
+  bbqs:pmid "123456" .
+
+# #23 — two FundingOpportunity nodes with one FON
+bid:fo-a a bbqs:FundingOpportunity ;
+  bbqs:name "A funding call" ;
+  bbqs:fon "RFA-XX-27-001" .
+bid:fo-b a bbqs:FundingOpportunity ;
+  bbqs:name "The same call, entered again" ;
+  bbqs:fon "RFA-XX-27-001" .
+
+# #24 — two Project nodes with one grant number
+bid:proj-a a bbqs:Project ;
+  bbqs:name "An award" ;
+  bbqs:grant_number "R34DA000001" .
+bid:proj-b a bbqs:Project ;
+  bbqs:name "The same award, entered again" ;
+  bbqs:grant_number "R34DA000001" .
+
+# #25 — a revision_of that points at a Dataset, not at a Publication
+bid:pub-rev-a a bbqs:Publication ;
+  bbqs:title "A paper said to revise a dataset" ;
+  bbqs:revision_of bid:ds-rev .
+bid:ds-rev a bbqs:Dataset ;
+  bbqs:name "A dataset" .
+
+# duplicates() — one identifier in two spellings is one key (kg/identity_keys.json), so each pair
+# below is a possible duplicate although no exact-match shape fires on it. One pair per identifier
+# kg/quality.py compares; ci_check.py fails if one of them stops being found.
+# orcid: an iD with a lower-case x, and the same iD with X
+bid:inv-orcid-x a bbqs:Investigator ;
+  bbqs:name "Rosa Diaz" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1825-009x> .
+bid:inv-orcid-X a bbqs:Investigator ;
+  bbqs:name "R. M. Diaz" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1825-009X> .
+# doi: one DOI as a doi.org link in capitals, and bare
+bid:pub-doi-c a bbqs:Publication ;
+  bbqs:title "A paper with its DOI as a link" ;
+  bbqs:doi "https://doi.org/10.1000/ABC.456"^^xsd:anyURI .
+bid:pub-doi-d a bbqs:Publication ;
+  bbqs:title "A paper with its DOI bare" ;
+  bbqs:doi "10.1000/abc.456"^^xsd:anyURI .
+# pmid: one PMID with a leading zero, and without
+bid:pub-pmid-c a bbqs:Publication ;
+  bbqs:title "A paper with a padded PMID" ;
+  bbqs:pmid "0123458" .
+bid:pub-pmid-d a bbqs:Publication ;
+  bbqs:title "A paper with its PMID" ;
+  bbqs:pmid "123458" .
+# fon: one FON in lower case with spaces, and as NIH writes it
+bid:fo-c a bbqs:FundingOpportunity ;
+  bbqs:name "A forecast" ;
+  bbqs:fon "rfa xx 27 003" .
+bid:fo-d a bbqs:FundingOpportunity ;
+  bbqs:name "Its final notice" ;
+  bbqs:fon "RFA-XX-27-003" .
+# grant_number: one award with its application type and budget year, and its core number
+bid:proj-award-a a bbqs:Project ;
+  bbqs:name "A budget year of an award" ;
+  bbqs:grant_number "1R34DA000002-01" .
+bid:proj-award-b a bbqs:Project ;
+  bbqs:name "The award" ;
+  bbqs:grant_number "R34DA000002" .
+# url: one notice page with www., and in capitals with a trailing slash
+bid:fo-e a bbqs:FundingOpportunity ;
+  bbqs:name "A call known by its page" ;
+  bbqs:url "https://www.grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-004.html"^^xsd:anyURI .
+bid:fo-f a bbqs:FundingOpportunity ;
+  bbqs:name "The same page, written another way" ;
+  bbqs:url "HTTP://grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-004.html/"^^xsd:anyURI .
+# external_url: one tool's page over https and over http with www.
+bid:sw-a a bbqs:SoftwareTool ;
+  bbqs:name "Pose tool" ;
+  bbqs:external_url "https://github.com/bbqs-example/pose"^^xsd:anyURI .
+bid:sw-b a bbqs:SoftwareTool ;
+  bbqs:name "Pose tool (second record)" ;
+  bbqs:external_url "http://www.github.com/bbqs-example/pose/"^^xsd:anyURI .
+# repo_url: one repository with the host in capitals
+bid:sw-c a bbqs:SoftwareTool ;
+  bbqs:name "Tracking library" ;
+  bbqs:repo_url "https://github.com/bbqs-example/track"^^xsd:anyURI .
+bid:sw-d a bbqs:SoftwareTool ;
+  bbqs:name "Tracking library, mirrored" ;
+  bbqs:repo_url "https://GitHub.com/bbqs-example/track/"^^xsd:anyURI .
+
+# versions — a preprint and its published version: one title, two DOIs and PMIDs, and no revision_of
+# between them yet (duplicates() counts the pair to link; the GREEN fixture links it)
+bid:pub-ver-published a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "Nat Methods" ;
+  bbqs:doi "10.1038/s41592-000-0001-x"^^xsd:anyURI ;
+  bbqs:pmid "200001" .
+bid:pub-ver-preprint a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.01.01.000001"^^xsd:anyURI ;
+  bbqs:pmid "200002" .

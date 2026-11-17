@@ -1,0 +1,635 @@
+{
+ "about": "The BBQS identity keys: one normalization rule per key, written once here and implemented identically in SQL (public.kg_*_key, created by supabase/migrations/20261117181500_prevent_duplicates.sql, which builds the uq_* indexes on them), TypeScript (supabase/functions/_shared/identity-keys.ts, what the write paths look up by) and Python (kg/identity_keys.py, what kg/quality.py and the exporter use). Every implementation must return `want` for every vector: kg/ci_check.py checks Python, tests/guards/identity-normalization.test.mjs checks TypeScript, and the migration's self-test block (keys-02, generated from this file) checks Postgres when it is applied. tests/guards/kg-identity-keys.test.mjs keeps the LinkML unique_keys, the SHACL shapes, kg/quality.py and the migration in step with this file; tests/guards/kg-resource-links-parity.test.mjs does the same for resource_link_predicates.",
+ "conventions": {
+  "whitespace": "ASCII only: space, \\t, \\n, \\v, \\f, \\r. 'trim' strips these at both ends.",
+  "case": "ASCII only: A-Z <-> a-z; every other character is left as it is (Postgres COLLATE \"C\").",
+  "null": "null/None/NULL means the value has no key: it is neither enforced nor matched."
+ },
+ "layers": {
+  "sql": "the function the database computes the key with; the uq_* expression unique index in `db` is built on it",
+  "ts": "the function in supabase/functions/_shared/identity-keys.ts",
+  "py": "the function in kg/identity_keys.py",
+  "db": "the table, column and unique index that refuse a second row with the same key",
+  "linkml": "the unique_keys entry in kg/bbqs.linkml.yaml (gen-owl: owl:hasKey)",
+  "shape": "the SHACL shape in kg/shapes/validation.shapes.ttl that finds two nodes with the same exact value in an export",
+  "quality": "the identifier kg/quality.py duplicates() folds with this key (its FOLD map)"
+ },
+ "keys": {
+  "orcid": {
+   "rule": "the first match of [0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9Xx] anywhere in the value, upper-cased; else null",
+   "sql": "public.kg_orcid_key",
+   "ts": "orcidKey",
+   "py": "orcid_key",
+   "db": [
+    {
+     "table": "investigators",
+     "column": "orcid",
+     "index": "uq_investigators_orcid_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Investigator",
+     "key": "investigator_orcid",
+     "slots": [
+      "orcid"
+     ]
+    }
+   ],
+   "shape": "OrcidUniquePerPersonShape",
+   "quality": "orcid",
+   "vectors": [
+    [
+     "0000-0002-1825-0097",
+     "0000-0002-1825-0097"
+    ],
+    [
+     "https://orcid.org/0000-0002-1825-009x",
+     "0000-0002-1825-009X"
+    ],
+    [
+     " orcid.org/0000-0002-1825-0097 ",
+     "0000-0002-1825-0097"
+    ],
+    [
+     "0000000218250097",
+     null
+    ],
+    [
+     "n/a",
+     null
+    ],
+    [
+     "",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "doi": {
+   "rule": "trim; remove one leading https?://(dx.)?doi.org/ or doi: plus whitespace (case-insensitive); lower-case; remove trailing '/'; must then match ^10\\.[0-9.]+/[^whitespace]+$, else null",
+   "sql": "public.kg_doi_key",
+   "ts": "doiKey",
+   "py": "doi_key",
+   "db": [
+    {
+     "table": "publications",
+     "column": "doi",
+     "index": "uq_publications_doi_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Publication",
+     "key": "publication_doi",
+     "slots": [
+      "doi"
+     ]
+    }
+   ],
+   "shape": "DoiUniquePerPublicationShape",
+   "quality": "doi",
+   "vectors": [
+    [
+     "10.7554/eLife.89892",
+     "10.7554/elife.89892"
+    ],
+    [
+     "https://doi.org/10.7554/ELIFE.89892/",
+     "10.7554/elife.89892"
+    ],
+    [
+     "DOI: 10.1101/2023.06.25.546478",
+     "10.1101/2023.06.25.546478"
+    ],
+    [
+     "http://dx.doi.org/10.1000/x",
+     "10.1000/x"
+    ],
+    [
+     "\t10.1000/x\n",
+     "10.1000/x"
+    ],
+    [
+     "doi:\u00a010.1000/x",
+     null
+    ],
+    [
+     "10.1000/a b",
+     null
+    ],
+    [
+     "not a doi",
+     null
+    ],
+    [
+     "10.1000/x\n/",
+     null
+    ],
+    [
+     "",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "pmid": {
+   "rule": "trim; remove one leading pmid: plus whitespace (case-insensitive); must be all [0-9]; remove leading zeros; null if nothing is left",
+   "sql": "public.kg_pmid_key",
+   "ts": "pmidKey",
+   "py": "pmid_key",
+   "db": [
+    {
+     "table": "publications",
+     "column": "pmid",
+     "index": "uq_publications_pmid_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Publication",
+     "key": "publication_pmid",
+     "slots": [
+      "pmid"
+     ]
+    }
+   ],
+   "shape": "PmidUniquePerPublicationShape",
+   "quality": "pmid",
+   "vectors": [
+    [
+     "41331138",
+     "41331138"
+    ],
+    [
+     " 0041331138",
+     "41331138"
+    ],
+    [
+     "PMID: 41331138",
+     "41331138"
+    ],
+    [
+     "pmid:41331138",
+     "41331138"
+    ],
+    [
+     "4133 1138",
+     null
+    ],
+    [
+     "４１",
+     null
+    ],
+    [
+     "0",
+     null
+    ],
+    [
+     "abc",
+     null
+    ],
+    [
+     "",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "fon": {
+   "rule": "upper-case; delete every character that is not A-Z or 0-9; null if empty",
+   "sql": "public.kg_fon_key",
+   "ts": "fonKey",
+   "py": "fon_key",
+   "db": [
+    {
+     "table": "funding_opportunities",
+     "column": "fon",
+     "index": "uq_funding_opportunities_fon_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "FundingOpportunity",
+     "key": "funding_fon",
+     "slots": [
+      "fon"
+     ]
+    }
+   ],
+   "shape": "FonUniquePerCallShape",
+   "quality": "fon",
+   "vectors": [
+    [
+     "RFA-NS-27-002",
+     "RFANS27002"
+    ],
+    [
+     "rfa ns 27 002",
+     "RFANS27002"
+    ],
+    [
+     "NSF 26-526",
+     "NSF26526"
+    ],
+    [
+     "Straße-1",
+     "STRAE1"
+    ],
+    [
+     "  ",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "award": {
+   "rule": "upper-case; the first match of [A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6} (the NIH core award) if any; else the upper-cased value with all whitespace removed; null if empty",
+   "sql": "public.kg_award_key",
+   "ts": "awardKey",
+   "py": "award_key",
+   "db": [
+    {
+     "table": "grants",
+     "column": "grant_number",
+     "index": "uq_grants_award_key"
+    },
+    {
+     "table": "projects",
+     "column": "grant_number",
+     "index": "uq_projects_award_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Project",
+     "key": "project_award",
+     "slots": [
+      "grant_number"
+     ]
+    }
+   ],
+   "shape": "AwardUniquePerProjectShape",
+   "quality": "grant_number",
+   "vectors": [
+    [
+     "1U01MH143789-01",
+     "U01MH143789"
+    ],
+    [
+     "5r34da059506-02",
+     "R34DA059506"
+    ],
+    [
+     "RF1MH999999",
+     "RF1MH999999"
+    ],
+    [
+     "1UG3NS999999-01A1",
+     "UG3NS999999"
+    ],
+    [
+     "NSF 2123456",
+     "NSF2123456"
+    ],
+    [
+     "",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "nih_award_core": {
+   "rule": "the first match of [A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6} in the upper-cased value; else null. What a write path stores as grant_number and sends to create_grant/repoint_grant/nih-grants.",
+   "ts": "nihAwardCore",
+   "py": "nih_award_core",
+   "vectors": [
+    [
+     "1U01MH143789-01",
+     "U01MH143789"
+    ],
+    [
+     "5r34da059506-02",
+     "R34DA059506"
+    ],
+    [
+     "1UG3NS999999-01A1",
+     "UG3NS999999"
+    ],
+    [
+     "NSF 2123456",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "name": {
+   "rule": "Unicode NFKD; lower-case; delete every character that is not a-z or 0-9; null if empty",
+   "sql": "public.kg_name_key",
+   "ts": "nameKey",
+   "py": "name_key",
+   "db": [
+    {
+     "table": "organizations",
+     "column": "name",
+     "index": "uq_organizations_name_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "ResearchOrganization",
+     "key": "organization_name",
+     "slots": [
+      "name"
+     ]
+    }
+   ],
+   "vectors": [
+    [
+     "UNIVERSITY OF CALIFORNIA, SAN DIEGO",
+     "universityofcaliforniasandiego"
+    ],
+    [
+     "University of California San Diego",
+     "universityofcaliforniasandiego"
+    ],
+    [
+     "CHILDREN'S HOSP OF PHILADELPHIA",
+     "childrenshospofphiladelphia"
+    ],
+    [
+     "Université Paris Cité",
+     "universitepariscite"
+    ],
+    [
+     "İstanbul Üniversitesi",
+     "istanbuluniversitesi"
+    ],
+    [
+     "Straße",
+     "strae"
+    ],
+    [
+     "\u212aelvin Lab",
+     "kelvinlab"
+    ],
+    [
+     "Bijan  Pesaran",
+     "bijanpesaran"
+    ],
+    [
+     "北京大学",
+     null
+    ],
+    [
+     "  ",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "url": {
+   "rule": "trim; remove one leading https?:// and then www. (case-insensitive); remove trailing '/'; lower-case; null if empty",
+   "sql": "public.kg_url_key",
+   "ts": "urlKey",
+   "py": "url_key",
+   "db": [
+    {
+     "table": "funding_opportunities",
+     "column": "url",
+     "index": "uq_funding_opportunities_url_key"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "FundingOpportunity",
+     "key": "funding_url",
+     "slots": [
+      "url"
+     ]
+    }
+   ],
+   "quality": "url",
+   "vectors": [
+    [
+     "https://www.grants.nih.gov/grants/guide/rfa-files/RFA-NS-27-002.html",
+     "grants.nih.gov/grants/guide/rfa-files/rfa-ns-27-002.html"
+    ],
+    [
+     "HTTP://grants.nih.gov/grants/guide/rfa-files/RFA-NS-27-002.html/",
+     "grants.nih.gov/grants/guide/rfa-files/rfa-ns-27-002.html"
+    ],
+    [
+     "https://example.org/cafÉ",
+     "example.org/cafÉ"
+    ],
+    [
+     "",
+     null
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "title": {
+   "rule": "remove every <...> tag, then the name rule. Not a key: it pairs a preprint with its published version.",
+   "sql": "public.kg_title_key",
+   "ts": "titleKey",
+   "py": "title_key",
+   "vectors": [
+    [
+     "CaBLAM: a high-contrast bioluminescent Ca<sup>2+</sup> indicator",
+     "cablamahighcontrastbioluminescentca2indicator"
+    ],
+    [
+     "CaBLAM! a high-contrast bioluminescent Ca[2+] indicator",
+     "cablamahighcontrastbioluminescentca2indicator"
+    ],
+    [
+     "Ca²⁺ imaging",
+     "ca2imaging"
+    ],
+    [
+     null,
+     null
+    ]
+   ]
+  },
+  "preprint": {
+   "rule": "lower-cased journal contains one of the venues, or the DOI key starts with one of the prefixes",
+   "sql": "public.kg_is_preprint",
+   "ts": "isPreprint",
+   "py": "is_preprint",
+   "venues": [
+    "biorxiv",
+    "medrxiv",
+    "arxiv",
+    "research square",
+    "res sq",
+    "ssrn",
+    "psyarxiv",
+    "preprints"
+   ],
+   "doi_prefixes": [
+    "10.1101/",
+    "10.64898/",
+    "10.48550/",
+    "10.21203/",
+    "10.2139/",
+    "10.31234/",
+    "10.20944/"
+   ],
+   "vectors": [
+    [
+     [
+      "bioRxiv",
+      "10.64898/2026.06.01.728862"
+     ],
+     true
+    ],
+    [
+     [
+      "Nat Methods",
+      "10.1038/s41592-025-02972-0"
+     ],
+     false
+    ],
+    [
+     [
+      "ArXiv",
+      null
+     ],
+     true
+    ],
+    [
+     [
+      "Res Sq",
+      "10.21203/rs.3.rs-1/v1"
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      "https://doi.org/10.1101/2023.03.11.532197"
+     ],
+     true
+    ],
+    [
+     [
+      "Elife",
+      "10.7554/eLife.89892"
+     ],
+     false
+    ],
+    [
+     [
+      null,
+      null
+     ],
+     false
+    ]
+   ]
+  }
+ },
+ "existing": [
+  {
+   "key": "email",
+   "sql": "lower(btrim(email))",
+   "db": [
+    {
+     "table": "investigators",
+     "index": "investigators_email_unique_ci"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Investigator",
+     "key": "investigator_email",
+     "slots": [
+      "email"
+     ]
+    }
+   ],
+   "shape": "EmailUniquePerPersonShape"
+  },
+  {
+   "key": "dandiset",
+   "db": [
+    {
+     "table": "dandisets",
+     "index": "(instance, dandiset_id) unique, 20260524231145"
+    }
+   ],
+   "linkml": [
+    {
+     "class": "Dandiset",
+     "key": "dandiset_archive_id",
+     "slots": [
+      "dandi_instance",
+      "dandiset_id"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "ror",
+   "db": [],
+   "linkml": [
+    {
+     "class": "ResearchOrganization",
+     "key": "organization_ror",
+     "slots": [
+      "ror_id"
+     ]
+    }
+   ],
+   "note": "organizations has no ROR column yet; declared so the schema states the rule when one is added."
+  }
+ ],
+ "one_row_per_node": [
+  "investigators",
+  "organizations",
+  "grants",
+  "publications",
+  "software_tools",
+  "funding_opportunities",
+  "dandisets",
+  "species",
+  "device_models",
+  "device_manufacturers",
+  "device_categories",
+  "jobs",
+  "announcements"
+ ],
+ "resource_link_predicates": [
+  "trained_on",
+  "evaluates",
+  "was_attributed_to",
+  "produced",
+  "revision_of"
+ ]
+}

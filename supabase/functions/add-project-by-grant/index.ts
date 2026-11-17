@@ -11,6 +11,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
+import { awardKey, nihAwardCore } from "../_shared/identity-keys.ts";
+import { findOrCreateInvestigator, findOrCreateOrganization, kgSession } from "../_shared/kg-write.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,11 +49,14 @@ const GRANT_RE = /^[A-Za-z0-9]{6,20}(-\d{1,3})?$/;
  *
  *  The core is also a valid RePORTER search key (verified against all 31 grants), so normalizing
  *  BEFORE the lookup is safe as well as more consistent. Input that does not match the NIH shape is
- *  passed through cleaned but otherwise untouched, rather than mangled. */
+ *  passed through cleaned but otherwise untouched, rather than mangled.
+ *
+ *  The core is nihAwardCore's (_shared/identity-keys.ts, the rule uq_grants_award_key compares by).
+ *  This function's own [A-Z]\d{2} once missed activity codes whose second character is a letter:
+ *  RF1, UG3, DP2. */
 function normalizeGrantNumber(input: string): string {
   const cleaned = input.trim().toUpperCase().replace(/\s+/g, "");
-  const m = cleaned.match(/^\d*([A-Z]\d{2}[A-Z]{2}\d{6})(?:-\d+[A-Z0-9]*)?$/);
-  return m ? m[1] : cleaned;
+  return nihAwardCore(cleaned) ?? cleaned;
 }
 
 async function fetchGrantFromReporter(grantNumber: string) {
@@ -155,18 +160,18 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  // Service-role client for token validation, role check, and writes.
-  const admin = createClient(supabaseUrl, serviceKey);
+  // Service-role client for token validation and the role check.
+  const authClient = createClient(supabaseUrl, serviceKey);
 
   // Validate the JWT explicitly using the service-role client.
-  const { data: userRes, error: userErr } = await admin.auth.getUser(token);
+  const { data: userRes, error: userErr } = await authClient.auth.getUser(token);
   if (userErr || !userRes?.user) {
     console.error("[add-project-by-grant] getUser failed:", userErr?.message, "token len:", token.length);
     return fail(`Your sign-in session is invalid or expired. Please sign in again. (${userErr?.message ?? "no user"})`);
   }
   console.log("[add-project-by-grant] authenticated user:", userRes.user.email, userRes.user.id);
 
-  const { data: roles } = await admin
+  const { data: roles } = await authClient
     .from("user_roles")
     .select("role")
     .eq("user_id", userRes.user.id);
@@ -176,6 +181,13 @@ Deno.serve(async (req) => {
       `Only admins or curators can register new projects, and ${userRes.user.email ?? "your account"} doesn't have that role. Please ask a consortium admin to import this grant.`,
     );
   }
+
+  // The writes: service role, so they name themselves and the curator who asked (Principle X).
+  // Without x-bbqs-client they read 'unknown' in data_audit_log. Set on this server-side client only.
+  const admin = createClient(supabaseUrl, serviceKey, {
+    global: { headers: { "x-bbqs-client": `add-project-by-grant:${userRes.user.email ?? userRes.user.id}` } },
+  });
+  const kg = kgSession(admin);
 
   // ── Parse + validate body ──────────────────────────────────
   let body: any;
@@ -187,12 +199,12 @@ Deno.serve(async (req) => {
     return fail("Invalid grant number format. Example: R34DA059510");
   }
 
-  // ── 1. Already in our DB? ──────────────────────────────────
-  const { data: existingProject } = await admin
+  // ── 1. Already in our DB? By award key: '1R61MH138612' and 'R61MH138612' are one award ──
+  const { data: projects, error: projErr } = await admin
     .from("projects")
-    .select("grant_number, study_species, keywords, website, metadata, grants:grant_id(title,abstract,fiscal_year,award_amount,nih_link)")
-    .eq("grant_number", grantNumber)
-    .maybeSingle();
+    .select("grant_number, study_species, keywords, website, metadata, grants:grant_id(title,abstract,fiscal_year,award_amount,nih_link)");
+  if (projErr) return fail("Could not read the projects to check for this grant", { details: projErr.message });
+  const existingProject = (projects ?? []).find((p: { grant_number: string }) => awardKey(p.grant_number) === awardKey(grantNumber));
 
   if (existingProject) {
     const { populated, missing } = summarizePopulation(existingProject);
@@ -219,27 +231,33 @@ Deno.serve(async (req) => {
   }
 
   // ── 3. Seed grant + project rows (light version of nih-grants seeder) ──
-  const { data: grantRow, error: grantErr } = await admin
-    .from("grants")
-    .upsert({
-      grant_number: grantNumber,
-      // The full per-year RePORTER string, kept so shortening grant_number loses nothing. Refreshed
-      // on every sync because it changes each fiscal year (migration 20260810170000).
-      reporter_project_num: reporter.grantNumber ?? null,
-      title: reporter.title,
-      abstract: reporter.abstract || null,
-      award_amount: reporter.awardAmount || null,
-      fiscal_year: reporter.fiscalYear || null,
-      nih_link: reporter.nihLink,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "grant_number" })
-    .select("id, resource_id")
+  // A grant row may already hold this award without a project (create_grant, or another spelling of
+  // its number): it is updated by id, never shadowed by a second row.
+  const fields = {
+    // The full per-year RePORTER string, kept so shortening grant_number loses nothing. Refreshed
+    // on every sync because it changes each fiscal year (migration 20260810170000).
+    reporter_project_num: reporter.grantNumber ?? null,
+    title: reporter.title,
+    abstract: reporter.abstract || null,
+    award_amount: reporter.awardAmount || null,
+    fiscal_year: reporter.fiscalYear || null,
+    nih_link: reporter.nihLink,
+    updated_at: new Date().toISOString(),
+  };
+  const { data: grants, error: grantsErr } = await admin.from("grants").select("id, grant_number");
+  if (grantsErr) return fail("Could not read the grants to check for this award", { details: grantsErr.message });
+  const known = (grants ?? []).find((g: { grant_number: string }) => awardKey(g.grant_number) === awardKey(grantNumber));
+  const { data: grantRow, error: grantErr } = await (known
+    ? admin.from("grants").update(fields).eq("id", known.id)
+    : admin.from("grants").insert({ grant_number: grantNumber, ...fields }))
+    .select("id, grant_number, resource_id")
     .single();
 
   if (grantErr || !grantRow) {
-    console.error("Failed to upsert grant:", grantErr);
+    console.error("Failed to write grant:", grantErr);
     return fail("Failed to register grant locally", { details: grantErr?.message });
   }
+  const storedNumber: string = grantRow.grant_number;
 
   // Resource hub node for the grant
   if (!grantRow.resource_id) {
@@ -257,40 +275,28 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Organization (lookup or create)
+  // Organization (found by name key, created only if missing) and investigators (found by RePORTER
+  // profile id, name key, or a unique first + last name; a new person before their spine row), the
+  // same helpers the bulk nih-grants refresh uses. Then defer the grant_investigators link creation
+  // to the shared syncReporterPis helper so behaviour matches that refresh exactly.
+  const warnings: string[] = [];
   let orgId: string | null = null;
   if (reporter.institution && reporter.institution !== "Unknown") {
-    const { data: existingOrg } = await admin
-      .from("organizations").select("id").ilike("name", reporter.institution).maybeSingle();
-    if (existingOrg) orgId = existingOrg.id;
-    else {
-      const { data: newOrg } = await admin
-        .from("organizations").insert({ name: reporter.institution }).select("id").single();
-      orgId = newOrg?.id || null;
-    }
+    const org = await findOrCreateOrganization(kg, reporter.institution);
+    if (org.ok) orgId = org.row.id;
+    else warnings.push(`organization not linked: ${org.error}`);
   }
 
-  // Investigators (ensure they exist + are linked to org). Then defer the
-  // grant_investigators link creation to the shared syncReporterPis helper
-  // so behaviour matches the bulk nih-grants refresh exactly.
   const reporterPis: ReporterPi[] = [];
   for (const pi of reporter.piDetails) {
     const piName = (pi.fullName || "").trim();
     if (!piName) continue;
-    const { data: existingInv } = await admin
-      .from("investigators").select("id").ilike("name", piName).maybeSingle();
-
-    let invId: string;
-    if (existingInv) invId = existingInv.id;
-    else {
-      const { data: invRes } = await admin
-        .from("resources").insert({ name: piName, resource_type: "investigator" }).select("id").single();
-      const { data: newInv } = await admin
-        .from("investigators").insert({ name: piName, resource_id: invRes?.id || null })
-        .select("id").single();
-      if (!newInv) continue;
-      invId = newInv.id;
+    const person = await findOrCreateInvestigator(kg, { name: piName, reporterProfileId: pi.profileId });
+    if (!person.ok) {
+      warnings.push(`${piName} not linked: ${person.error}`);
+      continue;
     }
+    const invId = person.row.id;
 
     if (orgId) {
       const { data: existingLink } = await admin
@@ -309,14 +315,15 @@ Deno.serve(async (req) => {
       isContactPi: !!pi.isContactPi,
     });
   }
-  await syncReporterPis(admin, grantRow.id, grantNumber, reporterPis);
+  await syncReporterPis(admin, grantRow.id, storedNumber, reporterPis);
 
-  // Project row
-  await admin.from("projects").insert({
-    grant_number: grantNumber,
+  // Project row (step 1 found none for this award)
+  const { error: projectErr } = await admin.from("projects").insert({
+    grant_number: storedNumber,
     grant_id: grantRow.id,
     last_edited_by: userRes.user.email || "reporter-import",
   });
+  if (projectErr) warnings.push(`project row not written: ${projectErr.message}`);
 
   // Newly created → no questionnaire fields populated yet
   return ok({
@@ -334,5 +341,7 @@ Deno.serve(async (req) => {
     populated_fields: [],          // none of the questionnaire fields
     missing_fields: QUESTIONNAIRE_FIELDS,
     reporter_seeded: ["title", "abstract", "fiscal_year", "award_amount", "principal_investigators", "institution"],
+    // What could not be matched or written (a PI two records fit, an organization refused): for a curator.
+    ...(warnings.length ? { warnings } : {}),
   });
 });

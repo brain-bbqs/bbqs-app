@@ -10,10 +10,14 @@ them from public_job_posters, the link-don't-copy rule for a job's institution, 
 private is written whatever a view hands over, and that a view that is missing or refused is
 skipped with a note instead of failing the export. The competency questions about jobs (CQ18,
 CQ35, CQ36, CQ37) are then asked of that graph, so a question and the exporter cannot drift apart.
+The curated links in resource_links (a published paper's revision_of its preprint among them) are
+written only between two nodes and only for a predicate the schema has, an ORCID is written in
+its one form whatever case its X has, and kg/roundtrip.py counts those links as links.
 """
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -29,6 +33,7 @@ from rdflib.namespace import RDF, XSD
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from bbqs_kg import BBQS, BID, BBQSKnowledgeGraph  # noqa: E402
+from roundtrip import RoundTrip  # noqa: E402
 
 
 def uid(n: int) -> str:
@@ -98,6 +103,35 @@ PUBLIC_JOB_POSTERS = [
 ]
 TABLES = {"resources": RESOURCES, "organizations": ORGANIZATIONS, "investigators_public": INVESTIGATORS_PUBLIC,
           "public_jobs": PUBLIC_JOBS, "public_job_posters": PUBLIC_JOB_POSTERS}
+
+# resource_links: each row names two spine rows (resources.id) and a predicate.
+MODEL, DATASET, PUBLISHED, PREPRINT, BENCHMARK, SOFTWARE, LEGACY_PROJECT = (uid(n) for n in range(61, 68))
+DELETED = uid(97)                    # a resources row that is gone (resource_links cascades, but a stale read may not)
+LINK_RESOURCES = RESOURCES + [
+    {"id": MODEL, "resource_type": "ml_model", "name": "Pose model"},
+    {"id": DATASET, "resource_type": "dataset", "name": "Pose dataset"},
+    {"id": PUBLISHED, "resource_type": "publication", "name": "Mapping behavior across species"},
+    {"id": PREPRINT, "resource_type": "publication", "name": "Mapping behavior across species"},
+    {"id": BENCHMARK, "resource_type": "benchmark", "name": "Pose leaderboard"},
+    {"id": SOFTWARE, "resource_type": "software", "name": "Pose tracker"},
+    {"id": LEGACY_PROJECT, "resource_type": "project", "name": "A legacy project row (never a node)"},
+]
+RESOURCE_LINKS = [
+    {"subject_id": PUBLISHED, "predicate": "revision_of", "object_id": PREPRINT},
+    {"subject_id": MODEL, "predicate": "trained_on", "object_id": DATASET},
+    {"subject_id": BENCHMARK, "predicate": "evaluates", "object_id": SOFTWARE},
+    {"subject_id": BENCHMARK, "predicate": "uses_software", "object_id": SOFTWARE},     # no such slot
+    {"subject_id": BENCHMARK, "predicate": "evaluates", "object_id": DELETED},           # no node at that end
+    {"subject_id": LEGACY_PROJECT, "predicate": "produced", "object_id": DATASET},       # a type the spine skips
+]
+LOWER_X = "0000-0002-1825-009x"      # an ORCID iD whose check character is X, written in lower case
+LINK_TABLES = {**TABLES, "resources": LINK_RESOURCES, "resource_links": RESOURCE_LINKS,
+               "investigators_public": [{**INVESTIGATORS_PUBLIC[0], "orcid": f"https://orcid.org/{LOWER_X}"},
+                                        INVESTIGATORS_PUBLIC[1]],
+               "publications": [{"id": uid(71), "resource_id": PUBLISHED, "title": "Mapping behavior across species",
+                                 "author_orcids": [LOWER_X], "pmid": "200001"},
+                                {"id": uid(72), "resource_id": PREPRINT, "title": "Mapping behavior across species",
+                                 "journal": "bioRxiv", "pmid": "200002"}]}
 
 
 class FakePostgrest:
@@ -284,6 +318,56 @@ class AViewThatIsNotThere(unittest.TestCase):
         for table in ("public_jobs", "public_job_posters"):
             self.check_skipped(said, kg, table, "HTTP 401 42501")
         self.assertEqual(set(g.subject_objects(BBQS.posted_by)) | set(g.subject_objects(BBQS.job_type)), set())
+
+
+class ResourceLinks(unittest.TestCase):
+    """resource_links (20261116150000; revision_of from 20261117181500): a curated link between two
+    nodes, written for a predicate the schema has (RESOURCE_LINK_SLOTS) and only between two nodes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.kg, cls.g, cls.said, cls.fake = export(tables=LINK_TABLES)
+
+    def test_revision_of_and_trained_on_rows_become_links(self):
+        self.assertIn("resource_links", self.fake.asked)
+        self.assertEqual(objects(self.g, PUBLISHED, "revision_of"), {BID[PREPRINT]})    # the published paper -> its preprint
+        self.assertEqual(objects(self.g, PREPRINT, "revision_of"), set())
+        self.assertEqual(objects(self.g, MODEL, "trained_on"), {BID[DATASET]})
+        self.assertEqual(objects(self.g, BENCHMARK, "evaluates"), {BID[SOFTWARE]})
+        self.assertIn("resource_links: 3 written, 3 skipped", self.said)
+
+    def test_an_unknown_predicate_is_skipped(self):
+        self.assertEqual(set(self.g.subject_objects(BBQS.uses_software)), set())
+
+    def test_a_row_whose_end_is_not_a_node_is_skipped(self):
+        self.assertNotIn((BID[BENCHMARK], BBQS.evaluates, BID[DELETED]), self.g)        # no dangling link
+        self.assertEqual(set(self.g.predicate_objects(BID[LEGACY_PROJECT])), set())     # nor a node for a skipped type
+        self.assertEqual(set(self.g.subjects(BBQS.produced, BID[DATASET])), set())
+
+    def test_a_missing_table_is_noted_and_the_export_completes(self):
+        kg, g, said, _ = export(tables=LINK_TABLES, missing={"resource_links"}, missing_code="PGRST205")
+        self.assertEqual(kg.unreadable["resource_links"], "HTTP 404 PGRST205")
+        self.assertIn("resource_links not readable (HTTP 404 PGRST205)", said)
+        self.assertIn("resource_links: 0 written, 0 skipped", said)
+        self.assertEqual(set(g.subject_objects(BBQS.revision_of)) | set(g.subject_objects(BBQS.trained_on)), set())
+        self.assertEqual(len(set(g.subjects(RDF.type, BBQS.Job))), 6)                   # the rest is there
+        self.assertEqual(objects(g, JOB_SPINE_ORG, "part_of_org"), {BID[ORG_A]})
+
+    def test_an_orcid_with_a_lower_case_x_is_written_with_x_upper_case(self):
+        one = URIRef("https://orcid.org/0000-0002-1825-009X")
+        self.assertEqual(objects(self.g, PAT, "orcid"), {one})                          # investigators_public.orcid
+        self.assertEqual(objects(self.g, PUBLISHED, "author_orcids"), {one})            # publications.author_orcids
+
+    def test_the_round_trip_counts_the_links_as_links(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "bbqs.ttl"
+            self.g.serialize(destination=str(path), format="turtle")
+            env = {"SUPABASE_URL": "https://stand-in.invalid", "SUPABASE_KEY": "anon-key"}
+            with mock.patch("urllib.request.urlopen", FakePostgrest(LINK_TABLES)), mock.patch.dict(os.environ, env), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                table = RoundTrip(path).table("resource_links")
+        self.assertEqual((table["rows"], table["links"], table["carried"]), (6, 6, 3))
+        self.assertNotIn("cells", table)                     # links are not fact cells, and add none to the total
 
 
 class TheQuestionsReadWhatTheExporterWrites(unittest.TestCase):

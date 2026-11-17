@@ -13,6 +13,10 @@ Compare against a FRESH export: an older file makes every value edited since loo
 
 On an anon key this measures the public projection only: RLS-hidden rows and columns are out of
 reach, and are reported as such rather than counted as carried.
+
+A link table (LINKS) holds no fact cells, only the link a row stands for, so it is measured as
+links: a row is carried when its triple is in the export. Links are counted apart from the cells,
+and the overall percentage is of cells alone.
 """
 import json
 from collections import defaultdict
@@ -39,7 +43,12 @@ NODE_OF = {
 TABLES = ["resources", "grants", "projects", "grant_investigators", "investigators_public", "organizations",
           "publications", "dandisets", "software_tools", "funding_opportunities", "announcements",
           "public_jobs", "species", "device_models", "device_categories", "device_manufacturers",
-          "investigator_organizations", "project_publications", "grant_dandisets"]
+          "investigator_organizations", "project_publications", "grant_dandisets", "resource_links"]
+# table -> the one triple a row of a link table stands for. One line per link table that names its
+# two ends by resources.id; the older join tables name them by detail-table ids, and are not here yet.
+LINKS = {
+    "resource_links": lambda r: (BID[r["subject_id"]], BBQS[r["predicate"]], BID[r["object_id"]]),
+}
 
 
 def cell_values(v):
@@ -99,6 +108,12 @@ class RoundTrip:
             return {"table": name, "readable": False, "error": str(e)[:120]}
         if not rows:
             return {"table": name, "readable": True, "rows": 0, "note": "no rows visible to this key"}
+        if name in LINKS:
+            links = [LINKS[name](r) for r in rows]
+            carried = sum(1 for t in links if t in self.g)
+            return {"table": name, "readable": True, "rows": len(rows), "links": len(links), "carried": carried,
+                    "pct": round(100 * carried / len(links), 1),
+                    "examples": [str(r)[:120] for r, t in zip(rows, links) if t not in self.g][:2]}
         cols = defaultdict(lambda: {"cells": 0, "carried": 0, "examples": []})
         noded = 0
         for r in rows:
@@ -131,10 +146,14 @@ class RoundTrip:
 
     def report(self) -> dict:
         tables = [self.table(t) for t in TABLES]
-        cells = sum(t.get("cells", 0) for t in tables)
-        carried = sum(t.get("carried", 0) for t in tables)
+        cell_tables = [t for t in tables if "links" not in t]
+        cells = sum(t.get("cells", 0) for t in cell_tables)
+        carried = sum(t.get("carried", 0) for t in cell_tables)
+        links = sum(t.get("links", 0) for t in tables)
+        links_carried = sum(t.get("carried", 0) for t in tables if "links" in t)
         return {"data_file": self.data_file.name, "cells": cells, "carried": carried,
-                "pct": round(100 * carried / cells, 1) if cells else None, "tables": tables}
+                "pct": round(100 * carried / cells, 1) if cells else None,
+                "links": links, "links_carried": links_carried, "tables": tables}
 
 
 @click.command()
@@ -145,13 +164,18 @@ def main(data_file, json_path):
     """Measure how much of the database DATA_FILE carries, cell by cell."""
     rep = RoundTrip(data_file).report()
     json_path.write_text(json.dumps(rep, indent=1, ensure_ascii=False), encoding="utf-8")
-    click.echo(f"overall: {rep['carried']:,} of {rep['cells']:,} fact cells carried ({rep['pct']}%)\n")
+    click.echo(f"overall: {rep['carried']:,} of {rep['cells']:,} fact cells carried ({rep['pct']}%); "
+               f"{rep['links_carried']:,} of {rep['links']:,} link-table rows carried as links\n")
     for t in rep["tables"]:
         if not t.get("readable"):
             click.echo(f"{t['table']:28} not readable with this key")
             continue
         if not t.get("rows"):
             click.echo(f"{t['table']:28} 0 rows visible")
+            continue
+        if "links" in t:
+            click.echo(f"{t['table']:28} rows {t['rows']:>4}  links {t['carried']:>5}/{t['links']:<5} "
+                       f"{str(t['pct']) + '%':>6}  carried as links")
             continue
         dropped = [c for c, d in t["columns"].items() if d["pct"] < 100]
         click.echo(f"{t['table']:28} rows {t['rows']:>4}  noded {t['noded']:>4}  cells {t['carried']:>5}/{t['cells']:<5} "

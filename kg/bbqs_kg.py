@@ -26,9 +26,16 @@ from pathlib import Path
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 
+from identity_keys import nih_award_core, orcid_key
+
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = Namespace("https://brain-bbqs.org/id/")
+
+# The resource_links predicates the exporter writes, each a kg/bbqs.linkml.yaml slot: the predicates
+# resource_links_predicate_check lets the table hold (tests/guards/kg-resource-links-parity holds
+# the two equal). A row with any other predicate is never written.
+RESOURCE_LINK_SLOTS = frozenset({"trained_on", "evaluates", "was_attributed_to", "produced", "revision_of"})
 
 # resources.resource_type -> bbqs class local name. A type absent here (e.g. deprecated `project`)
 # is NOT minted as a node.
@@ -109,15 +116,16 @@ class BBQSKnowledgeGraph:
 
     @staticmethod
     def orcid_iri(value):
-        """An ORCID iD in any common form ('0000-...', 'orcid.org/...', a full URL) -> its IRI."""
-        m = re.search(r"(\d{4}-\d{4}-\d{4}-\d{3}[\dX])", str(value or ""))
-        return URIRef(f"https://orcid.org/{m.group(1)}") if m else None
+        """An ORCID iD in any common form ('0000-...', 'orcid.org/...', a full URL, a lower-case x) ->
+        its one IRI, by the ORCID key (kg/identity_keys.py) the database's unique index uses."""
+        key = orcid_key(value) if value else None
+        return URIRef(f"https://orcid.org/{key}") if key else None
 
     @staticmethod
     def core_award(value):
-        """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds."""
-        m = re.search(r"[A-Z][A-Z0-9]{2}[A-Z]{2}\d{6}", str(value or "").upper())
-        return m.group(0) if m else None
+        """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds
+        (the NIH core, kg/identity_keys.py's nih_award_core)."""
+        return nih_award_core(value) if value else None
 
     @staticmethod
     def timestamp(value):
@@ -432,6 +440,20 @@ class BBQSKnowledgeGraph:
             org, inv = org_node.get(io.get("organization_id")), inv_node.get(io.get("investigator_id"))
             if org is not None and inv is not None:
                 g.add((org, BBQS["members"], inv))
+        # Curated links between two spine rows (resource_links, 20261116150000; revision_of since
+        # 20261117181500): one row is one (subject, bbqs:<predicate>, object) link. Written only for a
+        # predicate in RESOURCE_LINK_SLOTS and only between two typed nodes: a row whose end is gone,
+        # or is a type the spine skips, is left out rather than written as a dangling link. A table
+        # not there yet (its migration not applied) gives no rows and a note, and the export goes on.
+        links_written = links_skipped = 0
+        for rl in self.fetch("resource_links", "subject_id,predicate,object_id"):
+            s = BID[rl["subject_id"]] if rl.get("subject_id") else None
+            o = BID[rl["object_id"]] if rl.get("object_id") else None
+            if rl.get("predicate") in RESOURCE_LINK_SLOTS and s in spine_class and o in spine_class:
+                g.add((s, BBQS[rl["predicate"]], o))
+                links_written += 1
+            else:
+                links_skipped += 1
         for pp in self.fetch("project_publications"):
             proj, pub = proj_node.get(pp.get("project_id")), pub_node.get(pp.get("publication_id"))
             if proj is not None and pub is not None:
@@ -490,8 +512,10 @@ class BBQSKnowledgeGraph:
               + f"; institution kept as text for {len(jobs_as_text)} jobs (no organization node to link)"
               + (f"; {bad_expiry} expires_at not a timestamp (not written)" if bad_expiry else ""))
         print(f"posted_by links (public_job_posters): {len(posted)}")
+        print(f"resource_links: {links_written} written, {links_skipped} skipped")
         for table, lost in (("public_jobs", "job details (kind, place, expiry, link, institution text)"),
-                            ("public_job_posters", "posted_by")):
+                            ("public_job_posters", "posted_by"),
+                            ("resource_links", "curated links (" + ", ".join(sorted(RESOURCE_LINK_SLOTS)) + ")")):
             if table in self.unreadable:
                 print(f"  {table} not readable ({self.unreadable[table]}): no {lost} in this export")
         if skipped:
@@ -544,7 +568,7 @@ class BBQSKnowledgeGraph:
 
         edges = []
         asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
-                                "device_category", "manufacturer"}
+                                "device_category", "manufacturer"} | RESOURCE_LINK_SLOTS
         for s, p, o in g:
             local = str(p).rsplit("#", 1)[-1]
             if local in asserted_predicates and not isinstance(o, Literal):

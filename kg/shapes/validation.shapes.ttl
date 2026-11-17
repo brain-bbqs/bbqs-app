@@ -158,20 +158,26 @@ bbqs:ConflictingVerifiedProvenanceShape
 
 # ── Invariant #14 — one ORCID, one Investigator node ──────────────────────────
 # An ORCID iD identifies a person, not a row. Two Investigator nodes carrying the same
-# bbqs:orcid are the same person recorded twice -- a merge candidate, never two people.
-# No targets yet: the anon export doesn't emit `orcid` (full-access export required).
+# bbqs:orcid are the same person recorded twice -- a merge candidate, never two people. The
+# result names the other node (?value), so it says which two to merge.
+#
+# #14 and #21-#24 are the export's check of the identity keys (kg/identity_keys.json; the
+# unique_keys in bbqs.linkml.yaml; uq_* indexes in the database). They compare exact terms, which
+# is what the exporter writes for one key (an ORCID as its orcid.org IRI, upper-case X), and is
+# quick; two spellings of one key (a lower-case DOI, a FON without hyphens) are kg/quality.py
+# duplicates()' to find: folding in SPARQL cost 13-16 s more on the export.
 bbqs:OrcidUniquePerPersonShape
   a sh:NodeShape ;
   sh:targetClass bbqs:Investigator ;
   sh:sparql [
-    sh:message "Two Investigator nodes share one orcid -- merge candidate, not two people (#14)." ;
+    sh:message "Has the ORCID iD {?key}, as {?value} does: one person recorded twice -- merge them (#14)." ;
     sh:prefixes bbqs:prefixes ;
     sh:select """
-      SELECT $this ?other WHERE {
+      SELECT $this ?value ?key WHERE {
         $this bbqs:orcid ?o .
-        ?other bbqs:orcid ?o .
-        FILTER(?other != $this)
-        FILTER(STR($this) < STR(?other))
+        ?value a bbqs:Investigator ; bbqs:orcid ?o .
+        FILTER(?value != $this && STR($this) < STR(?value))
+        BIND(STR(?o) AS ?key)
       }
     """ ;
   ] .
@@ -365,3 +371,101 @@ bbqs:UrlFieldsAreUrlsShape
                 sh:message "website is not a single URL (#10)." ] ;
   sh:property [ sh:path bbqs:homepage_url ; sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^ ]+$" ;
                 sh:message "homepage_url is not a single URL (#10)." ] .
+
+# ── Invariant #21 — one DOI, one Publication node ─────────────────────────────
+# A DOI names one work in one version. Two Publication nodes with one DOI are one record held
+# twice (the database refuses it: uq_publications_doi_key). A preprint and its published version
+# have two DOIs, so they never meet here: they are two records, linked by revision_of (#25).
+bbqs:DoiUniquePerPublicationShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Publication ;
+  sh:sparql [
+    sh:message "Has the DOI {?key}, as {?value} does: one work recorded twice -- merge them; a preprint and its published version have two DOIs and are linked with revision_of instead (#21)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value ?key WHERE {
+        $this bbqs:doi ?d .
+        ?value a bbqs:Publication ; bbqs:doi ?d .
+        FILTER(?value != $this && STR($this) < STR(?value))
+        BIND(STR(?d) AS ?key)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #22 — one PMID, one Publication node ────────────────────────────
+# A PubMed id is one PubMed record (uq_publications_pmid_key in the database).
+bbqs:PmidUniquePerPublicationShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Publication ;
+  sh:sparql [
+    sh:message "Has the PMID {?key}, as {?value} does: one PubMed record, two nodes -- merge them (#22)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value ?key WHERE {
+        $this bbqs:pmid ?p .
+        ?value a bbqs:Publication ; bbqs:pmid ?p .
+        FILTER(?value != $this && STR($this) < STR(?value))
+        BIND(STR(?p) AS ?key)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #23 — one FON, one FundingOpportunity node ──────────────────────
+# A funding opportunity number is one call (uq_funding_opportunities_fon_key). A final notice
+# supersedes its forecast in place: the call keeps its node and takes the new FON, never a second.
+bbqs:FonUniquePerCallShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:FundingOpportunity ;
+  sh:sparql [
+    sh:message "Has the FON {?key}, as {?value} does: one funding call recorded twice -- merge them (#23)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value ?key WHERE {
+        $this bbqs:fon ?f .
+        ?value a bbqs:FundingOpportunity ; bbqs:fon ?f .
+        FILTER(?value != $this && STR($this) < STR(?value))
+        BIND(STR(?f) AS ?key)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #24 — one award, one Project node ───────────────────────────────
+# Project = Grant: an NIH award is one project (uq_grants_award_key and uq_projects_award_key,
+# by the award's core number in the database).
+bbqs:AwardUniquePerProjectShape
+  a sh:NodeShape ;
+  sh:targetClass bbqs:Project ;
+  sh:sparql [
+    sh:message "Has the grant number {?key}, as {?value} does: one award recorded twice -- merge them (#24)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value ?key WHERE {
+        $this bbqs:grant_number ?g .
+        ?value a bbqs:Project ; bbqs:grant_number ?g .
+        FILTER(?value != $this && STR($this) < STR(?value))
+        BIND(STR(?g) AS ?key)
+      }
+    """ ;
+  ] .
+
+# ── Invariant #25 — revision_of links one Publication to another, one way ─────
+# A published paper is a revision_of its preprint (PROV: the newer wasRevisionOf the older): two
+# records, each with its own PMID, DOI and date, linked instead of merged. The link joins two
+# Publication nodes, never a node to itself, and never both ways (the database refuses the
+# reverse of a link it holds: resource_links_check_types).
+bbqs:RevisionOfLinksTwoPublicationsShape
+  a sh:NodeShape ;
+  sh:targetSubjectsOf bbqs:revision_of ;
+  sh:sparql [
+    sh:message "revision_of must point from one Publication to another, in one direction only; this one points at {?value} (#25)." ;
+    sh:prefixes bbqs:prefixes ;
+    sh:select """
+      SELECT $this ?value WHERE {
+        $this bbqs:revision_of ?value .
+        FILTER(?value = $this
+               || NOT EXISTS { $this a bbqs:Publication }
+               || NOT EXISTS { ?value a bbqs:Publication }
+               || EXISTS { ?value bbqs:revision_of $this })
+      }
+    """ ;
+  ] .

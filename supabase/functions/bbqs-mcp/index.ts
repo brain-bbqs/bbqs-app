@@ -2,6 +2,11 @@ import { McpServer, StreamableHttpTransport } from "npm:mcp-lite@^0.10.0";
 import { Hono } from "npm:hono@^4.9.7";
 import { searchProjects, listSpecies } from "../_shared/kg.ts";
 import { askKG } from "../_shared/rag.ts";
+import { awardKey, fonKey, nameKey, nihAwardCore } from "../_shared/identity-keys.ts";
+import {
+  isUniqueViolation, matchFundingCalls, matchOrganizations, matchResources, violatedConstraint, violationDetail,
+  type CallRow, type OrgRow, type ResourceRow,
+} from "../_shared/kg-write.ts";
 
 // BBQS MCP — one endpoint, three tiers, gated by step-up OAuth.
 //
@@ -113,6 +118,13 @@ async function rest(jwt: string, pathAndQuery: string, init?: RequestInit, clien
 const rpc = (jwt: string, fn: string, args: unknown, clientTag?: string) =>
   rest(jwt, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) }, clientTag);
 
+/** A grant number as the KG writes it: the NIH core ('1U01MH143789-01' -> 'U01MH143789'), else as
+ *  typed. The core is what uq_grants_award_key compares, and a valid RePORTER search key. */
+function grantNumberFor(v: unknown): string {
+  const s = String(v ?? "").trim();
+  return nihAwardCore(s) ?? s;
+}
+
 /** Another edge function, still as the caller — which is what makes auth.uid() resolve there. */
 async function callFunction(jwt: string, name: string, body: unknown) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
@@ -207,7 +219,7 @@ async function logCall(jwt: string, meta: RequestMeta, e: CallLog, clientTag?: s
 }
 
 function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
-  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.4.0" });
+  const mcp = new McpServer({ name: "bbqs-mcp", version: "3.5.0" });
   // mcp-lite 0.10 builds serverInfo from name and version only and returns that same object in the
   // initialize result, so the spec's display fields (title, websiteUrl, icons) are set on it here.
   const serverInfo = (mcp as unknown as { serverInfo?: Record<string, unknown> }).serverInfo;
@@ -220,6 +232,18 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   const _clientTag = caller ? `bbqs-mcp:${caller.email}` : "bbqs-mcp";
   const restC = (path: string, init?: RequestInit) => rest(jwt, path, init, _clientTag);
   const rpcC = (fn: string, args: unknown) => rpc(jwt, fn, args, _clientTag);
+  /** Every row a read returns, page by page (PostgREST caps one response at its max_rows): what a
+   *  write path folds the identity keys over before it writes (_shared/kg-write.ts). */
+  const restAllC = async (path: string): Promise<any[]> => {
+    const out: any[] = [];
+    for (let offset = 0, pages = 0; pages < 50; pages++) {
+      const page = await restC(`${path}&order=id&limit=1000&offset=${offset}`);
+      if (!Array.isArray(page) || !page.length) break;
+      out.push(...page);
+      offset += page.length;
+    }
+    return out;
+  };
 
   // Register every tool through T: a thrown error becomes a returned isError result carrying the
   // REAL message. Without it mcp-lite flattens a PostgREST error ("duplicate key", "malformed
@@ -532,21 +556,33 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   });
 
   T("create_grant", {
-    description: "[curator] Create an award that is NOT YET on NIH RePORTER — a funder notice — so a new team can be onboarded before the registry catches up. This is the missing primitive: onboard_member links a person to a grant that must already exist, and refresh_grant_from_reporter is a no-op until RePORTER has the award. Inserts the grant (grant_number, title, and fiscal_year if known), optionally its awardee project row (pass institution), and optionally links an ALREADY-EXISTING contact PI to the roster (role_source funder_notice). Idempotent on grant_number; provenance is recorded as funder_notice (G1). It does NOT create people (an unknown contact_pi_email is reported back — use onboard_member) and does NOT touch Google Groups. Sequence for a new team: create_grant → onboard_member(grant_id, …) for each PI/member → sync_member_groups → send_welcome_email → refresh_grant_from_reporter once the award appears on RePORTER (it fills abstract/amount/publications, adds MPIs, and never demotes a role). Do not write SQL for this.",
+    description: "[curator] Create an award that is NOT YET on NIH RePORTER — a funder notice — so a new team can be onboarded before the registry catches up. This is the missing primitive: onboard_member links a person to a grant that must already exist, and refresh_grant_from_reporter is a no-op until RePORTER has the award. Inserts the grant (grant_number, title, and fiscal_year if known), optionally its awardee project row (pass institution), and optionally links an ALREADY-EXISTING contact PI to the roster (role_source funder_notice). Idempotent on the award: an NIH number is reduced to its core (1U01MH143789-01 -> U01MH143789) and an award already in the KG is reused, however it was spelled; likewise an institution already in the KG. Provenance is recorded as funder_notice (G1). It does NOT create people (an unknown contact_pi_email is reported back — use onboard_member) and does NOT touch Google Groups. Sequence for a new team: create_grant → onboard_member(grant_id, …) for each PI/member → sync_member_groups → send_welcome_email → refresh_grant_from_reporter once the award appears on RePORTER (it fills abstract/amount/publications, adds MPIs, and never demotes a role). Do not write SQL for this.",
     parameters: obj({
-      grant_number: { type: "string", description: "Core project number, e.g. U01MH143789 — a -01 year suffix is stripped and it is upper-cased" },
+      grant_number: { type: "string", description: "Award number, e.g. U01MH143789; an NIH number is reduced to its core (prefix digit and -01 year suffix dropped), and matched against the awards already in the KG" },
       title: { type: "string", description: "Award title from the funder notice (required; RePORTER cannot supply it yet)" },
       fiscal_year: { type: "number", description: "Award fiscal year, if known" },
-      institution: { type: "string", description: "Awardee institution; when given, creates the project row. Upper-case matches how RePORTER writes org_name." },
+      institution: { type: "string", description: "Awardee institution; when given, creates the project row. An organization already in the KG under another spelling (case, punctuation) is reused." },
       study_human: { type: "boolean", description: "Whether the project studies humans, if known" },
       contact_pi_email: { type: "string", description: "Contact PI. Linked as contact_pi ONLY if this person already exists in the KG; if not found the grant is still created and the result says so — then use onboard_member with the returned grant_id." },
     }, ["grant_number", "title"]),
-    handler: async (a: { grant_number: string; title: string; fiscal_year?: number; institution?: string; study_human?: boolean; contact_pi_email?: string }) =>
-      text(await rpcC("create_grant", {
-        _grant_number: a.grant_number, _title: a.title,
-        _fiscal_year: a.fiscal_year ?? null, _institution: a.institution ?? null,
+    handler: async (a: { grant_number: string; title: string; fiscal_year?: number; institution?: string; study_human?: boolean; contact_pi_email?: string }) => {
+      // The RPC looks the award up by exact grant_number and the institution by lower(btrim(name)),
+      // so hand it the spellings the KG already holds: otherwise a '1U01MH143789-01' or a 'University
+      // of X' next to 'UNIVERSITY OF X' becomes a second record (uq_grants_award_key and
+      // uq_organizations_name_key refuse it once 20261117181500 is applied).
+      const grants = await restAllC("grants?select=id,grant_number") as Array<{ id: string; grant_number: string }>;
+      const award = grants.find((g) => awardKey(g.grant_number) === awardKey(a.grant_number))?.grant_number ?? grantNumberFor(a.grant_number);
+      let institution = a.institution?.trim() || null;
+      if (institution) {
+        const orgs = await restAllC("organizations?select=id,name") as OrgRow[];
+        institution = matchOrganizations(orgs, institution).row?.name ?? institution;
+      }
+      return text(await rpcC("create_grant", {
+        _grant_number: award, _title: a.title,
+        _fiscal_year: a.fiscal_year ?? null, _institution: institution,
         _study_human: a.study_human ?? null, _contact_pi_email: a.contact_pi_email ?? null,
-      })),
+      }));
+    },
   });
 
   T("import_questionnaire_response", {
@@ -570,26 +606,40 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
 
   T("refresh_grant_from_reporter", {
     description: "[curator] Pull the latest NIH RePORTER data for a grant and fill the KG — abstract, award amount, nih_link, reporter_project_num, publications. Use this when a grant is newly on RePORTER or its registry data changed (e.g. a funder-notice grant that was pre-registry). Omit grant_number to refresh every grant. Does not demote roster roles. This is the tool for \"fix the RePORTER data for grant X\" — do not write SQL.",
-    parameters: obj({ grant_number: { type: "string", description: "e.g. R61MH142354; omit to refresh all" } }),
+    parameters: obj({ grant_number: { type: "string", description: "e.g. R61MH142354 (any NIH spelling, such as 1R61MH142354-01, is reduced to its core); omit to refresh all" } }),
     handler: async (a: { grant_number?: string }) => {
-      const q = a.grant_number ? `?action=refresh&grant=${encodeURIComponent(a.grant_number)}` : "?action=refresh";
+      const q = a.grant_number ? `?action=refresh&grant=${encodeURIComponent(grantNumberFor(a.grant_number))}` : "?action=refresh";
       return text(await callFunction(jwt, `nih-grants${q}`, {}));
     },
   });
 
   T("repoint_grant", {
-    description: "[curator] Repoint a grant to a NEW award number after it was renumbered — e.g. an NIH administering-IC transfer that mints a new core number (U24MH136628 -> U24DA064429). Updates the grant + its project rows + nih_link and records provenance; the old number stays in the audit history. THE tool for \"the grant number changed / it moved to a different IC\" — do not write SQL. Refuses if another grant already uses the new number. Follow with refresh_grant_from_reporter for the new number to fill current-year metadata and publications.",
+    description: "[curator] Repoint a grant to a NEW award number after it was renumbered — e.g. an NIH administering-IC transfer that mints a new core number (U24MH136628 -> U24DA064429). Updates the grant + its project rows + nih_link and records provenance; the old number stays in the audit history. THE tool for \"the grant number changed / it moved to a different IC\" — do not write SQL. Either number may be given in any NIH spelling (1U24MH136628-01): the old one is matched to the grant in the KG, the new one is stored as its core. Refuses if another grant already holds the new award. Follow with refresh_grant_from_reporter for the new number to fill current-year metadata and publications.",
     parameters: obj({
       grant_number: { type: "string", description: "current number in the KG, e.g. U24MH136628" },
       new_grant_number: { type: "string", description: "the award's current/correct number, e.g. U24DA064429" },
       reporter_project_num: { type: "string", description: "optional full per-year string e.g. 5U24DA064429-03; else left for refresh" },
     }, ["grant_number", "new_grant_number"]),
-    handler: async (a: { grant_number: string; new_grant_number: string; reporter_project_num?: string }) =>
-      text(await rpcC("repoint_grant", {
-        _grant_number: a.grant_number,
-        _new_grant_number: a.new_grant_number,
+    handler: async (a: { grant_number: string; new_grant_number: string; reporter_project_num?: string }) => {
+      // The RPC compares grant_number exactly, so find the stored spelling by the award key, and refuse
+      // here a new number another grant already holds under another spelling: the RPC's exact check
+      // would let that through and make one award two grants.
+      const grants = await restAllC("grants?select=id,grant_number") as Array<{ id: string; grant_number: string }>;
+      const current = grants.filter((g) => awardKey(g.grant_number) === awardKey(a.grant_number));
+      if (current.length > 1) {
+        throw new Error(`${current.map((g) => g.grant_number).join(" and ")} are one award recorded twice: merge them before repointing. Nothing was written.`);
+      }
+      const target = grantNumberFor(a.new_grant_number);
+      const taken = grants.find((g) => awardKey(g.grant_number) === awardKey(target) && g.id !== current[0]?.id);
+      if (taken) {
+        throw new Error(`Another grant already holds ${target} (as ${taken.grant_number}); repoint would make one award two grants. Nothing was written.`);
+      }
+      return text(await rpcC("repoint_grant", {
+        _grant_number: current[0]?.grant_number ?? a.grant_number,
+        _new_grant_number: target,
         _reporter_project_num: a.reporter_project_num ?? null,
-      })),
+      }));
+    },
   });
 
   T("confirm_species_candidate", {
@@ -657,12 +707,12 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   });
 
   T("add_funding_opportunity", {
-    description: "[curator] Add/refresh a funding opportunity (NIH/NSF/etc.). fon + title required. UPSERTS on fon (re-running fills gaps, no duplicate) and appears on the public Funding page. THE tool for \"add this solicitation to funding announcements\" — never fall back to SQL.",
+    description: "[curator] Add/refresh a funding opportunity (NIH/NSF/etc.). fon + title required. A call already in the KG is matched by its FON (case, spaces and dashes aside) and updated with the fields you pass, so re-running fills gaps and never duplicates; it appears on the public Funding page. A notice URL another call already holds is refused, unless this is the final notice that supersedes that forecast: pass supersedes=<the forecast's FON> and the forecast's row becomes this call in place, its old FON kept in notes. THE tool for \"add this solicitation to funding announcements\" — never fall back to SQL.",
     parameters: obj({
       fon: { type: "string", description: "Funding Opportunity Number, e.g. 'NSF 26-526' or 'RFA-MH-25-xxx'" },
       title: { type: "string" },
       activity_code: { type: "string", description: "e.g. R01, R61, GRFP" },
-      status: { type: "string", description: "open | forecasted | expired (default open)" },
+      status: { type: "string", description: "open | forecasted | expired (default open for a new call; an existing call keeps its status unless one is given)" },
       url: { type: "string" },
       purpose: { type: "string" },
       posted_date: { type: "string", description: "YYYY-MM-DD" },
@@ -673,21 +723,74 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       relevance_tags: { type: "array", items: { type: "string" } },
       due_dates: { type: "array", description: "Array of {date:'YYYY-MM-DD', type:'...'} objects", items: { type: "object" } },
       notes: { type: "string" },
+      supersedes: { type: "string", description: "FON of the forecast this final notice replaces. Its row is updated in place (new FON, old FON kept in notes) instead of a second row being added." },
     }, ["fon", "title"]),
     handler: async (a: Record<string, unknown>) => {
-      // Send only what the caller provided (plus a status default). With the upsert this means an
-      // existing row keeps fields you did not mention, instead of being overwritten with nulls.
-      const body: Record<string, unknown> = { fon: a.fon, title: a.title, status: a.status ?? "open" };
-      const scalars = ["activity_code", "url", "purpose", "posted_date", "open_date", "expiration_date", "budget_ceiling", "notes"];
+      // Send only what the caller provided, so an existing row keeps the fields you did not mention.
+      // A new row also gets status 'open' unless one is given; an existing row keeps its status.
+      const fon = String(a.fon ?? "").trim();
+      if (!fonKey(fon)) throw new Error("fon must contain letters or digits, e.g. RFA-MH-25-123");
+      const body: Record<string, unknown> = { title: a.title };
+      const scalars = ["status", "activity_code", "url", "purpose", "posted_date", "open_date", "expiration_date", "budget_ceiling", "notes"];
       for (const k of scalars) if (a[k] != null) body[k] = a[k];
       if (a.participating_orgs != null) body.participating_orgs = coerceArray(a.participating_orgs);
       if (a.relevance_tags != null) body.relevance_tags = coerceArray(a.relevance_tags);
       if (a.due_dates != null) body.due_dates = coerceArray(a.due_dates, true);
-      return text(await restC( "funding_opportunities?on_conflict=fon", {
-        method: "POST",
-        headers: { Prefer: "return=representation,resolution=merge-duplicates" },
-        body: JSON.stringify(body),
-      }));
+
+      // One call, one row (D5): found by its FON key, then by its notice URL's key, the keys
+      // uq_funding_opportunities_fon_key and _url_key refuse a second row by.
+      const calls = await restAllC("funding_opportunities?select=id,fon,url,notes") as CallRow[];
+      const { byFon, byUrl } = matchFundingCalls(calls, { fon, url: a.url as string | undefined });
+      const superseded = a.supersedes == null ? [] : calls.filter((r) => fonKey(r.fon) === fonKey(String(a.supersedes)) && !byFon.includes(r));
+      const update = async (row: CallRow, patch: Record<string, unknown>, matched_by: string, note?: string) => {
+        const rows = await restC(`funding_opportunities?id=eq.${row.id}`, {
+          method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
+        });
+        // RLS filters a forbidden UPDATE to zero rows instead of erroring; say so rather than "updated".
+        if (!Array.isArray(rows) || !rows.length) {
+          throw new Error(`${row.fon} is in the KG (id ${row.id}) but RLS did not let this account update it; nothing changed.`);
+        }
+        return text({ action: "already_in_kg", matched_by, id: row.id, ...(note ? { note } : {}), rows });
+      };
+
+      if (byFon.length > 1 || superseded.length > 1) {
+        const dup = byFon.length > 1 ? byFon : superseded;
+        throw new Error(`${dup.map((r) => `${r.fon} (id ${r.id})`).join(", ")} are one call recorded ${dup.length} times: merge them first. Nothing was written.`);
+      }
+      if (byFon.length === 1) {
+        // Already in the KG under this FON: fill it in (the stored FON spelling is kept).
+        const twin = superseded[0] ?? byUrl.find((r) => r.id !== byFon[0].id);
+        return update(byFon[0], body, "fon", twin
+          ? `${twin.fon} (id ${twin.id}) is still a separate row for this call (its forecast?): merge it into this one`
+          : undefined);
+      }
+      const clash = byUrl.filter((r) => r.id !== superseded[0]?.id);
+      if (clash.length) {
+        throw new Error(`The notice URL ${a.url} already belongs to ${clash.map((r) => `${r.fon} (id ${r.id})`).join(", ")}. ` +
+          `If ${fon} is the final notice that supersedes that forecast, call again with supersedes="${clash[0].fon}": its row becomes ${fon}, the old FON kept in notes. ` +
+          "If it is a different call, give it its own URL. Nothing was written.");
+      }
+      if (superseded.length === 1) {
+        // The final notice takes over its forecast's row, in place: one call, one node.
+        const old = superseded[0];
+        const notes = String(body.notes ?? old.notes ?? "");
+        const stamp = `Supersedes ${old.fon} (${new Date().toISOString().slice(0, 10)})`;
+        return update(old, { ...body, fon, notes: notes.includes(String(old.fon)) ? notes : notes.trim() ? `${notes}\n${stamp}` : stamp },
+          "supersedes", `${old.fon} is now ${fon}; its old FON is kept in notes`);
+      }
+
+      try {
+        const rows = await restC("funding_opportunities", {
+          method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: "open", ...body, fon }),
+        });
+        return text({ action: "inserted", rows,
+          ...(a.supersedes != null ? { note: `No call with FON ${a.supersedes} is in the KG, so nothing was superseded` } : {}) });
+      } catch (e) {
+        if (!isUniqueViolation(e)) throw e;
+        const detail = violationDetail(e);
+        throw new Error(`${fon} is already in the KG (${violatedConstraint(e) ?? "a unique key"}${detail ? `: ${detail}` : ""}), written in the meantime or not readable to this account. ` +
+          "Nothing was written; list_funding_opportunities shows it.");
+      }
     },
   });
 
@@ -699,7 +802,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
   };
 
   T("add_resource", {
-    description: "[curator] Add a tool/library/model/dataset/benchmark/protocol to the public Resources page. name + category required. Matches an existing row by name (case-insensitive) and fills only the fields you pass, so re-running never duplicates. THE tool for \"add X to the resources page\" — never fall back to SQL.",
+    description: "[curator] Add a tool/library/model/dataset/benchmark/protocol to the public Resources page. name + category required. Matches a row of the same type already in the KG by its name (case, spacing and punctuation aside), its homepage URL or its repository URL, and fills only the fields you pass on that row (action already_in_kg), so re-running never duplicates; two matches are refused until they are merged. THE tool for \"add X to the resources page\" — never fall back to SQL.",
     parameters: obj({
       name: { type: "string" },
       category: { type: "string", enum: Object.keys(RESOURCE_CATEGORY_TYPE) },
@@ -735,11 +838,19 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
       if (meta.containerized != null) meta.containerized = meta.containerized === true || meta.containerized === "true";
 
       const name = String(a.name).trim();
-      const existing = await restC(
-        `resources?select=id,metadata,description,external_url&name=ilike.${encodeURIComponent(name.replace(/[%_*]/g, ""))}&limit=1`);
-      if (Array.isArray(existing) && existing.length) {
-        const row = existing[0];
-        const patch: Record<string, unknown> = { metadata: { ...(row.metadata ?? {}), ...meta } };
+      // The same thing already in the KG: the same resource_type, and the same name key or URL key
+      // (homepage or repository; _shared/kg-write.ts). Never across types: a dataset and the tool
+      // that made it may share a name.
+      const all = await restAllC("resources?select=id,name,resource_type,external_url,metadata->>repoUrl") as ResourceRow[];
+      const hits = matchResources(all, { type: resource_type, name, url: a.url, repoUrl: a.repo_url });
+      if (hits.length > 1) {
+        throw new Error(`${hits.length} ${resource_type} records match "${name}": ${hits.map((h) => `${h.row.name} (id ${h.row.id}, by ${h.by.join(" and ")})`).join("; ")}. ` +
+          "Merge them first; nothing was written.");
+      }
+      if (hits.length === 1) {
+        const { row, by } = hits[0];
+        const [current] = await restC(`resources?id=eq.${row.id}&select=metadata`) as Array<{ metadata: Record<string, unknown> | null }>;
+        const patch: Record<string, unknown> = { metadata: { ...(current?.metadata ?? {}), ...meta } };
         if (a.url != null) patch.external_url = a.url;
         if (a.description != null) patch.description = a.description;
         const rows = await restC(`resources?id=eq.${row.id}`, {
@@ -749,16 +860,22 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
         if (!Array.isArray(rows) || !rows.length) {
           throw new Error(`"${name}" exists (id ${row.id}) but RLS did not let this account update it; nothing changed. Ask an admin to apply the edit.`);
         }
-        return text({ action: "updated", rows });
+        return text({ action: "already_in_kg", matched_by: by.join("+"), id: row.id,
+          ...(row.name !== name ? { name_in_kg: row.name } : {}), rows });
       }
       if (!("mcpStatus" in meta)) meta.mcpStatus = "not-started";
-      return text({ action: "inserted", rows: await restC("resources", {
+      const rows = await restC("resources", {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify({
           name, resource_type, description: a.description ?? null, external_url: a.url ?? null, metadata: meta,
         }),
-      }) });
+      });
+      const key = nameKey(name);
+      const namesakes = key ? all.filter((r) => r.resource_type !== resource_type && nameKey(r.name) === key) : [];
+      return text({ action: "inserted", rows, ...(namesakes.length ? {
+        note: `Also in the KG under another type: ${namesakes.map((r) => `${r.resource_type} "${r.name}" (id ${r.id})`).join(", ")}. If it is the same thing, retype one and merge them.`,
+      } : {}) });
     },
   });
 
