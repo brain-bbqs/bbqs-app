@@ -71,10 +71,10 @@ Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 
 | | Result |
 |---|---|
-| Competency questions that return rows on this export | **30 of 42** |
-| Those 30, asked as SPARQL through the server: same rows as the export queried directly | **30 of 30** |
-| Those 30, asked without SPARQL through the graph tools: same rows again | **30 of 30** |
-| The other 12 (7 need the full export, 5 find none in this export): no rows either way | **12 of 12** |
+| Competency questions that return rows on this export | **32 of 42** |
+| Those 32, asked as SPARQL through the server: same rows as the export queried directly | **32 of 32** |
+| Those 32, asked without SPARQL through the graph tools: same rows again | **32 of 32** |
+| The other 10 (3 need the full export, 7 find none in this export): no rows either way | **10 of 10** |
 | Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,689 cases) | **67%** (68% looking up to 8 links) |
 | The same for `get_neighbors`, which lists by distance alone | 50% (53% walking through hubs) |
 | Strengths equal to a slow second version of the rule, exactly | **578 of 578** starting nodes |
@@ -103,7 +103,7 @@ Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 | CQ15 | Which devices does each manufacturer make, by category? | 35 | same | same | from each device, its maker and its category |
 | CQ16 | Which software tools does the consortium provide, with their repositories? | 18 | same | same | list the software tools; read each one's repository |
 | CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 4 | same | same | list the funding calls; keep those still open |
-| CQ18 | Which jobs are posted, and by which institution? *(needs the full export)* | 0 | none | none | list the jobs; read each one's institution |
+| CQ18 | Which jobs are posted, and by which institution? | 6 | same | same | list the jobs; from each, its organization's name, or the institution it names if it has none |
 | CQ19 | Where did R34DA059723's title come from (source class and grade)? *(needs the full export)* | 0 | none | none | list the provenance records; keep the project's title; read the source's grade |
 | CQ20 | Which investigators are on more than one project, and which projects? | 7 | same | same | from each project, its people; keep those on more than one |
 | CQ21 | Which investigators have no ORCID recorded? | 134 | same | same | list the investigators; keep those with no ORCID |
@@ -120,9 +120,9 @@ Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 | CQ32 | How many members does each organization have? | 59 | same | same | from each organization, count the members one link away |
 | CQ33 | Which organizations have no members recorded? | 17 | same | same | list the organizations; keep those with no member |
 | CQ34 | Which organizations have investigators on more than one project? | 10 | same | same | from each organization, its members; from each member, their projects |
-| CQ35 | Which jobs does each institution advertise? *(needs the full export)* | 0 | none | none | list the jobs; group them by institution |
-| CQ36 | Which kinds of role are being advertised? *(needs the full export)* | 0 | none | none | list the jobs; count them by kind |
-| CQ37 | Who posted each job? *(needs the full export)* | 0 | none | none | list the jobs; read who posted each |
+| CQ35 | Which jobs does each institution advertise? | 4 | same | same | list the jobs; group them by organization, or by the institution named |
+| CQ36 | Which kinds of role are being advertised? *(none in this export)* | 0 | none | none | list the jobs; count them by kind |
+| CQ37 | Who posted each job? *(none in this export)* | 0 | none | none | list the jobs; from each, the person who posted it |
 | CQ38 | Which projects have no outputs recorded? | 12 | same | same | list the projects; keep those that produced nothing |
 | CQ39 | Which funding opportunities expire between 2026-10-14 and 2027-04-14? *(none in this export)* | 0 | none | none | list the funding calls; keep those expiring in the window |
 | CQ40 | How many values come from a source graded below 3, by source and table? *(needs the full export)* | 0 | none | none | list the provenance records; read each source's grade |

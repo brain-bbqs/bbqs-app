@@ -365,9 +365,19 @@ def cq17(c):
             for expires in c.values(call["id"], "expiration_date") if expires > "2026-09-29"]
 
 
+def _institutions(c, job_id: str) -> list:
+    """A job's institution as CQ18 and CQ35 read it, as (organization id or None, institution): the
+    name of each organization it is part_of_org, or, only when it is part of none, the institution
+    as the posting writes it (job_institution). A link to an id nothing describes has no name, and
+    still means the text is not read."""
+    if c.has(job_id, "part_of_org"):
+        return [(org["id"], name) for org in c.linked(job_id, "part_of_org", "out") for name in c.values(org["id"], "name")]
+    return [(None, cell(text)) for text in c.pointed(job_id, "job_institution")]
+
+
 def cq18(c):
-    return [[name, cell(institution)] for job in c.all_of("Job")
-            for name in c.values(job["id"], "name") for institution in c.pointed(job["id"], "job_institution")]
+    return [[title, institution] for job in c.all_of("Job") for title in c.values(job["id"], "name")
+            for _, institution in _institutions(c, job["id"])]
 
 
 def _local(c, node_id: str) -> str:
@@ -530,12 +540,12 @@ def cq34(c):
 
 
 def cq35(c):
-    titles = defaultdict(list)
+    titles = defaultdict(list)                  # by organization and name: two of one name stay two
     for job in c.all_of("Job"):
         for title in c.values(job["id"], "name"):
-            for institution in c.pointed(job["id"], "job_institution"):
-                titles[cell(institution)].append(title)
-    return [[institution, len(found), "; ".join(found)] for institution, found in titles.items()]
+            for place in _institutions(c, job["id"]):
+                titles[place].append(title)
+    return [[institution, len(found), "; ".join(found)] for (_, institution), found in titles.items()]
 
 
 def cq36(c):
@@ -547,8 +557,8 @@ def cq36(c):
 
 
 def cq37(c):
-    return [[title, cell(poster)] for job in c.all_of("Job") for title in c.values(job["id"], "name")
-            for poster in c.pointed(job["id"], "posted_by")]
+    return [[title, name] for job in c.all_of("Job") for title in c.values(job["id"], "name")
+            for person in c.linked(job["id"], "posted_by", "out") for name in c.values(person["id"], "name")]
 
 
 def cq38(c):
@@ -607,7 +617,7 @@ WALKS = {
     "CQ15": (cq15, "from each device, its maker and its category"),
     "CQ16": (cq16, "list the software tools; read each one's repository"),
     "CQ17": (cq17, "list the funding calls; keep those still open"),
-    "CQ18": (cq18, "list the jobs; read each one's institution"),
+    "CQ18": (cq18, "list the jobs; from each, its organization's name, or the institution it names if it has none"),
     "CQ19": (cq19, "list the provenance records; keep the project's title; read the source's grade"),
     "CQ20": (cq20, "from each project, its people; keep those on more than one"),
     "CQ21": (cq21, "list the investigators; keep those with no ORCID"),
@@ -624,9 +634,9 @@ WALKS = {
     "CQ32": (cq32, "from each organization, count the members one link away"),
     "CQ33": (cq33, "list the organizations; keep those with no member"),
     "CQ34": (cq34, "from each organization, its members; from each member, their projects"),
-    "CQ35": (cq35, "list the jobs; group them by institution"),
+    "CQ35": (cq35, "list the jobs; group them by organization, or by the institution named"),
     "CQ36": (cq36, "list the jobs; count them by kind"),
-    "CQ37": (cq37, "list the jobs; read who posted each"),
+    "CQ37": (cq37, "list the jobs; from each, the person who posted it"),
     "CQ38": (cq38, "list the projects; keep those that produced nothing"),
     "CQ39": (cq39, "list the funding calls; keep those expiring in the window"),
     "CQ40": (cq40, "list the provenance records; read each source's grade"),
@@ -710,7 +720,7 @@ def ask_questions(client: Client, kg: m.KG, source: str, show: str | None = None
                   access: str = "anon") -> dict:
     """Every question, three ways: the export queried directly (the reference), sparql_query over MCP,
     and the graph tools over MCP. `fresh` forgets, before each question, what earlier ones fetched.
-    `access` is what the export is: "anon" (the public one), or "full", which holds jobs and provenance."""
+    `access` is what the export is: "anon" (the public one), or "full", which also holds provenance."""
     questions, prologue = load_questions()
     ids = {iri: node.id for iri, node in kg.nodes.items() if iri.startswith(m.ID_NS)}
     plain = Graph().parse(source, format="turtle")            # the export itself, with no server in between
@@ -1022,7 +1032,7 @@ def main(argv=None) -> int:
     parser.add_argument("--only", choices=PARTS, action="append", help="Run only this part (may be repeated).")
     parser.add_argument("--show", metavar="ID", help="Print the rows of one question, e.g. CQ04, each way it was asked.")
     parser.add_argument("--access", choices=("anon", "full"), default="anon",
-                        help="What the export is: the public one (default) or a full one, with jobs and provenance.")
+                        help="What the export is: the public one (default) or a full one, with provenance too.")
     parser.add_argument("--json", metavar="PATH", help="Also write the results as JSON.")
     parser.add_argument("--markdown", action="store_true", help="Print the results as the README block.")
     parser.add_argument("--update", metavar="README", help="Rewrite the block between the benchmark markers in this file.")

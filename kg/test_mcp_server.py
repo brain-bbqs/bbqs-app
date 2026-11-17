@@ -2192,9 +2192,9 @@ class OverHttp(unittest.TestCase):
         self.assertTrue("error" in refused or refused["result"].get("isError"))
 
 
-# A whole graph in miniature in which EVERY competency question has an answer, the three the public
-# export cannot answer included (a job with its institution, a provenance record, a device category
-# on a project), so that each question's walk through the graph tools is checked against rows.
+# A whole graph in miniature in which EVERY competency question has an answer, those the committed
+# export has no rows for included (a job's kind and poster, a provenance record), so that each
+# question's walk through the graph tools is checked against rows.
 PREFIXES = """
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid: <https://brain-bbqs.org/id/> .
@@ -2240,9 +2240,9 @@ bid:model1 a bbqs:MLModel ; bbqs:name "Pose net" ; bbqs:evaluated_by bid:bench1 
 bid:bench1 a bbqs:Benchmark ; bbqs:name "Pose bench" ; bbqs:evaluates bid:model1 .
 bid:fo1 a bbqs:FundingOpportunity ; bbqs:name "Open call" ; bbqs:expiration_date "2027-01-15"^^xsd:date .
 bid:fo2 a bbqs:FundingOpportunity ; bbqs:name "Closed call" ; bbqs:expiration_date "2026-01-15"^^xsd:date .
-bid:job1 a bbqs:Job ; bbqs:name "Postdoc" ; bbqs:job_institution "TEST UNIVERSITY" ; bbqs:job_type "postdoc" ;
+bid:job1 a bbqs:Job ; bbqs:name "Postdoc" ; bbqs:part_of_org bid:org1 ; bbqs:job_type "postdoc" ;
     bbqs:posted_by bid:ann .
-bid:job2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "TEST UNIVERSITY" ; bbqs:job_type "staff" ;
+bid:job2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "OTHER COLLEGE" ; bbqs:job_type "staff" ;
     bbqs:posted_by bid:bo .
 bid:src1 a bbqs:SourceClass ; bbqs:name "RePORTER" ; bbqs:grade 2 .
 bid:src2 a bbqs:SourceClass ; bbqs:name "Self-report" ; bbqs:grade 4 .
@@ -2257,11 +2257,13 @@ bid:prov3 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "ds4" ; bbqs:prov_entity
 # (who is in each group, and on which projects): Ann on two projects and Bo on one in WG-Devices,
 # and Cy, on none, in WG-Analysis: 4. CQ31 (benchmarks per model): the one tie is recorded from both
 # ends, so 2. CQ40 (values from a source graded below 3): two records from the grade-2 source, with
-# and without a table; the third record's source is graded 4: 2.
+# and without a table; the third record's source is graded 4: 2. CQ35 (jobs per institution): the
+# postdoc at TEST UNIVERSITY, through its organization, and the technician at OTHER COLLEGE, which
+# no organization node stands for, so it is named as written: 2.
 MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06": 2, "CQ07": 1, "CQ08": 2, "CQ09": 1,
                   "CQ10": 2, "CQ11": 1, "CQ12": 1, "CQ13": 4, "CQ14": 1, "CQ15": 2, "CQ16": 1, "CQ17": 1, "CQ18": 2,
                   "CQ19": 1, "CQ20": 1, "CQ21": 2, "CQ22": 2, "CQ23": 4, "CQ24": 1, "CQ25": 2, "CQ26": 2, "CQ27": 1,
-                  "CQ28": 3, "CQ29": 2, "CQ30": 1, "CQ31": 2, "CQ32": 2, "CQ33": 1, "CQ34": 1, "CQ35": 1, "CQ36": 2,
+                  "CQ28": 3, "CQ29": 2, "CQ30": 1, "CQ31": 2, "CQ32": 2, "CQ33": 1, "CQ34": 1, "CQ35": 2, "CQ36": 2,
                   "CQ37": 2, "CQ38": 1, "CQ39": 1, "CQ40": 2, "CQ41": 3, "CQ42": 1}
 
 # Shapes an export could take and today's does not, each of which once gave a walk the wrong rows
@@ -2286,6 +2288,10 @@ MINIATURE_ROWS = {"CQ01": 3, "CQ02": 2, "CQ03": 1, "CQ04": 2, "CQ05": 1, "CQ06":
 #   - an ORCID iD that is itself described (so a node, not a value), and a device category whose
 #     address is not one of this graph's ids (bbqs:Microscope)
 #   - a repository and an institution that are nodes of the graph, not text (tool9, j5)
+#   - a job tied to its organization and naming an institution too (j6), tied to two (j7), or tied to
+#     an id nothing describes that two jobs point at (j8, j9): the text is read only with no tie
+#   - a job posted by a person with two names (j6), and by one with a name and one with none (j7);
+#     posted by a name (j1), by an id nothing describes (j2), or by one the server made a node of (j3)
 #   - dates on the first and last day of CQ39's window, on the day either side, and on CQ17's day
 AWKWARD = PREFIXES + """
 bid:q1 a bbqs:Project ; bbqs:grant_number "R34DA059723" ; bbqs:title "First" ; bbqs:mechanism "R34" ;
@@ -2340,6 +2346,11 @@ bid:j2 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" ; bbqs:j
 bid:j3 a bbqs:Job ; bbqs:name "Engineer" ; bbqs:job_type "staff" ; bbqs:posted_by bid:nobody1 .
 bid:j4 a bbqs:Job ; bbqs:name "Technician" ; bbqs:job_institution "ONE" .
 bid:j5 a bbqs:Job ; bbqs:name "Analyst" ; bbqs:job_institution bid:o1 .
+bid:j6 a bbqs:Job ; bbqs:name "Curator" ; bbqs:part_of_org bid:o1 ; bbqs:job_institution "Not read" ;
+    bbqs:posted_by bid:ann .
+bid:j7 a bbqs:Job ; bbqs:name "Fellow" ; bbqs:part_of_org bid:o2, bid:o3 ; bbqs:posted_by bid:bo, bid:cy .
+bid:j8 a bbqs:Job ; bbqs:name "Nurse" ; bbqs:part_of_org bid:gone6 ; bbqs:job_institution "EIGHT" .
+bid:j9 a bbqs:Job ; bbqs:name "Clerk" ; bbqs:part_of_org bid:gone6 .
 bid:tool9 a bbqs:SoftwareTool ; bbqs:name "Kit" ; bbqs:repo_url bid:o3 .
 bid:f1 a bbqs:FundingOpportunity ; bbqs:name "First day" ; bbqs:expiration_date "2026-10-14"^^xsd:date .
 bid:f2 a bbqs:FundingOpportunity ; bbqs:name "Last day" ; bbqs:expiration_date "2027-04-14"^^xsd:date .
@@ -2367,8 +2378,10 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #   CQ11   q6 names no species: 1 (q3 has no grant number).
 #   CQ13   the dataset q1 both funded and produced: 2.
 #   CQ16   Kit, whose repository is a node: 1.
-#   CQ18   one job under two titles, two called Technician, and one at the node ONE rather than the
-#          text "ONE": 5. CQ35 then groups the text and the node apart: 2.
+#   CQ18   by the text alone: one job under two titles, two called Technician, and one whose text is
+#          the node o1 rather than "ONE": 5. Through the tie: the curator at ONE (its own text not
+#          read), the fellow at TWO and at THREE; the nurse and the clerk are tied to an id with no
+#          name, so name none (and the nurse's text is not read): 3. So 8.
 #   CQ02   q1 and q4 are R34 with an amount (q2 has none): 100.10 + 200.20 = 300.3.
 #   CQ07   Bo's iD, a node of its own: 1. CQ21 then has Ann, under her two names, and Di: 3.
 #   CQ15   the scope whose category nothing describes, and Scope 2, filed under bbqs:Microscope: 2.
@@ -2382,21 +2395,24 @@ bid:v5 a bbqs:ProvenanceRecord ; bbqs:prov_entity_id "d2" ; bbqs:prov_entity_col
 #   CQ24   Ann holds three kinds of role, Bo two (co_pi and MPI): 3.
 #   CQ25   m1 fits by its name, its common name and an alias, m2 by its common name: q1, 4 times.
 #   CQ26   three names; "Mus spretus" is two species, both studied by q4, which is one project: 3.
-#   CQ35   ONE advertises four titles (j1 under two, and the two Technicians): 1 row, counting 4.
+#   CQ35   the text "ONE" advertises four titles (j1 under two, and the two Technicians); the text that
+#          is the node o1, one; the organization ONE, one (the curator: a name written as text is not
+#          taken for the node); TWO and THREE, one each: 5 rows.
 #   CQ30   d1 has a sourced record; d2's record names no source: 1.
 #   CQ32   ONE has Ann and somebody not exported, TWO that somebody, THREE nobody, FOUR somebody
 #          else not exported: 4 rows.
-#   CQ37   one job under two titles, posted by a name; one by an id nothing describes; one by an id
-#          the server made a node of: 4.
+#   CQ37   the poster is read by name, through the link: the curator, posted by Ann under her two
+#          names, 2; the fellow, by Bo, and by Cy, who has no name, 1. A name in place of a link (j1),
+#          an id nothing describes (j2) and one the server made a node of (j3) name nobody: 3.
 #   CQ38   q2's one output was not exported, but it has one; q3 has no grant number; q4 and q6: 2.
 #   CQ41   q1: three datasets, two of them not exported, each with Ann (contact_pi) under two names:
 #          6. q2: one dataset, under two grant numbers, with Ann (co_pi) under two names and Bo (MPI): 6.
 #          So 12.
 AWKWARD_ROWS = {"CQ01": 5, "CQ02": 1, "CQ03": 1, "CQ04": 4, "CQ05": 4, "CQ06": 2, "CQ07": 1, "CQ08": 3, "CQ09": 2, "CQ11": 1, "CQ13": 2,
                 "CQ15": 2, "CQ16": 1, "CQ17": 4,
-                "CQ18": 5, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
+                "CQ18": 8, "CQ19": 5, "CQ20": 3, "CQ21": 3, "CQ22": 3, "CQ23": 13, "CQ24": 3, "CQ25": 4, "CQ26": 3,
                 "CQ27": 2,   # q2's unresolved "marmoset", once per grant number, beside its (dangling) linked species
-                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 2, "CQ36": 2, "CQ37": 4, "CQ38": 2,
+                "CQ28": 4, "CQ30": 1, "CQ31": 2, "CQ32": 4, "CQ33": 1, "CQ34": 1, "CQ35": 5, "CQ36": 2, "CQ37": 3, "CQ38": 2,
                 "CQ39": 2, "CQ40": 2, "CQ41": 12, "CQ42": 1}
 
 
@@ -2468,17 +2484,20 @@ class TheBenchmark(unittest.TestCase):
         for q in asked["questions"]:
             status.setdefault(q["status"], []).append(q["id"])
         self.assertEqual(status, {
-            "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23,
-                                                25, 26, 28, 29, 32, 33, 34, 38, 41)],
-            "needs the full export": ["CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40"],
-            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ39", "CQ42"]})
+            "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22,
+                                                23, 25, 26, 28, 29, 32, 33, 34, 35, 38, 41)],
+            "needs the full export": ["CQ19", "CQ30", "CQ40"],
+            # CQ36 and CQ37 are anon questions with no rows here only because the committed export
+            # (2026-11-17) predates the exporter that writes job_type (public_jobs) and posted_by
+            # (public_job_posters). A fresh export moves them to "answered": update this then.
+            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ36", "CQ37", "CQ39", "CQ42"]})
         readme = (HERE / "README.md").read_text(encoding="utf8")
         for name in status["needs the full export"] + status["none in this export"] + status.get("not modelled", []):
             self.assertIn(name, readme)
         self.assertEqual(asked["answered"], asked["answered_adopted"])      # every question is one the KG is scored on
 
     def test_every_question_can_be_walked_when_it_has_an_answer(self):
-        # On the public export 13 of the questions return nothing either way, which checks nothing.
+        # On the public export 10 of the questions return nothing either way, which checks nothing.
         # Here all 42 have rows, so every walk through the graph tools is held against real ones.
         asked = self.ask(self.graph(MINIATURE))
         self.assertEqual({q["id"]: q["rows"] for q in asked["questions"]}, MINIATURE_ROWS)
@@ -2496,9 +2515,10 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(self.differing(asked), [])
         # the rows themselves, for the walks that have to tell a node from a value
         client = self.client(self.graph(AWKWARD))
-        self.assertEqual(sorted(bench.WALKS["CQ37"][0](client)),
-                         [["Engineer", "bid:nobody1"], ["Postdoc", "Lab manager"], ["Postdoctoral fellow", "Lab manager"],
-                          ["Technician", "https://brain-bbqs.org/id/nobody2"]])
+        self.assertEqual(sorted(bench.WALKS["CQ37"][0](client)), [["Curator", "A. Ann"], ["Curator", "Ann A"], ["Fellow", "Bo B"]])
+        self.assertEqual(sorted(bench.WALKS["CQ18"][0](client)),
+                         [["Analyst", "bid:o1"], ["Curator", "ONE"], ["Fellow", "THREE"], ["Fellow", "TWO"], ["Postdoc", "ONE"],
+                          ["Postdoctoral fellow", "ONE"], ["Technician", "ONE"], ["Technician", "ONE"]])
         self.assertEqual(sorted(bench.WALKS["CQ15"][0](client)), [["Lens Co", "Scope", "https://brain-bbqs.org/id/nocat"],
                                                                   ["Lens Co", "Scope 2", "bbqs:Microscope"]])
         self.assertEqual(bench.WALKS["CQ07"][0](client), [["Bo B", "<https://orcid.org/0000-0002-0000-0002>"]])
@@ -2512,7 +2532,8 @@ class TheBenchmark(unittest.TestCase):
         self.assertEqual(bench.WALKS["CQ13"][0](client), [["R34DA059723", "D one"]] * 2)
         self.assertEqual(sorted(bench.WALKS["CQ26"][0](client)), [["Mus musculus", 1], ["Mus musculus domesticus", 1],
                                                                   ["Mus spretus", 1]])
-        self.assertEqual(sorted(row[:2] for row in bench.WALKS["CQ35"][0](client)), [["ONE", 4], ["bid:o1", 1]])
+        self.assertEqual(sorted(row[:2] for row in bench.WALKS["CQ35"][0](client)),     # the node ONE apart from the text
+                         [["ONE", 1], ["ONE", 4], ["THREE", 1], ["TWO", 1], ["bid:o1", 1]])
         every = "R34DA059723, U01DA000002, U01DA000002-S1"                 # q2 under two, q6 under one of them
         self.assertEqual(sorted(bench.WALKS["CQ20"][0](client)), [["A. Ann", every], ["Ann A", every], ["Bo B", every]])
 
@@ -2626,10 +2647,9 @@ class TheBenchmark(unittest.TestCase):
         source = self.graph(PREFIXES + 'bid:only a bbqs:Project ; bbqs:name "Alone" .\n')
         full = bench.ask_questions(self.client(source), m.GraphSource(source, 0).current(), source, fresh=False, access="full")
         anon = self.ask(source)
-        self.assertEqual((anon["need_the_full_export"], full["need_the_full_export"]), (7, 0))
-        self.assertEqual(full["none_in_this_export"], anon["none_in_this_export"] + 7)
-        self.assertEqual({q["status"] for q in full["questions"]
-                          if q["id"] in ("CQ18", "CQ19", "CQ30", "CQ35", "CQ36", "CQ37", "CQ40")}, {"none in this export"})
+        self.assertEqual((anon["need_the_full_export"], full["need_the_full_export"]), (3, 0))   # the provenance ones
+        self.assertEqual(full["none_in_this_export"], anon["none_in_this_export"] + 3)
+        self.assertEqual({q["status"] for q in full["questions"] if q["id"] in ("CQ19", "CQ30", "CQ40")}, {"none in this export"})
 
     def test_the_ranking_measure_on_a_graph_worked_by_hand(self):
         # S is linked to A01..A11, X and Q; Q to X. Of its 14 ties, the 11 to an A leave nothing to find

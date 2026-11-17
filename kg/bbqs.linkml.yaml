@@ -467,7 +467,7 @@ slots:
     slot_uri: bbqs:resourceType
     range: resource_type_enum
     description: The rdf:type discriminator, from resources.resource_type.
-  part_of_org: { slot_uri: schema:parentOrganization, range: ResearchOrganization, description: "resources.organization_id." }
+  part_of_org: { slot_uri: schema:parentOrganization, range: ResearchOrganization, description: "resources.organization_id, or the organization_id of a project's or job's own row (projects, public_jobs). For a job, this link is its institution." }
   metadata:    { slot_uri: bbqs:metadata, description: "resources.metadata JSON overflow — un-promoted fields." }
   created_at:  { slot_uri: schema:dateCreated, range: datetime }
   updated_at:  { slot_uri: schema:dateModified, range: datetime }
@@ -587,8 +587,8 @@ slots:
   link:        { slot_uri: schema:url, range: uriorcurie }
   link_text:   { description: "Display text for `link`, when the announcement points off-site." }
   is_external_link: { range: boolean }
-  posted_by:   { slot_uri: schema:author, range: Investigator }
-  job_institution: { slot_uri: schema:hiringOrganization }
+  posted_by:   { slot_uri: schema:author, range: Investigator, description: "Who posted it, as a link to their Investigator node (for a job: the public_job_posters view, 20261117170000). Never the poster's auth user id (jobs.posted_by) or email." }
+  job_institution: { slot_uri: schema:hiringOrganization, description: "The institution a job posting names, as written (jobs.institution), for a job with no organization node to link. A job whose organization resolves has the part_of_org link instead, and the name is not repeated as text (link, do not copy). A curator clears one by setting the job's organization." }
   job_type:    { slot_uri: schema:employmentType }
   department:  { description: "Posting lab's department, as free text (jobs.department)." }
   location:    { slot_uri: schema:jobLocation }
@@ -596,8 +596,8 @@ slots:
   # P01 (OOPS): Event must not reuse Job's `location` (schema:jobLocation) for a venue.
   venue:       { slot_uri: schema:location, description: "Physical or virtual venue for the workshop/convening." }
   application_url: { slot_uri: schema:url, range: uriorcurie }
-  contact_name: { description: "Name of the person to contact about the posting." }
-  contact_email: { description: "Email address to contact about the posting." }
+  contact_name: { description: "Name of the person to contact about the posting. Restricted: public_jobs leaves it out (20260515233153), so the public export never carries it." }
+  contact_email: { description: "Email address to contact about the posting. PII, restricted the same way: never in the public export." }
   expires_at:  { slot_uri: schema:validThrough, range: datetime }
   is_active:   { range: boolean }
   fon:         { slot_uri: schema:identifier, description: "Funding Opportunity Number." }

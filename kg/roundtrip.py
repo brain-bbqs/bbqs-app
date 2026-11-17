@@ -38,7 +38,7 @@ NODE_OF = {
 }
 TABLES = ["resources", "grants", "projects", "grant_investigators", "investigators_public", "organizations",
           "publications", "dandisets", "software_tools", "funding_opportunities", "announcements",
-          "species", "device_models", "device_categories", "device_manufacturers",
+          "public_jobs", "species", "device_models", "device_categories", "device_manufacturers",
           "investigator_organizations", "project_publications", "grant_dandisets"]
 
 

@@ -9,8 +9,9 @@
 # Every bbqs: term is a LinkML slot/class name, so an empty answer points at the exporter (the slot
 # exists but isn't emitted) and an unmodeled one points at the schema (the slot doesn't exist).
 # `access` is the weakest Supabase key whose reads can answer the question -- measured against the
-# live tables (e.g. grant_investigators and investigators_public are anon-readable; field_provenance
-# and jobs are not), never assumed.
+# live tables (e.g. grant_investigators, investigators_public, and the public_jobs and
+# public_job_posters views are anon-readable; field_provenance and the jobs table are not), never
+# assumed.
 #
 # Questions are pinned to real entities (R34DA059723, House Mouse, WG-Devices) so a result is
 # checkable against the site, not just "non-empty".
@@ -208,10 +209,16 @@ questions:
   - id: CQ18
     area: announcements
     question: Which jobs are posted, and by which institution?
-    access: full  # the jobs table is RLS-hidden; anon sees only the resources row (name)
+    # The institution is the job's part_of_org link (resources / public_jobs .organization_id), read as
+    # that organization's name. job_institution, the institution as the posting writes it, is only
+    # exported for a job with no such link (link, don't copy), so it is read only then.
+    access: anon
     sparql: |
       SELECT ?title ?institution WHERE {
-        ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .
+        ?job a bbqs:Job ; bbqs:name ?title .
+        { ?job bbqs:part_of_org ?org . ?org bbqs:name ?institution }
+        UNION
+        { ?job bbqs:job_institution ?institution . FILTER NOT EXISTS { ?job bbqs:part_of_org ?linked } }
       }
 
   # ── Provenance ──────────────────────────────────────────────────────────────
@@ -405,16 +412,21 @@ questions:
   - id: CQ35
     area: announcements
     question: Which jobs does each institution advertise?
-    access: full
+    # The institution as CQ18 reads it. Grouped by the organization node as well as its name, so two
+    # organizations of one name stay two, and a name written as text is not taken for the node.
+    access: anon
     sparql: |
       SELECT ?institution (COUNT(?job) AS ?jobs) (GROUP_CONCAT(?title; separator="; ") AS ?titles) WHERE {
-        ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .
-      } GROUP BY ?institution ORDER BY DESC(?jobs)
+        ?job a bbqs:Job ; bbqs:name ?title .
+        { ?job bbqs:part_of_org ?org . ?org bbqs:name ?institution }
+        UNION
+        { ?job bbqs:job_institution ?institution . FILTER NOT EXISTS { ?job bbqs:part_of_org ?linked } }
+      } GROUP BY ?org ?institution ORDER BY DESC(?jobs)
 
   - id: CQ36
     area: announcements
     question: Which kinds of role are being advertised?
-    access: full
+    access: anon  # job_type, from the public_jobs view
     sparql: |
       SELECT ?job_type (COUNT(?job) AS ?postings) WHERE {
         ?job a bbqs:Job ; bbqs:job_type ?job_type .
@@ -423,9 +435,15 @@ questions:
   - id: CQ37
     area: announcements
     question: Who posted each job?
-    access: full
+    # posted_by is a link to the poster's Investigator node, read as their name. Its anon source is
+    # the public_job_posters view (20261117170000), which pairs spine rows and nothing else:
+    # jobs.posted_by (an auth user id) and the contact fields stay hidden (20260515233153).
+    access: anon
     sparql: |
-      SELECT ?title ?poster WHERE { ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?poster }
+      SELECT ?title ?poster WHERE {
+        ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?person .
+        ?person bbqs:name ?poster .
+      }
 
   # ── Data quality and diagnostics ────────────────────────────────────────────
   - id: CQ38

@@ -67,6 +67,7 @@ class BBQSKnowledgeGraph:
         self.graph = Graph()
         self.graph.bind("bbqs", BBQS)
         self.graph.bind("bid", BID)
+        self.unreadable = {}       # table -> why fetch() got no rows (HTTP status, PostgREST code)
 
     @staticmethod
     def _client_default(js_const):
@@ -79,7 +80,11 @@ class BBQSKnowledgeGraph:
         return m.group(1) if m else None
 
     def fetch(self, table, select="*"):
-        """All rows of a table via PostgREST (tables here are < 1000 rows, so one request)."""
+        """All rows of a table via PostgREST (tables here are < 1000 rows, so one request).
+
+        A table or view this key may not read, or that does not exist (a migration not applied yet),
+        gives no rows: the export goes on without it, and the reason is printed and kept in
+        self.unreadable, e.g. "HTTP 404 42P01" (missing) or "HTTP 401 42501" (refused)."""
         req = urllib.request.Request(
             f"{self.url}/rest/v1/{table}?select={select}",
             headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
@@ -88,7 +93,12 @@ class BBQSKnowledgeGraph:
             with urllib.request.urlopen(req, timeout=60) as r:
                 return json.loads(r.read() or "[]")
         except urllib.error.HTTPError as e:
-            print(f"  ! {table}: HTTP {e.code} (RLS hidden or missing)", file=sys.stderr)
+            try:                                   # PostgREST names the cause in the body: 42P01, PGRST205, 42501
+                code = json.loads(e.read() or b"{}").get("code") or ""
+            except (AttributeError, OSError, TypeError, ValueError):
+                code = ""
+            self.unreadable[table] = f"HTTP {e.code}" + (f" {code}" if code else "")
+            print(f"  ! {table}: {self.unreadable[table]} (RLS hidden or missing)", file=sys.stderr)
             return []
 
     @staticmethod
@@ -108,6 +118,15 @@ class BBQSKnowledgeGraph:
         """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds."""
         m = re.search(r"[A-Z][A-Z0-9]{2}[A-Z]{2}\d{6}", str(value or "").upper())
         return m.group(0) if m else None
+
+    @staticmethod
+    def timestamp(value):
+        """A timestamptz as PostgREST writes it ('2026-12-31T23:59:59+00:00') -> an xsd:dateTime literal.
+        Anything else -> None: not written, rather than written as a literal of the wrong type."""
+        text = str(value or "").strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?", text):
+            return Literal(text, datatype=XSD.dateTime)
+        return None
 
     def add(self, subj, pred, value, cast=str, datatype=None):
         if value is not None and value != "":
@@ -134,6 +153,7 @@ class BBQSKnowledgeGraph:
         # resource_id, so every role holder resolves either way.
         inv_node = {**id_map("investigators_public"), **id_map("investigators")}
         grant_node, gn_node, cat_node, wg_node, proj_node, pub_node = {}, {}, {}, {}, {}, {}
+        spine_class = {}                             # spine node -> its class, to attach detail rows by type
 
         # ---- 1. Node spine: one node per resources row, typed by resource_type ----
         skipped = collections.Counter()
@@ -143,6 +163,7 @@ class BBQSKnowledgeGraph:
                 skipped[r["resource_type"]] += 1
                 continue
             n = BID[r["id"]]
+            spine_class[n] = cls
             g.add((n, RDF.type, BBQS[cls]))
             if cls == "WorkingGroup" and r.get("name"):
                 wg_node[r["name"].strip().lower()] = n
@@ -351,6 +372,37 @@ class BBQSKnowledgeGraph:
             for code in fo.get("eligible_activity_codes") or []:
                 self.add(n, "eligible_activity_codes", code)
 
+        # Jobs: what the job board shows anyone, from the public_jobs view (the jobs table itself is not
+        # anon-readable; its contact fields and posted_by are hidden on purpose, 20260515233153, and
+        # are never read here). Each row goes onto its Job spine node; a row with none is skipped.
+        # Link, don't copy: the institution is the part_of_org link wherever an organization node
+        # resolves (the spine row's, or the job row's own organization_id), and the text as written
+        # (job_institution) only for a job with no such link.
+        job_rows, jobs_unnoded, bad_expiry = [], 0, 0
+        for jb in self.fetch("public_jobs"):
+            n = BID[jb["resource_id"]] if jb.get("resource_id") else None
+            if spine_class.get(n) != "Job":
+                jobs_unnoded += 1
+                continue
+            job_rows.append((n, jb))
+            for col in ("job_type", "location", "department"):
+                self.add(n, col, jb.get(col))
+            self.add(n, "application_url", jb.get("application_url"), datatype=XSD.anyURI)
+            expires = self.timestamp(jb.get("expires_at"))
+            if expires is not None:
+                g.add((n, BBQS["expires_at"], expires))
+            elif jb.get("expires_at"):
+                bad_expiry += 1
+            if jb.get("is_active") is not None:
+                g.add((n, BBQS["is_active"], Literal(bool(jb["is_active"]))))
+            if jb.get("organization_id") in org_node:
+                g.add((n, BBQS["part_of_org"], org_node[jb["organization_id"]]))
+        jobs_as_text = set()
+        for n, jb in job_rows:                       # after every row's link, so row order cannot matter
+            if (n, BBQS["part_of_org"], None) not in g and str(jb.get("institution") or "").strip():
+                self.add(n, "job_institution", jb["institution"])
+                jobs_as_text.add(n)
+
         for o in self.fetch("organizations"):        # name/description already come from the spine row
             rid = o.get("resource_id")
             if rid:
@@ -398,6 +450,16 @@ class BBQSKnowledgeGraph:
             proj, ds = grant_node.get(gd.get("grant_id")), dandi_node.get(gd.get("dandiset_id"))
             if proj is not None and ds is not None:
                 g.add((proj, BBQS["funded_datasets"], ds))
+        # Who posted each job: public_job_posters (20261117170000) pairs a job's spine row with its
+        # poster's investigator spine row and holds nothing else; jobs.posted_by, an auth user id, stays
+        # hidden. Written only as a link between a Job node and an Investigator node.
+        posted = set()
+        for jp in self.fetch("public_job_posters"):
+            job = BID[jp["job_resource_id"]] if jp.get("job_resource_id") else None
+            person = BID[jp["poster_resource_id"]] if jp.get("poster_resource_id") else None
+            if spine_class.get(job) == "Job" and spine_class.get(person) == "Investigator":
+                g.add((job, BBQS["posted_by"], person))
+                posted.add((job, person))
 
         # ---- 4. Reified per-project role (grant_investigators) ----
         roles = 0
@@ -423,6 +485,15 @@ class BBQSKnowledgeGraph:
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         print(f"ProjectRole edges: {roles}")
         print(f"uses_device_category edges: {uses}")
+        print(f"Job details (public_jobs): {len(job_rows)} rows on a Job node"
+              + (f", {jobs_unnoded} with no Job node (skipped)" if jobs_unnoded else "")
+              + f"; institution kept as text for {len(jobs_as_text)} jobs (no organization node to link)"
+              + (f"; {bad_expiry} expires_at not a timestamp (not written)" if bad_expiry else ""))
+        print(f"posted_by links (public_job_posters): {len(posted)}")
+        for table, lost in (("public_jobs", "job details (kind, place, expiry, link, institution text)"),
+                            ("public_job_posters", "posted_by")):
+            if table in self.unreadable:
+                print(f"  {table} not readable ({self.unreadable[table]}): no {lost} in this export")
         if skipped:
             print("Skipped (deprecated/unknown resource_type, not noded): " +
                   ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())))

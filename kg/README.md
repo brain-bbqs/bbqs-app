@@ -123,6 +123,7 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `bbqs.linkml.yaml` | **Authoring source of truth.** LinkML vocabulary → generates the OWL TBox and structural SHACL (no JSON-LD context generated yet). |
 | `bbqs_kg.py` | `BBQSKnowledgeGraph` — one class wrapping the exporter, validator and reasoner as methods (`export()`, `validate()`, `reason()`, `run()`), taking/returning `pathlib.Path`. `export.py`/`validate.py`/`reason.py`/`main.py` are thin `click` CLIs over it (each also takes `--help`). |
 | `export.py` | Exporter CLI: Supabase `resources` spine → instance TTL (`export/bbqs.ttl`, tracked; commit anon exports only). |
+| `test_exporter.py` | The exporter's tests, against a stand-in for Supabase's REST API (no network): jobs from `public_jobs`, posters from `public_job_posters`, the institution rule, nothing private written, a missing or refused view skipped. |
 | `requirements.txt` / `requirements-generate.txt` | Pinned deps: the harness (export, validate, quality) / plus linkml for the CI drift check. |
 | `roundtrip.py` | Round trip: how much of the database a (fresh) export carries, cell by cell → `export/roundtrip.json` (see [Round trip](#round-trip-the-graph-must-be-able-to-rebuild-the-database)). |
 | `ci_check.py` | The CI gate: fixtures, export vs `quality_baseline.json`, generated-artifact drift (see [CI gate](#ci-gate)). |
@@ -160,9 +161,11 @@ When a value names another node, the export writes the link and not the name aga
 that node, and a second copy would only drift from it. A project's species is the `studies_species`
 link to the Species node, not also its name as text. Text is written only when there is nothing to
 link to yet, in a slot that says so (`studies_species_unresolved`); a curator clears it by adding the
-node or an alias, and the next export turns it into a link. A field that is the record's own data
-stays text: a paper's printed author list, a species' common name. Settled 2026-11-17 on Tek's
-review: a graph has to pick one way and keep to it.
+node or an alias, and the next export turns it into a link. A job's institution is the same: the
+`part_of_org` link to its organization, and the institution as the posting writes it
+(`job_institution`) only for a job no organization node stands for. A field that is the record's
+own data stays text: a paper's printed author list, a species' common name. Settled 2026-11-17 on
+Tek's review: a graph has to pick one way and keep to it.
 
 The same reasoning applies to duplicates: a graph built from a database inherits its duplicate rows,
 and cleaning them gets harder as the graph grows. So `quality.py` counts groups of same-class nodes
@@ -323,7 +326,7 @@ shows up after `dev` → `main`.
 | Measure | Result |
 |---|---|
 | Structure | 758 nodes, 1,046 links. **76 isolated (10%)**, in 104 connected pieces (largest 572). Links: `member_of_group` 268, `members` 165, `on_project` 128, `uses_device_category` 127, `held_by` 126, `produced` 89, `part_of_org` 36, `device_category` 35, `manufacturer` 35, `studies_species` 32, `funded_datasets` 5. On 2026-11-04 it was 189 of 808 isolated (23%); on 2026-09-30, 453 of 693 (65%), with only the last four kinds. |
-| Competency questions | **32 of 42 answered** as the KG gate counts: 30 return rows and 2 "which ... has no ..." questions (CQ27, CQ42) find none missing. 7 need what anon can't read (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40); CQ24, CQ31 and CQ39 find nothing in this export. |
+| Competency questions | **34 of 42 answered** as the KG gate counts: 32 return rows and 2 "which ... has no ..." questions (CQ27, CQ42) find none missing. 3 need what anon can't read, provenance (CQ19, CQ30, CQ40); CQ24, CQ31 and CQ39 find nothing in this export, and CQ36 and CQ37 nothing yet (see [Jobs](#jobs)). Scored with the job questions as they have read since 2026-11-17; the export is the same. |
 | Shape coverage | **12 of 16 shapes have data to check** (was 7). The other 4 need what anon can't read: `email` (#15) and provenance (#12, #18, #19). |
 | Possible duplicates | **0** (14 on 2026-11-04, all removed by `20261116150000_link_isolated_nodes`). 5 preprint + published pairs remain, to be linked as versions. |
 | Violations | 0. Plus 147 warnings from #17 (author ORCIDs outside BBQS), which are reported but don't fail the gate. |
@@ -349,6 +352,23 @@ the exporter writes from that view. The export of 2026-11-17 is the first to car
 and CQ14 has rows. The exporter also writes the rest of what the device catalog declares: a model's
 aliases, output signals, price tier, regulatory class and product, manual and SDK links; a
 category's typical use cases and schema.org type; a maker's country.
+
+#### Jobs
+
+The four job questions (CQ18, CQ35, CQ36, CQ37) were marked full-access until 2026-11-17, as if only
+the `jobs` table, which anon cannot read, held what they ask, and they returned nothing. The job
+board shows anyone the `public_jobs` view: every column but the contact fields and `posted_by`,
+which 20260515233153 hid. The exporter reads that view now. Each row's kind (`job_type`), place,
+department, expiry, application link and whether it is active go onto its Job node. Its
+institution is the `part_of_org` link, from the job's spine row or its own `organization_id`; the
+institution as written goes in `job_institution` only for a job with no organization to link (see
+the [modelling rule](#modelling-rule-link-dont-copy)). Who posted it comes from
+`public_job_posters` (migration `20261117170000`, applied by hand), which pairs the job's spine row
+with the poster's investigator spine row and holds nothing else; the exporter writes it as a
+`posted_by` link to the Investigator node. Contact fields are never read. Either view missing or
+refused leaves its facts out, with a note, and the export goes on. So all four are anon questions.
+CQ18 and CQ35 already have rows on the committed export (6 and 4), through `part_of_org`; CQ36 and
+CQ37 get theirs from the next export, CQ37 once the migration is applied.
 
 ### Round trip: the graph must be able to rebuild the database
 
@@ -693,14 +713,15 @@ parts of a cell that joins several. CQ17 and CQ39 compare dates as ISO text, whi
 declare; one the export queried directly refuses (text where a sum needs a number, say) is shown
 apart, as could not be asked, and fails the run.
 
-On the public export 13 of the 42 return no rows, for three reasons. Seven ask about jobs or
-provenance, which only a full-access export carries (CQ18, CQ19, CQ30, CQ35, CQ36, CQ37, CQ40). One
-asks for a link the committed export predates (CQ14, `uses_device_category`). Five are understood
-and have nothing to list today: nobody holds two kinds of role (CQ24), no species claim is left unresolved (CQ27), no
-model has a benchmark linked (CQ31), no funding call expires in CQ39's window, and every working
-group has a member with a role (CQ42). A question of the form "which X has no Y" (CQ21, CQ27,
-CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in a graph still being linked is
-not the same as having none.
+On the public export 10 of the 42 return no rows, for three reasons. Three ask about provenance,
+which only a full-access export carries (CQ19, CQ30, CQ40). Two ask for what the committed export
+predates: a job's kind (CQ36, `job_type`) and who posted it (CQ37, `posted_by`), which the exporter
+writes from `public_jobs` and `public_job_posters` since 2026-11-17 (see [Jobs](#jobs)). Five are
+understood and have nothing to list today: nobody holds two kinds of role (CQ24), no species claim
+is left unresolved (CQ27), no model has a benchmark linked (CQ31), no funding call expires in
+CQ39's window, and every working group has a member with a role (CQ42). A question of the form
+"which X has no Y" (CQ21, CQ27, CQ30, CQ33, CQ38, CQ42) lists every X with no Y *recorded*, which in
+a graph still being linked is not the same as having none.
 
 A walk without SPARQL sees the graph as the server shows it, which differs from the file where the
 view leaves something out (above): a roster record it could not fold or a link to one, a second
@@ -715,6 +736,7 @@ still asked.
 ```bash
 pip install -r kg/requirements.txt -r kg/requirements-mcp.txt
 python kg/test_mcp_server.py
+python kg/test_exporter.py           # the exporter's own; needs kg/requirements.txt only
 ```
 
 The KG gate runs them on every PR that touches `kg/`. They cover a hand-built graph whose answers
