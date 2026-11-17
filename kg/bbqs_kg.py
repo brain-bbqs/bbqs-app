@@ -48,6 +48,25 @@ TYPE_CLASS = {
     "working_group": "WorkingGroup", "event": "Event", "standard": "Standard",
 }
 
+# The columns anon may read of the objects whose anon access is column by column (migration
+# 20261117190000_hide_private_columns_from_anon). PostgREST runs select=* as SELECT *, which needs
+# every column, so anon is refused it on these: fetch() asks for these columns instead. None is a
+# private column (auth user id, e-mail address, review note); tests/guards/anon-private-columns
+# checks that against the migration, and test_exporter.py serves these objects the way PostgREST
+# does after it. Every column here exists live (types.ts), so the lists work before the migration too.
+PUBLIC_COLUMNS = {
+    "resources": "id,name,resource_type,description,external_url,metadata,organization_id,created_at,updated_at",
+    "projects": "id,grant_number,grant_id,organization_id,resource_id,metadata,metadata_completeness,keywords,"
+                "study_species,study_human,website,onboarding_status,created_at,updated_at",
+    "investigators_public": "id,name,orcid,profile_url,role,working_groups,research_areas,skills,resource_id,"
+                            "scholar_id,created_at,updated_at,onboarded",
+    "dandisets": "id,resource_id,instance,dandiset_id,name,description,contact_name,file_count,size_bytes,"
+                 "license,access,species,award_numbers,draft_url,api_url,neurosift_url,last_synced_at,"
+                 "created_at,updated_at",
+    "announcements": "id,title,content,link,link_text,is_external_link,organization_id,resource_id,"
+                     "created_at,updated_at",
+}
+
 
 def _shown(path) -> str:
     """A path for log lines, relative to kg/ when it can be (relpath fails across Windows drives)."""
@@ -89,9 +108,13 @@ class BBQSKnowledgeGraph:
     def fetch(self, table, select="*"):
         """All rows of a table via PostgREST (tables here are < 1000 rows, so one request).
 
+        "*" means every column anon may read: PUBLIC_COLUMNS for an object anon reads column by column.
+
         A table or view this key may not read, or that does not exist (a migration not applied yet),
         gives no rows: the export goes on without it, and the reason is printed and kept in
         self.unreadable, e.g. "HTTP 404 42P01" (missing) or "HTTP 401 42501" (refused)."""
+        if select == "*":
+            select = PUBLIC_COLUMNS.get(table, "*")
         req = urllib.request.Request(
             f"{self.url}/rest/v1/{table}?select={select}",
             headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},

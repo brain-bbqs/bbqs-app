@@ -23,9 +23,11 @@ export function EmberDandisetsPanel({ grantId, canSync = false }: { grantId: str
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["ember-dandisets", grantId],
     queryFn: async () => {
+      // Named columns, never dandisets(*): a visitor may not read raw (EMBER's payload, contributor
+      // e-mail addresses in it) or the curator's hide decision (20261117190000).
       const { data, error } = await supabase
         .from("grant_dandisets")
-        .select("matched_award, dandiset:dandisets(*)")
+        .select("matched_award, dandiset:dandisets(id, dandiset_id, name, contact_name, file_count, size_bytes, species, draft_url, neurosift_url)")
         .eq("grant_id", grantId);
       if (error) throw error;
       return data || [];

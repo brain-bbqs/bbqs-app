@@ -83,9 +83,11 @@ export function GrantSummary({ id }: { id: string }) {
         : { data: [] };
 
       // Get project metadata
+      // Named columns: a visitor may not read last_edited_by or the questionnaire attribution
+      // (20261117190000), and select("*") asks for them.
       const { data: project } = await supabase
         .from("projects")
-        .select("*")
+        .select("id, grant_number, grant_id, organization_id, resource_id, metadata, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at")
         .eq("grant_number", grant.grant_number)
         .maybeSingle();
 

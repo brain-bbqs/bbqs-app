@@ -387,9 +387,11 @@ export function InvestigatorSummary({ id }: { id: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["entity-investigator", id],
     queryFn: async () => {
+      // Named public columns: a visitor may not read user_id or pending_role (20261117190000), and
+      // select("*") asks for both. Ownership is read from the base table (useInvestigatorOwnership).
       const { data: inv, error } = await supabase
         .from("investigators_public" as any)
-        .select("*")
+        .select("id, name, orcid, profile_url, role, working_groups, research_areas, skills, resource_id, scholar_id, created_at, updated_at, onboarded")
         .eq("id", id)
         .single() as { data: any; error: any };
       if (error) throw error;

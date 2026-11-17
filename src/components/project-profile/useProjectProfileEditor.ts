@@ -33,8 +33,12 @@ export function useProjectProfileEditor(grantNumber: string | null, canEdit: boo
         .from("grants").select("*").eq("grant_number", grantNumber!).maybeSingle();
       if (gErr) throw gErr;
       if (!grant) return null;
+      // Named columns: a visitor may not read last_edited_by or the questionnaire attribution
+      // (20261117190000), and select("*") asks for them.
       const { data: project } = await supabase
-        .from("projects").select("*").eq("grant_number", grantNumber!).maybeSingle();
+        .from("projects")
+        .select("id, grant_number, grant_id, organization_id, resource_id, metadata, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at")
+        .eq("grant_number", grantNumber!).maybeSingle();
       return { grant, project };
     },
   });

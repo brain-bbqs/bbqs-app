@@ -41,13 +41,17 @@ const mapDbToResource = (row: any): Resource => {
   };
 };
 
+// The resources columns a visitor may read. Named, never "*": anon may not read created_by
+// (20261117190000), and select("*") asks for it.
+const RESOURCE_COLUMNS = "id, name, resource_type, description, external_url, metadata, organization_id, created_at, updated_at";
+
 export function useResources(category?: string) {
   return useQuery<Resource[]>({
     queryKey: ["resources", category],
     queryFn: async () => {
       let query = supabase
         .from("resources")
-        .select("*")
+        .select(RESOURCE_COLUMNS)
         .in("resource_type", ["software", "ml_model", "dataset", "benchmark", "protocol", "tool"]);
 
       if (category) {
@@ -62,7 +66,7 @@ export function useResources(category?: string) {
         const types = typeMap[category] || [category.toLowerCase() as ResourceType];
         query = supabase
           .from("resources")
-          .select("*")
+          .select(RESOURCE_COLUMNS)
           .in("resource_type", types);
       }
 

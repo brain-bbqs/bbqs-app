@@ -8,7 +8,9 @@ serves the rows each test gives it, and answers for a missing or refused table t
 does. What is checked is the graph export() writes: jobs from the public_jobs view and who posted
 them from public_job_posters, the link-don't-copy rule for a job's institution, that nothing
 private is written whatever a view hands over, and that a view that is missing or refused is
-skipped with a note instead of failing the export. The competency questions about jobs (CQ18,
+skipped with a note instead of failing the export. The stand-in serves the objects anon reads column
+by column (20261117190000) as PostgREST does: select=* or a private column is refused, so the
+exporter must name public columns (PUBLIC_COLUMNS). The competency questions about jobs (CQ18,
 CQ35, CQ36, CQ37) are then asked of that graph, so a question and the exporter cannot drift apart.
 The curated links in resource_links (a published paper's revision_of its preprint among them) are
 written only between two nodes and only for a predicate the schema has, an ORCID is written in
@@ -18,6 +20,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -32,8 +35,25 @@ from rdflib.namespace import RDF, XSD
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from bbqs_kg import BBQS, BID, BBQSKnowledgeGraph  # noqa: E402
+from bbqs_kg import BBQS, BID, PUBLIC_COLUMNS, BBQSKnowledgeGraph  # noqa: E402
 from roundtrip import RoundTrip  # noqa: E402
+
+# The columns anon may not read, as the migration that hides them lists them (its one list).
+HIDE_MIGRATION = HERE.parent / "supabase" / "migrations" / "20261117190000_hide_private_columns_from_anon.sql"
+
+
+def private_from_anon() -> dict:
+    """object -> the columns 20261117190000 takes from anon, read from its kg_private_from_anon rows."""
+    sql = HIDE_MIGRATION.read_text(encoding="utf8")
+    block = sql[sql.index("INSERT INTO kg_private_from_anon"):]
+    block = block[:block.index(";")]
+    private = {}
+    for obj, col in re.findall(r"\(\s*'([a-z_]+)',\s*'([a-z_]+)',\s*'", block):
+        private.setdefault(obj, set()).add(col)
+    return private
+
+
+PRIVATE_FROM_ANON = private_from_anon()
 
 
 def uid(n: int) -> str:
@@ -137,19 +157,30 @@ LINK_TABLES = {**TABLES, "resources": LINK_RESOURCES, "resource_links": RESOURCE
 class FakePostgrest:
     """GET <url>/rest/v1/<table>?select=... -> the rows given for that table, [] for any other.
     A table in `missing` answers as PostgREST does for one that does not exist (`code` 42P01, or
-    PGRST205 from a newer PostgREST), one in `refused` as for one anon may not read (401, 42501)."""
+    PGRST205 from a newer PostgREST), one in `refused` as for one anon may not read (401, 42501).
+    An object in `private` is read column by column, as anon reads it once 20261117190000 is
+    applied: select=*, or a select naming one of its private columns, is refused (401, 42501)."""
 
-    def __init__(self, tables, missing=(), refused=(), missing_code="42P01"):
+    def __init__(self, tables, missing=(), refused=(), missing_code="42P01", private=None):
         self.tables, self.missing, self.refused, self.missing_code = tables, set(missing), set(refused), missing_code
+        self.private = PRIVATE_FROM_ANON if private is None else private
         self.asked = []
+        self.selects = {}          # table -> the select= it was asked for
 
     def __call__(self, request, timeout=None):
-        table = urllib.parse.urlparse(request.full_url).path.rsplit("/", 1)[-1]
+        url = urllib.parse.urlparse(request.full_url)
+        table = url.path.rsplit("/", 1)[-1]
+        select = urllib.parse.parse_qs(url.query).get("select", ["*"])[0]
         self.asked.append(table)
+        self.selects.setdefault(table, []).append(select)
         if table in self.missing:
             raise self._error(request.full_url, 404, self.missing_code, f"relation \"public.{table}\" does not exist")
         if table in self.refused:
             raise self._error(request.full_url, 401, "42501", f"permission denied for view {table}")
+        if table in self.private:
+            named = {c.strip() for c in select.split(",")}
+            if "*" in named or named & self.private[table]:
+                raise self._error(request.full_url, 401, "42501", f"permission denied for table {table}")
         return io.BytesIO(json.dumps(self.tables.get(table, [])).encode())
 
     @staticmethod
@@ -288,6 +319,46 @@ class NothingPrivate(unittest.TestCase):
             for secret in (SECRET_EMAIL, SECRET_NAME, AUTH_UID):
                 self.assertNotIn(secret, str(term))
         self.assertNotIn(SECRET_EMAIL, self.g.serialize(format="turtle"))
+
+
+class OnlyTheColumnsAnonMayRead(unittest.TestCase):
+    """20261117190000 takes auth user ids, e-mail addresses and review notes away from anon column by
+    column, so PostgREST refuses anon select=* on those objects. The exporter names the public columns
+    (PUBLIC_COLUMNS) instead, and never a private one."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.kg, cls.g, cls.said, cls.fake = export()
+
+    def test_the_migration_lists_what_it_hides(self):
+        self.assertTrue({"user_id", "pending_role"} <= PRIVATE_FROM_ANON["investigators_public"])
+        self.assertTrue({"last_edited_by", "questionnaire_submitted_by"} <= PRIVATE_FROM_ANON["projects"])
+        self.assertTrue({"raw", "hidden_reason", "hidden_by"} <= PRIVATE_FROM_ANON["dandisets"])
+
+    def test_no_object_read_column_by_column_is_refused(self):
+        self.assertEqual({t: why for t, why in self.kg.unreadable.items() if t in PRIVATE_FROM_ANON}, {})
+
+    def test_each_is_asked_for_by_name_and_never_for_a_private_column(self):
+        asked = {t: s for t, s in self.fake.selects.items() if t in PRIVATE_FROM_ANON}
+        self.assertTrue({"resources", "projects", "investigators_public", "dandisets"} <= set(asked), asked)
+        for table, selects in asked.items():
+            for select in selects:
+                named = {c.strip() for c in select.split(",")}
+                self.assertNotIn("*", named, table)
+                self.assertEqual(named & PRIVATE_FROM_ANON[table], set(), table)
+
+    def test_the_public_column_lists_hold_no_private_column(self):
+        for table, columns in PUBLIC_COLUMNS.items():
+            self.assertIn(table, PRIVATE_FROM_ANON, f"{table} is not read column by column, so it needs no list")
+            self.assertEqual(set(columns.split(",")) & PRIVATE_FROM_ANON[table], set(), table)
+
+    def test_asking_for_everything_would_lose_them(self):
+        # The exporter as it was, select=* everywhere: refused on each one, and the graph loses its spine.
+        with mock.patch.dict("bbqs_kg.PUBLIC_COLUMNS", clear=True):
+            kg, g, _, _ = export()
+        for table in ("resources", "investigators_public"):
+            self.assertEqual(kg.unreadable.get(table), "HTTP 401 42501", table)
+        self.assertEqual(set(g.subjects(RDF.type, BBQS.Job)), set())
 
 
 class AViewThatIsNotThere(unittest.TestCase):

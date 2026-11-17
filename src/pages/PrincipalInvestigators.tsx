@@ -364,7 +364,10 @@ const ResearchAreasCell = ({ data }: { data: PIRow }) => {
 /* ── Data fetching ── */
 const fetchPIs = async (): Promise<PIRow[]> => {
   const [invResult, grantsResult, giResult, ioResult, orgResult] = await Promise.all([
-    supabase.from("investigators_public" as any).select("*"),
+    // Named columns, never "*": anon may read only the public columns of this view (20261117190000),
+    // and select=* asks for user_id and pending_role too, which a visitor is refused.
+    supabase.from("investigators_public" as any)
+      .select("id, name, profile_url, working_groups, research_areas, skills, resource_id, onboarded"),
     supabase.from("grants").select("*"),
     supabase.from("grant_investigators").select("*"),
     supabase.from("investigator_organizations").select("investigator_id, organization_id"),
@@ -396,8 +399,8 @@ const fetchPIs = async (): Promise<PIRow[]> => {
 
     // Include investigators who have grants, working groups, or went through onboarding. The
     // roster is RePORTER-derived, so onboarded trainees/staff with no grant picked were invisible
-    // here (Jared Reiling, #232). `onboarded` comes from 20261008120000; until that is
-    // applied it is undefined and this falls back to grants-or-working-groups.
+    // here (Jared Reiling, #232). `onboarded` comes from 20261008120000 (applied: types.ts has
+    // it); a row without it falls back to grants-or-working-groups.
     if (piGrantLinks.length === 0 && wgs.length === 0 && inv.onboarded !== true) continue;
 
     let piAsPi = 0;
