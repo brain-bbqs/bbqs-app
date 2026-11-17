@@ -11,9 +11,10 @@
 --   organization, a dataset's project); links PR #512 already made live that become edges only when
 --   #512's exporter half merges; and nodes nothing ties to anything yet.
 --   This script makes every fix a database change can make AND the records support (Principle III:
---   decide from the system of record; no evidence, no write). It builds on #517 (the 11-03 hand edits:
---   organizations on announcements and jobs, curator links for 000207/000598) and on #512's
---   migrations (the funder organizations). Every write is audited as 'migration:link_isolated_nodes'.
+--   decide from the system of record; no evidence, no write). A link the records do not state is an
+--   OPTIONAL block, never applied by default. It builds on #517 (the 11-03 hand edits: organizations
+--   on announcements and jobs, curator links for 000207/000598) and on #512's migrations (the funder
+--   organizations). Every write is audited as 'migration:link_isolated_nodes'.
 --
 -- HOW TO APPLY: Supabase SQL editor, project vpexxhfpvghlejljwpvt, as its default role (postgres).
 -- Paste the WHOLE file, then Run.
@@ -25,15 +26,21 @@
 --   3. Apply: in the DRY-RUN SWITCH line just below BEGIN, change 'on' to 'off' (the only edit), and
 --      Run the whole file again. It is one transaction: any unexpected error rolls ALL of it back, and
 --      the editor then shows the list of errors instead of the report.
---   4. A second run changes nothing and reports 0 rows. A run takes seconds; while it runs it locks
---      field_provenance (people-03), and dandisets only if 20261105120000 was never applied.
+--   4. A second run changes nothing and reports 0 rows. A run takes seconds.
+--   LOCKS. The dry run takes the same locks as the real run, for as long. Until the run ends, other
+--   writes wait on: resources and source_classes (tools-04 creates resource_links, whose foreign keys
+--   point at them), field_provenance (only if people-03 has provenance claims to move), and
+--   dandisets (only if D01 has to add 20261105120000's columns or its CHECK). No lock wait lasts
+--   more than 5 s (lock_timeout, set right after BEGIN): a block that would wait longer reports an
+--   error row (55P03) and the run changes nothing. Run it again when the site is quiet.
 --
 -- PRECONDITIONS
 --   * PR #512's migrations are live (20261103130000, 20261103140000, 20261106120000): the funder
 --     organizations they created are what people-05 and notices-04 link to.
 --   * Deploy the new ember-dandiset-sync (16be24c) BEFORE this script, or run the script again after
 --     its next nightly run (04:17 UTC; do not run during it): the old sync re-creates a node for every
---     dataset hidden here. The D00 report row says which sync answered last.
+--     dataset hidden here. The D00 report row says which sync answered last. A dataset a curator had
+--     already hidden is re-hidden with the curator's reason, hidden_by and hidden_at kept.
 --   * 20261105120000_dandiset_hidden need not be applied: D01 adds its columns, CHECK and
 --     set_dandiset_hidden() where they are missing and changes nothing where they exist.
 --
@@ -41,7 +48,7 @@
 --   * RESULT says APPLIED, no row says error, and a second run reports 0 rows.
 --   * SELECT table_name, operation, count(*) FROM public.data_audit_log
 --      WHERE actor_label = 'migration:link_isolated_nodes' GROUP BY 1, 2 ORDER BY 1, 2;
---   * Re-export the graph (kg/export.py) and run kg/quality.py: isolated nodes 189 -> 70-75.
+--   * Re-export the graph (kg/export.py) and run kg/quality.py: isolated nodes 189 -> 72-77.
 --
 -- UNDO
 --   data_audit_log keeps each changed row under actor_label 'migration:link_isolated_nodes': old_data
@@ -49,12 +56,20 @@
 --   id, so its node IRI returns), restore updated columns, delete inserted rows by id. To unhide a
 --   dataset, re-insert its resources row from old_data and set dandisets.hidden = false and
 --   resource_id; set_dandiset_hidden(ARRAY['000…'], false) also works but gives it a new node id.
---   Not restorable from data_audit_log:
---   * knowledge_embeddings rows deleted with their spine rows (chat search index; embed-knowledge
---     rebuilds them) and the species_aliases rows D09 adds (delete them by alias): no audit trigger;
---   * field_provenance: people-03 moves the duplicate's claims onto the keeper (not audited);
+--   Not restorable from data_audit_log (no audit trigger on these):
+--   * knowledge_embeddings rows deleted with their spine rows (the chat search index; embed-knowledge
+--     rebuilds them), and the species_aliases rows D09 adds (delete them by alias);
+--   * field_provenance re-anchoring: people-03 (and people-10-merge, if uncommented) moves to the
+--     keeper ONLY the duplicate's claims whose value is the keeper's current cell, by rewriting their
+--     entity_id. Its report row lists the field_provenance ids and the duplicate's old entity_id: to
+--     undo, set entity_id back for those ids, with trg_field_provenance_append_only disabled for that
+--     UPDATE. Every other claim stays on the deleted duplicate's id, untouched;
+--   * the provenance claims this run records are append-only history: they stay after an undo, which
+--     records newer ones;
 --   * DDL: public.resource_links with its function, triggers and policy (tools-04), and, if D01 had
 --     to apply 20261105120000, dandisets.hidden*, its CHECK and set_dandiset_hidden(). Drop by hand.
+--   Nothing else is rewritten: curation_audit_log rows about a merged or deleted record keep naming it
+--   (no foreign key needs them moved), and a dataset a curator had already hidden keeps its hide record.
 --
 -- THE BLOCKS, in run order. n = isolated nodes of the 11-04 export the block fixes when its guards
 -- pass (each node counted once, at the first block that links or deletes it). Every block re-reads
@@ -63,7 +78,8 @@
 --   n   block        what it does
 --  14   people-01    delete 14 orphan person spine rows (no person row; the real person is the twin)
 --   1   people-02    delete the 'TestUser Tier2' test record
---   1   people-03    merge 'Niegil Francis Muttath Joseph' into 'Niegil Francis' (one NYU identity)
+--   1   people-03    merge 'Niegil Francis Muttath Joseph' into 'Niegil Francis' (one NYU identity), only
+--                    if the duplicate holds nothing the keeper lacks and no address but the two proven
 --   1   tools-01     fold the duplicate Lightning Pose row 444f664a into 3ba48c59
 --   1   notices-03   merge the superseded forecast RFA-NS-26-011 into RFA-NS-27-002
 --   0   datasets-D01 apply 20261105120000 (dandisets.hidden*) where it is missing
@@ -72,44 +88,68 @@
 --   1   datasets-D04 hide 000468 'Single Click Science' (synthetic mock data, #444 Exclude)
 --   1   datasets-D05 000472 'Pozu: Missing subjects': hide it if it has 0 files, else link to EMBER
 --   1   datasets-D09 merge species 'Acoel Flatworm' into Hofstenia miamia
---   0   people-06    create University College London and University of Washington, only if
---                    people-08 will link someone to them
 --  15   people-05    11 NIH program staff -> their institute or NIH (+ the NIMH, NINDS, NIDCD, NIDA nodes)
---  16   people-07    16 members -> the organization their institution names
---   3   people-08    MacAskill -> UCL; Estes and St. John -> University of Washington
+--  15   people-07    15 members -> the organization their institution names
+--   3   people-08    MacAskill -> University College London; Estes, St. John -> University of
+--                    Washington. Each organization is created (with its node) only with its first member.
+--                    people-05/07/08 link a person only if the row's own institution text is empty or
+--                    starts with a spelling of that organization; any other text skips the person.
 --   8   notices-01   6 announcements' organization copied onto their spine rows (+ BBQS Consortium, SfN)
 --   1   notices-02   event 'BBQS MIT Workshop 2026' -> BBQS Consortium
---  15   notices-04   13 funding calls -> their issuer, read off the FON (+ NIH OD Common Fund, Simons)
+--  15   notices-04   13 funding calls -> their issuer, read off the FON (+ NIH OD Common Fund, Simons).
+--                    Never the superseded forecast: if notices-03 cannot merge it, it stays isolated
+--                    and flagged as a duplicate rather than linked.
 --   1   tools-02     Lightning Pose -> Columbia (its own description)
---   1   tools-03     Psych-DS -> MIT (SFN2025.tsx; checked against Melissa Kline Struhl's membership)
 -- 0-4   datasets-D06 EMBER collections 000469-000471, 000474 -> R24MH136632, only where the DANDI
 --                    contact or a contributor is on R24MH136632's roster (the live contacts decide)
 --   1   datasets-D07 000607 'Four-choice reversal digging task' -> R34DA062119 (ARC, Wilbrecht)
 --   0+  datasets-D08 datasets whose own DANDI record names a BBQS award the sync's parser dropped
 --                    (none known today)
 --   0   tools-04     create public.resource_links (audited, RLS, anon-readable)
---   0   tools-05     record 5 evidenced links in it: 6 nodes once kg/bbqs_kg.py reads the table
---   0+  tools-06     device_class_crosswalk rows for isolated device categories (live evidence decides)
+--   0   tools-05     record its 2 evidenced links: 3 nodes once kg/bbqs_kg.py reads the table
+--   0+  tools-06     device_class_crosswalk rows for isolated device categories, each only where all
+--                    the live evidence for its bucket is the project's own (not a neighbour grant's);
+--                    a harvester bucket with no live evidence yet is not mapped
 --   Read-only, they write nothing: datasets-D00 (which ember sync is live), people-10 (both Walker
 --   records), people-01-report and people-11 (orphans left; the 4 name-only people), datasets-D10
 --   (datasets still unlinked, with their DANDI contact), notices-05 (participating-only funders),
 --   tools-10 (device-category reach, unmapped buckets, tools still unlinked).
 --   OPTIONAL blocks (section 3) are commented out; each starts with the question a curator must
---   answer first. To apply one, uncomment it and run the whole file again (dry run first).
+--   answer first. To apply one, uncomment it and run the whole file again (dry run first). They
+--   are people-04, people-09 (Jongwoon Kim: NYU Langone, Columbia, or both), people-10-merge,
+--   datasets-O1 to O5, notices-06, tools-03 (Psych-DS -> MIT and was_attributed_to its presenter),
+--   tools-07, tools-08 (incl. the SuperAnimal models trained_on their sets) and tools-09.
 --
 -- EFFECT, simulated on the 11-04 export (tested on a replica of the schema with a synthetic copy of
--- the rows touched): 189 isolated -> 188 by a plain re-export (the Sharif stub was deleted live on
--- 11-06) -> 70-75 with this script (D05/D06/D08 depend on live DANDI data) -> 64-69 once the
--- exporter reads resource_links (tools-11) -> about 47-55 once #512's exporter half merges.
+-- the rows touched). The ranges are wide where live values decide: D05/D06/D08 (5
+-- datasets: the live DANDI records) and, after #512, 3 funders (OBSSR, NICHD, Empire AI: the calls'
+-- live participating_orgs).
+--   189 isolated, as exported
+--   188 after a plain re-export (the Sharif stub was deleted live on 11-06)
+--   72-77 with this script and today's exporter (116 nodes fixed)
+--   69-74 once the exporter reads resource_links (tools-11; 3 more)
+--   52-60 once #512's exporter half merges as well (17 more)
+--
+-- KNOWN OVERLAP WITH PR #512. notices-04 writes each call's issuer as resources.organization_id,
+-- i.e. part_of_org. Once #512's exporter half merges, it also writes funding_org from
+-- funding_opportunity_orgs, which includes the issuer, so a call will carry both part_of_org and
+-- funding_org to the same organization. #512's exporter should skip a funding_org edge where
+-- part_of_org already names that organization.
 --
 -- NOT FIXED BY SQL (who)
 --   * Anibal Heinsfeld, Chaoyi Zhang, Omid Sharafi, Latane Bullock (a name only) and Jeffrey Walker
 --     (same person as Jeffery Walker?): a curator, asking them or their PI (report rows people-10/11).
+--   * Jongwoon Kim: a curator answers NYU Langone, Columbia, or both (optional people-09).
+--   * Psych-DS: a curator decides whether it is Melissa Kline Struhl's standard at MIT, and whether
+--     was_attributed_to may record that (optional tools-03).
+--   * DLC Model Zoo, SuperAnimal-Quadruped-80K, SuperAnimal-TopViewMouse-5K: a curator says which
+--     node holds the SuperAnimal models and whether they were trained on these sets (optional
+--     tools-08); then a developer applies the resource_links exporter patch (tools-11).
 --   * NCCIH, NEI, NIA, NIAAA, NIBIB, ORWH, OBSSR, NICHD, Empire AI (named only as participating
 --     funders) and Anipose, Bonsai, LabStreamingLayer, MoSeq, Open Ephys, OpenFace, OpenPose, SLEAP
 --     (linked live by project_software_tools): a developer merges #512's exporter half.
---   * DLC Model Zoo, SuperAnimal-Quadruped-80K, SuperAnimal-TopViewMouse-5K, DLC Leaderboard,
---     DeepLabCut, VCL Benchmark: a developer applies the resource_links exporter patch (tools-11).
+--   * DLC Leaderboard, DeepLabCut, VCL Benchmark: a developer applies the resource_links exporter
+--     patch (tools-11).
 --   * Lab datasets with no BBQS award on their DANDI record (D10 lists them, with the contact):
 --     the project team adds the award on EMBER-DANDI (the nightly sync links it) or tells a curator.
 --   * Device categories: imu, lidar_radar, neural_imaging need only a fresh export with the HEAD
@@ -120,9 +160,15 @@
 --     exporter: project teams, a curator, a developer.
 --   * What keeps making orphans (onboard_member's MERGE and seed-consortium delete or insert only one
 --     of the two rows) and new calls, announcements and jobs with no spine row: a developer.
+--   * project_device_usage counts every evidence row for a mapped bucket, a neighbour grant's
+--     abstract or papers too (tools-06 checks the evidence only before it adds a mapping): a
+--     developer limits the view to the project's own evidence (source grant = seed grant).
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
+-- No lock wait longer than 5 s, in the dry run as in the real run (both take the same locks). A
+-- block that waits longer gets 55P03, reports it as an error row, and the run then changes nothing.
+SET LOCAL lock_timeout = '5s';
 -- Principle X: a SQL-editor write has no auth.uid(), so the script names itself before any write.
 -- Both settings are transaction-local; the runner re-declares them before every block.
 SELECT public.set_actor('migration:link_isolated_nodes');
@@ -139,6 +185,21 @@ SELECT set_config('bbqs.dry_run', 'on', true);
 --    section writes to a real table. Dropped first, so a second run in the same editor session
 --    starts from a clean report.
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
+-- Every pg_temp.kg_* function an earlier run left in this editor session goes first, whatever its
+-- arguments: CREATE OR REPLACE keeps an old overload whose arguments differ, and two overloads make
+-- a call ambiguous (42725). An OPTIONAL block is then defined only if it is uncommented THIS time.
+DO $drop$
+DECLARE _f text;
+BEGIN
+  FOR _f IN
+    SELECT format('pg_temp.%I(%s)', p.proname, pg_get_function_identity_arguments(p.oid))
+      FROM pg_proc p
+     WHERE p.pronamespace = pg_my_temp_schema() AND p.proname LIKE 'kg\_%'
+  LOOP
+    EXECUTE 'DROP FUNCTION ' || _f;
+  END LOOP;
+END
+$drop$;
 DROP TABLE IF EXISTS pg_temp.kg_fix_report;
 -- One row per decision a block takes, plus one summary row per block and one RESULT row. The block
 -- and its position come from the runner (bbqs.block / bbqs.block_ord), so a helper only names the
@@ -303,22 +364,6 @@ $fn$
    ORDER BY CASE r.kind WHEN 'result' THEN 0 WHEN 'summary' THEN 1 ELSE 2 END, r.ord, r.seq
 $fn$;
 
--- Optional blocks are defined only when uncommented below; drop any left from an earlier run
--- in this session, so only what is uncommented THIS time can run.
-DROP FUNCTION IF EXISTS pg_temp.kg_o_people_04();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_people_09();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_people_10();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o1();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o2a();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o2b();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o3();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o4();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_datasets_o5();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_notices_06();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_tools_07();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_tools_08();
-DROP FUNCTION IF EXISTS pg_temp.kg_o_tools_09();
-
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
 -- 1. HELPERS used by several blocks (pg_temp, gone at the end of the session)
 -- ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -328,6 +373,79 @@ DROP FUNCTION IF EXISTS pg_temp.kg_o_tools_09();
 CREATE OR REPLACE FUNCTION pg_temp.kg_norm(_s text) RETURNS text
 LANGUAGE sql IMMUTABLE AS
 $fn$ SELECT lower(regexp_replace(btrim(coalesce(_s, '')), '[[:space:]]+', ' ', 'g')) $fn$;
+
+-- The core award of a grant number in any spelling ('1R61MH135114-01' -> 'R61MH135114'), the way
+-- the exporter compares them (kg/bbqs_kg.py core_award). NULL for an empty value.
+CREATE OR REPLACE FUNCTION pg_temp.kg_core_award(_s text) RETURNS text
+LANGUAGE sql IMMUTABLE AS
+$fn$ SELECT coalesce(substring(upper(_s) FROM '[A-Z][A-Z0-9]{2}[A-Z]{2}[0-9]{6}'), nullif(upper(btrim(_s)), '')) $fn$;
+
+-- Does a person row's own institution text agree with the evidence for one organization?
+-- _spell is that organization's spellings as a regex alternation (no anchors). The text must START
+-- with one of them, as whole words and in any case; and, with every one of them removed, it must
+-- not match _reject (another institute, campus or organization it would also be naming). Any other
+-- text contradicts the evidence. 'Florida State University' is not a spelling of 'uf|univ(ersity)?
+-- of florida'; 'NIH/NIDA' starts with NIH but still names NIDA.
+CREATE OR REPLACE FUNCTION pg_temp.kg_inst_ok(_inst text, _spell text, _reject text) RETURNS boolean
+LANGUAGE sql IMMUTABLE AS
+$fn$
+  SELECT coalesce(_inst, '') ~* ('^[^[:alnum:]]*(' || _spell || ')\M')
+     AND (_reject IS NULL
+          OR regexp_replace(_inst, '\m(' || _spell || ')\M', ' ', 'gi') !~* _reject)
+$fn$;
+
+-- A jsonb cell value, normalized for comparing two records of one person: NULL for null, for an
+-- empty or blank string and for an empty array or object; strings trimmed, also inside arrays,
+-- whose blank elements are dropped. Lower-cased only when _fold (a free-text column): in an
+-- identifier such as scholar_id or a profile_url's path, letter case is part of the value.
+CREATE OR REPLACE FUNCTION pg_temp.kg_jnorm(_v jsonb, _fold boolean) RETURNS jsonb
+LANGUAGE sql IMMUTABLE AS
+$fn$
+  SELECT CASE jsonb_typeof(_v)
+           WHEN 'string' THEN to_jsonb(nullif(CASE WHEN _fold THEN lower(btrim(_v #>> '{}')) ELSE btrim(_v #>> '{}') END, ''))
+           WHEN 'array'  THEN (SELECT jsonb_agg(x.v ORDER BY x.n)
+                                 FROM (SELECT CASE WHEN jsonb_typeof(e.v) = 'string'
+                                                   THEN to_jsonb(nullif(CASE WHEN _fold THEN lower(btrim(e.v #>> '{}')) ELSE btrim(e.v #>> '{}') END, ''))
+                                                   ELSE e.v END AS v, e.n
+                                         FROM jsonb_array_elements(_v) WITH ORDINALITY AS e(v, n)) x
+                                WHERE x.v IS NOT NULL AND jsonb_typeof(x.v) <> 'null')
+           WHEN 'object' THEN CASE WHEN _v = '{}'::jsonb THEN NULL ELSE _v END
+           WHEN 'null'   THEN NULL
+           ELSE _v END
+$fn$;
+
+-- The columns among _cols in which the duplicate record holds something the keeper does not: a
+-- non-empty value the keeper lacks or holds differently (an array or object counts as held only
+-- when the keeper's contains every element or key of the duplicate's). Letter case counts, except
+-- in the columns named in _fold (free text). A merge that went ahead would drop it from the live
+-- tables, keeping it only as old_data in data_audit_log. NULL when there is none. A column this
+-- database does not have is simply not compared.
+CREATE OR REPLACE FUNCTION pg_temp.kg_merge_conflicts(_keep jsonb, _drop jsonb, _cols text[], _fold text[]) RETURNS text
+LANGUAGE sql IMMUTABLE AS
+$fn$
+  SELECT string_agg(c, ', ' ORDER BY c)
+    FROM unnest(_cols) AS c
+   WHERE pg_temp.kg_jnorm(_drop -> c, c = ANY (_fold)) IS NOT NULL
+     AND NOT coalesce(pg_temp.kg_jnorm(_keep -> c, c = ANY (_fold)) @> pg_temp.kg_jnorm(_drop -> c, c = ANY (_fold)), false)
+$fn$;
+
+-- Does a field_provenance claim (entity_column, value_text) state the row's CURRENT cell? The
+-- recorders write a cell as its text, an array as jsonb text on INSERT and as 'a, b' on UPDATE, and
+-- a jsonb object per key as column.key; any of those forms counts. An empty claim never matches.
+CREATE OR REPLACE FUNCTION pg_temp.kg_claim_matches(_row jsonb, _col text, _val text) RETURNS boolean
+LANGUAGE sql IMMUTABLE AS
+$fn$
+  SELECT coalesce(btrim(_val), '') <> ''
+     AND jsonb_typeof(c.v) IS DISTINCT FROM 'null'
+     AND c.v IS NOT NULL
+     AND btrim(_val) IN (btrim(CASE WHEN jsonb_typeof(c.v) = 'string' THEN c.v #>> '{}' ELSE c.v::text END),
+                         btrim(CASE WHEN jsonb_typeof(c.v) = 'array'
+                                    THEN coalesce((SELECT string_agg(e, ', ') FROM jsonb_array_elements_text(c.v) AS e), '')
+                                    ELSE '' END))
+    FROM (SELECT CASE WHEN _row ? _col THEN _row -> _col
+                      WHEN position('.' IN _col) > 0
+                      THEN _row -> split_part(_col, '.', 1) -> substr(_col, position('.' IN _col) + 1) END AS v) AS c
+$fn$;
 
 -- Rows that reference _id through ANY declared foreign key to _target, except the
 -- "schema.table.column" names in _skip. The scan 20261106130000 step 3 uses, read from
@@ -356,26 +474,41 @@ END
 $fn$;
 
 -- Link one person (by their resources spine id, = the KG node id) to one organization (by its
--- spine id, or by exact name when _org_rid is NULL, for an org this script creates).
+-- spine id, or by exact name when _org_rid is NULL).
+--   _spell   the organization's spellings, a regex alternation without anchors. The person row's
+--            own institution text (anon-hidden, so not in the export), when not empty, must START
+--            with one of them and, with them removed, must not match _reject (pg_temp.kg_inst_ok).
+--            Any other text contradicts the evidence, and the person is skipped for a curator.
+--   _create_org  only with _org_rid NULL. An organization of that name that has no spine row is
+--            given one, and one that does not exist is created with its spine row (#512's
+--            20261103130000 shape) -- but only after the person passed every check, and in the
+--            same savepoint as the link: a new organization never exists without its first member
+--            (with none, it would itself be a new isolated node).
 -- Every guard failure is a 'skipped' report row, never an exception: one bad row must not stop
 -- the other links. investigator_organizations is keyed (investigator_id, organization_id), so
 -- ON CONFLICT DO NOTHING is the house pattern (20260910120000, 20260831130000, #517 block 11).
 CREATE OR REPLACE FUNCTION pg_temp.kg_link_org(
   _item text, _rid uuid, _label text, _org_rid uuid, _org_label text,
-  _expect text, _reject text, _evidence text, _allow_other_orgs boolean DEFAULT false)
+  _spell text, _reject text, _evidence text, _allow_other_orgs boolean DEFAULT false,
+  _create_org boolean DEFAULT false)
 RETURNS void LANGUAGE plpgsql AS
 $fn$
 DECLARE
-  _tgt  text := _label || ' -> ' || _org_label;
-  _inv  public.investigators%ROWTYPE;
-  _org  uuid;
-  _n    int;
-  _have text;
+  _tgt   text := _label || ' -> ' || _org_label;
+  _inv   public.investigators%ROWTYPE;
+  _org   uuid;
+  _n     int;
+  _have  text;
+  _hid   uuid;
+  _hname text;
+  _srid  uuid;
+  _made  text := '';
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
 
-  -- 1. The person: the exported spine row, still an investigator, still named as exported.
+  -- 1. The person: the exported spine row, still an investigator, still named as exported, with
+  --    exactly one investigators row on it.
   IF NOT EXISTS (SELECT 1 FROM public.resources r
                   WHERE r.id = _rid AND r.resource_type = 'investigator'
                     AND pg_temp.kg_norm(r.name) = pg_temp.kg_norm(_label)) THEN
@@ -393,13 +526,21 @@ BEGIN
   END IF;
   SELECT * INTO _inv FROM public.investigators WHERE resource_id = _rid;
 
-  -- 2. The row's own institution text (anon-hidden, so not in the export) must not contradict
-  --    the repo evidence. Empty is accepted: the evidence is then the repo source named below.
+  -- 2. The row's own institution text must be a spelling of the organization. Empty is accepted:
+  --    the evidence is then the repo source named below.
   IF nullif(btrim(_inv.institution), '') IS NOT NULL
-     AND (_inv.institution !~* _expect OR (_reject IS NOT NULL AND _inv.institution ~* _reject)) THEN
+     AND NOT pg_temp.kg_inst_ok(_inv.institution, _spell, _reject) THEN
     INSERT INTO kg_fix_report (item, target, outcome, detail)
     VALUES (_item, _tgt, 'skipped',
-            format('the row''s institution %L contradicts the evidence (%s); a curator decides', _inv.institution, _evidence));
+            CASE WHEN pg_temp.kg_inst_ok(_inv.institution, _spell, NULL)
+                 THEN format('the row''s institution %L also names %L, another institute, campus or organization, so it contradicts the evidence (%s); a curator decides',
+                             _inv.institution,
+                             btrim(substring(regexp_replace(_inv.institution, '\m(' || _spell || ')\M', ' ', 'gi') FROM ('(?i)' || _reject))),
+                             _evidence)
+                 ELSE format('the row''s institution %L does not start with a spelling of %s%s, so it contradicts the evidence (%s); a curator decides',
+                             _inv.institution, _org_label,
+                             CASE WHEN length(_spell) <= 80 THEN format(' (~* %L)', _spell) ELSE '' END,
+                             _evidence) END);
     RETURN;
   END IF;
 
@@ -416,17 +557,11 @@ BEGIN
      WHERE pg_temp.kg_norm(o.name) = pg_temp.kg_norm(_org_label) AND r.resource_type = 'organization'
      ORDER BY o.created_at LIMIT 1;
   END IF;
-  IF _org IS NULL THEN
-    INSERT INTO kg_fix_report (item, target, outcome, detail)
-    VALUES (_item, _tgt, 'skipped',
-            format('organization %s (%s) is gone, renamed, or has no organizations row on a spine row', coalesce(_org_rid::text, 'by name'), _org_label));
-    RETURN;
-  END IF;
 
   -- 4. Still unaffiliated: this is the isolation being fixed. An existing link to the SAME org is
   --    a no-op; a link to another org means a curator already decided, so do not add a second.
-  IF EXISTS (SELECT 1 FROM public.investigator_organizations
-              WHERE investigator_id = _inv.id AND organization_id = _org) THEN
+  IF _org IS NOT NULL AND EXISTS (SELECT 1 FROM public.investigator_organizations
+                                   WHERE investigator_id = _inv.id AND organization_id = _org) THEN
     INSERT INTO kg_fix_report (item, target, outcome, detail)
     VALUES (_item, _tgt, 'noop', 'link already present');
     RETURN;
@@ -436,8 +571,50 @@ BEGIN
    WHERE io.investigator_id = _inv.id;
   IF _have IS NOT NULL AND NOT _allow_other_orgs THEN
     INSERT INTO kg_fix_report (item, target, outcome, detail)
-    VALUES (_item, _tgt, 'skipped', 'already affiliated with ' || _have || '; not adding a second organization');
+    VALUES (_item, _tgt, 'skipped', 'already affiliated with ' || _have || '; not adding a second organization'
+            || CASE WHEN _org IS NULL AND _create_org
+                    THEN format(' (%s is created only with a first member, so not for this person)', _org_label) ELSE '' END);
     RETURN;
+  END IF;
+
+  -- 5. No organization node of that name yet: only a block that names it by name may create it,
+  --    and only now, with this person as its first member.
+  IF _org IS NULL THEN
+    IF _org_rid IS NOT NULL OR NOT _create_org THEN
+      INSERT INTO kg_fix_report (item, target, outcome, detail)
+      VALUES (_item, _tgt, 'skipped',
+              format('organization %s (%s) is gone, renamed, or has no organizations row on a spine row', coalesce(_org_rid::text, 'by name'), _org_label));
+      RETURN;
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.organizations o
+                WHERE pg_temp.kg_norm(o.name) = pg_temp.kg_norm(_org_label) AND o.resource_id IS NOT NULL) THEN
+      INSERT INTO kg_fix_report (item, target, outcome, detail)
+      VALUES (_item, _tgt, 'skipped',
+              format('an organization named %L exists, but its spine row is not an organization; nothing created, a curator decides', _org_label));
+      RETURN;
+    END IF;
+    SELECT o.id, o.name INTO _hid, _hname
+      FROM public.organizations o
+     WHERE pg_temp.kg_norm(o.name) = pg_temp.kg_norm(_org_label) AND o.resource_id IS NULL
+     ORDER BY o.created_at LIMIT 1;
+    IF _hid IS NULL THEN
+      _hid := gen_random_uuid();
+      _hname := _org_label;
+      INSERT INTO public.resources (resource_type, name, metadata)
+      VALUES ('organization', _hname, jsonb_build_object('source_id', _hid, 'source_table', 'organizations'))
+      RETURNING id INTO _srid;
+      INSERT INTO public.organizations (id, name, resource_id) VALUES (_hid, _hname, _srid);
+      _made := format('organizations %s created with spine row %s', _hid, _srid);
+    ELSE  -- exists without a spine row (nih-grants / verify-affiliations insert a name only)
+      INSERT INTO public.resources (resource_type, name, metadata)
+      VALUES ('organization', _hname, jsonb_build_object('source_id', _hid, 'source_table', 'organizations'))
+      RETURNING id INTO _srid;
+      UPDATE public.organizations SET resource_id = _srid WHERE id = _hid;
+      _made := format('the existing organizations %s (%L) had no spine row; given %s', _hid, _hname, _srid);
+    END IF;
+    _org := _hid;
+    INSERT INTO kg_fix_report (item, target, outcome, detail)
+    VALUES ('create organization', _org_label, 'done', format('%s, with its first member %s', _made, _label));
   END IF;
 
   INSERT INTO public.investigator_organizations (investigator_id, organization_id)
@@ -446,10 +623,12 @@ BEGIN
   GET DIAGNOSTICS _n = ROW_COUNT;
   INSERT INTO kg_fix_report (item, target, outcome, detail)
   VALUES (_item, _tgt, CASE WHEN _n = 1 THEN 'done' ELSE 'noop' END,
-          format('%s; evidence: %s; row institution: %s',
+          format('%s; evidence: %s; row institution: %s%s',
                  CASE WHEN _n = 1 THEN 'linked' ELSE 'link already present' END, _evidence,
-                 coalesce(quote_literal(nullif(btrim(_inv.institution), '')), '(empty)')));
+                 coalesce(quote_literal(nullif(btrim(_inv.institution), '')), '(empty)'),
+                 coalesce('; also affiliated with ' || _have || ' (kept)', '')));
 EXCEPTION WHEN OTHERS THEN
+  -- the organization this call may have created goes with the failed link (same savepoint)
   INSERT INTO kg_fix_report (item, target, outcome, detail)
   VALUES (_item, _tgt, 'error', SQLSTATE || ': ' || SQLERRM);
 END
@@ -526,8 +705,11 @@ $fn$;
 -- writes in the same order as 20261105120000:47-54: hidden / hidden_reason / hidden_by / hidden_at
 -- and resource_id = NULL on the mirror row, then DELETE the resources row (audited by
 -- trg_audit_resources). Plus the chat-index copy of the spine row, as 20261106130000 step 2 does,
--- because embed-knowledge only ever upserts. Every guard failure is a 'skipped' report row, never
--- an exception, and any error rolls back this one dandiset only (the EXCEPTION block's savepoint).
+-- because embed-knowledge only ever upserts. A dataset a curator already hid, whose node the old
+-- ember sync re-created, is RE-hidden: its hidden_reason, hidden_by and hidden_at are who decided
+-- and why (20261105120000:17-18), so they are kept; only resource_id is cleared and the re-created
+-- resources row deleted. Every guard failure is a 'skipped' report row, never an exception, and
+-- any error rolls back this one dandiset only (the EXCEPTION block's savepoint).
 CREATE OR REPLACE FUNCTION pg_temp.kg_ds_hide(
   _item text, _dandiset_id text, _export_rid uuid, _name_re text, _reason text,
   _allow_linked boolean DEFAULT false)
@@ -540,11 +722,13 @@ DECLARE
   _rtype text;
   _refs  text;
   _ke    int := 0;
+  _rehide boolean;
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
 
-  SELECT d.id, d.name, d.resource_id, d.hidden, d.file_count, d.award_numbers INTO _d
+  SELECT d.id, d.name, d.resource_id, d.hidden, d.hidden_reason, d.hidden_by, d.hidden_at,
+         d.file_count, d.award_numbers INTO _d
     FROM public.dandisets d
    WHERE d.instance = 'ember' AND d.dandiset_id = _dandiset_id
      FOR UPDATE;
@@ -567,6 +751,7 @@ BEGIN
     VALUES (_item, _tgt, 'noop', 'already hidden, no resources row');
     RETURN;
   END IF;
+  _rehide := coalesce(_d.hidden, false);   -- hidden, but the old sync gave it a node again
 
   -- Linked since the export? Hiding drops the node and its funded_datasets edge (the
   -- grant_dandisets row itself stays, and an unhide restores both), so it needs a person's yes.
@@ -577,7 +762,8 @@ BEGIN
   IF NOT _allow_linked AND (_links IS NOT NULL OR coalesce(cardinality(_d.award_numbers), 0) > 0) THEN
     INSERT INTO kg_fix_report (item, target, outcome, detail)
     VALUES (_item, _tgt, 'skipped',
-            format('now linked (grant_dandisets: %s; DANDI awards: %s); not hiding a linked dataset',
+            format('%snow linked (grant_dandisets: %s; DANDI awards: %s); not hiding a linked dataset',
+                   CASE WHEN _rehide THEN 'hidden by a curator, but its node was re-created and it is ' ELSE '' END,
                    coalesce(_links, 'none'), coalesce(array_to_string(_d.award_numbers, ', '), 'none')));
     RETURN;
   END IF;
@@ -608,10 +794,15 @@ BEGIN
     END IF;
   END IF;
 
-  UPDATE public.dandisets
-     SET hidden = true, hidden_reason = btrim(_reason), hidden_by = auth.uid(), hidden_at = now(),
-         resource_id = NULL
-   WHERE id = _d.id;
+  IF _rehide THEN
+    -- The hide record is the curator's: who decided and why stay as they are.
+    UPDATE public.dandisets SET resource_id = NULL WHERE id = _d.id;
+  ELSE
+    UPDATE public.dandisets
+       SET hidden = true, hidden_reason = btrim(_reason), hidden_by = auth.uid(), hidden_at = now(),
+           resource_id = NULL
+     WHERE id = _d.id;
+  END IF;
 
   IF _d.resource_id IS NOT NULL THEN
     DELETE FROM public.knowledge_embeddings
@@ -622,11 +813,16 @@ BEGIN
 
   INSERT INTO kg_fix_report (item, target, outcome, detail)
   VALUES (_item, _tgt, 'done',
-          format('hidden (%s); %s%s', _reason,
-                 CASE WHEN _d.resource_id IS NULL THEN 'it had no resources row'
-                      ELSE format('resources row %s deleted, %s search-index row(s) removed', _d.resource_id, _ke) END,
-                 CASE WHEN _d.resource_id IS DISTINCT FROM _export_rid
-                      THEN format(' (the 2026-11-04 export node was %s)', _export_rid) ELSE '' END));
+          CASE WHEN _rehide
+               THEN format('re-hidden: hidden since %s by %s for %L, which is kept as recorded; ',
+                           coalesce(_d.hidden_at::text, '(no date)'), coalesce(_d.hidden_by::text, '(no user: the SQL editor)'),
+                           _d.hidden_reason)
+               ELSE format('hidden (%s); ', _reason) END
+          || CASE WHEN _d.resource_id IS NULL THEN 'it had no resources row'
+                  ELSE format('%sresources row %s deleted, %s search-index row(s) removed',
+                              CASE WHEN _rehide THEN 'its re-created ' ELSE '' END, _d.resource_id, _ke) END
+          || CASE WHEN _d.resource_id IS DISTINCT FROM _export_rid
+                  THEN format(' (the 2026-11-04 export node was %s)', _export_rid) ELSE '' END);
 EXCEPTION WHEN OTHERS THEN
   INSERT INTO kg_fix_report (item, target, outcome, detail)
   VALUES (_item, _tgt, 'error', SQLSTATE || ': ' || SQLERRM);
@@ -1122,22 +1318,39 @@ $do$;
 -- the second record is "a duplicate to merge, not an alias". The keeper is the linked record
 -- (af80d437: nm4075@nyu.edu per seed-consortium/index.ts:245-246, NYU member, WG-Analytics). The
 -- duplicate (83e96042, the name on mit-workshop-seating.ts:83) has no facts and no links.
--- Follows 20260826120000: refuse rather than corrupt, repoint everything that references the
--- duplicate, re-anchor its provenance claims, delete it BEFORE writing its address onto the keeper
--- (investigators_email_unique_ci), then delete its spine row. Skipped, with the reason, if the
--- duplicate holds a roster row, a login, a role or working groups the keeper lacks, or any address
--- outside nyu.edu. No role or working_groups change, so trg_sync_member_groups does not fire.
+-- Follows 20260826120000: refuse rather than corrupt, repoint what must follow the person, delete
+-- the duplicate BEFORE writing its address onto the keeper (investigators_email_unique_ci), then
+-- delete its spine row. Skipped, with the reason, if the duplicate holds:
+--   * an address other than those two (globus-auth signs a login whose email is in a member's
+--     secondary_emails in as that member, so a stray address would become a way into his account);
+--   * a roster row, a login, a role or working groups the keeper lacks;
+--   * anything in orcid, scholar_id, profile_url, institution, research_areas, skills,
+--     requested_working_groups, pending_role, onboarding_checklist or reporter_profile_id that the
+--     keeper does not already hold, letter for letter (case is ignored only in the free-text
+--     institution, research_areas and skills): deleting the duplicate would drop it. Nothing is
+--     filled in; a curator copies what is right onto the keeper first, then runs this again.
+-- History stays as it is: only the duplicate's field_provenance claims whose value IS the keeper's
+-- current cell move to the keeper (the others would make field_provenance_current contradict the
+-- keeper's cells), and curation_audit_log rows keep naming the duplicate (no foreign key needs them
+-- moved). No role or working_groups change, so trg_sync_member_groups does not fire.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_people_03() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE
   _keep_res constant uuid := 'af80d437-679c-42d0-aeed-fc7129b8a7b7';
   _drop_res constant uuid := '83e96042-a116-4e27-ab65-787db78d29f2';
   _item     constant text := 'merge Niegil Francis Muttath Joseph -> Niegil Francis';
+  -- the two addresses 20260811130000:7-8 proves are this one person
+  _known    constant text[] := ARRAY['niegil.francis@nyu.edu', 'nm4075@nyu.edu'];
+  _profile  constant text[] := ARRAY['orcid', 'scholar_id', 'profile_url', 'institution', 'research_areas', 'skills',
+                                     'requested_working_groups', 'pending_role', 'onboarding_checklist', 'reporter_profile_id'];
+  -- compared ignoring letter case (free text); every other column must match letter for letter
+  _fold     constant text[] := ARRAY['institution', 'research_areas', 'skills'];
   _keep public.investigators%ROWTYPE;
   _drop public.investigators%ROWTYPE;
   _n int; _refs text; _addr text[]; _bad text;
   _prov_guard boolean := false;
-  _io int := 0; _cal int := 0; _ec int := 0; _fp int := 0; _ke int := 0;
+  _fp_ids bigint[];
+  _io int := 0; _cal int := 0; _ec int := 0; _fp_left int := 0; _ke int := 0;
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
@@ -1145,7 +1358,6 @@ BEGIN
     INSERT INTO kg_fix_report (item, target, outcome, detail) VALUES (_item, _drop_res::text, 'noop', 'duplicate spine row already gone');
     RETURN;
   END IF;
-
   -- Keeper: by spine id, still the NYU record the seed and backfills keyed on nm4075@nyu.edu.
   SELECT * INTO _keep FROM public.investigators WHERE resource_id = _keep_res;
   IF _keep.id IS NULL OR pg_temp.kg_norm(_keep.name) NOT IN ('niegil francis', 'niegil francis muttath joseph') THEN
@@ -1172,9 +1384,11 @@ BEGIN
   _addr := ARRAY(SELECT DISTINCT lower(btrim(e))
                    FROM unnest(array_append(coalesce(_drop.secondary_emails, '{}'::text[]), _drop.email)) AS e
                   WHERE nullif(btrim(e), '') IS NOT NULL);
-  SELECT string_agg(e, ', ') INTO _bad FROM unnest(_addr) AS e WHERE e !~ '@nyu\.edu$';
+  SELECT string_agg(e, ', ' ORDER BY e) INTO _bad FROM unnest(_addr) AS e WHERE NOT (e = ANY (_known));
   IF _bad IS NOT NULL THEN
-    INSERT INTO kg_fix_report (item, target, outcome, detail) VALUES (_item, _drop_res::text, 'skipped', 'duplicate holds address(es) outside nyu.edu (' || _bad || '); not provably the same NYU identity');
+    INSERT INTO kg_fix_report (item, target, outcome, detail)
+    VALUES (_item, _drop_res::text, 'skipped',
+            format('duplicate holds address(es) %s besides niegil.francis@nyu.edu / nm4075@nyu.edu; the evidence proves only those two are this person, and the merge would make the others sign in as him. A curator removes them or decides', _bad));
     RETURN;
   END IF;
   SELECT count(*) INTO _n FROM public.grant_investigators WHERE investigator_id = _drop.id;
@@ -1197,6 +1411,13 @@ BEGIN
     INSERT INTO kg_fix_report (item, target, outcome, detail) VALUES (_item, _drop_res::text, 'skipped', format('duplicate lists working groups %s the keeper lacks; carrying them would fire trg_sync_member_groups', _drop.working_groups));
     RETURN;
   END IF;
+  _bad := pg_temp.kg_merge_conflicts(to_jsonb(_keep), to_jsonb(_drop), _profile, _fold);
+  IF _bad IS NOT NULL THEN
+    INSERT INTO kg_fix_report (item, target, outcome, detail)
+    VALUES (_item, _drop_res::text, 'skipped',
+            format('the duplicate holds a value the keeper lacks or holds differently in: %s. Merging would drop it from the live rows (data_audit_log would keep it only as old_data); nothing is filled in here. A curator puts what is right on the keeper (or clears it on the duplicate), then runs this again', _bad));
+    RETURN;
+  END IF;
   _refs := pg_temp.kg_fk_refs('public.investigators'::regclass, _drop.id,
              ARRAY['public.investigator_organizations.investigator_id']);
   IF _refs <> '' THEN
@@ -1212,41 +1433,27 @@ BEGIN
   END IF;
 
   BEGIN
-    -- 1. Repoint. (investigator_id, organization_id) is the key, so drop links the keeper already has.
+    -- 1. Repoint what must follow the person. (investigator_id, organization_id) is the key, so
+    --    drop links the keeper already has. Comments are someone's words about him: they follow.
     DELETE FROM public.investigator_organizations d
      WHERE d.investigator_id = _drop.id
        AND EXISTS (SELECT 1 FROM public.investigator_organizations k
                     WHERE k.investigator_id = _keep.id AND k.organization_id = d.organization_id);
     UPDATE public.investigator_organizations SET investigator_id = _keep.id WHERE investigator_id = _drop.id;
     GET DIAGNOSTICS _io = ROW_COUNT;
-    UPDATE public.curation_audit_log SET investigator_id = _keep.id WHERE investigator_id = _drop.id;
-    GET DIAGNOSTICS _cal = ROW_COUNT;
-    UPDATE public.curation_audit_log SET resource_id = _keep_res WHERE resource_id = _drop_res;
     UPDATE public.entity_comments SET resource_id = _keep_res WHERE resource_id = _drop_res;
     GET DIAGNOSTICS _ec = ROW_COUNT;
+    -- curation_audit_log is history and no foreign key ties it to either row: its rows keep
+    -- naming the duplicate (counted for the report, not rewritten).
+    SELECT count(*) INTO _cal FROM public.curation_audit_log
+     WHERE investigator_id = _drop.id OR resource_id = _drop_res OR entity_id IN (_drop.id, _drop_res);
 
-    -- 2. Provenance follows the person (20260826120000 step 2): only entity_id changes, with the
-    --    append-only guard off for exactly this UPDATE. DDL is transactional, so if anything below
-    --    fails the DISABLE is rolled back with it and the guard cannot be left off.
-    IF EXISTS (SELECT 1 FROM pg_trigger
-                WHERE tgrelid = 'public.field_provenance'::regclass
-                  AND tgname = 'trg_field_provenance_append_only' AND NOT tgisinternal AND tgenabled <> 'D') THEN
-      ALTER TABLE public.field_provenance DISABLE TRIGGER trg_field_provenance_append_only;
-      _prov_guard := true;
-    END IF;
-    UPDATE public.field_provenance SET entity_id = _keep.id
-     WHERE entity_table = 'investigators' AND entity_id = _drop.id;
-    GET DIAGNOSTICS _fp = ROW_COUNT;
-    IF _prov_guard THEN
-      ALTER TABLE public.field_provenance ENABLE TRIGGER trg_field_provenance_append_only;
-    END IF;
-
-    -- 3. The chat index keeps its own copy of the duplicate (embed-knowledge only upserts).
+    -- 2. The chat index keeps its own copy of the duplicate (embed-knowledge only upserts).
     DELETE FROM public.knowledge_embeddings
      WHERE resource_id = _drop_res OR source_id::text IN (_drop.id::text, _drop_res::text);
     GET DIAGNOSTICS _ke = ROW_COUNT;
 
-    -- 4. Delete the duplicate, THEN record its addresses on the keeper (the unique email index
+    -- 3. Delete the duplicate, THEN record its addresses on the keeper (the unique email index
     --    forbids the address on two rows), plus the alias Google reported (20260811130000:7-8).
     DELETE FROM public.investigators WHERE id = _drop.id;
     UPDATE public.investigators
@@ -1258,6 +1465,31 @@ BEGIN
            updated_at = now()
      WHERE id = _keep.id;
 
+    -- 4. Provenance follows the person only where it states what the keeper now holds: a claim
+    --    whose value is the keeper's current cell moves to the keeper (20260826120000 step 2: only
+    --    entity_id changes, with the append-only guard off for exactly this UPDATE; DDL is
+    --    transactional, so a failure below rolls the DISABLE back too). Every other claim stays on
+    --    the deleted duplicate's id as history, like the claims of any deleted row.
+    SELECT * INTO _keep FROM public.investigators WHERE id = _keep.id;
+    SELECT array_agg(fp.id ORDER BY fp.id) INTO _fp_ids
+      FROM public.field_provenance fp
+     WHERE fp.entity_table = 'investigators' AND fp.entity_id = _drop.id
+       AND pg_temp.kg_claim_matches(to_jsonb(_keep), fp.entity_column, fp.value_text);
+    IF cardinality(_fp_ids) > 0 THEN
+      IF EXISTS (SELECT 1 FROM pg_trigger
+                  WHERE tgrelid = 'public.field_provenance'::regclass
+                    AND tgname = 'trg_field_provenance_append_only' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+        ALTER TABLE public.field_provenance DISABLE TRIGGER trg_field_provenance_append_only;
+        _prov_guard := true;
+      END IF;
+      UPDATE public.field_provenance SET entity_id = _keep.id WHERE id = ANY (_fp_ids);
+      IF _prov_guard THEN
+        ALTER TABLE public.field_provenance ENABLE TRIGGER trg_field_provenance_append_only;
+      END IF;
+    END IF;
+    SELECT count(*) INTO _fp_left FROM public.field_provenance
+     WHERE entity_table = 'investigators' AND entity_id = _drop.id;
+
     -- 5. The duplicate's spine row, once nothing references it.
     _refs := pg_temp.kg_fk_refs('public.resources'::regclass, _drop_res, '{}'::text[]);
     IF _refs <> '' THEN
@@ -1267,10 +1499,12 @@ BEGIN
 
     INSERT INTO kg_fix_report (item, target, outcome, detail)
     VALUES (_item, _drop_res::text || ' -> ' || _keep_res::text, 'done',
-            format('merged: duplicate %s deleted with its spine row; keeper %s secondary_emails now %s; repointed %s org link(s), %s curation-log row(s), %s comment(s); %s provenance claim(s) re-anchored; %s search-index row(s) removed',
-                   _drop.id, _keep.id,
-                   (SELECT coalesce(secondary_emails::text, '{}') FROM public.investigators WHERE id = _keep.id),
-                   _io, _cal, _ec, _fp, _ke));
+            format('merged: duplicate %s deleted with its spine row; keeper %s secondary_emails now %s; repointed %s org link(s), %s comment(s); '
+                   || 'moved to the keeper %s provenance claim(s) that state its current cells (field_provenance ids %s: entity_id was %s, not audited; see UNDO); '
+                   || '%s other claim(s) and %s curation-log row(s) still name the duplicate, as history; %s search-index row(s) removed',
+                   _drop.id, _keep.id, coalesce(_keep.secondary_emails::text, '{}'),
+                   _io, _ec, coalesce(cardinality(_fp_ids), 0), coalesce(array_to_string(_fp_ids, ','), 'none'), _drop.id,
+                   _fp_left, _cal, _ke));
   EXCEPTION WHEN OTHERS THEN
     INSERT INTO kg_fix_report (item, target, outcome, detail) VALUES (_item, _drop_res::text, 'error', SQLSTATE || ': ' || SQLERRM);
   END;
@@ -1286,8 +1520,11 @@ $do$;
 -- it may carry Resources-page display fields in metadata (category, algorithm, ...) that the keeper
 -- lacks: those are copied over first, keeper winning every conflict. Then the house merge pattern
 -- (20260826120000: repoint, don't lose; 20261106130000: drop the search-index copy, delete the spine
--- row only if no foreign key still points at it). All writes run in one sub-block: if anything
--- fails, the sub-block rolls back on its own and is reported, and the rest of the script goes on.
+-- row only if no foreign key still points at it). History is left as it is: the duplicate's
+-- field_provenance claims and its curation_audit_log rows keep naming 444f664a (no foreign key needs
+-- them moved; rewriting them would leave no record of the old value). All writes run in one
+-- sub-block: if anything fails, the sub-block rolls back on its own and is reported, and the rest
+-- of the script goes on.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_tools_01() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE
@@ -1376,17 +1613,18 @@ BEGIN
        WHERE k.id = _keep;
     END IF;
 
-    -- 2. Comments on the duplicate follow the tool (threads keep their parent_id).
+    -- 2. Comments on the duplicate follow the tool (threads keep their parent_id). Audited.
     UPDATE public.entity_comments SET resource_id = _keep WHERE resource_id = _dup;
     GET DIAGNOSTICS _moved = ROW_COUNT;
-    -- 3. Curation-log scoping follows the survivor (20261106130000:46, 20260826120000:172). No FK.
-    UPDATE public.curation_audit_log SET resource_id = _keep WHERE resource_id = _dup;
-    GET DIAGNOSTICS _cal = ROW_COUNT;
+    -- 3. curation_audit_log rows about the duplicate are history with no foreign key: left as they
+    --    are, still naming 444f664a (counted for the report).
+    SELECT count(*) INTO _cal FROM public.curation_audit_log WHERE resource_id = _dup OR entity_id = _dup;
     -- 4. The chat index's own copy of the duplicate (embed-knowledge only ever upserts).
     DELETE FROM public.knowledge_embeddings WHERE resource_id = _dup OR source_id = _dup::text;
     GET DIAGNOSTICS _ke = ROW_COUNT;
     -- 5. field_provenance claims about the duplicate's cells stay: append-only history of a deleted
-    --    row, as for the spine row 20261106130000 deleted. data_audit_log records the DELETE below.
+    --    row, as for the spine row 20261106130000 deleted. None is moved to the keeper: the keeper's
+    --    own claims describe its cells. data_audit_log records the DELETE below.
     SELECT count(*) INTO _fp FROM public.field_provenance WHERE entity_table = 'resources' AND entity_id = _dup;
 
     -- 6. Delete, only if nothing points at it now.
@@ -1403,7 +1641,7 @@ BEGIN
 
   INSERT INTO kg_fix_report (item, target, outcome, detail)
   VALUES (_item, _tgt, 'done',
-          format('deleted 444f664a; metadata keys copied to 3ba48c59: %s; keeper''s value kept for: %s; comments moved: %s; curation_audit_log rows repointed: %s; search-index rows deleted: %s; field_provenance rows left as history: %s',
+          format('deleted 444f664a; metadata keys copied to 3ba48c59: %s; keeper''s value kept for: %s; comments moved: %s; curation_audit_log rows left as history (still naming 444f664a): %s; search-index rows deleted: %s; field_provenance rows left as history: %s',
                  coalesce(_copied, 'none'), coalesce(_kept, 'none'), _moved, _cal, _ke, _fp));
 END
 $do$;
@@ -1531,8 +1769,8 @@ BEGIN
     _done := _done || 'purpose'::text;
   END IF;
   IF strpos(coalesce(_new.notes, ''), _old_fon) = 0 THEN
-    _note := format('Forecast: %s (posted %s), merged into this record 2026-11-16.',
-                    _old_fon, coalesce(_old.posted_date::text, 'date unknown'))
+    _note := format('Forecast: %s (posted %s), merged into this record %s.',
+                    _old_fon, coalesce(_old.posted_date::text, 'date unknown'), to_char(current_date, 'YYYY-MM-DD'))
              || CASE WHEN nullif(btrim(_old.notes), '') IS NOT NULL THEN ' Forecast notes: ' || btrim(_old.notes) ELSE '' END;
     UPDATE public.funding_opportunities
        SET notes = CASE WHEN nullif(btrim(notes), '') IS NULL THEN _note ELSE notes || E'\n' || _note END,
@@ -1881,11 +2119,11 @@ BEGIN
   END IF;
 
   -- 1. Aliases. Never overwrite an existing mapping; report one that points elsewhere.
-  INSERT INTO public.species_aliases (alias, canonical, kind, common_name, note) VALUES
-    ('acoel worm',     'Hofstenia miamia', 'taxon_assumed', 'panther worm',
-     'R34DA061984''s acoel worm: "We will study the acoel worm, Hofstenia miamia". Merged duplicate species row Acoel Worm / Acoel Flatworm (10ceb449) on 2026-11-16.'),
-    ('acoel flatworm', 'Hofstenia miamia', 'taxon_assumed', 'panther worm',
-     'R34DA061984''s acoel worm: "We will study the acoel worm, Hofstenia miamia". Merged duplicate species row Acoel Worm / Acoel Flatworm (10ceb449) on 2026-11-16.')
+  INSERT INTO public.species_aliases (alias, canonical, kind, common_name, note)
+  SELECT a.alias, 'Hofstenia miamia', 'taxon_assumed', 'panther worm',
+         format('R34DA061984''s acoel worm: "We will study the acoel worm, Hofstenia miamia". Merged duplicate species row Acoel Worm / Acoel Flatworm (10ceb449) on %s.',
+                to_char(current_date, 'YYYY-MM-DD'))
+    FROM (VALUES ('acoel worm'), ('acoel flatworm')) AS a(alias)
   ON CONFLICT (alias) DO NOTHING;
   SELECT string_agg(alias || ' -> ' || coalesce(canonical, '(none)'), ', ') INTO _claims
     FROM public.species_aliases
@@ -1951,108 +2189,48 @@ END
 $do$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [people-06] Create 'University College London' and 'University of Washington' (only if people-08 can link someone)
--- No organization node exists for either. The shape is #512's 20261103130000 DO block (also #517
--- block 5): a resources row of type organization whose metadata points back at the organizations
--- row, and organizations.resource_id set, because the exporter only nodes an organization that
--- has a spine row (kg/bbqs_kg.py:127-131). Names are the curated canonical names of
--- 20260807160000:46,49,101; RePORTER imports match organizations with ilike (nih-grants:319,
--- add-project-by-grant:264), so a later 'UNIVERSITY OF WASHINGTON' import reuses this row.
--- An existing row of the same name is reused; one without a spine row is given one. Nothing is
--- created unless people-08 will be able to link someone to it: a new organization with no member would
--- itself be an isolated node.
-CREATE OR REPLACE FUNCTION pg_temp.kg_b_people_06() RETURNS void LANGUAGE plpgsql AS
-$do$
-DECLARE
-  r      record;
-  _elig  int;
-  _oid   uuid;
-  _rid   uuid;
-  _hid   uuid;
-  _hres  uuid;
-  _hname text;
-BEGIN
-  PERFORM public.set_actor('migration:link_isolated_nodes');
-  PERFORM public.set_source_class('curator_fill');
-  FOR r IN
-    SELECT * FROM (VALUES
-      ('University College London', '(\mucl\M|university college london)',
-       ARRAY['1ee83670-fadd-4744-91bd-17ca61944822']::uuid[]),                                        -- Andrew MacAskill
-      ('University of Washington',  '(university of washington|\muw\M)',
-       ARRAY['85a49b85-44ff-4f85-a110-c3860bfe6747', 'cbb1fcfa-0a1d-432d-a4bb-a325516b6594']::uuid[])  -- Annette Estes, Tanya St. John
-    ) AS v(org_name, expect, people)
-  LOOP
-    _hid := NULL; _hres := NULL; _hname := NULL;
-    SELECT o.id, o.resource_id, o.name INTO _hid, _hres, _hname
-      FROM public.organizations o
-     WHERE pg_temp.kg_norm(o.name) = pg_temp.kg_norm(r.org_name)
-     ORDER BY (o.resource_id IS NULL), o.created_at
-     LIMIT 1;
-    IF _hid IS NOT NULL AND _hres IS NOT NULL THEN
-      INSERT INTO kg_fix_report (item, target, outcome, detail)
-      VALUES ('create organization', r.org_name, 'noop',
-              format('exists: organizations %s (%L), spine %s', _hid, _hname, _hres));
-      CONTINUE;
-    END IF;
-    -- Who people-08 could link: a person row on the exported spine row, unaffiliated, institution not contradicting.
-    SELECT count(*) INTO _elig
-      FROM public.investigators i
-     WHERE i.resource_id = ANY (r.people)
-       AND NOT EXISTS (SELECT 1 FROM public.investigator_organizations io WHERE io.investigator_id = i.id)
-       AND (nullif(btrim(i.institution), '') IS NULL OR i.institution ~* r.expect);
-    IF _elig = 0 THEN
-      INSERT INTO kg_fix_report (item, target, outcome, detail)
-      VALUES ('create organization', r.org_name, 'skipped',
-              'nobody people-08 could link to it, so no spine row is made (a memberless organization would be a new isolated node)');
-      CONTINUE;
-    END IF;
-    BEGIN
-      IF _hid IS NULL THEN
-        _oid := gen_random_uuid();
-        INSERT INTO public.resources (resource_type, name, metadata)
-        VALUES ('organization', r.org_name, jsonb_build_object('source_id', _oid, 'source_table', 'organizations'))
-        RETURNING id INTO _rid;
-        INSERT INTO public.organizations (id, name, resource_id) VALUES (_oid, r.org_name, _rid);
-        INSERT INTO kg_fix_report (item, target, outcome, detail)
-        VALUES ('create organization', r.org_name, 'done',
-                format('organizations %s with spine row %s; %s person(s) to link in people-08', _oid, _rid, _elig));
-      ELSE  -- exists without a spine row (nih-grants / verify-affiliations insert a name only)
-        INSERT INTO public.resources (resource_type, name, metadata)
-        VALUES ('organization', _hname, jsonb_build_object('source_id', _hid, 'source_table', 'organizations'))
-        RETURNING id INTO _rid;
-        UPDATE public.organizations SET resource_id = _rid WHERE id = _hid;
-        INSERT INTO kg_fix_report (item, target, outcome, detail)
-        VALUES ('create organization', r.org_name, 'done',
-                format('existing organizations %s (%L) had no spine row; gave it %s', _hid, _hname, _rid));
-      END IF;
-    EXCEPTION WHEN OTHERS THEN
-      INSERT INTO kg_fix_report (item, target, outcome, detail)
-      VALUES ('create organization', r.org_name, 'error', SQLSTATE || ': ' || SQLERRM);
-    END;
-  END LOOP;
-END
-$do$;
-
--- ────────────────────────────────────────────────────────────────────────────────────────────────
 -- [people-05] Affiliate the 11 NIH program staff with their institute (or NIH)
 -- They hold no grant by design, so the link that fits is affiliation (an org `members` edge), the
 -- way Christina Hatch, Christina Liu and Yuan Luo are already members of National Institutes of
 -- Health. The specific institute where the repo names it, else NIH. Each target org is matched by
--- its spine id (= its KG node id) and exported name. A row whose own institution text names a
--- non-NIH place, or a different institute, is skipped for a curator.
+-- its spine id (= its KG node id) and exported name. The row's own institution text, when set, must
+-- start with NIH or with the target institute (its code or its name, as whole words): 'BRAIN' or
+-- 'National Institute of Standards and Technology' is not NIH. For an institute target it must not
+-- also name another institute ('NIH/NIDA' for an NIMH link). Anything else is skipped for a curator.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_people_05() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE
   r record;
-  -- Institute codes other than the target: an institution text naming one of them contradicts it.
-  _ics constant text[] := ARRAY['nimh','nida','ninds','nidcd','nia','niaaa','nibib','nichd','nei','nccih',
-                                'nhlbi','nigms','niehs','nidcr','niddk','niams','nimhd','ninr','nlm','nci',
-                                'niaid','nhgri','ncats'];
+  _nih constant text := 'nih|national institutes? of health';
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
   FOR r IN
-    SELECT * FROM (VALUES
+    WITH ic(code, name) AS (VALUES       -- the NIH institutes and centres, by code and by name
+      ('nimh',  'national institute of mental health'),
+      ('ninds', 'national institute of neurological disorders and stroke'),
+      ('nida',  'national institute on drug abuse'),
+      ('nidcd', 'national institute on deafness and other communication disorders'),
+      ('nia',   'national institute on aging'),
+      ('niaaa', 'national institute on alcohol abuse and alcoholism'),
+      ('nibib', 'national institute of biomedical imaging and bioengineering'),
+      ('nichd', '(eunice kennedy shriver )?national institute of child health and human development'),
+      ('nei',   'national eye institute'),
+      ('nccih', 'national center for complementary and integrative health'),
+      ('nhlbi', 'national heart,? lung,? and blood institute'),
+      ('nigms', 'national institute of general medical sciences'),
+      ('niehs', 'national institute of environmental health sciences'),
+      ('nidcr', 'national institute of dental and craniofacial research'),
+      ('niddk', 'national institute of diabetes and digestive and kidney diseases'),
+      ('niams', 'national institute of arthritis and musculoskeletal and skin diseases'),
+      ('nimhd', 'national institute on minority health and health disparities'),
+      ('ninr',  'national institute of nursing research'),
+      ('nlm',   'national library of medicine'),
+      ('nci',   'national cancer institute'),
+      ('niaid', 'national institute of allergy and infectious diseases'),
+      ('nhgri', 'national human genome research institute'),
+      ('ncats', 'national center for advancing translational sciences')
+    ), staff(rid, label, org_rid, org_label, ic, evidence) AS (VALUES
       ('7745a449-07ce-4762-988e-e355a72b0775'::uuid, 'Arina Knowlton',     '28609b98-6f97-4a46-b875-9f5084f1c7cd'::uuid, 'National Institute of Mental Health', 'nimh',
        'institution NIH/NIMH at creation, 20260807170000:21'),
       ('9eb4af78-4485-4c7b-9179-76d079bde109'::uuid, 'Ashlee Van''t Veer', '208980e9-92b9-447e-a2ca-e83bf61db159'::uuid, 'National Institutes of Health', NULL,
@@ -2075,25 +2253,30 @@ BEGIN
        'NIH/NIDCD, NIH Program, seating:178'),
       ('24703152-c43b-4f4f-8d73-65f3ef490ff0'::uuid, 'Ming Zhan',          '32f761ce-6857-451c-9eb7-fc5b8b221449'::uuid, 'National Institute on Drug Abuse', 'nida',
        'NIDA/NIH, seating:139; created with a nih.gov address, 20260521171202:16-23')
-    ) AS v(rid, label, org_rid, org_label, ic, evidence)
+    )
+    SELECT s.*,
+           -- NIH itself, plus: for an NIH-level link any institute, for an institute link that one
+           _nih || '|' || (SELECT string_agg(i.code || '|' || i.name, '|') FROM ic i WHERE s.ic IS NULL OR i.code = s.ic) AS spell,
+           CASE WHEN s.ic IS NOT NULL
+                THEN '\m(' || (SELECT string_agg(i.code || '|' || i.name, '|') FROM ic i WHERE i.code <> s.ic) || ')\M' END AS reject
+      FROM staff s
   LOOP
-    PERFORM pg_temp.kg_link_org(
-      'NIH program staff -> institute', r.rid, r.label, r.org_rid, r.org_label,
-      '(nih|national institute|brain)',
-      CASE WHEN r.ic IS NULL THEN NULL
-           ELSE '\m(' || array_to_string(array_remove(_ics, r.ic), '|') || ')\M' END,
-      r.evidence);
+    PERFORM pg_temp.kg_link_org('NIH program staff -> institute', r.rid, r.label, r.org_rid, r.org_label,
+                                r.spell, r.reject, r.evidence);
   END LOOP;
 END
 $do$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [people-07] Affiliate 16 members with the existing organization node their institution names
+-- [people-07] Affiliate 15 members with the existing organization node their institution names
 -- Each has no roster row, no organization link and no working group, so the node is isolated. The
 -- institution is in the repo: the person's own onboarding-form answer (as seeded by seed-consortium
 -- or backfilled by 20260807150000/160000/170000), the 2026-09-08 workshop seating plan, or the SfN
--- pages. The org is matched by its spine id (= KG node id) and exported name. kg_link_org skips any
--- row whose own institution text contradicts the evidence, or that already has an organization.
+-- pages. The org is matched by its spine id (= KG node id) and exported name. Each line lists the
+-- spellings of that one organization: a row whose own institution text is not one of them ('Florida
+-- State University' for the University of Florida, 'SUNY Downstate' for Stony Brook) contradicts
+-- the evidence and is skipped, as is a row that already has an organization (kg_link_org).
+-- Jongwoon Kim is not here: his sources name NYU Langone and Columbia, a curator's call (people-09).
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_people_07() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE r record;
@@ -2103,46 +2286,68 @@ BEGIN
   FOR r IN
     SELECT * FROM (VALUES
       ('ea2dc7bf-af90-460d-9823-45e9407b6bb8'::uuid, 'David Ostry',         'e5044d9f-fe07-4a69-a9c3-7aecc245b941'::uuid, 'YALE UNIVERSITY',
-       'yale', 'form: Yale Child Study Center, 20260807150000:145, seed-consortium/index.ts:550; normalized Yale University, 20260807160000:91'),
+       'yale', NULL,
+       'form: Yale Child Study Center, 20260807150000:145, seed-consortium/index.ts:550; normalized Yale University, 20260807160000:91'),
       ('e631bc65-b164-4090-b442-3dacddd2707a'::uuid, 'Gaurav Patel',        '9f75488b-59d0-4d50-b7db-869f26066743'::uuid, 'COLUMBIA UNIVERSITY HEALTH SCIENCES',
-       'columbia', 'form: Columbia University, 20260807150000:87, seed-consortium/index.ts:1675; cumc.columbia.edu address, normalized Columbia University Irving Medical Center, 20260807160000:33'),
-      ('e055175b-7bfb-471e-8e80-d8697b484b9d'::uuid, 'Jongwoon Kim',        '6efc2552-7cd7-4e53-bd2d-41fee6824cf7'::uuid, 'NEW YORK UNIVERSITY SCHOOL OF MEDICINE',
-       '(nyu|new york univ|langone|columbia)', 'form: NYU, Columbia University, 20260807150000:182, seed-consortium/index.ts:67-73; nyulangone.org address, normalized NYU Langone Health, 20260807160000:128'),
+       'columbia univ(ersity)?|cumc', NULL,
+       'form: Columbia University, 20260807150000:87, seed-consortium/index.ts:1675; cumc.columbia.edu address, normalized Columbia University Irving Medical Center, 20260807160000:33'),
       ('37453416-6149-4fee-b9b9-a427b800ffe7'::uuid, 'Meaghan Perdue',      '4284d761-dde2-4e72-8cb4-d3724f2d4b32'::uuid, 'UNIV OF MASSACHUSETTS MED SCH WORCESTER',
-       '(umass|massachusetts)', 'form: UMass Chan Medical School, 20260807150000:150, seed-consortium/index.ts:622, 20260807160000:96; seating:68'),
+       'umass|university of massachusetts', '(institute of technology|\mmit\M|\m(amherst|boston|lowell|dartmouth)\M)',
+       'form: UMass Chan Medical School, 20260807150000:150, seed-consortium/index.ts:622, 20260807160000:96; seating:68'),
       ('639e73b5-6a6d-46f1-82a8-b466d7e3bdbb'::uuid, 'Olha Metenko',        '29d3cb38-1cbb-43b7-baa6-f413d0a0bdad'::uuid, 'UNIVERSITY OF PENNSYLVANIA',
-       '(upenn|university of pennsylvania|penn medicine|duncan)', 'form: UPenn - Dr. Duncan, 20260807170000:33 (Dominique Duncan is a UPenn member)'),
+       'upenn|u\.? ?penn|university of pennsylvania|penn medicine|perelman', NULL,
+       'form: UPenn - Dr. Duncan, 20260807170000:33 (Dominique Duncan is a UPenn member)'),
       ('1cfe15ec-b6a7-4534-b69d-79bb63b341b6'::uuid, 'Weikang Shi',         'e5044d9f-fe07-4a69-a9c3-7aecc245b941'::uuid, 'YALE UNIVERSITY',
-       'yale', 'form: Yale, 20260807150000:143, seed-consortium/index.ts:705; 20260807160000:89; seating:118; SFN2025.tsx:261'),
+       'yale', NULL,
+       'form: Yale, 20260807150000:143, seed-consortium/index.ts:705; 20260807160000:89; seating:118; SFN2025.tsx:261'),
       ('0f65886e-44cb-4a8b-88a2-ecb214b0ea99'::uuid, 'Yangjia Li',          '9f75488b-59d0-4d50-b7db-869f26066743'::uuid, 'COLUMBIA UNIVERSITY HEALTH SCIENCES',
-       'columbia', 'form: Columbia University, 20260807150000:86, seed-consortium/index.ts:1702, 20260807160000:32'),
+       'columbia univ(ersity)?|cumc', NULL,
+       'form: Columbia University, 20260807150000:86, seed-consortium/index.ts:1702, 20260807160000:32'),
       ('aa69dcd5-bd16-40ef-909e-3f2985d66c65'::uuid, 'Deepa Purushothaman', 'e5044d9f-fe07-4a69-a9c3-7aecc245b941'::uuid, 'YALE UNIVERSITY',
-       'yale', 'Yale University, Postdoc/Grad, mit-workshop-seating.ts:175'),
+       'yale', NULL,
+       'Yale University, Postdoc/Grad, mit-workshop-seating.ts:175'),
       ('f9cc96dd-52b0-41bc-b687-47a1e4df3e2c'::uuid, 'Dorota Jarecka',      '7924e7d9-5b53-4525-95ef-3f5a6b9112a5'::uuid, 'MASSACHUSETTS INSTITUTE OF TECHNOLOGY',
-       '(\mmit\M|massachusetts institute of technology)', 'MIT, Infra (EMBER), mit-workshop-seating.ts:140'),
+       'mit|massachusetts institute of technology', NULL,
+       'MIT, Infra (EMBER), mit-workshop-seating.ts:140'),
       ('aa9445fe-736e-4a1e-b8a4-4b709c4a6603'::uuid, 'Luke Bloy',           'f28a2f16-5259-4e2f-9c8e-a5d11d2b5c5f'::uuid, 'CHILDREN''S HOSP OF PHILADELPHIA',
-       '(chop|children.?s hosp)', 'CHOP, Research Staff, mit-workshop-seating.ts:51'),
+       'chop|children.?s hosp(ital)? of philadelphia', NULL,
+       'CHOP, Research Staff, mit-workshop-seating.ts:51'),
       ('eff6d625-81ad-4a38-9f8e-93a2ae06c7af'::uuid, 'Nicole Tregoning',    '315a0694-ce8d-4010-abca-5438e5f6b560'::uuid, 'JOHNS HOPKINS UNIVERSITY',
-       '(johns hopkins|\mjhu|\mapl\M|applied physics)', 'Johns Hopkins University, mit-workshop-seating.ts:174; JHU Applied Physics Laboratory with Brock Wester (a JHU member), SFN2025.tsx:319'),
+       'johns hopkins|jhu', NULL,
+       'Johns Hopkins University, mit-workshop-seating.ts:174; JHU Applied Physics Laboratory with Brock Wester (a JHU member), SFN2025.tsx:319'),
       ('c520d01a-3746-4f7d-baff-ad1dab70e1b3'::uuid, 'Terry Jernigan',      'd2821755-977a-46a2-a089-169f6e66aeea'::uuid, 'UNIVERSITY OF CALIFORNIA, SAN DIEGO',
-       '(ucsd|uc san diego|san diego)', 'UC San Diego, mit-workshop-seating.ts:160'),
+       'ucsd|uc san diego|univ(ersity)? of california,? san diego', NULL,
+       'UC San Diego, mit-workshop-seating.ts:160'),
       ('25a4f79c-6020-4074-b501-0114a205175f'::uuid, 'Thomas Heeps',        '622f970b-e529-441d-b5f3-739025a38aa9'::uuid, 'UNIVERSITY OF FLORIDA',
-       '(florida|\mufl?\M)', 'University of Florida, Undergraduate, mit-workshop-seating.ts:189'),
+       'uf|ufl|univ(ersity)? of florida', NULL,
+       'University of Florida, Undergraduate, mit-workshop-seating.ts:189'),
       ('977712f0-0daf-4238-a693-42c96f0874a2'::uuid, 'Ugne Klibaite',       '99bc7f7b-2a3d-4e34-99f1-ec08e12133b2'::uuid, 'HARVARD UNIVERSITY',
-       'harvard', 'Harvard University, mit-workshop-seating.ts:152'),
+       'harvard', NULL,
+       'Harvard University, mit-workshop-seating.ts:152'),
       ('70205506-97d5-4503-bc59-e9a25934e699'::uuid, 'Varun Thvar',         '7924e7d9-5b53-4525-95ef-3f5a6b9112a5'::uuid, 'MASSACHUSETTS INSTITUTE OF TECHNOLOGY',
-       '(\mmit\M|massachusetts institute of technology)', 'MIT, Visiting Undergrad, mit-workshop-seating.ts:193'),
+       'mit|massachusetts institute of technology', NULL,
+       'MIT, Visiting Undergrad, mit-workshop-seating.ts:193'),
       ('87b79b22-888b-40ac-bee6-32a62f07645f'::uuid, 'Yunsoo Kim',          'c04b3bcd-d1db-4b3c-9dc6-a4c97039cad6'::uuid, 'STATE UNIVERSITY NEW YORK STONY BROOK',
-       '(stony ?brook|\msbu\M|suny)', 'Stony Brook University Hospital, mit-workshop-seating.ts:190 (Sima Mofakham, same hospital at seating:99, is a member of this node)')
-    ) AS v(rid, label, org_rid, org_label, expect, evidence)
+       '((suny|state university of new york)( at)? )?(stony ?brook|sbu)', NULL,
+       'Stony Brook University Hospital, mit-workshop-seating.ts:190 (Sima Mofakham, same hospital at seating:99, is a member of this node)')
+    ) AS v(rid, label, org_rid, org_label, spell, reject, evidence)
   LOOP
-    PERFORM pg_temp.kg_link_org('member -> organization', r.rid, r.label, r.org_rid, r.org_label, r.expect, NULL, r.evidence);
+    PERFORM pg_temp.kg_link_org('member -> organization', r.rid, r.label, r.org_rid, r.org_label, r.spell, r.reject, r.evidence);
   END LOOP;
 END
 $do$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [people-08] Affiliate 3 members with the organizations people-06 creates
+-- [people-08] Affiliate 3 members with University College London and University of Washington, creating each with its first member
+-- No organization node exists for either. kg_link_org creates the organization only after a person
+-- passed every check, together with the link, in #512's 20261103130000 shape (also #517 block 5): a
+-- resources row of type organization whose metadata points back at the organizations row, and
+-- organizations.resource_id set, because the exporter only nodes an organization that has a spine
+-- row (kg/bbqs_kg.py:127-131). So no organization is ever created without a member (it would itself
+-- be an isolated node). Names are the curated canonical names of 20260807160000:46,49,101; RePORTER
+-- imports match organizations with ilike (nih-grants:319, add-project-by-grant:264), so a later
+-- 'UNIVERSITY OF WASHINGTON' import reuses this row. An existing row of the same name is reused, and
+-- one without a spine row is given one.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_people_08() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE r record;
@@ -2151,16 +2356,27 @@ BEGIN
   PERFORM public.set_source_class('curator_fill');
   FOR r IN
     SELECT * FROM (VALUES
-      ('1ee83670-fadd-4744-91bd-17ca61944822'::uuid, 'Andrew MacAskill',    NULL::uuid, 'University College London',
-       '(\mucl\M|university college london)', 'form: UCL, 20260807150000:155, seed-consortium/index.ts:490; ucl.ac.uk address, 20260807160000:101'),
-      ('85a49b85-44ff-4f85-a110-c3860bfe6747'::uuid, 'Annette Estes',       NULL::uuid, 'University of Washington',
-       '(university of washington|\muw\M)', 'form: University of Washington, 20260807150000:100, seed-consortium/index.ts:1369; uw.edu address, 20260807160000:46'),
-      ('cbb1fcfa-0a1d-432d-a4bb-a325516b6594'::uuid, 'Tanya St. John',      NULL::uuid, 'University of Washington',
-       '(university of washington|\muw\M)', 'form: University of Washington Autism Center, 20260807150000:103, seed-consortium/index.ts:1323; uw.edu address, 20260807160000:49')
-    ) AS v(rid, label, org_rid, org_label, expect, evidence)
+      ('1ee83670-fadd-4744-91bd-17ca61944822'::uuid, 'Andrew MacAskill',    'University College London',
+       'ucl|university college london', NULL,
+       'form: UCL, 20260807150000:155, seed-consortium/index.ts:490; ucl.ac.uk address, 20260807160000:101'),
+      ('85a49b85-44ff-4f85-a110-c3860bfe6747'::uuid, 'Annette Estes',       'University of Washington',
+       'uw|university of washington', '\m(wisconsin|madison|milwaukee)\M',
+       'form: University of Washington, 20260807150000:100, seed-consortium/index.ts:1369; uw.edu address, 20260807160000:46'),
+      ('cbb1fcfa-0a1d-432d-a4bb-a325516b6594'::uuid, 'Tanya St. John',      'University of Washington',
+       'uw|university of washington', '\m(wisconsin|madison|milwaukee)\M',
+       'form: University of Washington Autism Center, 20260807150000:103, seed-consortium/index.ts:1323; uw.edu address, 20260807160000:49')
+    ) AS v(rid, label, org_label, spell, reject, evidence)
   LOOP
-    PERFORM pg_temp.kg_link_org('member -> new organization', r.rid, r.label, r.org_rid, r.org_label, r.expect, NULL, r.evidence);
+    PERFORM pg_temp.kg_link_org('member -> new organization', r.rid, r.label, NULL, r.org_label,
+                                r.spell, r.reject, r.evidence, false, true);
   END LOOP;
+  -- Say so when an organization was not created because nobody could be linked to it.
+  INSERT INTO kg_fix_report (item, target, outcome, detail)
+  SELECT 'create organization', v.org_name, 'skipped',
+         'not created: none of its people could be linked (their rows above say why), and an organization with no member would be a new isolated node'
+    FROM (VALUES ('University College London'), ('University of Washington')) AS v(org_name)
+   WHERE NOT EXISTS (SELECT 1 FROM public.organizations o JOIN public.resources s ON s.id = o.resource_id
+                      WHERE pg_temp.kg_norm(o.name) = pg_temp.kg_norm(v.org_name) AND s.resource_type = 'organization');
 END
 $do$;
 
@@ -2202,66 +2418,69 @@ $blk$;
 -- Society for Neuroscience), which also de-isolates those two organization nodes. Jobs are included
 -- so the two columns cannot stay apart; expect 0 job rows today.
 -- Only an EMPTY spine column is filled. A spine row that already names a different organization is
--- reported for a curator (with the UPDATE that would take the detail value), never overwritten.
+-- reported for a curator (with the UPDATE that would take the detail value), never overwritten. The
+-- decision is taken per spine row, over every detail row that points at it: if they name more than
+-- one organization, nothing is written for that spine row and all of them are reported.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_notices_01() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE
   r     record;
   _n    int;
-  _now  uuid;
   _item constant text := 'sync spine organization';
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
   FOR r IN
-    SELECT 'announcement'::text AS kind, a.resource_id, a.organization_id AS org_id,
-           s.resource_type::text AS rtype, s.name AS spine_name, s.organization_id AS spine_org,
-           o.name AS org_name, o.resource_id AS org_rid, so.name AS spine_org_name
-      FROM public.announcements a
-      JOIN public.resources s      ON s.id = a.resource_id
-      JOIN public.organizations o  ON o.id = a.organization_id
+    WITH det AS (
+      SELECT 'announcement'::text AS kind, a.id AS det_id, a.title, a.resource_id, a.organization_id AS org_id
+        FROM public.announcements a WHERE a.resource_id IS NOT NULL AND a.organization_id IS NOT NULL
+      UNION ALL
+      SELECT 'job', j.id, j.title, j.resource_id, j.organization_id
+        FROM public.jobs j WHERE j.resource_id IS NOT NULL AND j.organization_id IS NOT NULL
+    )
+    SELECT d.resource_id, s.resource_type::text AS rtype, s.name AS spine_name,
+           s.organization_id AS spine_org, so.name AS spine_org_name,
+           array_agg(DISTINCT d.kind) AS kinds,
+           count(DISTINCT d.org_id) AS n_orgs,
+           (array_agg(d.org_id))[1] AS org_id, (array_agg(o.name))[1] AS org_name,
+           (array_agg(o.resource_id))[1] AS org_rid,
+           string_agg(format('%s %s %L names %s', d.kind, d.det_id, left(d.title, 60), o.name), '; '
+                      ORDER BY o.name, d.kind, d.det_id) AS listing
+      FROM det d
+      JOIN public.resources s     ON s.id = d.resource_id
+      JOIN public.organizations o ON o.id = d.org_id
       LEFT JOIN public.organizations so ON so.id = s.organization_id
-     WHERE s.organization_id IS DISTINCT FROM a.organization_id
-    UNION ALL
-    SELECT 'job', j.resource_id, j.organization_id,
-           s.resource_type::text, s.name, s.organization_id,
-           o.name, o.resource_id, so.name
-      FROM public.jobs j
-      JOIN public.resources s      ON s.id = j.resource_id
-      JOIN public.organizations o  ON o.id = j.organization_id
-      LEFT JOIN public.organizations so ON so.id = s.organization_id
-     WHERE s.organization_id IS DISTINCT FROM j.organization_id
-     ORDER BY 1, 5
+     GROUP BY d.resource_id, s.resource_type, s.name, s.organization_id, so.name
+    HAVING bool_or(s.organization_id IS DISTINCT FROM d.org_id)
+     ORDER BY s.name, d.resource_id
   LOOP
     BEGIN
-      IF r.rtype <> r.kind THEN
+      IF r.n_orgs > 1 THEN
         INSERT INTO kg_fix_report (item, target, outcome, detail)
         VALUES (_item, r.spine_name, 'skipped',
-                format('spine row %s is typed %s, not %s; not touched', r.resource_id, r.rtype, r.kind));
+                format('the detail rows of spine row %s name %s different organizations (%s); nothing written, a curator decides which one it takes',
+                       r.resource_id, r.n_orgs, r.listing));
+      ELSIF cardinality(r.kinds) > 1 OR r.rtype <> r.kinds[1] THEN
+        INSERT INTO kg_fix_report (item, target, outcome, detail)
+        VALUES (_item, r.spine_name, 'skipped',
+                format('spine row %s is typed %s, its detail row(s) are %s (%s); not touched',
+                       r.resource_id, r.rtype, array_to_string(r.kinds, ' and '), r.listing));
       ELSIF r.spine_org IS NOT NULL THEN
         INSERT INTO kg_fix_report (item, target, outcome, detail)
         VALUES (_item, r.spine_name, 'skipped',
                 format('spine row already names %s, the %s row names %s; a curator decides. To take the %s value: '
                        'UPDATE public.resources SET organization_id = %L, updated_at = now() WHERE id = %L;',
-                       r.spine_org_name, r.kind, r.org_name, r.kind, r.org_id, r.resource_id));
+                       r.spine_org_name, r.kinds[1], r.org_name, r.kinds[1], r.org_id, r.resource_id));
       ELSE
         UPDATE public.resources SET organization_id = r.org_id, updated_at = now()
          WHERE id = r.resource_id AND organization_id IS NULL;
         GET DIAGNOSTICS _n = ROW_COUNT;
-        IF _n = 1 THEN
-          INSERT INTO kg_fix_report (item, target, outcome, detail)
-          VALUES (_item, r.spine_name, 'done',
-                  format('%s spine row -> %s%s', r.kind, r.org_name,
-                         CASE WHEN r.org_rid IS NULL
-                              THEN ' (that organization has no spine row, so the export still writes no edge)'
-                              ELSE '' END));
-        ELSE   -- another detail row pointing at the same spine row got there first
-          SELECT organization_id INTO _now FROM public.resources WHERE id = r.resource_id;
-          INSERT INTO kg_fix_report (item, target, outcome, detail)
-          VALUES (_item, r.spine_name, CASE WHEN _now = r.org_id THEN 'noop' ELSE 'skipped' END,
-                  CASE WHEN _now = r.org_id THEN 'already set'
-                       ELSE format('two detail rows share spine row %s and name different organizations; a curator decides', r.resource_id) END);
-        END IF;
+        INSERT INTO kg_fix_report (item, target, outcome, detail)
+        VALUES (_item, r.spine_name, CASE WHEN _n = 1 THEN 'done' ELSE 'noop' END,
+                format('%s spine row -> %s%s', r.kinds[1], r.org_name,
+                       CASE WHEN r.org_rid IS NULL
+                            THEN ' (that organization has no spine row, so the export still writes no edge)'
+                            ELSE '' END));
       END IF;
     EXCEPTION WHEN OTHERS THEN
       INSERT INTO kg_fix_report (item, target, outcome, detail)
@@ -2274,7 +2493,8 @@ BEGIN
   FOR r IN
     SELECT v.*, s.id AS sid, s.organization_id AS sorg, o.resource_id AS sorg_rid, o.name AS sorg_name,
            (SELECT count(*) FROM public.announcements a WHERE a.resource_id = v.rid) AS n_ann,
-           (SELECT count(*) FROM public.announcements a WHERE a.resource_id = v.rid AND a.organization_id IS NOT NULL) AS n_ann_org
+           (SELECT count(*) FROM public.announcements a WHERE a.resource_id = v.rid AND a.organization_id IS NOT NULL) AS n_ann_org,
+           (SELECT count(DISTINCT a.organization_id) FROM public.announcements a WHERE a.resource_id = v.rid) AS n_ann_orgs
       FROM (VALUES
         ('46841d0e-4d55-4690-81f0-41c33f424bc8'::uuid, 'Canada Impact+ Research Training Awards (CIRTA)',                         '766331fd-daea-4a31-86c4-589737e533ea'::uuid, 'BBQS Consortium'),
         ('00343fc4-d3b9-4b22-8445-dcef0a11a5e4'::uuid, 'Children''s Speech Recognition Challenge — $120K Prize Pool',              '766331fd-daea-4a31-86c4-589737e533ea'::uuid, 'BBQS Consortium'),
@@ -2291,9 +2511,10 @@ BEGIN
       VALUES (_item, r.label, 'report', format('spine row %s no longer exists', r.rid));
     ELSIF r.sorg IS NULL THEN
       INSERT INTO kg_fix_report (item, target, outcome, detail)
-      VALUES (_item, r.label, 'skipped',
+      VALUES (_item, r.label, CASE WHEN r.n_ann_orgs > 1 THEN 'report' ELSE 'skipped' END,
               CASE WHEN r.n_ann = 0 THEN 'no announcements row has resource_id = this node; nothing to copy'
                    WHEN r.n_ann_org = 0 THEN format('its announcements row has organization_id NULL: the 11-03 link (#517 block 7: %s) is missing live; not guessed here', r.org_label)
+                   WHEN r.n_ann_orgs > 1 THEN format('its %s announcements rows name %s organizations; nothing written (see the row above), a curator decides', r.n_ann, r.n_ann_orgs)
                    ELSE 'still unlinked; see the rows above' END);
     ELSIF r.sorg_rid IS NULL THEN
       INSERT INTO kg_fix_report (item, target, outcome, detail)
@@ -2380,10 +2601,15 @@ $do$;
 -- ODPRIMED-AI@od.nih.gov); 'NSF 26-526' is NSF's own solicitation number (nsf.gov url); the Simons
 -- call's title says '(Simons Foundation)' and its url is simonsfoundation.org. Every target
 -- organization is already a node: #512's 20261103130000 created them, each with its spine row.
--- Only an EMPTY column is filled. The forecast RFA-NS-26-011 is listed last as a fallback: notices-03
--- deletes it, and if notices-03 was skipped this still links it to NINDS, so it is not left isolated.
--- Whether the issuer is also among the call's own participating_orgs / funding_opportunity_orgs is
--- reported, never required (the FON is the authority).
+-- Only an EMPTY column is filled. The superseded forecast RFA-NS-26-011 is NOT linked: notices-03
+-- merges it away, and if notices-03 skipped the merge it stays isolated on purpose, so the duplicate
+-- keeps showing up (isolated, and flagged as a duplicate) until a curator merges it; a report row
+-- says so. Whether the issuer is also among the call's own participating_orgs /
+-- funding_opportunity_orgs is reported, never required (the FON is the authority).
+-- Known overlap with PR #512: once #512's exporter half merges it writes funding_org from
+-- funding_opportunity_orgs, which includes the issuer, so a call will carry part_of_org (from here)
+-- and funding_org to the same organization. #512's exporter should skip a funding_org edge where
+-- part_of_org already names that organization.
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_notices_04() RETURNS void LANGUAGE plpgsql AS
 $do$
 DECLARE
@@ -2415,17 +2641,14 @@ BEGIN
       ('67d25d9e-afa4-4571-aa3c-3c0d4aee3388'::uuid, 'NOT-MH-25-155',         'NIMH',                 '28609b98-6f97-4a46-b875-9f5084f1c7cd'::uuid, 'National Institute of Mental Health'),
       ('d3423658-1147-421f-a6f8-f31067133351'::uuid, 'RFA-DA-27-004',         'NIDA',                 '32f761ce-6857-451c-9eb7-fc5b8b221449'::uuid, 'National Institute on Drug Abuse'),
       ('20adc9fb-c389-48a7-85ec-931501f0ce13'::uuid, 'SIMONS-EMPIRE-AI-2026', 'Simons Foundation',    '1a88610e-c3bc-41b8-a97e-36698d0b0c28'::uuid, 'Simons Foundation'),
-      ('a8990457-e9da-49eb-9a0c-5b2af1a4ca61'::uuid, 'NSF 26-526',            'NSF',                  '62826284-8258-4f21-af3e-64fc755ef2b2'::uuid, 'National Science Foundation'),
-      ('e0042c46-59de-40f6-b53d-8e565cc27a45'::uuid, 'RFA-NS-26-011',         'NINDS',                '69aa906c-2a0c-4524-8958-4e1009f96060'::uuid, 'National Institute of Neurological Disorders and Stroke')
+      ('a8990457-e9da-49eb-9a0c-5b2af1a4ca61'::uuid, 'NSF 26-526',            'NSF',                  '62826284-8258-4f21-af3e-64fc755ef2b2'::uuid, 'National Science Foundation')
     ) AS v(rid, fon, acronym, org_rid, org_label)
   LOOP
     BEGIN
       SELECT resource_type::text, organization_id INTO _type, _cur FROM public.resources WHERE id = r.rid;
       IF NOT FOUND THEN
         INSERT INTO kg_fix_report (item, target, outcome, detail)
-        VALUES (_item, r.fon, CASE WHEN r.fon = 'RFA-NS-26-011' THEN 'noop' ELSE 'skipped' END,
-                CASE WHEN r.fon = 'RFA-NS-26-011' THEN 'gone: merged into RFA-NS-27-002 by notices-03 (or deleted earlier)'
-                     ELSE format('spine row %s no longer exists', r.rid) END);
+        VALUES (_item, r.fon, 'skipped', format('spine row %s no longer exists', r.rid));
         CONTINUE;
       END IF;
       SELECT * INTO _fo FROM public.funding_opportunities WHERE resource_id = r.rid AND fon = r.fon;
@@ -2475,6 +2698,19 @@ BEGIN
     END;
   END LOOP;
 
+  -- The superseded forecast: gone once notices-03 merged it; if it is still here, it is left
+  -- without an issuer on purpose (see above).
+  INSERT INTO kg_fix_report (item, target, outcome, detail)
+  SELECT _item, 'RFA-NS-26-011',
+         CASE WHEN s.id IS NULL OR s.organization_id IS NOT NULL THEN 'noop' ELSE 'skipped' END,
+         CASE WHEN s.id IS NULL THEN 'gone: merged into RFA-NS-27-002 by notices-03 (or deleted earlier)'
+              WHEN s.organization_id IS NOT NULL
+              THEN format('the superseded forecast is still here, and someone linked it to %s; left as is, still a duplicate to merge',
+                          (SELECT o.name FROM public.organizations o WHERE o.id = s.organization_id))
+              ELSE 'the superseded forecast is still here (notices-03 did not merge it; see its row): left without an issuer on purpose, so it stays isolated and flagged as a duplicate of RFA-NS-27-002 until a curator merges it' END
+    FROM (SELECT 1) AS one
+    LEFT JOIN public.resources s ON s.id = 'e0042c46-59de-40f6-b53d-8e565cc27a45';
+
   -- Any other call in the graph that still has no organization (one added after the 11-04 export,
   -- say): reported for a curator, never guessed.
   FOR r IN
@@ -2515,30 +2751,6 @@ BEGIN
     (SELECT r.description ILIKE '%Columbia University%' FROM public.resources r
       WHERE r.id = '3ba48c59-bb79-44ef-8569-ca644775d73a'),
     'its own description: "Developed by Liam Paninski''s lab at Columbia University Zuckerman Institute"');
-END
-$blk$;
-
--- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [tools-03] Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY
--- tools-03. Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY. src/pages/SFN2025.tsx:369 lists "Psych-DS:
--- FAIR data standard — Melissa Kline Struhl (MIT)"; she chairs WG-Standards
--- (src/data/working-group-chairs.ts:9). Re-checked at run time: her record (0f3bb33c, not the
--- double-space stub 99e94e46) is still affiliated with that MIT node. Psych-DS is funded outside BBQS
--- (RF1MH132747), so this is the standard's home, not a BBQS award.
-CREATE OR REPLACE FUNCTION pg_temp.kg_b_tools_03() RETURNS void LANGUAGE plpgsql AS
-$blk$
-BEGIN
-  PERFORM pg_temp.kg_tools_set_org(
-    'org: Psych-DS', '8e67d548-47b3-4b48-9a70-e5e22c56f062',
-    'Psych-DS: A FAIR data standard for behavioral datasets', 'standard',
-    '7924e7d9-5b53-4525-95ef-3f5a6b9112a5', 'MASSACHUSETTS INSTITUTE OF TECHNOLOGY',
-    EXISTS (SELECT 1 FROM public.investigator_organizations io
-              JOIN public.investigators i ON i.id = io.investigator_id
-             WHERE i.resource_id = '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee'
-               AND pg_temp.kg_norm(i.name) = 'melissa kline struhl'
-               AND io.organization_id = pg_temp.kg_org_of('7924e7d9-5b53-4525-95ef-3f5a6b9112a5',
-                                                          'MASSACHUSETTS INSTITUTE OF TECHNOLOGY')),
-    'SFN2025.tsx:369 "Psych-DS: FAIR data standard — Melissa Kline Struhl (MIT)"; her record is an MIT member');
 END
 $blk$;
 
@@ -2805,33 +3017,15 @@ END
 $blk$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [tools-05] Record the five evidenced links in resource_links
+-- [tools-05] Record the two evidenced links in resource_links
 -- Each call re-checks, against the live rows, that both ends are still the exported nodes and that
 -- the evidence still holds. None of these is an edge until the exporter reads resource_links.
-
--- tools-05. DLC Model Zoo trained_on the two SuperAnimal datasets. The datasets are DeepLabCut's own
--- SuperAnimal training sets: "Large-scale training data for quadruped pose models" / "Training data
--- for top-view mouse pose estimation" (supabase/functions/seed-resources/index.ts:27-28,
--- src/data/resources.ts:188-203), hosted at huggingface.co/datasets/DeepLabCut/. DLC Model Zoo is
--- "Transfer learning models ... trained on species-specific datasets" for quadrupeds and mice
--- (seed-resources:23, resources.ts:162-169), and the DeepLabCut model zoo is where the SuperAnimal
--- models ship (public/tool_device_registry.json:346: "deeplabcut[gui,modelzoo] for SuperAnimal models").
+-- Links the repo does not state are optional, never applied here: DLC Model Zoo trained_on the two
+-- SuperAnimal sets (tools-08: which node holds the SuperAnimal models is a curator's answer) and
+-- Psych-DS was_attributed_to Melissa Kline Struhl (tools-03, with Psych-DS's organization).
 CREATE OR REPLACE FUNCTION pg_temp.kg_b_tools_05() RETURNS void LANGUAGE plpgsql AS
 $blk$
 BEGIN
-  PERFORM pg_temp.kg_tools_link(
-    'link', 'de29b286-d343-4108-90d9-3d11f8adc030', 'DLC Model Zoo', 'ml_model', 'trained_on',
-    '7d9026cf-064c-4070-a81c-858dc1303c4a', 'SuperAnimal-Quadruped-80K', 'dataset', 'curator_fill',
-    'seed-resources/index.ts:23,27; src/data/resources.ts:162-169,188-195 (training data for quadruped pose models); public/tool_device_registry.json:346 (SuperAnimal models ship in the DLC model zoo)',
-    (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-Quadruped%'
-       FROM public.resources r WHERE r.id = '7d9026cf-064c-4070-a81c-858dc1303c4a'));
-  PERFORM pg_temp.kg_tools_link(
-    'link', 'de29b286-d343-4108-90d9-3d11f8adc030', 'DLC Model Zoo', 'ml_model', 'trained_on',
-    'd49fe87c-2047-4788-8247-2130a5e0d931', 'SuperAnimal-TopViewMouse-5K', 'dataset', 'curator_fill',
-    'seed-resources/index.ts:23,28; src/data/resources.ts:162-169,196-203 (training data for top-view mouse pose estimation); public/tool_device_registry.json:346',
-    (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-TopViewMouse%'
-       FROM public.resources r WHERE r.id = 'd49fe87c-2047-4788-8247-2130a5e0d931'));
-
   -- tools-05. DLC Leaderboard evaluates DeepLabCut: "Performance comparison for DLC-based approaches",
   -- "Standardized evaluation for DLC variants" (seed-resources/index.ts:32, src/data/resources.ts:221-228).
   -- Re-checked: the row still says so.
@@ -2862,18 +3056,6 @@ BEGIN
                AND pub.title ILIKE 'Vocal Call Locator Benchmark%')
     AND EXISTS (SELECT 1 FROM public.resources r
                  WHERE r.id = '4921bfdf-7432-48ac-911d-0cb825184ef1' AND r.description ILIKE '%Vocal Call Locator%'));
-
-  -- tools-05. Psych-DS was_attributed_to Melissa Kline Struhl. src/pages/SFN2025.tsx:369 credits "Psych-DS:
-  -- FAIR data standard" to her; she chairs WG-Standards (src/data/working-group-chairs.ts:9). The object
-  -- is her linked record 0f3bb33c, never the double-space stub 99e94e46 (people-01 deletes that one).
-  PERFORM pg_temp.kg_tools_link(
-    'link', '8e67d548-47b3-4b48-9a70-e5e22c56f062', 'Psych-DS: A FAIR data standard for behavioral datasets', 'standard',
-    'was_attributed_to',
-    '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee', 'Melissa Kline Struhl', 'investigator', 'curator_fill',
-    'src/pages/SFN2025.tsx:369 "Psych-DS: FAIR data standard — Melissa Kline Struhl (MIT)"; WG-Standards chair (src/data/working-group-chairs.ts:9)',
-    EXISTS (SELECT 1 FROM public.investigators i
-             WHERE i.resource_id = '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee'
-               AND pg_temp.kg_norm(i.name) = 'melissa kline struhl'));
 END
 $blk$;
 
@@ -2888,9 +3070,22 @@ $blk$;
 --     hint regexes :345-346): miniscope, fiber_photometry, macroscope, MEG.
 --   * The old 32-key BBQS taxonomy (src/pages/Devices.tsx:29-64, device-knowledge-seed/index.ts:26-34),
 --     mapped onto the live keys. No harvester is told these names, so each is a no-op unless the LLM
---     happened to emit it; they complete the old -> new key map at no risk.
+--     happened to emit it; they complete the old -> new key map.
+-- The evidence must be the project's own. The harvester files evidence from RePORTER's 'similar'
+-- neighbours' abstracts and from multi-hop papers under the SEED grant (index.ts:439-445, 592-607;
+-- source_grant_number names where it came from), and project_device_usage keeps every row, so a
+-- mapping would hand a project a device category found in another grant's text. A row is added only
+-- when every live evidence row carrying its bucket comes from its own seed grant (source grant =
+-- seed grant, by core award: the project's own abstract or its own papers); otherwise it is skipped
+-- and the report lists each seed <- source grant and depth. Live evidence is not visible from the
+-- repo or the export, so the report rows say which buckets pass. A harvester bucket with no live
+-- evidence yet is skipped too (as MEG always was): nothing would check the first row the harvester
+-- files for it, and that row may be a neighbour's. The test runs again on every run, so a neighbour
+-- row added later stops a mapping from being added; it does not remove one already made, and once a
+-- row exists project_device_usage counts every evidence row for its bucket (tools-10's SELECTs show
+-- the reach; see NOT FIXED BY SQL).
 -- Guards: the target key must exist (FK, ON UPDATE CASCADE); a bucket a curator already mapped to a
--- different category is left alone; MEG only if every grant whose evidence says MEG is an OPM-MEG
+-- different category is left alone; MEG also only if every grant whose evidence says MEG is an OPM-MEG
 -- grant by its own title/abstract (meg_opm is "Optically pumped magnetometer arrays", and the 34
 -- keys have no SQUID-MEG category). plethysmography -> ppg is ambiguous (whole-body plethysmography
 -- measures breathing) and ships commented out as tools-09.
@@ -2900,7 +3095,7 @@ DECLARE
   _item constant text := 'device crosswalk';
   m record;
   _ev int; _grants text; _other text; _n int;
-  _bad text; _meg_rows int;
+  _bad text; _meg_rows int; _foreign text;
 BEGIN
   PERFORM public.set_actor('migration:link_isolated_nodes');
   PERFORM public.set_source_class('curator_fill');
@@ -2926,6 +3121,14 @@ BEGIN
     SELECT count(*), string_agg(DISTINCT e.seed_grant_number, ', ')
       INTO _ev, _grants
       FROM public.grant_methods_evidence e WHERE m.legacy_key = ANY (e.device_class);
+    -- Evidence rows carrying the bucket that are NOT the project's own (another grant's abstract
+    -- or papers): seed <- source grant (depth), the depth counted in hops from the seed.
+    SELECT string_agg(DISTINCT format('%s <- %s (depth %s)', e.seed_grant_number,
+                                      coalesce(e.source_grant_number, '(no source grant)'), e.depth), '; ')
+      INTO _foreign
+      FROM public.grant_methods_evidence e
+     WHERE m.legacy_key = ANY (e.device_class)
+       AND pg_temp.kg_core_award(e.source_grant_number) IS DISTINCT FROM pg_temp.kg_core_award(e.seed_grant_number);
 
     IF NOT EXISTS (SELECT 1 FROM public.device_categories c WHERE c.key = m.category_key) THEN
       INSERT INTO kg_fix_report (item, target, outcome, detail)
@@ -2936,7 +3139,9 @@ BEGIN
                 WHERE x.legacy_key = m.legacy_key AND x.category_key = m.category_key) THEN
       INSERT INTO kg_fix_report (item, target, outcome, detail)
       VALUES (_item, m.legacy_key || ' -> ' || m.category_key, 'noop',
-              format('mapping already present; live evidence rows with this bucket: %s (grants: %s)', _ev, coalesce(_grants, 'none')));
+              format('mapping already present; live evidence rows with this bucket: %s (grants: %s)%s', _ev, coalesce(_grants, 'none'),
+                     CASE WHEN _foreign IS NOT NULL
+                          THEN '; NOTE: some of it is not the project''s own (seed <- source grant, depth): ' || _foreign ELSE '' END));
       CONTINUE;
     END IF;
     SELECT string_agg(x.category_key, ', ') INTO _other
@@ -2947,7 +3152,19 @@ BEGIN
               format('a curator already maps %s to %s; not adding a second category', m.legacy_key, _other));
       CONTINUE;
     END IF;
+    IF _foreign IS NOT NULL THEN
+      INSERT INTO kg_fix_report (item, target, outcome, detail)
+      VALUES (_item, m.legacy_key || ' -> ' || m.category_key, 'skipped',
+              format('not added: some evidence for %s is not the project''s own, so the mapping would give a project another grant''s device (seed <- source grant, depth): %s; a curator decides', m.legacy_key, _foreign));
+      CONTINUE;
+    END IF;
 
+    IF _ev = 0 AND m.legacy_key IN ('miniscope', 'fiber_photometry', 'macroscope') THEN
+      INSERT INTO kg_fix_report (item, target, outcome, detail)
+      VALUES (_item, m.legacy_key || ' -> ' || m.category_key, 'skipped',
+              format('no live evidence row carries %s yet, so there is nothing to check: the mapping would link nothing today, and the first row the harvester files for it (a neighbour grant''s as likely as the project''s own) would become an edge unchecked. Run this again once the project''s own evidence exists', m.legacy_key));
+      CONTINUE;
+    END IF;
     IF m.legacy_key = 'MEG' THEN
       SELECT count(*), string_agg(DISTINCT t.seed_grant_number, ', ') FILTER (WHERE NOT t.opm)
         INTO _meg_rows, _bad
@@ -2979,7 +3196,9 @@ BEGIN
     GET DIAGNOSTICS _n = ROW_COUNT;
     INSERT INTO kg_fix_report (item, target, outcome, detail)
     VALUES (_item, m.legacy_key || ' -> ' || m.category_key, CASE WHEN _n > 0 THEN 'done' ELSE 'noop' END,
-            format('%s; live evidence rows with this bucket: %s (grants: %s)', m.why, _ev, coalesce(_grants, 'none')));
+            format('%s; %s', m.why,
+                   CASE WHEN _ev = 0 THEN 'no live evidence row carries this bucket yet, so it links nothing today'
+                        ELSE format('live evidence rows with this bucket: %s, all the project''s own (grants: %s)', _ev, _grants) END));
   END LOOP;
 END
 $do$;
@@ -3289,21 +3508,34 @@ $do$;
 -- $blk$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [people-09] OPTIONAL: Second affiliation for Jongwoon Kim: COLUMBIA UNIVERSITY HEALTH SCIENCES
--- QUESTION FOR A CURATOR: Is Jongwoon Kim at NYU Langone, Columbia, or both today?
--- -- people-09 (OPTIONAL). Jongwoon Kim's second affiliation. His form answer names both
--- -- 'NYU, Columbia University' (20260807150000:182), he holds jk4975@columbia.edu as a secondary
--- -- (seed-consortium/index.ts:70), and the 09-08 seating plan seats him as Columbia
--- -- (mit-workshop-seating.ts:102). people-07 links NYU School of Medicine; this adds Columbia too
--- -- (kg_link_org with _allow_other_orgs = true, because he will already have the NYU link).
+-- [people-09] OPTIONAL: Jongwoon Kim's affiliation: NEW YORK UNIVERSITY SCHOOL OF MEDICINE, COLUMBIA UNIVERSITY HEALTH SCIENCES, or both
+-- QUESTION FOR A CURATOR: Is Jongwoon Kim at NYU Langone, Columbia, or both today? Keep the line(s) that apply.
+-- -- people-09 (OPTIONAL). His sources disagree, so no link is applied without a curator: his form
+-- -- answer names both, 'NYU, Columbia University' (20260807150000:182, seed-consortium/index.ts:67-73);
+-- -- his primary address is nyulangone.org and the normalizer made it NYU Langone Health
+-- -- (20260807160000:128); he holds jk4975@columbia.edu as a secondary (seed-consortium/index.ts:70);
+-- -- the most recent source, the 2026-09-08 seating plan, seats him at Columbia (mit-workshop-seating.ts:102).
+-- -- Keep the NYU line, the Columbia line, or both. Each line accepts only its own organization's
+-- -- spellings at the start of his row's institution text, so a row that names only the other one is
+-- -- skipped as a contradiction; the Columbia line also accepts his form answer 'NYU, Columbia
+-- -- University', which names both. Both lines pass _allow_other_orgs = true: the curator's answer
+-- -- is the evidence, so a line adds its organization even when he already has the other one (from
+-- -- an earlier run or a curator's link), and 'both' works whichever is linked first. No line
+-- -- removes an affiliation: the done row names any other organization he keeps.
 -- CREATE OR REPLACE FUNCTION pg_temp.kg_o_people_09() RETURNS void LANGUAGE plpgsql AS
 -- $blk$
 -- BEGIN
---   PERFORM pg_temp.kg_link_org('second affiliation (optional)',
+--   PERFORM pg_temp.kg_link_org('affiliation (curator''s answer)',
+--     'e055175b-7bfb-471e-8e80-d8697b484b9d'::uuid, 'Jongwoon Kim',
+--     '6efc2552-7cd7-4e53-bd2d-41fee6824cf7'::uuid, 'NEW YORK UNIVERSITY SCHOOL OF MEDICINE',
+--     'nyu|new york univ(ersity)?', NULL,
+--     'curator-confirmed: NYU Langone (form: NYU, Columbia University, 20260807150000:182; nyulangone.org address, 20260807160000:128)',
+--     true);
+--   PERFORM pg_temp.kg_link_org('affiliation (curator''s answer)',
 --     'e055175b-7bfb-471e-8e80-d8697b484b9d'::uuid, 'Jongwoon Kim',
 --     '9f75488b-59d0-4d50-b7db-869f26066743'::uuid, 'COLUMBIA UNIVERSITY HEALTH SCIENCES',
---     '(nyu|new york univ|langone|columbia)', NULL,
---     'form: NYU, Columbia University, 20260807150000:182; secondary columbia.edu address; seating:102',
+--     'columbia univ(ersity)?|cumc|nyu,? (and |& )?columbia univ(ersity)?', NULL,
+--     'curator-confirmed: Columbia (form: NYU, Columbia University, 20260807150000:182; columbia.edu secondary address; seating:102)',
 --     true);
 -- END
 -- $blk$;
@@ -3317,19 +3549,27 @@ $do$;
 -- -- (20260807150000:58), which sits on 'Jeffery Walker' (7a5a1c11: postdoc on U01DA063534, YALE
 -- -- member). But 20260826120000:274-276 recorded the opposite judgement ("two different
 -- -- institutions"), so this merge needs a person's yes. The people-10 report rows print both records.
--- -- On a yes: same steps as people-03, then the keeper takes the spelling both sources use, 'Jeffrey', on
--- -- investigators.name AND resources.name (the spine name is not synced). Skipped if the duplicate's
--- -- institution text names somewhere other than Yale, or it holds a non-Yale address, a roster row,
--- -- a login, or a role/working group the keeper lacks.
+-- -- On a yes: same steps and guards as people-03, then the keeper takes the spelling both sources
+-- -- use, 'Jeffrey', on investigators.name AND resources.name (the spine name is not synced). Skipped
+-- -- if the duplicate's institution text names somewhere other than Yale, or it holds any address
+-- -- besides jeffrey.walker@yale.edu (the one the evidence ties to this person), a roster row, a
+-- -- login, a role/working group the keeper lacks, or a profile value the keeper does not already
+-- -- hold (people-03's list). Only claims that state the keeper's cells move to it; curation_audit_log
+-- -- stays as it is.
 -- CREATE OR REPLACE FUNCTION pg_temp.kg_o_people_10() RETURNS void LANGUAGE plpgsql AS
 -- $do$
 -- DECLARE
 --   _keep_res constant uuid := '7a5a1c11-f5f8-4643-b444-71228b1f298a';  -- 'Jeffery Walker'
 --   _drop_res constant uuid := 'e1424ffb-1cc6-4d9a-932e-464c967a68f9';  -- 'Jeffrey Walker'
 --   _item     constant text := 'merge Jeffrey Walker -> Jeffery Walker (optional)';
+--   _known    constant text[] := ARRAY['jeffrey.walker@yale.edu'];
+--   _profile  constant text[] := ARRAY['orcid', 'scholar_id', 'profile_url', 'institution', 'research_areas', 'skills',
+--                                      'requested_working_groups', 'pending_role', 'onboarding_checklist', 'reporter_profile_id'];
+--   _fold     constant text[] := ARRAY['institution', 'research_areas', 'skills'];
 --   _keep public.investigators%ROWTYPE;
 --   _drop public.investigators%ROWTYPE;
---   _n int; _refs text; _addr text[]; _bad text; _prov_guard boolean := false; _fp int := 0;
+--   _n int; _refs text; _addr text[]; _bad text; _prov_guard boolean := false;
+--   _fp_ids bigint[]; _fp_left int := 0; _cal int := 0;
 -- BEGIN
 --   PERFORM public.set_actor('migration:link_isolated_nodes');
 --   PERFORM public.set_source_class('curator_fill');
@@ -3356,7 +3596,7 @@ $do$;
 --   END IF;
 --   _addr := ARRAY(SELECT DISTINCT lower(btrim(e)) FROM unnest(array_append(coalesce(_drop.secondary_emails, '{}'::text[]), _drop.email)) AS e
 --                   WHERE nullif(btrim(e), '') IS NOT NULL);
---   SELECT string_agg(e, ', ') INTO _bad FROM unnest(_addr) AS e WHERE e !~ '@yale\.edu$';
+--   SELECT string_agg(e, ', ' ORDER BY e) INTO _bad FROM unnest(_addr) AS e WHERE NOT (e = ANY (_known));
 --   SELECT count(*) INTO _n FROM public.grant_investigators WHERE investigator_id = _drop.id;
 --   IF _bad IS NOT NULL OR _n > 0 OR _drop.user_id IS NOT NULL
 --      OR (nullif(btrim(_drop.role), '') IS NOT NULL AND _drop.role IS DISTINCT FROM _keep.role)
@@ -3364,8 +3604,15 @@ $do$;
 --                  WHERE NOT (w = ANY (coalesce(_keep.working_groups, '{}'::text[])))) THEN
 --     INSERT INTO kg_fix_report (item, target, outcome, detail)
 --     VALUES (_item, _drop_res::text, 'skipped',
---             format('not a clean duplicate: non-Yale addresses %s, %s roster row(s), login %s, role %L, working groups %s',
+--             format('not a clean duplicate: addresses besides jeffrey.walker@yale.edu: %s; %s roster row(s); login %s; role %L; working groups %s',
 --                    coalesce(_bad, 'none'), _n, coalesce(_drop.user_id::text, 'none'), _drop.role, coalesce(_drop.working_groups::text, '{}')));
+--     RETURN;
+--   END IF;
+--   _bad := pg_temp.kg_merge_conflicts(to_jsonb(_keep), to_jsonb(_drop), _profile, _fold);
+--   IF _bad IS NOT NULL THEN
+--     INSERT INTO kg_fix_report (item, target, outcome, detail)
+--     VALUES (_item, _drop_res::text, 'skipped',
+--             format('the duplicate holds a value the keeper lacks or holds differently in: %s. Merging would drop it from the live rows; nothing is filled in here. A curator puts what is right on the keeper (or clears it on the duplicate), then runs this again', _bad));
 --     RETURN;
 --   END IF;
 --   _refs := pg_temp.kg_fk_refs('public.investigators'::regclass, _drop.id, ARRAY['public.investigator_organizations.investigator_id']);
@@ -3382,19 +3629,10 @@ $do$;
 --      WHERE d.investigator_id = _drop.id
 --        AND EXISTS (SELECT 1 FROM public.investigator_organizations k WHERE k.investigator_id = _keep.id AND k.organization_id = d.organization_id);
 --     UPDATE public.investigator_organizations SET investigator_id = _keep.id WHERE investigator_id = _drop.id;
---     UPDATE public.curation_audit_log SET investigator_id = _keep.id WHERE investigator_id = _drop.id;
---     UPDATE public.curation_audit_log SET resource_id = _keep_res WHERE resource_id = _drop_res;
 --     UPDATE public.entity_comments SET resource_id = _keep_res WHERE resource_id = _drop_res;
---     IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.field_provenance'::regclass
---                   AND tgname = 'trg_field_provenance_append_only' AND NOT tgisinternal AND tgenabled <> 'D') THEN
---       ALTER TABLE public.field_provenance DISABLE TRIGGER trg_field_provenance_append_only;
---       _prov_guard := true;
---     END IF;
---     UPDATE public.field_provenance SET entity_id = _keep.id WHERE entity_table = 'investigators' AND entity_id = _drop.id;
---     GET DIAGNOSTICS _fp = ROW_COUNT;
---     IF _prov_guard THEN
---       ALTER TABLE public.field_provenance ENABLE TRIGGER trg_field_provenance_append_only;
---     END IF;
+--     -- curation_audit_log is history with no foreign key: left as it is (counted).
+--     SELECT count(*) INTO _cal FROM public.curation_audit_log
+--      WHERE investigator_id = _drop.id OR resource_id = _drop_res OR entity_id IN (_drop.id, _drop_res);
 --     DELETE FROM public.knowledge_embeddings WHERE resource_id = _drop_res OR source_id::text IN (_drop.id::text, _drop_res::text);
 --     DELETE FROM public.investigators WHERE id = _drop.id;              -- frees the name 'Jeffrey Walker'
 --     UPDATE public.investigators
@@ -3411,6 +3649,24 @@ $do$;
 --     UPDATE public.resources SET name = 'Jeffrey Walker', updated_at = now()
 --      WHERE id = _keep_res AND name <> 'Jeffrey Walker'
 --        AND EXISTS (SELECT 1 FROM public.investigators WHERE id = _keep.id AND name = 'Jeffrey Walker');
+--     -- Provenance: only the duplicate's claims that state the keeper's current cells move (people-03).
+--     SELECT * INTO _keep FROM public.investigators WHERE id = _keep.id;
+--     SELECT array_agg(fp.id ORDER BY fp.id) INTO _fp_ids
+--       FROM public.field_provenance fp
+--      WHERE fp.entity_table = 'investigators' AND fp.entity_id = _drop.id
+--        AND pg_temp.kg_claim_matches(to_jsonb(_keep), fp.entity_column, fp.value_text);
+--     IF cardinality(_fp_ids) > 0 THEN
+--       IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.field_provenance'::regclass
+--                     AND tgname = 'trg_field_provenance_append_only' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+--         ALTER TABLE public.field_provenance DISABLE TRIGGER trg_field_provenance_append_only;
+--         _prov_guard := true;
+--       END IF;
+--       UPDATE public.field_provenance SET entity_id = _keep.id WHERE id = ANY (_fp_ids);
+--       IF _prov_guard THEN
+--         ALTER TABLE public.field_provenance ENABLE TRIGGER trg_field_provenance_append_only;
+--       END IF;
+--     END IF;
+--     SELECT count(*) INTO _fp_left FROM public.field_provenance WHERE entity_table = 'investigators' AND entity_id = _drop.id;
 --     _refs := pg_temp.kg_fk_refs('public.resources'::regclass, _drop_res, '{}'::text[]);
 --     IF _refs <> '' THEN
 --       RAISE EXCEPTION 'duplicate spine row still referenced after the repoint: %', _refs;
@@ -3418,7 +3674,8 @@ $do$;
 --     DELETE FROM public.resources WHERE id = _drop_res;
 --     INSERT INTO kg_fix_report (item, target, outcome, detail)
 --     VALUES (_item, _drop_res::text || ' -> ' || _keep_res::text, 'done',
---             format('merged; keeper renamed Jeffrey Walker on both rows; %s provenance claim(s) re-anchored', _fp));
+--             format('merged; keeper renamed Jeffrey Walker on both rows; moved to the keeper %s provenance claim(s) that state its current cells (field_provenance ids %s: entity_id was %s, not audited; see UNDO); %s other claim(s) and %s curation-log row(s) still name the duplicate, as history',
+--                    coalesce(cardinality(_fp_ids), 0), coalesce(array_to_string(_fp_ids, ','), 'none'), _drop.id, _fp_left, _cal));
 --   EXCEPTION WHEN OTHERS THEN
 --     INSERT INTO kg_fix_report (item, target, outcome, detail) VALUES (_item, _drop_res::text, 'error', SQLSTATE || ': ' || SQLERRM);
 --   END;
@@ -3681,11 +3938,53 @@ $do$;
 -- $do$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
+-- [tools-03] OPTIONAL: Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY, and Psych-DS was_attributed_to Melissa Kline Struhl
+-- QUESTION FOR A CURATOR: Is Psych-DS Melissa Kline Struhl's standard, at MIT, to be recorded both as part of MIT and as attributed to her? The only source is a talk listing; the row's own description names neither, and was_attributed_to is the schema's record-provenance slot, not authorship.
+-- -- tools-03 (OPTIONAL). One decision, two writes. The only statement is a talk listing,
+-- -- src/pages/SFN2025.tsx:357-369 ('Presentations by Research Theme': "Psych-DS: FAIR data standard —
+-- -- Melissa Kline Struhl (MIT)"); the Psych-DS row's own description (8e67d548) names neither MIT nor
+-- -- her. She chairs WG-Standards (src/data/working-group-chairs.ts:9). The MIT link is implied by the
+-- -- person behind the work, which by tools-07's rule makes it optional, and the attribution uses
+-- -- was_attributed_to, which kg/bbqs.linkml.yaml:83-86 and :475-477 keep next to was_generated_by as
+-- -- per-node RECORD provenance (the data verdict: do not reuse it for authorship). A yes therefore
+-- -- also settles that slot question for this use. Psych-DS is funded outside BBQS (RF1MH132747), so
+-- -- this is the standard's home, not a BBQS award. Needs tools-04's table for the second call.
+-- CREATE OR REPLACE FUNCTION pg_temp.kg_o_tools_03() RETURNS void LANGUAGE plpgsql AS
+-- $blk$
+-- BEGIN
+--   -- Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY (resources.organization_id, written as
+--   -- part_of_org by today's exporter). Re-checked at run time: her record (0f3bb33c, not the
+--   -- double-space stub 99e94e46 people-01 deletes) is still affiliated with that MIT node.
+--   PERFORM pg_temp.kg_tools_set_org(
+--     'org: Psych-DS', '8e67d548-47b3-4b48-9a70-e5e22c56f062',
+--     'Psych-DS: A FAIR data standard for behavioral datasets', 'standard',
+--     '7924e7d9-5b53-4525-95ef-3f5a6b9112a5', 'MASSACHUSETTS INSTITUTE OF TECHNOLOGY',
+--     EXISTS (SELECT 1 FROM public.investigator_organizations io
+--               JOIN public.investigators i ON i.id = io.investigator_id
+--              WHERE i.resource_id = '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee'
+--                AND pg_temp.kg_norm(i.name) = 'melissa kline struhl'
+--                AND io.organization_id = pg_temp.kg_org_of('7924e7d9-5b53-4525-95ef-3f5a6b9112a5',
+--                                                           'MASSACHUSETTS INSTITUTE OF TECHNOLOGY')),
+--     'curator-confirmed: Psych-DS is Melissa Kline Struhl''s (MIT) standard; SFN2025.tsx:369 "Psych-DS: FAIR data standard — Melissa Kline Struhl (MIT)"; her record is an MIT member');
+--   -- Psych-DS was_attributed_to Melissa Kline Struhl (resource_links; an edge once the exporter reads
+--   -- the table). The object is her linked record 0f3bb33c, never the stub 99e94e46.
+--   PERFORM pg_temp.kg_tools_link(
+--     'link', '8e67d548-47b3-4b48-9a70-e5e22c56f062', 'Psych-DS: A FAIR data standard for behavioral datasets', 'standard',
+--     'was_attributed_to',
+--     '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee', 'Melissa Kline Struhl', 'investigator', 'curator_fill',
+--     'curator-confirmed: Psych-DS is attributed to Melissa Kline Struhl; SFN2025.tsx:369 "Psych-DS: FAIR data standard — Melissa Kline Struhl (MIT)"; WG-Standards chair (src/data/working-group-chairs.ts:9)',
+--     EXISTS (SELECT 1 FROM public.investigators i
+--              WHERE i.resource_id = '0f3bb33c-e7ee-4013-af5d-894d1adfa0ee'
+--                AND pg_temp.kg_norm(i.name) = 'melissa kline struhl'));
+-- END
+-- $blk$;
+
+-- ────────────────────────────────────────────────────────────────────────────────────────────────
 -- [tools-07] OPTIONAL: Organization links the repo does not state (VCL, Vocalocator, Vocalocator-SSL, SSL, senselab, OpenPose)
 -- QUESTION FOR A CURATOR: Is each named organization the tool's maintainer (VCL Benchmark -> Simons Foundation or NYU; Vocalocator, Vocalocator-SSL, SSL -> NYU; senselab -> MIT; OpenPose -> CMU)? Keep only the confirmed lines.
 -- -- Each needs a person's yes: the organization is implied by a URL host, a GitHub account or the
 -- -- people behind a paper, not named in a statement about the resource. Uncomment a line only after
--- -- the project team or a curator confirms it. Same helper and guards as tools-02/03 (only where empty).
+-- -- the project team or a curator confirms it. Same helper and guards as tools-02 (only where empty).
 --
 -- -- tools-07. VCL Benchmark -> Simons Foundation. Hosted at vclbenchmark.flatironinstitute.org (export);
 -- -- the Flatiron Institute is the Simons Foundation's research division, which no repo file says.
@@ -3733,15 +4032,46 @@ $do$;
 -- $blk$;
 
 -- ────────────────────────────────────────────────────────────────────────────────────────────────
--- [tools-08] OPTIONAL: resource_links the repo does not state (VCL evaluates Vocalocator; leaderboards evaluate DLC Model Zoo and pose tools)
--- QUESTION FOR A CURATOR: Does each benchmark evaluate the listed tool, and is the Animal Pose Leaderboard (paperswithcode.com) to be repointed or retired first? Keep only the confirmed lines.
+-- [tools-08] OPTIONAL: resource_links the repo does not state (SuperAnimal models trained_on their sets; VCL evaluates Vocalocator; leaderboards evaluate DLC Model Zoo and pose tools)
+-- QUESTION FOR A CURATOR: Which node holds the SuperAnimal models (DLC Model Zoo, huggingface.co/mwmathis, or DLC Organization, huggingface.co/DeepLabCut), and were they trained on SuperAnimal-Quadruped-80K and SuperAnimal-TopViewMouse-5K? Does each benchmark evaluate the listed tool, and is the Animal Pose Leaderboard (paperswithcode.com) to be repointed or retired first? Keep only the confirmed lines.
 -- -- Same helper and guards as tools-05; needs tools-04's table. Uncomment a call only after a curator confirms it.
 --
--- -- tools-08. VCL Benchmark evaluates Vocalocator. Both rows describe rodent sound-source localization from
--- -- multi-channel audio, but no repo file or column says the benchmark scores this tool.
+-- -- tools-08. The SuperAnimal models trained_on their two training sets. The datasets are DeepLabCut's own
+-- -- SuperAnimal training sets ("Large-scale training data for quadruped pose models" / "Training data for
+-- -- top-view mouse pose estimation", seed-resources/index.ts:27-28, src/data/resources.ts:188-203, hosted at
+-- -- huggingface.co/datasets/DeepLabCut/). No repo statement says which node holds the models trained on
+-- -- them: DLC Model Zoo (de29b286, "Pre-trained pose estimation for diverse species", huggingface.co/mwmathis,
+-- -- seed-resources:23) or DLC Organization (0a91143c, huggingface.co/DeepLabCut, the same account as both
+-- -- sets; its keep-or-merge is itself open). tool_device_registry.json:346 names only a pip extra
+-- -- ('deeplabcut[gui,modelzoo] for SuperAnimal models'). Keep the pair for the node the curator names:
+-- -- the DLC Model Zoo pair runs as written; for DLC Organization, delete that pair and take the inner '-- '
+-- -- off the other one.
 -- CREATE OR REPLACE FUNCTION pg_temp.kg_o_tools_08() RETURNS void LANGUAGE plpgsql AS
 -- $blk$
 -- BEGIN
+--   PERFORM pg_temp.kg_tools_link('link', 'de29b286-d343-4108-90d9-3d11f8adc030', 'DLC Model Zoo', 'ml_model', 'trained_on',
+--     '7d9026cf-064c-4070-a81c-858dc1303c4a', 'SuperAnimal-Quadruped-80K', 'dataset', 'curator_fill',
+--     'curator-confirmed: DLC Model Zoo holds the SuperAnimal quadruped models, trained on this set (seed-resources/index.ts:23,27)',
+--     (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-Quadruped%'
+--        FROM public.resources r WHERE r.id = '7d9026cf-064c-4070-a81c-858dc1303c4a'));
+--   PERFORM pg_temp.kg_tools_link('link', 'de29b286-d343-4108-90d9-3d11f8adc030', 'DLC Model Zoo', 'ml_model', 'trained_on',
+--     'd49fe87c-2047-4788-8247-2130a5e0d931', 'SuperAnimal-TopViewMouse-5K', 'dataset', 'curator_fill',
+--     'curator-confirmed: DLC Model Zoo holds the SuperAnimal top-view mouse models, trained on this set (seed-resources/index.ts:23,28)',
+--     (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-TopViewMouse%'
+--        FROM public.resources r WHERE r.id = 'd49fe87c-2047-4788-8247-2130a5e0d931'));
+--   -- PERFORM pg_temp.kg_tools_link('link', '0a91143c-35e4-4cf1-a1d5-301b6a8651ae', 'DLC Organization', 'ml_model', 'trained_on',
+--   --   '7d9026cf-064c-4070-a81c-858dc1303c4a', 'SuperAnimal-Quadruped-80K', 'dataset', 'curator_fill',
+--   --   'curator-confirmed: DLC Organization holds the SuperAnimal quadruped models, trained on this set (seed-resources/index.ts:24,27)',
+--   --   (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-Quadruped%'
+--   --      FROM public.resources r WHERE r.id = '7d9026cf-064c-4070-a81c-858dc1303c4a'));
+--   -- PERFORM pg_temp.kg_tools_link('link', '0a91143c-35e4-4cf1-a1d5-301b6a8651ae', 'DLC Organization', 'ml_model', 'trained_on',
+--   --   'd49fe87c-2047-4788-8247-2130a5e0d931', 'SuperAnimal-TopViewMouse-5K', 'dataset', 'curator_fill',
+--   --   'curator-confirmed: DLC Organization holds the SuperAnimal top-view mouse models, trained on this set (seed-resources/index.ts:24,28)',
+--   --   (SELECT r.external_url ILIKE '%huggingface.co/datasets/DeepLabCut/SuperAnimal-TopViewMouse%'
+--   --      FROM public.resources r WHERE r.id = 'd49fe87c-2047-4788-8247-2130a5e0d931'));
+--
+--   -- tools-08. VCL Benchmark evaluates Vocalocator. Both rows describe rodent sound-source localization from
+--   -- multi-channel audio, but no repo file or column says the benchmark scores this tool.
 --   PERFORM pg_temp.kg_tools_link('link', '4921bfdf-7432-48ac-911d-0cb825184ef1', 'VCL Benchmark', 'benchmark', 'evaluates',
 --     '515ee9e5-9453-4797-8017-f55c6dd7f1f7', 'Vocalocator', 'software', 'curator_fill',
 --     'curator-confirmed: the VCL paper (PMID 39345431) benchmarks Vocalocator', true);
@@ -3829,55 +4159,55 @@ BEGIN
     PERFORM pg_temp.kg_run(10, 'datasets-D04', 'Hide ''Single Click Science'' (000468): synthetic mock data, #444 Exclude', 'pg_temp.kg_b_datasets_d04');
     PERFORM pg_temp.kg_run(11, 'datasets-D05', '''Pozu: Missing subjects'' (000472): hide if it has 0 files, else link it to R24MH136632', 'pg_temp.kg_b_datasets_d05');
     PERFORM pg_temp.kg_run(12, 'datasets-D09', 'Merge species ''Acoel Flatworm'' (10ceb449) into Hofstenia miamia (d6fbdcc7)', 'pg_temp.kg_b_datasets_d09');
-    PERFORM pg_temp.kg_run(13, 'people-06', 'Create ''University College London'' and ''University of Washington'' (only if people-08 can link someone)', 'pg_temp.kg_b_people_06');
-    PERFORM pg_temp.kg_run(14, 'people-05', 'Affiliate the 11 NIH program staff with their institute (or NIH)', 'pg_temp.kg_b_people_05');
-    PERFORM pg_temp.kg_run(15, 'people-07', 'Affiliate 16 members with the existing organization node their institution names', 'pg_temp.kg_b_people_07');
-    PERFORM pg_temp.kg_run(16, 'people-08', 'Affiliate 3 members with the organizations people-06 creates', 'pg_temp.kg_b_people_08');
-    PERFORM pg_temp.kg_run(17, 'people-10', 'Both Walker records side by side (read-only; the merge itself is optional)', 'pg_temp.kg_b_people_10_report');
-    PERFORM pg_temp.kg_run(18, 'notices-01', 'Copy announcements'' (and jobs'') organization onto their spine rows', 'pg_temp.kg_b_notices_01');
-    PERFORM pg_temp.kg_run(19, 'notices-02', 'Event ''BBQS MIT Workshop 2026'' -> BBQS Consortium', 'pg_temp.kg_b_notices_02');
-    PERFORM pg_temp.kg_run(20, 'notices-04', 'Each funding call''s issuer, from its own FON -> resources.organization_id', 'pg_temp.kg_b_notices_04');
-    PERFORM pg_temp.kg_run(21, 'tools-02', 'Lightning Pose (3ba48c59) -> COLUMBIA UNIVERSITY HEALTH SCIENCES', 'pg_temp.kg_b_tools_02');
-    PERFORM pg_temp.kg_run(22, 'tools-03', 'Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY', 'pg_temp.kg_b_tools_03');
-    PERFORM pg_temp.kg_run(23, 'datasets-D06', 'Link the EMBER collections 000469, 000470, 000471, 000474 to R24MH136632 (roster evidence)', 'pg_temp.kg_b_datasets_d06');
-    PERFORM pg_temp.kg_run(24, 'datasets-D07', 'Link ''Four-choice reversal digging task'' (000607) to R34DA062119', 'pg_temp.kg_b_datasets_d07');
-    PERFORM pg_temp.kg_run(25, 'datasets-D08', 'Link datasets whose own DANDI record names a BBQS award the sync''s parser dropped', 'pg_temp.kg_b_datasets_d08');
-    PERFORM pg_temp.kg_run(26, 'tools-04', 'Create public.resource_links (audited, anon-readable, typed by LinkML slot)', 'pg_temp.kg_b_tools_04');
-    PERFORM pg_temp.kg_run(27, 'tools-05', 'Record the five evidenced links in resource_links', 'pg_temp.kg_b_tools_05');
-    PERFORM pg_temp.kg_run(28, 'tools-06', 'device_class_crosswalk rows for the isolated device categories', 'pg_temp.kg_b_tools_06');
+    PERFORM pg_temp.kg_run(13, 'people-05', 'Affiliate the 11 NIH program staff with their institute (or NIH)', 'pg_temp.kg_b_people_05');
+    PERFORM pg_temp.kg_run(14, 'people-07', 'Affiliate 15 members with the existing organization node their institution names', 'pg_temp.kg_b_people_07');
+    PERFORM pg_temp.kg_run(15, 'people-08', 'Affiliate 3 members with University College London and University of Washington, creating each with its first member', 'pg_temp.kg_b_people_08');
+    PERFORM pg_temp.kg_run(16, 'people-10', 'Both Walker records side by side (read-only; the merge itself is optional)', 'pg_temp.kg_b_people_10_report');
+    PERFORM pg_temp.kg_run(17, 'notices-01', 'Copy announcements'' (and jobs'') organization onto their spine rows', 'pg_temp.kg_b_notices_01');
+    PERFORM pg_temp.kg_run(18, 'notices-02', 'Event ''BBQS MIT Workshop 2026'' -> BBQS Consortium', 'pg_temp.kg_b_notices_02');
+    PERFORM pg_temp.kg_run(19, 'notices-04', 'Each funding call''s issuer, from its own FON -> resources.organization_id', 'pg_temp.kg_b_notices_04');
+    PERFORM pg_temp.kg_run(20, 'tools-02', 'Lightning Pose (3ba48c59) -> COLUMBIA UNIVERSITY HEALTH SCIENCES', 'pg_temp.kg_b_tools_02');
+    PERFORM pg_temp.kg_run(21, 'datasets-D06', 'Link the EMBER collections 000469, 000470, 000471, 000474 to R24MH136632 (roster evidence)', 'pg_temp.kg_b_datasets_d06');
+    PERFORM pg_temp.kg_run(22, 'datasets-D07', 'Link ''Four-choice reversal digging task'' (000607) to R34DA062119', 'pg_temp.kg_b_datasets_d07');
+    PERFORM pg_temp.kg_run(23, 'datasets-D08', 'Link datasets whose own DANDI record names a BBQS award the sync''s parser dropped', 'pg_temp.kg_b_datasets_d08');
+    PERFORM pg_temp.kg_run(24, 'tools-04', 'Create public.resource_links (audited, anon-readable, typed by LinkML slot)', 'pg_temp.kg_b_tools_04');
+    PERFORM pg_temp.kg_run(25, 'tools-05', 'Record the two evidenced links in resource_links', 'pg_temp.kg_b_tools_05');
+    PERFORM pg_temp.kg_run(26, 'tools-06', 'device_class_crosswalk rows for the isolated device categories', 'pg_temp.kg_b_tools_06');
     -- optional blocks: run only if uncommented in section 3
-    PERFORM pg_temp.kg_run_optional(29, 'people-04', 'Give the merged Niegil record the fuller name on both rows', 'pg_temp.kg_o_people_04',
+    PERFORM pg_temp.kg_run_optional(27, 'people-04', 'Give the merged Niegil record the fuller name on both rows', 'pg_temp.kg_o_people_04',
       'Should the merged record be named ''Niegil Francis Muttath Joseph'' on both rows? (publications credit him as ''Francis, Niegil'')');
-    PERFORM pg_temp.kg_run_optional(30, 'people-09', 'Second affiliation for Jongwoon Kim: COLUMBIA UNIVERSITY HEALTH SCIENCES', 'pg_temp.kg_o_people_09',
-      'Is Jongwoon Kim at NYU Langone, Columbia, or both today?');
-    PERFORM pg_temp.kg_run_optional(31, 'people-10-merge', 'Merge ''Jeffrey Walker'' (e1424ffb) into ''Jeffery Walker'' (7a5a1c11) and take the spelling ''Jeffrey''', 'pg_temp.kg_o_people_10',
+    PERFORM pg_temp.kg_run_optional(28, 'people-09', 'Jongwoon Kim''s affiliation: NEW YORK UNIVERSITY SCHOOL OF MEDICINE, COLUMBIA UNIVERSITY HEALTH SCIENCES, or both', 'pg_temp.kg_o_people_09',
+      'Is Jongwoon Kim at NYU Langone, Columbia, or both today? Keep the line(s) that apply.');
+    PERFORM pg_temp.kg_run_optional(29, 'people-10-merge', 'Merge ''Jeffrey Walker'' (e1424ffb) into ''Jeffery Walker'' (7a5a1c11) and take the spelling ''Jeffrey''', 'pg_temp.kg_o_people_10',
       'Are ''Jeffrey Walker'' (e1424ffb) and ''Jeffery Walker'' (7a5a1c11, Yale) one person? 20260826120000 judged them two people at two institutions; the people-10 report rows show both records.');
-    PERFORM pg_temp.kg_run_optional(32, 'datasets-O1', 'Hide 000598 ''EMBER Bees DeepLabCut Training — Workflow Smoke Test'' (linked, not isolated)', 'pg_temp.kg_o_datasets_o1',
+    PERFORM pg_temp.kg_run_optional(30, 'datasets-O1', 'Hide 000598 ''EMBER Bees DeepLabCut Training — Workflow Smoke Test'' (linked, not isolated)', 'pg_temp.kg_o_datasets_o1',
       'Hide the smoke test #506 lists, although a curator linked it to EMBER on 2026-11-03 (#517 block 10)? It removes a linked node and fixes no isolated one.');
-    PERFORM pg_temp.kg_run_optional(33, 'datasets-O2a', 'Link the SLEAP re-hosts 000265 and 000398 to R24MH136632 (or hide them)', 'pg_temp.kg_o_datasets_o2a',
+    PERFORM pg_temp.kg_run_optional(31, 'datasets-O2a', 'Link the SLEAP re-hosts 000265 and 000398 to R24MH136632 (or hide them)', 'pg_temp.kg_o_datasets_o2a',
       'Are 000265 and 000398 (public sleap.ai data re-hosted on EMBER-DANDI) EMBER demos to credit to R24MH136632, or copies to hide (the two commented kg_ds_hide lines inside)?');
-    PERFORM pg_temp.kg_run_optional(34, 'datasets-O2b', 'Link whichever EMBER collections D05/D06 skipped for want of roster evidence', 'pg_temp.kg_o_datasets_o2b',
+    PERFORM pg_temp.kg_run_optional(32, 'datasets-O2b', 'Link whichever EMBER collections D05/D06 skipped for want of roster evidence', 'pg_temp.kg_o_datasets_o2b',
       'Does EMBER confirm that each collection datasets-D05/D06 skipped (see their report rows) is its own? Keep only those lines.');
-    PERFORM pg_temp.kg_run_optional(35, 'datasets-O3', 'Confirm species candidate Cricket for R34DA059512 (append) + alias cricket -> Gryllidae', 'pg_temp.kg_o_datasets_o3',
+    PERFORM pg_temp.kg_run_optional(33, 'datasets-O3', 'Confirm species candidate Cricket for R34DA059512 (append) + alias cricket -> Gryllidae', 'pg_temp.kg_o_datasets_o3',
       'Does R34DA059512 study the cricket (its prey) as a species? On 2026-11-03 the curator set [''Mus musculus''] only.');
-    PERFORM pg_temp.kg_run_optional(36, 'datasets-O4', 'Alias ''drosophila'' -> Drosophila melanogaster (Fruit Fly) for JAABA', 'pg_temp.kg_o_datasets_o4',
+    PERFORM pg_temp.kg_run_optional(34, 'datasets-O4', 'Alias ''drosophila'' -> Drosophila melanogaster (Fruit Fly) for JAABA', 'pg_temp.kg_o_datasets_o4',
       'Is a ''drosophila'' -> Drosophila melanogaster alias wanted? (Probably a no-op: the Fruit Fly row is named ''Drosophila''.)');
-    PERFORM pg_temp.kg_run_optional(37, 'datasets-O5', 'Credit PMID 39500574 (Cum et al. 2024) to R34DA059718', 'pg_temp.kg_o_datasets_o5',
+    PERFORM pg_temp.kg_run_optional(35, 'datasets-O5', 'Credit PMID 39500574 (Cum et al. 2024) to R34DA059718', 'pg_temp.kg_o_datasets_o5',
       'Did R34DA059718 fund PMID 39500574? RePORTER, the system of record, does not credit it, and #444 recorded ''no NIH credit''.');
-    PERFORM pg_temp.kg_run_optional(38, 'notices-06', 'The CIRTA announcement under MCGILL UNIVERSITY instead of BBQS Consortium', 'pg_temp.kg_o_notices_06',
+    PERFORM pg_temp.kg_run_optional(36, 'notices-06', 'The CIRTA announcement under MCGILL UNIVERSITY instead of BBQS Consortium', 'pg_temp.kg_o_notices_06',
       'Should the CIRTA announcement (its own text: ''McGill University is accepting nominations'') move from the BBQS Consortium the 11-03 curator chose to McGill?');
-    PERFORM pg_temp.kg_run_optional(39, 'tools-07', 'Organization links the repo does not state (VCL, Vocalocator, Vocalocator-SSL, SSL, senselab, OpenPose)', 'pg_temp.kg_o_tools_07',
+    PERFORM pg_temp.kg_run_optional(37, 'tools-03', 'Psych-DS -> MASSACHUSETTS INSTITUTE OF TECHNOLOGY, and Psych-DS was_attributed_to Melissa Kline Struhl', 'pg_temp.kg_o_tools_03',
+      'Is Psych-DS Melissa Kline Struhl''s standard, at MIT, to be recorded both as part of MIT and as attributed to her? The only source is a talk listing; the row''s own description names neither, and was_attributed_to is the schema''s record-provenance slot, not authorship.');
+    PERFORM pg_temp.kg_run_optional(38, 'tools-07', 'Organization links the repo does not state (VCL, Vocalocator, Vocalocator-SSL, SSL, senselab, OpenPose)', 'pg_temp.kg_o_tools_07',
       'Is each named organization the tool''s maintainer (VCL Benchmark -> Simons Foundation or NYU; Vocalocator, Vocalocator-SSL, SSL -> NYU; senselab -> MIT; OpenPose -> CMU)? Keep only the confirmed lines.');
-    PERFORM pg_temp.kg_run_optional(40, 'tools-08', 'resource_links the repo does not state (VCL evaluates Vocalocator; leaderboards evaluate DLC Model Zoo and pose tools)', 'pg_temp.kg_o_tools_08',
-      'Does each benchmark evaluate the listed tool, and is the Animal Pose Leaderboard (paperswithcode.com) to be repointed or retired first? Keep only the confirmed lines.');
-    PERFORM pg_temp.kg_run_optional(41, 'tools-09', 'device_class_crosswalk plethysmography -> ppg', 'pg_temp.kg_o_tools_09',
+    PERFORM pg_temp.kg_run_optional(39, 'tools-08', 'resource_links the repo does not state (SuperAnimal models trained_on their sets; VCL evaluates Vocalocator; leaderboards evaluate DLC Model Zoo and pose tools)', 'pg_temp.kg_o_tools_08',
+      'Which node holds the SuperAnimal models (DLC Model Zoo, huggingface.co/mwmathis, or DLC Organization, huggingface.co/DeepLabCut), and were they trained on SuperAnimal-Quadruped-80K and SuperAnimal-TopViewMouse-5K? Does each benchmark evaluate the listed tool, and is the Animal Pose Leaderboard (paperswithcode.com) to be repointed or retired first? Keep only the confirmed lines.');
+    PERFORM pg_temp.kg_run_optional(40, 'tools-09', 'device_class_crosswalk plethysmography -> ppg', 'pg_temp.kg_o_tools_09',
       'Is every grant''s ''plethysmography'' evidence a pulse/PPG sensor, not whole-body plethysmography (breathing)? Run the SELECT in its comment first.');
     -- read-only reports, last, so they describe the end state
-    PERFORM pg_temp.kg_run(42, 'people-01-report', 'Remaining orphan spine rows, and person rows with no spine row (read-only)', 'pg_temp.kg_b_people_01_report');
-    PERFORM pg_temp.kg_run(43, 'people-11', 'The 4 name-only records: what their own rows hold (read-only; not fixable by SQL)', 'pg_temp.kg_b_people_11');
-    PERFORM pg_temp.kg_run(44, 'datasets-D10', 'Datasets still unlinked, with their DANDI contact; stale spine names (read-only)', 'pg_temp.kg_b_datasets_d10');
-    PERFORM pg_temp.kg_run(45, 'notices-05', 'Participating-only funder organizations: edges today, funding_opportunity_orgs rows (read-only)', 'pg_temp.kg_b_notices_05');
-    PERFORM pg_temp.kg_run(46, 'tools-10', 'Device-category reach, unmapped buckets, tool nodes still unlinked (read-only)', 'pg_temp.kg_b_tools_10');
+    PERFORM pg_temp.kg_run(41, 'people-01-report', 'Remaining orphan spine rows, and person rows with no spine row (read-only)', 'pg_temp.kg_b_people_01_report');
+    PERFORM pg_temp.kg_run(42, 'people-11', 'The 4 name-only records: what their own rows hold (read-only; not fixable by SQL)', 'pg_temp.kg_b_people_11');
+    PERFORM pg_temp.kg_run(43, 'datasets-D10', 'Datasets still unlinked, with their DANDI contact; stale spine names (read-only)', 'pg_temp.kg_b_datasets_d10');
+    PERFORM pg_temp.kg_run(44, 'notices-05', 'Participating-only funder organizations: edges today, funding_opportunity_orgs rows (read-only)', 'pg_temp.kg_b_notices_05');
+    PERFORM pg_temp.kg_run(45, 'tools-10', 'Device-category reach, unmapped buckets, tool nodes still unlinked (read-only)', 'pg_temp.kg_b_tools_10');
 
     SELECT count(*) INTO kg_errs FROM pg_temp.kg_fix_report WHERE kind = 'decision' AND outcome = 'error';
     IF kg_dry OR kg_errs > 0 THEN
