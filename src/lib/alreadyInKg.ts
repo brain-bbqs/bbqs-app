@@ -37,9 +37,11 @@ export function uniqueViolation(e: unknown): UniqueViolation | null {
   return { constraint: c ? c[1] : null, key: k ? k[2] : null };
 }
 
-export type KeyKind = "orcid" | "doi" | "pmid" | "fon" | "url" | "award" | "organization" | "email" | "name" | "node";
+export type KeyKind = "orcid" | "doi" | "pmid" | "fon" | "award" | "organization" | "email" | "name" | "node";
 
-/** What a refused key is, by the name of the index or constraint that refused it. */
+/** What a refused key is, by the name of the index or constraint that refused it. A URL is none:
+ *  no index refuses a URL another record has (a landing page serves several), so a constraint this
+ *  does not know is said generically. */
 export function keyKind(constraint: string | null): KeyKind | null {
   const c = (constraint ?? "").toLowerCase();
   if (c.includes("orcid")) return "orcid";
@@ -47,7 +49,6 @@ export function keyKind(constraint: string | null): KeyKind | null {
   if (c.includes("pmid")) return "pmid";
   if (c.includes("resource_id")) return "node";
   if (c.includes("fon")) return "fon";
-  if (c.includes("url")) return "url";
   if (c.includes("award") || c.includes("grant_number")) return "award";
   if (c.includes("organization")) return "organization";
   if (c.includes("email")) return "email";
@@ -57,7 +58,7 @@ export function keyKind(constraint: string | null): KeyKind | null {
 
 /** A sentence for a write the database refused as a duplicate, or null when `e` is not a unique
  *  violation (then show `e` as it is). `typed` holds what the person typed for each key the write
- *  carried ({ doi }, { fon, url }), shown instead of the key the database folded it to. */
+ *  carried ({ doi }, { fon }), shown instead of the key the database folded it to. */
 export function alreadyInKgMessage(e: unknown, typed: Partial<Record<KeyKind, string | null | undefined>> = {}): string | null {
   const v = uniqueViolation(e);
   if (!v) return null;
@@ -72,8 +73,6 @@ export function alreadyInKgMessage(e: unknown, typed: Partial<Record<KeyKind, st
       return `A publication with the PMID ${shown} is already in the KG, so it was not added again.`;
     case "fon":
       return `The funding opportunity ${shown} is already in the KG (FONs are compared without case, spaces or dashes), so it was not added again. Edit that one instead.`;
-    case "url":
-      return `Another funding opportunity already has the URL ${shown}, and this database refuses a second one, so nothing was saved. Ask a curator.`;
     case "award":
       return `The award ${shown} is already in the KG under another spelling of its number, so nothing was saved. Ask a curator to correct the number on one of the two records.`;
     case "organization":

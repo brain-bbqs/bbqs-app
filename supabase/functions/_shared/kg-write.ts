@@ -87,6 +87,44 @@ export function uniqueViolationText(e: unknown): string {
   return `${constraint ?? "a unique key"}${detail ? `: ${detail}` : ""}`;
 }
 
+/** A unique violation of the ORCID key (uq_investigators_orcid_key): the one identity key a member's
+ *  own profile carries. */
+export function isOrcidViolation(e: unknown): boolean {
+  return isUniqueViolation(e) && /orcid/i.test(uniqueViolationText(e));
+}
+
+/** What the member's own profile save did when its ORCID iD was left out. */
+export interface ProfileSave { result: unknown; saved: string[]; orcidNotSaved: string | null }
+
+/** member_self_update for update_my_profile. The RPC writes every field in one UPDATE, so an ORCID iD
+ *  another record holds (uq_investigators_orcid_key) refuses them all. Then, and only then (an ORCID
+ *  23505, an ORCID sent, another field asked), it is called again with a null _orcid, which keeps the
+ *  stored ORCID, and the other fields are saved; `orcidNotSaved` says why the ORCID iD was not. If
+ *  that second call fails too, its error is thrown with the ORCID notice in front, so the member is
+ *  always told the ORCID iD was left out. Any other unique violation is said as such and nothing is
+ *  retried; any other error is thrown as it came. `call` throws on an error, as bbqs-mcp's rpc does.
+ *  (src/lib/alreadyInKg.ts saveOwnProfile is the profile editor's copy of this rule.) */
+export async function saveProfileLeavingOutHeldOrcid(
+  call: (args: Record<string, unknown>) => Promise<unknown>, args: Record<string, unknown>, asked: string[],
+): Promise<ProfileSave> {
+  try {
+    return { result: await call(args), saved: asked, orcidNotSaved: null };
+  } catch (e) {
+    if (!isUniqueViolation(e)) throw e;
+    if (!isOrcidViolation(e) || args._orcid == null) {
+      throw new Error(`Nothing was saved: the database refused it as a duplicate of another record (${uniqueViolationText(e)}). Ask a curator.`);
+    }
+    const notice = `The ORCID iD ${String(args._orcid)} is already on another person's record in the KG (${violatedConstraint(e) ?? "its ORCID key"}), ` +
+      "so it was not saved: one ORCID iD is one person. If that record is you, ask a curator to merge the two records.";
+    if (!asked.length) throw new Error(`${notice} Nothing else was asked, so nothing was saved.`);
+    try {
+      return { result: await call({ ...args, _orcid: null }), saved: asked, orcidNotSaved: notice };
+    } catch (e2) {
+      throw new Error(`${notice} The other fields (${asked.join(", ")}) were not saved either: ${message(e2)}`);
+    }
+  }
+}
+
 function alreadyInKg(e: unknown, what: string): Found<never> {
   return {
     ok: false, already_in_kg: true, constraint: violatedConstraint(e), detail: violationDetail(e),
@@ -221,7 +259,11 @@ function peopleBy(key: PersonKey, rows: PersonRow[], p: PersonQuery): PersonRow[
  *  - the query carries an email and a record the name finds carries another one: that record is
  *    somebody else, or a twin only a curator can tell apart. (A record with this person's email was
  *    found by the email step already; a record with no email, a RePORTER twin, is still reused.)
- *  - the name key finds more than one record;
+ *  - the name key finds records that carry two or more different emails: two people ("Li Na" and
+ *    "Lina"), or a twin only a curator can tell apart. Records with one email between them, or none,
+ *    are one person recorded twice, and the curated one is reused (pickPerson: the one with the
+ *    email, then a node, then the oldest). That is the documented twin pair (20260811120000): a
+ *    curated record and its email-less RePORTER copy whose name differs in case or spacing only;
  *  - first + last name finds several and not exactly one of them carries an email (nih-grants' rule). */
 export function matchPeople(rows: PersonRow[], p: PersonQuery, order: PersonKey[] = PERSON_KEYS): PersonMatch {
   const asked = [p.email, ...(p.secondaryEmails ?? [])].map(emailKey).filter((e): e is string => !!e);
@@ -239,11 +281,12 @@ export function matchPeople(rows: PersonRow[], p: PersonQuery, order: PersonKey[
       };
     }
     if (key === "name") {
-      if (hits.length === 1) return { row: hits[0], by: key, candidates: hits, ambiguous: false, reason: null };
+      const emails = new Set(hits.map((r) => emailKey(r.email)).filter((e): e is string => !!e));
+      if (emails.size < 2) return { row: pickPerson(hits), by: key, candidates: hits, ambiguous: false, reason: null };
       return {
         row: null, by: key, candidates: hits, ambiguous: true,
-        reason: `${hits.length} records match by name (${personLabel(hits)}); nothing was written. ` +
-          "Merge them, or record the person's ORCID, RePORTER profile id or email.",
+        reason: `${hits.length} records with ${emails.size} different emails match by name (${personLabel(hits)}); nothing was written. ` +
+          "If they are one person, merge them; otherwise record the person's ORCID, RePORTER profile id or email.",
       };
     }
     const withEmail = hits.filter((r) => emailKey(r.email));
@@ -293,7 +336,8 @@ export interface ResourceHit { row: ResourceRow; by: string[]; same: boolean }
  *  for a name with no name key), its homepage URL key or its repository URL key (either way round).
  *  A URL is not an identity for a tool-like resource (design D7): a lab's tools share its homepage,
  *  a maker's devices share the maker's, and two tools can live in one repository. So a hit by URL
- *  alone is `same: false`, a hint for a curator, unless the query gives no name to compare. */
+ *  alone is `same: false`, a hint for a curator, always: a query with a blank name has no name to
+ *  agree on, which makes it no more the URL's record (decideResource refuses a blank name). */
 export function matchResources(
   rows: ResourceRow[], q: { type: string; name?: Text; url?: Text; repoUrl?: Text },
 ): ResourceHit[] {
@@ -307,7 +351,7 @@ export function matchResources(
     if (name && (nk ? nameKey(r.name) === nk : asciiTrim(String(r.name ?? "")) === name)) by.push("name");
     if (want.has(urlKey(r.external_url) ?? "")) by.push("url");
     if (want.has(urlKey(repoUrlOf(r)) ?? "")) by.push("repo_url");
-    if (by.length) out.push({ row: r, by, same: by.includes("name") || !name });
+    if (by.length) out.push({ row: r, by, same: by.includes("name") });
   }
   return out;
 }
@@ -323,17 +367,24 @@ const resourceLabel = (r: ResourceRow) => `"${r.name}" (id ${r.id})`;
 
 /** add_resource's rule. The record of this resource_type with the same name is updated; two are a
  *  duplicate to merge first. A record that shares only a homepage or repository URL is never
- *  updated: the new resource is inserted and the other one named in the note. `sameAs` (an id, or a
- *  name of this type) is the explicit way to say "this is that record under another name". */
+ *  updated, and a new record beside it is not written on a guess either: the call is refused, and
+ *  the caller says which it is. `sameAs` (an id, or a name of this type) is "this is that record
+ *  under another name": that record is updated. `distinct` is "this is another resource": it is
+ *  inserted and the URL twin named in the note. Either way nothing is written that only SQL could
+ *  undo (no tool removes a resource). A blank name is refused: it has nothing to be matched by. */
 export function decideResource(
-  rows: ResourceRow[], q: { type: string; name?: Text; url?: Text; repoUrl?: Text; sameAs?: Text },
+  rows: ResourceRow[], q: { type: string; name?: Text; url?: Text; repoUrl?: Text; sameAs?: Text; distinct?: boolean | null },
 ): ResourceDecision {
   const name = q.name == null ? "" : asciiTrim(String(q.name));
-  const hits = matchResources(rows, q);
   const refuse = (error: string): ResourceDecision => ({ action: "refuse", error });
+  if (!name) return refuse("A resource needs a name: the name was blank, so nothing could be matched or written. Nothing was written.");
+  const hits = matchResources(rows, q);
   let target: { row: ResourceRow; by: string[] } | null = null;
 
   const sameAs = q.sameAs == null ? "" : asciiTrim(String(q.sameAs));
+  if (sameAs && q.distinct === true) {
+    return refuse(`same_as="${sameAs}" says this is that record, distinct=true says it is another resource: pass one of them. Nothing was written.`);
+  }
   if (sameAs) {
     const byId = rows.find((r) => r.id === sameAs) ?? null;
     const sk = nameKey(sameAs);
@@ -364,16 +415,26 @@ export function decideResource(
 
   // Records that share only a URL with this one: named, never written.
   const urlOnly = hits.filter((h) => !h.same && h.row.id !== target?.row.id);
+  const twins = urlOnly.map((h) => `the ${q.type} ${resourceLabel(h.row)} has the same ${h.by.map((b) => (b === "url" ? "homepage" : "repository")).join(" and ")} URL`).join("; ");
+  const why = "a URL can be shared by different things (a lab's tools, a maker's devices), so it does not make them one record";
   const shared = urlOnly.length
-    ? `${urlOnly.map((h) => `The ${q.type} ${resourceLabel(h.row)} has the same ${h.by.map((b) => (b === "url" ? "homepage" : "repository")).join(" and ")} URL`).join("; ")}. ` +
-      `${urlOnly.length === 1 ? "It was" : "They were"} not changed: a URL can be shared by different things (a lab's tools, a maker's devices), so it does not make them one record.`
+    ? `${twins[0].toUpperCase()}${twins.slice(1)}. ${urlOnly.length === 1 ? "It was" : "They were"} not changed: ${why}.`
     : null;
   if (target) return { action: "update", row: target.row, matchedBy: target.by.join("+"), note: shared };
+  if (urlOnly.length && q.distinct !== true) {
+    // Neither guess is written: updating the twin would overwrite another tool (the DeepLabCut /
+    // DeepLabCut-Live case), and a new record that is the twin under another name could only be
+    // removed with SQL. The caller knows which it is.
+    const ids = urlOnly.map((h) => h.row.id);
+    return refuse(`"${name}" is not in the KG under this name, but ${twins}, and ${why}. Nothing was written. ` +
+      `If "${name}" is ${urlOnly.length === 1 ? "that record" : "one of them"} under another name, call again with ` +
+      `same_as="${ids.length === 1 ? ids[0] : "<its id>"}"${ids.length === 1 ? "" : ` (one of ${ids.join(", ")})`}: that record is updated. ` +
+      `If it is another ${q.type}, call again with distinct=true: it is added as its own record.`);
+  }
   const key = nameKey(name);
   const namesakes = key ? rows.filter((r) => r.resource_type !== q.type && nameKey(r.name) === key) : [];
   const notes = [
-    shared ? `Added as its own record. ${shared} If this is the same ${q.type} under another name, remove the new record and call again ` +
-      `with same_as="${urlOnly.length === 1 ? urlOnly[0].row.id : "<its id>"}".` : null,
+    shared ? `Added as its own record (distinct=true). ${shared}` : null,
     namesakes.length ? `Also in the KG under another type: ${namesakes.map((r) => `${r.resource_type} "${r.name}" (id ${r.id})`).join(", ")}. If it is the same thing, retype one and merge them.` : null,
   ].filter(Boolean);
   return { action: "insert", note: notes.length ? notes.join(" ") : null };

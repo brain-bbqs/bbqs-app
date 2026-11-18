@@ -2018,12 +2018,16 @@ Deno.serve(async (req) => {
     let skipped = 0;
     const errors: string[] = [];
     const notes: string[] = [];
+    // The curator's worklist: every roster person this run did not write because a name alone
+    // found them, returned in full (errors are capped; this list is not).
+    const needsCurator: string[] = [];
 
     // The people, read once and matched here (_shared/kg-write.ts): by email, primary or secondary
     // on either side (an email ilike on the primary column alone missed a member whose form address
     // is their second one), then by ORCID, then by name key. A name is a guess (namesakes exist):
-    // a record it finds that carries another email, or one of several records with the name, is
-    // somebody a curator has to tell apart, so nothing is written to it (matchPeople's `ambiguous`).
+    // a record it finds that carries another email, or records with the name that carry two
+    // different emails, are somebody a curator has to tell apart, so nothing is written to them
+    // (matchPeople's `ambiguous`), and the person goes on the curator's worklist (needsCurator).
     // So a name only ever reuses a record that has no email (a RePORTER twin), and the
     // sync_member_groups trigger, which skips a record without an email and otherwise keys Google
     // Groups on it, is never fired for another person's address by a working_groups write from here.
@@ -2047,14 +2051,15 @@ Deno.serve(async (req) => {
         const nameOnly = match.by === "name" && !!match.row;
         if (match.ambiguous || (nameOnly && emailKey(match.row!.email))) {
           // For a curator: nothing is written to the record(s) found, and no second record is made.
-          errors.push(`${person.name}: ${match.reason ?? `matched only by name to "${match.row!.name}" (id ${match.row!.id}), ` +
+          needsCurator.push(`${person.name}: ${match.reason ?? `matched only by name to "${match.row!.name}" (id ${match.row!.id}), ` +
             "which has an email this roster entry has none to compare with: nothing was written to it"}`);
           continue;
         }
         const existing = match.row;
-        if (nameOnly) {
-          notes.push(`${person.name}: matched by name only, to "${existing!.name}" (id ${existing!.id}), which has no email: updated it; its email was left for a curator to confirm`);
-        }
+        // Said once the update is done, as what was done (below).
+        const byNameOnly = nameOnly
+          ? `${person.name}: matched by name only, to "${existing!.name}" (id ${existing!.id}), which has no email`
+          : null;
 
         if (existing) {
           const { data: current, error: readErr } = await supabase
@@ -2100,9 +2105,13 @@ Deno.serve(async (req) => {
               if (updates.orcid) existing.orcid = updates.orcid;
               if (updates.secondary_emails) existing.secondary_emails = updates.secondary_emails;
               updated++;
+              if (byNameOnly) {
+                notes.push(`${byNameOnly}: updated its ${Object.keys(updates).join(", ")}; its email was left for a curator to confirm`);
+              }
             }
           } else {
             skipped++;
+            if (byNameOnly) notes.push(`${byNameOnly}: it already had everything the roster lists, so nothing was written`);
           }
         } else {
           // Create the person, then their node (findOrCreateInvestigator writes the person first).
@@ -2125,8 +2134,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // errorDetails is capped (a failure that repeats for every person, say RLS, would fill it), and
+    // says how many it leaves out; the curator's worklist and the notes are returned in full.
+    const SHOWN_ERRORS = 10;
     return new Response(
-      JSON.stringify({ success: true, created, updated, skipped, errors: errors.length, errorDetails: errors.slice(0, 10), notes: notes.slice(0, 20) }),
+      JSON.stringify({
+        success: true, created, updated, skipped,
+        errors: errors.length, errorDetails: errors.slice(0, SHOWN_ERRORS),
+        ...(errors.length > SHOWN_ERRORS ? { errorDetailsOmitted: errors.length - SHOWN_ERRORS } : {}),
+        needsCurator: needsCurator.length, needsCuratorDetails: needsCurator,
+        notes,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

@@ -16,7 +16,7 @@
 --     pairing rule's three parts. The same rule is written in TypeScript
 --     (supabase/functions/_shared/identity-keys.ts, the write paths) and Python
 --     (kg/identity_keys.py, the export gate); kg/identity_keys.json states each rule once, with
---     the vectors that hold the three implementations equal. keys-02 runs the 97 SQL vectors HERE,
+--     the vectors that hold the three implementations equal. keys-02 runs the 109 SQL vectors HERE,
 --     on this database, before any index is built on a function: a mismatch is an error row, and
 --     the run changes nothing.
 --   * index-01 to index-07. A unique index on each key. A value with no key (empty, or not an
@@ -34,8 +34,11 @@
 --     DOI and date): resource_links (published, 'revision_of', preprint), the LinkML slot
 --     revision_of (prov:wasRevisionOf: the newer revises the older). The pairing rule is stated
 --     once, in public.kg_link_publication_versions(): it never links a "preprint" that is later
---     than the paper (by year, else by PubMed id: kg_preprint_is_later), and it tells a bioRxiv or
---     medRxiv DOI by its shape, not by the 10.1101/ prefix Cold Spring Harbor's journals share.
+--     than the paper (kg_preprint_is_later: by PubMed id, else by the posting date in a bioRxiv
+--     or medRxiv DOI, and only then by year, since a preprint's year drifts later as new versions
+--     are posted), and it tells a bioRxiv or medRxiv DOI by its shape, not by the 10.1101/ prefix
+--     Cold Spring Harbor's journals share. A pair it refuses as later, a curator can still link by
+--     hand (the skipped row says how); the rule then reports it as linked.
 --     versions-01 uses it to link the 5 pairs of the 2026-11-17 export that a curator read, and
 --     only them; import-grant-publications uses it for the papers it imports.
 --   * orphans-01 (read-only) lists what still keeps a person or an organization from being one node.
@@ -97,22 +100,41 @@
 --   * 20261116150000_link_isolated_nodes.sql is applied (production has it): its block tools-04
 --     created public.resource_links. Without it, links-01 to versions-02 report 'skipped' and
 --     change nothing, while the keys and indexes are still created; run this script again after it.
+--   * The site and the edge functions are deployed BEFORE this script, in this order. Each step
+--     works with or without this script applied, so nothing breaks in between:
+--       1. the site: dev merged to main (publish.yml deploys main to GitHub Pages);
+--       2. the six edge functions that import _shared/kg-write.ts (and, through it,
+--          _shared/identity-keys.ts), none of them deployed since b7c6044 wrote those modules:
+--          add-project-by-grant, bbqs-mcp, import-grant-publications, nih-grants, seed-consortium,
+--          verify-affiliations, each with
+--            supabase functions deploy <name> --project-ref vpexxhfpvghlejljwpvt
+--          (no other function imports either module);
+--       3. ../bbqs-agent checked (below); then this script, dry run first.
 --   * Every write path that meets these indexes. Once an index exists, a write that would give a
 --     second row the same key fails with 23505 (unique_violation) naming the index; nothing is
---     merged silently, but a caller that does not expect 23505 shows it raw. They are:
---       - the six edge functions: import-grant-publications, bbqs-mcp (add_resource,
---         add_funding_opportunity, create_grant, repoint_grant, refresh_grant_from_reporter),
---         nih-grants, add-project-by-grant, seed-consortium, verify-affiliations. Deploy them
---         first: they look up by these keys before they write and report a 23505 as "already in
---         the KG";
---       - public.member_self_update(), from src/components/profile/MemberProfileEditor.tsx and the
---         MCP tool update_my_profile: an ORCID iD another record holds (an email-less twin) refuses
---         the WHOLE profile save on uq_investigators_orcid_key, and the editor shows the raw error;
---       - src/components/funding/AddFundingOpportunityDialog.tsx: a FON spelled another way than
---         an existing call's (uq_funding_opportunities_fon_key). It has no supersede path: a final
---         notice that reuses its forecast's FON is a curator's merge (bbqs-mcp supersedes);
---       - src/pages/Publications.tsx (a paper added by hand): a DOI or PMID another row holds in
---         another spelling (uq_publications_doi_key, uq_publications_pmid_key);
+--     merged silently. The writers in this repository look up by these keys first, and say a
+--     23505 as what it is ("already in the KG", which record, what to do) instead of the raw
+--     Postgres text:
+--       - the six edge functions above: bbqs-mcp's add_resource, add_funding_opportunity,
+--         create_grant, repoint_grant and refresh_grant_from_reporter, nih-grants,
+--         add-project-by-grant, import-grant-publications, seed-consortium, verify-affiliations;
+--       - public.member_self_update(): the function itself refuses its WHOLE statement on
+--         uq_investigators_orcid_key when the ORCID iD sent is on another record (an email-less
+--         twin). Its two callers here save the other fields again without the ORCID (a null
+--         _orcid keeps the stored one) and say the ORCID iD was left out, and why: the profile
+--         editor, src/components/profile/MemberProfileEditor.tsx (saveOwnProfile in
+--         src/lib/alreadyInKg.ts), and the MCP tool update_my_profile (saveProfileLeavingOutHeldOrcid
+--         in _shared/kg-write.ts). Any other caller sees the 23505;
+--       - the site's other writers of a keyed column, each through src/lib/alreadyInKg.ts:
+--         InvestigatorSummary's inline edit (an ORCID iD, email or name another record holds),
+--         src/pages/Publications.tsx (a paper added by hand: a DOI or PMID another row holds in
+--         another spelling, uq_publications_doi_key, uq_publications_pmid_key),
+--         AddFundingOpportunityDialog.tsx (a FON spelled another way than an existing call's,
+--         uq_funding_opportunities_fon_key; it has no supersede path: a final notice that reuses
+--         its forecast's FON is a curator's merge, bbqs-mcp supersedes), useProjectProfileEditor
+--         (an upsert onto a project whose award is spelled another way, uq_projects_award_key),
+--         and AdminUsers and AdminAccessRequests (an email or name already on another record);
+--         tests/guards/write-paths-get-or-create holds every src write of a keyed column to it;
 --       - the RPCs public.create_grant() and public.repoint_grant(), from any caller besides the
 --         MCP (create_grant strips only a '-NN' suffix and matches its institution with
 --         lower(btrim)): a per-year or leading-digit number of an existing award
@@ -151,14 +173,16 @@
 --                kg_is_preprint and kg_preprint_is_later) where missing. One that exists with
 --                another definition is an ERROR, never replaced: CREATE OR REPLACE changes an
 --                indexed function without a word, and every index on it would keep the old keys.
---   keys-02      the self-test: this database computes kg/identity_keys.json's 97 SQL vectors
+--   keys-02      the self-test: this database computes kg/identity_keys.json's 109 SQL vectors
 --   index-01..07 one unique index per key (table above); a colliding group skips its index only
 --   nodes-01     uq_<table>_resource_id on the 13 node tables (one decision per table)
 --   links-01     resource_links accepts revision_of (a publication to a publication, never both
 --                ways); produced no longer accepts a publication (a project's papers are
 --                project_publications rows: one fact, one store). If a produced -> publication link
 --                exists, produced keeps accepting a publication and the link is listed.
---   links-02     create public.kg_link_publication_versions() (service_role only), the pairing rule
+--   links-02     create public.kg_link_publication_versions() (service_role only), the pairing rule.
+--                An earlier draft's three-argument pairing function, or its four-argument,
+--                year-first kg_preprint_is_later, is an error row: drop it, then run again
 --   versions-01  link the 5 pairs of the 2026-11-17 export with it (basis curator_fill), and only
 --                them: another pair the rule finds in their title groups is listed, not linked:
 --                  42131509 -> 41040807  BRAID               R61MH135407
@@ -339,7 +363,7 @@ BEGIN
           format('%s block(s) ran; decisions: %s; rows%s written: %s (summary rows below; DDL writes no row, the done rows name it). ',
                  _blk, coalesce(_dec, 'none'), CASE WHEN _dry THEN ' that WOULD be' ELSE '' END, _tot)
           || CASE WHEN _skip IS NOT NULL
-                  THEN format('NOT CREATED, rows share a key: %s. A curator merges each group listed (skipped rows) or corrects its wrong value, then runs this script again. ', _skip)
+                  THEN format('NOT CREATED, rows share a key: %s. A curator resolves each group as its skipped row says (merges one record held twice, corrects a wrong value, or gives a preprint on its paper''s node a spine row of its own and links the two, never merging them), then runs this script again. ', _skip)
                   ELSE '' END
           || CASE WHEN _dry AND _err > 0 THEN format('%s ERROR(S): a real run would change nothing until they are fixed (rows marked error). ', _err) ELSE '' END
           || CASE WHEN _dry THEN format('The dry-run switch is %L. To apply: change it to ''off'' in the line  SELECT set_config(''bbqs.dry_run'', ''on'', true);  near the top, and run the whole script again.', _sw)
@@ -455,13 +479,14 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog AS
 $fn$ SELECT coalesce(lower(_journal COLLATE "C") ~ '(biorxiv|medrxiv|arxiv|research square|res sq|ssrn|psyarxiv|preprints)', false)
          OR coalesce(public.kg_doi_key(_doi) COLLATE "C" ~ '^10\.(64898|48550|21203|2139|31234|20944)/', false)
          OR coalesce(public.kg_doi_key(_doi) COLLATE "C" ~ '^10\.1101/([0-9]{4}\.[0-9]{2}\.[0-9]{2}\.)?[0-9]{6,}', false) $fn$;$ddl$),
-(9, 'public.kg_preprint_is_later(integer,text,integer,text)',
- 'Pairing rule (kg/identity_keys.json, key chronology): is the preprint later than its published version, by year when both are known and differ, else by PubMed id? public.kg_link_publication_versions() never links such a pair. Change it only with its TypeScript and Python copies. 20261117181500_prevent_duplicates.',
-$ddl$CREATE OR REPLACE FUNCTION public.kg_preprint_is_later(_preprint_year integer, _preprint_pmid text, _published_year integer, _published_pmid text) RETURNS boolean
+(9, 'public.kg_preprint_is_later(integer,text,text,integer,text)',
+ 'Pairing rule (kg/identity_keys.json, key chronology): is the preprint later than its published version? First by PubMed id when both have one and they differ; else by the posting year in a dated bioRxiv/medRxiv DOI, or else the preprint''s own year, against the published year (a preprint''s own year drifts later as versions are posted, so it only breaks a tie). public.kg_link_publication_versions() never links such a pair. Change it only with its TypeScript and Python copies. 20261117181500_prevent_duplicates.',
+$ddl$CREATE OR REPLACE FUNCTION public.kg_preprint_is_later(_preprint_year integer, _preprint_pmid text, _preprint_doi text, _published_year integer, _published_pmid text) RETURNS boolean
 LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog AS
-$fn$ SELECT CASE WHEN _preprint_year IS NOT NULL AND _published_year IS NOT NULL AND _preprint_year <> _published_year
-                 THEN _preprint_year > _published_year
-                 ELSE coalesce(public.kg_pmid_key(_preprint_pmid)::numeric > public.kg_pmid_key(_published_pmid)::numeric, false) END $fn$;$ddl$)
+$fn$ SELECT CASE WHEN a IS NOT NULL AND b IS NOT NULL AND a <> b THEN a > b
+                 ELSE coalesce(coalesce(d, _preprint_year) > _published_year, false) END
+       FROM (SELECT public.kg_pmid_key(_preprint_pmid)::numeric AS a, public.kg_pmid_key(_published_pmid)::numeric AS b,
+                    substring(public.kg_doi_key(_preprint_doi) COLLATE "C" FROM '^10\.(?:1101|64898)/([0-9]{4})\.[0-9]{2}\.[0-9]{2}\.[0-9]{6,}')::integer AS d) x $fn$;$ddl$)
 ) AS d(ord, sig, about, ddl)
 $q$;
 
@@ -515,9 +540,12 @@ $q$ SELECT '404296bd8ce7a2dae8a094c2125df72a'::text $q$;
 -- (a spine row typed publication), their title keys are equal and at least 20 characters long,
 -- exactly one of the two is a preprint (kg_is_preprint), exactly one record of that title group is
 -- not a preprint (two published records sharing a title are a duplicate to merge first), the
--- preprint is not later than the published record (kg_preprint_is_later: by year, else by PubMed
--- id; a later "preprint" is another work with the same title, or a wrong year), and a project
--- credits both (project_publications: RePORTER's credit is the record, Principle III). Each pair
+-- preprint is not later than the published record (kg_preprint_is_later: by PubMed id, else by the
+-- posting date in a bioRxiv/medRxiv DOI or else the year, which drifts later as versions are posted
+-- and so only breaks a tie; a later "preprint" is another work with the same title, or a record
+-- with a wrong PMID, DOI or year), and a project credits both (project_publications: RePORTER's
+-- credit is the record, Principle III). A pair already linked (by this rule, or by a curator by
+-- hand) is reported as linked (noop) before the order and the credit are tested. Each pair
 -- becomes resource_links (published, 'revision_of', preprint). _both_listed links only a pair whose
 -- two records are both in _publication_ids, and returns the other pairs of their title groups as
 -- would_link. SECURITY INVOKER, for service_role only: import-grant-publications calls it for the
@@ -565,8 +593,11 @@ BEGIN
     SELECT n.resource_id AS s, v.resource_id AS o, n.lab AS nlab, v.lab AS vlab,
            coalesce(nullif(btrim(v.journal), ''), nullif(btrim(v.doi), ''), 'preprint') AS venue,
            g.n_published,
-           public.kg_preprint_is_later(v.year, v.pmid, n.year, n.pmid) AS later,
-           coalesce(v.year::text, 'no year') AS vyear, coalesce(n.year::text, 'no year') AS nyear,
+           public.kg_preprint_is_later(v.year, v.pmid, v.doi, n.year, n.pmid) AS later,
+           coalesce(v.year::text, 'no year')
+             || CASE WHEN nullif(btrim(v.pmid), '') IS NOT NULL AND nullif(btrim(v.doi), '') IS NOT NULL
+                     THEN ', DOI ' || btrim(v.doi) ELSE '' END AS vwhen,
+           coalesce(n.year::text, 'no year') AS nyear,
            (_publication_ids IS NULL OR NOT _both_listed
             OR (n.id = ANY (_publication_ids) AND v.id = ANY (_publication_ids))) AS listed,
            (SELECT string_agg(DISTINCT pr.grant_number, ', ' ORDER BY pr.grant_number)
@@ -593,19 +624,19 @@ BEGIN
       outcome := 'skipped';
       detail  := format('%s and preprint %s are two records on one node (both rows point at spine row %s): give the preprint its own spine row (a resources row typed publication, and its publications row pointed at it), then run public.kg_link_publication_versions again to link the two. Never merge them: each keeps its own PMID, DOI and date',
                         r.nlab, r.vlab, r.s);
-    ELSIF r.later THEN
-      outcome := 'skipped';
-      detail  := format('preprint %s (%s) is later than %s (%s), by year or else by PubMed id: a preprint comes before its paper, so this is another work with the same title, or one of the two records has a wrong year. Not linked; a curator checks the two records',
-                        r.vlab, r.vyear, r.nlab, r.nyear);
-    ELSIF r.shared IS NULL THEN
-      outcome := 'skipped';
-      detail  := format('%s and preprint %s share their title, but no project credits both (project_publications): not linked', r.nlab, r.vlab);
-    ELSIF r.reverse THEN
-      outcome := 'skipped';
-      detail  := format('preprint %s is recorded as a revision of %s (the reverse link): a curator decides which version is the later one', r.vlab, r.nlab);
     ELSIF r.linked THEN
       outcome := 'noop';
       detail  := format('%s revision_of preprint %s: already linked', r.nlab, r.vlab);
+    ELSIF r.reverse THEN
+      outcome := 'skipped';
+      detail  := format('preprint %s is recorded as a revision of %s (the reverse link): a curator decides which version is the later one', r.vlab, r.nlab);
+    ELSIF r.later THEN
+      outcome := 'skipped';
+      detail  := format('preprint %s (%s) is later than %s (%s): two versions are ordered by PubMed id, else by the date in a bioRxiv/medRxiv DOI, else by year (kg_preprint_is_later), and a preprint comes before its paper. So this is another work with the same title, or one of the two records has a wrong PMID, DOI or year. Not linked. A curator who finds them one work corrects the wrong value and runs this again, or links the two by hand in the SQL editor:  SELECT public.set_actor(''curator:<name>'');  INSERT INTO public.resource_links (subject_id, predicate, object_id, basis, evidence) VALUES (%L, ''revision_of'', %L, ''curator_fill'', ''<why they are one work>'');  (this rule then reports them as linked)',
+                        r.vlab, r.vwhen, r.nlab, r.nyear, r.s, r.o);
+    ELSIF r.shared IS NULL THEN
+      outcome := 'skipped';
+      detail  := format('%s and preprint %s share their title, but no project credits both (project_publications): not linked', r.nlab, r.vlab);
     ELSIF _dry OR NOT r.listed THEN
       outcome := 'would_link';
       detail  := format('%s revision_of preprint %s (%s): same title, both credited to %s%s', r.nlab, r.vlab, r.venue, r.shared,
@@ -871,8 +902,9 @@ BEGIN
   IF NOT b.pre THEN
     _w := _w || format('PMID %s does not read as a preprint (journal %L, DOI %L)', b.pmid, b.journal, b.doi);
   END IF;
-  IF public.kg_preprint_is_later(b.year, b.pmid, a.year, a.pmid) THEN
-    _w := _w || format('preprint PMID %s (%s) is later than PMID %s (%s), by year or else by PubMed id', b.pmid, coalesce(b.year::text, 'no year'), a.pmid, coalesce(a.year::text, 'no year'));
+  IF public.kg_preprint_is_later(b.year, b.pmid, b.doi, a.year, a.pmid) THEN
+    _w := _w || format('preprint PMID %s (%s, DOI %s) is later than PMID %s (%s), by PubMed id, else by the date in its DOI or its year',
+                       b.pmid, coalesce(b.year::text, 'no year'), coalesce(b.doi, 'none'), a.pmid, coalesce(a.year::text, 'no year'));
   END IF;
   IF a.tk IS DISTINCT FROM b.tk THEN
     _w := _w || format('their titles differ (%L / %L)', a.title, b.title);
@@ -954,10 +986,10 @@ END
 $blk$;
 
 -- ------------------------------------------------------------------------------------------------
--- [keys-02] Self-test: this database computes the 97 SQL vectors of kg/identity_keys.json
+-- [keys-02] Self-test: this database computes the 109 SQL vectors of kg/identity_keys.json
 -- The two blocks between markers are generated from kg/identity_keys.json: identity-vectors (one
 -- row per line: kind, input, second input, want) and chronology-vectors (preprint year, preprint
--- pmid, published year, published pmid, want: kg_preprint_is_later). ASCII only, every other
+-- pmid, preprint doi, published year, published pmid, want: kg_preprint_is_later). ASCII only, every other
 -- character an E'' escape. The same vectors hold the TypeScript (tests/guards/identity-normalization)
 -- and Python (kg/ci_check.py) copies, and tests/guards/kg-identity-keys checks that these blocks are
 -- the JSON's. A mismatch is an error row: this server would compute other keys than the write paths
@@ -1085,30 +1117,42 @@ BEGIN
     END IF;
   END LOOP;
   FOR c IN
-    SELECT v.py, v.pp, v.uy, v.up, v.want, public.kg_preprint_is_later(v.py, v.pp, v.uy, v.up) AS got
+    SELECT v.py, v.pp, v.pd, v.uy, v.up, v.want, public.kg_preprint_is_later(v.py, v.pp, v.pd, v.uy, v.up) AS got
       FROM (VALUES
--- chronology-vectors:begin (generated from kg/identity_keys.json: preprint year, preprint pmid, published year, published pmid, want)
-  (2025, '41040807', 2026, '42131509', false),
-  (2025, '99999999', 2026, '10000000', false),
-  (2025, '37425712', 2019, '41331138', true),
-  (2026, '90000017', 2026, '90000016', true),
-  (2026, '90000016', 2026, '90000017', false),
-  (NULL, '200002', NULL, '200001', true),
-  (NULL, 'PMID: 0200001', 2026, '200002', false),
-  (2026, '123456789012345678901', NULL, '99', true),
-  (2026, 'abc', 2026, '123', false),
-  (2025, NULL, 2026, NULL, false),
-  (2026, NULL, 2025, NULL, true),
-  (NULL, NULL, NULL, NULL, false)
+-- chronology-vectors:begin (generated from kg/identity_keys.json: preprint year, preprint pmid, preprint doi, published year, published pmid, want)
+  (2025, '41040807', NULL, 2025, '42131509', false),
+  (2026, '90000017', NULL, 2026, '90000016', true),
+  (2026, '90000016', NULL, 2026, '90000017', false),
+  (2027, '37425712', '10.1101/2023.06.25.546478', 2026, '41331138', false),
+  (2027, '37425712', NULL, 2026, '41331138', false),
+  (2025, '99999999', NULL, 2026, '10000000', true),
+  (2027, '37425712', '10.1101/2027.01.01.546478', 2026, '41331138', false),
+  (NULL, '200002', NULL, NULL, '200001', true),
+  (NULL, 'PMID: 0200001', NULL, 2026, '200002', false),
+  (2026, '123456789012345678901', NULL, NULL, '99', true),
+  (2027, NULL, '10.1101/2025.04.04.640001', 2026, NULL, false),
+  (2025, NULL, 'https://doi.org/10.1101/2027.01.05.640002', 2026, NULL, true),
+  (2027, NULL, '10.1101/2026.02.02.640003', 2026, NULL, false),
+  (NULL, NULL, '10.64898/2027.06.01.728862', 2026, NULL, true),
+  (NULL, NULL, 'doi:10.1101/2020.03.17.20037572', 2019, NULL, true),
+  (2027, NULL, '10.1101/087593', 2026, NULL, true),
+  (2027, NULL, '10.21203/rs.3.rs-1/v1', 2026, NULL, true),
+  (2026, 'abc', NULL, 2026, '123', false),
+  (2027, 'abc', NULL, 2026, '123', true),
+  (2027, '41331138', NULL, 2026, '0041331138', true),
+  (2025, NULL, NULL, 2026, NULL, false),
+  (2026, NULL, NULL, 2025, NULL, true),
+  (NULL, NULL, '10.1101/2027.01.05.640002', NULL, NULL, false),
+  (NULL, NULL, NULL, NULL, NULL, false)
 -- chronology-vectors:end
-           ) AS v(py, pp, uy, up, want)
+           ) AS v(py, pp, pd, uy, up, want)
   LOOP
     _n := _n + 1;
     IF c.got IS DISTINCT FROM c.want THEN
       _bad := _bad + 1;
       INSERT INTO pg_temp.kg_fix_report (item, target, outcome, detail)
       VALUES ('identity vector',
-              format('chronology(%s, %s, %s, %s)', quote_nullable(c.py), quote_nullable(c.pp), quote_nullable(c.uy), quote_nullable(c.up)),
+              format('chronology(%s, %s, %s, %s, %s)', quote_nullable(c.py), quote_nullable(c.pp), quote_nullable(c.pd), quote_nullable(c.uy), quote_nullable(c.up)),
               'error',
               format('this database computes %s, kg/identity_keys.json wants %s: it would pair preprints and papers otherwise than the export gate. Check kg_preprint_is_later in keys-01; nothing is changed until they agree.',
                      quote_nullable(c.got), quote_nullable(c.want)));
@@ -1334,6 +1378,17 @@ BEGIN
     INSERT INTO pg_temp.kg_fix_report (item, target, outcome, detail)
     VALUES ('pairing rule', 'public.kg_link_publication_versions(uuid[],text,boolean)', 'error',
             'a three-argument kg_link_publication_versions (a draft of this script) exists here: run  DROP FUNCTION public.kg_link_publication_versions(uuid[], text, boolean);  first. Beside the four-argument one it would make the importer''s call ambiguous (PGRST203), and it links a preprint later than its paper.');
+    RETURN;
+  END IF;
+  -- A later draft (kg/mcp-server at 65b5b7a) ordered two versions by year first, through a
+  -- four-argument kg_preprint_is_later. Where it ran, its kg_link_publication_versions calls that
+  -- function, and this block would leave it as it is (another body): the year-first order, which
+  -- refuses real pairs, would stay in use. So it is an error: a developer drops both, then runs this
+  -- script again (nothing else uses them; resource_links rows are kept).
+  IF to_regprocedure('public.kg_preprint_is_later(integer,text,integer,text)') IS NOT NULL THEN
+    INSERT INTO pg_temp.kg_fix_report (item, target, outcome, detail)
+    VALUES ('pairing rule', 'public.kg_preprint_is_later(integer,text,integer,text)', 'error',
+            'a four-argument kg_preprint_is_later (an earlier draft of this script, which ordered two versions by year first) exists here: run  DROP FUNCTION IF EXISTS public.kg_link_publication_versions(uuid[], text, boolean, boolean);  DROP FUNCTION public.kg_preprint_is_later(integer, text, integer, text);  first (no resource_links row is lost), then run this script again. Left in place, the pairing rule would keep its year-first order, and a preprint''s year drifts later as new versions are posted.');
     RETURN;
   END IF;
   IF _fn IS NULL THEN
@@ -1578,7 +1633,7 @@ DECLARE
 BEGIN
   BEGIN
     PERFORM pg_temp.kg_run(1, 'keys-01', 'Create the identity-key functions public.kg_*_key, kg_title_key, kg_is_preprint and kg_preprint_is_later where missing', 'pg_temp.kg_b_keys_01');
-    PERFORM pg_temp.kg_run(2, 'keys-02', 'Self-test: this database computes the 97 SQL vectors of kg/identity_keys.json', 'pg_temp.kg_b_keys_02');
+    PERFORM pg_temp.kg_run(2, 'keys-02', 'Self-test: this database computes the 109 SQL vectors of kg/identity_keys.json', 'pg_temp.kg_b_keys_02');
     PERFORM pg_temp.kg_run(3, 'index-01', 'One person per ORCID iD: uq_investigators_orcid_key', 'pg_temp.kg_b_index_01');
     PERFORM pg_temp.kg_run(4, 'index-02', 'One publication per DOI: uq_publications_doi_key', 'pg_temp.kg_b_index_02');
     PERFORM pg_temp.kg_run(5, 'index-03', 'One publication per PMID: uq_publications_pmid_key', 'pg_temp.kg_b_index_03');

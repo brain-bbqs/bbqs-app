@@ -100,9 +100,10 @@ seconds, so the `kg` check can be required). It fails on a **regression**, never
    and Greek table are the JSON's;
 4. no shape fires on `export/bbqs.ttl` more often than `quality_baseline.json` allows;
 5. every competency question answered in the baseline still answers, every shape that had data
-   to check still does, and there are no more possible duplicates, unlinked preprint + published
-   pairs, or `revision_of` links to check (from a preprint, or between two titles) than the
-   baseline has;
+   to check still does, and there are no more possible duplicates (to merge), unlinked preprint +
+   published pairs (to link), same-title versions to check (a link from the preprint, or a
+   preprint later than its paper: to correct, never to merge), or `revision_of` links to check
+   (from a preprint, or between two titles) than the baseline has;
 6. `bbqs.owl.ttl` / `bbqs.shapes.gen.ttl` say what the pinned `gen-owl` / `gen-shacl` produce
    from `bbqs.linkml.yaml` (`--check-generated`), statement for statement, each blank node written
    out in full; a stale file prints the statements that differ.
@@ -247,12 +248,23 @@ link) as two nodes of one institution. That is a **known duplicate, for a curato
 or check here reports it. An organization's ROR id is its identity, declared (`organization_ror`)
 for when `organizations` has a ROR column.
 
-Before the database step, every write path that will meet these indexes has to expect 23505 (named
-in the migration's PRECONDITIONS): the six edge functions, `member_self_update()` (the profile
-editor and the MCP `update_my_profile`: an ORCID iD held by another record refuses the whole save),
-`AddFundingOpportunityDialog.tsx`, the Publications page's insert, the `create_grant` and
-`repoint_grant` RPCs from callers besides the MCP, and `../bbqs-agent`, which shares the database
-and must be checked for direct writes to the keyed columns first.
+Before the database step, every write path that will meet these indexes has to expect 23505 (the
+migration's PRECONDITIONS name each). The order is: the site first (`dev` merged to `main`, which
+`publish.yml` deploys to Pages), then the six edge functions that import
+`supabase/functions/_shared/kg-write.ts` (and, through it, `identity-keys.ts`), none deployed since
+those modules were written: `add-project-by-grant`, `bbqs-mcp`, `import-grant-publications`,
+`nih-grants`, `seed-consortium` and `verify-affiliations`, each with `supabase functions deploy
+<name> --project-ref vpexxhfpvghlejljwpvt`; then `../bbqs-agent`, which shares the database, checked
+for direct writes to the keyed columns; then the script, dry run first. Each step works with or
+without the next. In this repository every writer of a keyed column says a 23505 as what it is: the
+edge functions look up by the key first; `member_self_update()` itself still refuses its whole
+statement when the ORCID iD sent is on another record, and its two callers, the profile editor
+(`saveOwnProfile`) and the MCP's `update_my_profile` (`saveProfileLeavingOutHeldOrcid`), save the other
+fields again without the ORCID and say it was left out; the site's other writers
+(InvestigatorSummary's inline edit, the Publications page, `AddFundingOpportunityDialog.tsx`,
+`useProjectProfileEditor`, AdminUsers, AdminAccessRequests) go through `src/lib/alreadyInKg.ts`, and
+`tests/guards/write-paths-get-or-create` holds every src write of a keyed column to that. The
+`create_grant` and `repoint_grant` RPCs from callers besides the MCP still see the raw 23505.
 
 **Versions are linked, never merged.** A preprint and its published version share a title but have
 two PMIDs, two DOIs and two dates: two records of one work. They are linked with `revision_of`, from
@@ -263,18 +275,25 @@ Greek letter is spelled out, so α-synuclein and β-synuclein are two titles), o
 preprint (`kg_is_preprint`: by venue, DOI prefix, or the shape of a bioRxiv/medRxiv DOI, `10.1101/`
 then an optional date and six or more digits, since Genome Res, Genes Dev and Learn Mem publish
 under `10.1101/` too), exactly one record of that title that is not, the preprint not later than
-the paper (`kg_preprint_is_later`: by year, else by PubMed id; a later "preprint" is another work
-with the same title, or a wrong year), and a project that credits both (`project_publications`, the
+the paper (`kg_preprint_is_later`: by PubMed id, which numbers records in the order PubMed adds them;
+without two PubMed ids, by the posting date a bioRxiv/medRxiv DOI carries, else the preprint's year,
+against the paper's year. A preprint's year is its latest version's, so it drifts later as versions
+are posted, and only breaks a tie. A later "preprint" is another work with the same title, or a
+record with a wrong PMID, DOI or year: the function skips it, and its skipped row gives the SQL a
+curator runs to link the two by hand if they are one work), and a project that credits both (`project_publications`, the
 RePORTER credit). The importer runs it for new papers. `duplicates()` only detects, grouping
 publications by `title_key` of their `bbqs:title` as the database pairs them: a group with one
 published record whose `revision_of` links all run from it to its preprints, each linked, is
 resolved (`linked_versions`); the same not all linked yet, each preprint still to link no later
 than the paper, is a pair to link (`versions`; the gate fails when there are more than the
-baseline's); any other same-title group is a possible duplicate, whatever links it: two published
-records, a link from a preprint, a "preprint" later than the paper. Two records with one DOI or
-one PMID are one record whatever links them. `revision_links()` checks each link on its own: one
-that runs from a preprint to a published paper, or between two titles, is a link to correct, and
-the gate fails when there are more than the baseline's (0).
+baseline's); one published record and its preprints whose link runs from a preprint, or whose
+preprint still to link is later than the paper, is a link or a value to correct, never a merge
+(`versions_to_check`; gated against the baseline's 0, with that advice); any other same-title group
+is a possible duplicate, to merge: two published records, or none. A pair a curator linked by hand
+is resolved whatever its order says, as the database reports it. Two records with one DOI or one
+PMID are one record whatever links them. `revision_links()` checks each link on its own: one that
+runs from a preprint to a published paper, or between two titles, is a link to correct, and the
+gate fails when there are more than the baseline's (0).
 
 Keeping the copies equal is a machine's job, not a reviewer's: `tests/guards/kg-identity-keys`
 holds the LinkML keys, the shapes, `quality.py` and the migration (its key functions, its indexes and

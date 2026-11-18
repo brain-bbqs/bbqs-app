@@ -16,8 +16,10 @@
                and no shape that is quiet in the baseline starts firing
   5. quality -- every competency question answered in the baseline still answers, every shape
                that had data to check still does, and there are no more possible duplicates,
-               unlinked preprint + published pairs, or revision_of links to check (reversed, or
-               between two titles) than the baseline has
+               unlinked preprint + published pairs, same-title versions to check (a link from the
+               preprint, a preprint later than its paper), or revision_of links to check (reversed,
+               or between two titles) than the baseline has. Each says what a curator does: a
+               duplicate is merged; a preprint and its paper are linked or corrected, never merged
   6. generated (--check-generated, needs linkml) -- bbqs.owl.ttl and bbqs.shapes.gen.ttl say what
                gen-owl / gen-shacl produce from bbqs.linkml.yaml today, statement for statement,
                blank nodes included (an owl:hasKey list, an OWL restriction, a SHACL property shape)
@@ -112,8 +114,14 @@ RED_EXPECTED = {
         ("title", "duplicate", ("pub-vk2-a", "pub-vk2-b", "pub-vk2-pre")),     # two papers, linked
         ("title", "duplicate", ("pub-vk3-a", "pub-vk3-b", "pub-vk3-pre")),     # two papers, unlinked
         ("title", "duplicate", ("pub-vkd-paper", "pub-vkd-pre1", "pub-vkd-pre2")),   # one DOI twice
-        ("title", "duplicate", ("pub-late-paper", "pub-late-pre")),          # preprint later
-        ("title", "duplicate", ("pub-wrongway-paper", "pub-wrongway-pre")),  # link from the preprint
+        ("title", "versions_to_check", ("pub-late-paper", "pub-late-pre")),          # preprint later
+        ("title", "versions_to_check", ("pub-wrongway-paper", "pub-wrongway-pre")),  # link from the preprint
+        # chronology, one signal each (PubMed id, then the DOI's posting date, then the year):
+        ("title", "versions_to_check", ("pub-pmidlate-paper", "pub-pmidlate-pre")),  # PubMed id alone: later
+        ("title", "versions", ("pub-drift-paper", "pub-drift-pre")),       # the year alone would say later
+        ("title", "versions", ("pub-posted-paper", "pub-posted-pre")),     # the DOI's date, not the year
+        ("title", "versions_to_check", ("pub-yearlate-paper", "pub-yearlate-pre")),  # the year alone: later
+        ("title", "versions", ("pub-noyear-paper", "pub-noyear-pre")),     # no year, PubMed order kept
     },
     # (subject, object, problems) for every link revision_links() reports
     "revision_links": {
@@ -128,6 +136,7 @@ GREEN_EXPECTED = {
     "groups": {
         ("title", "linked_versions", ("pub-preprint", "pub-published")),
         ("title", "linked_versions", ("pub-lm-preprint", "pub-lm-published")),
+        ("title", "linked_versions", ("pub-hand-preprint", "pub-hand-published")),  # linked by hand, PubMed order aside
         ("external_url", "advisory", ("sw-dlc", "sw-dlc-live")),   # one lab homepage, two tools
         ("url", "advisory", ("fo-topic-1", "fo-topic-2")),         # one NIH topic page, two calls
     },
@@ -326,6 +335,8 @@ def main(export_path, check_generated, update_baseline):
         "duplicates": report["duplicates"]["count"],
         # Preprint + published pairs with one title and no revision_of link between them yet.
         "versions": report["duplicates"]["versions"],
+        # Such pairs whose link runs from the preprint, or whose preprint is later than its paper.
+        "versions_to_check": report["duplicates"]["versions_to_check"],
         # revision_of links the pairing rule never makes: from a preprint, or between two titles.
         "revision_links": report["revision_links"]["count"],
     }
@@ -378,6 +389,20 @@ def main(export_path, check_generated, update_baseline):
             improved.append(f"unlinked preprint + published pairs {base['versions']} -> {now['versions']}")
         print(f"{'ok ' if now['versions'] <= base['versions'] else 'BAD'} unlinked preprint + published pairs: "
               f"{now['versions']} (baseline {base['versions']}); {report['duplicates']['linked_versions']} linked")
+    # A preprint and its paper whose link or order is wrong: a link or a value to correct, never a merge.
+    allowed = base.get("versions_to_check", 0)
+    if now["versions_to_check"] > allowed:
+        groups = [g for g in report["duplicates"]["groups"] if g["kind"] == "versions_to_check"]
+        errors.append(f"quality: same-title preprint + published records to check rose to {now['versions_to_check']} "
+                      f"(baseline {allowed}): " + "; ".join(", ".join(g["nodes"]) for g in groups[:SHOWN])
+                      + ". A preprint and its paper are two records of one work: never merge them. Correct the link "
+                      "(revision_of runs from the published paper to its preprint), or the record whose PMID, DOI or "
+                      "year is wrong; a preprint PubMed added after its paper (or posted later, by its DOI) may be "
+                      "another work with the same title")
+    elif now["versions_to_check"] < allowed:
+        improved.append(f"same-title versions to check {allowed} -> {now['versions_to_check']}")
+    print(f"{'ok ' if now['versions_to_check'] <= allowed else 'BAD'} same-title versions to check (a link from the "
+          f"preprint, or a preprint later than its paper): {now['versions_to_check']} (baseline {allowed})")
     # A version link runs from the published paper to its preprint, between two records of one title.
     allowed = base.get("revision_links", 0)
     if now["revision_links"] > allowed:

@@ -381,8 +381,9 @@ bid:pub-vkd-pre2 a bbqs:Publication ;
   bbqs:pmid "300199" ;
   bbqs:year 2025 .
 
-# version_kind — a "preprint" later than the paper (2025 against 2019): another work with the same
-# title, or a wrong year; never a pair to link, so a possible duplicate for a curator
+# version_kind — a "preprint" later than the paper (by PubMed id, by its DOI's date and by year):
+# another work with the same title, or a record with a wrong value; never a pair to link, and never
+# a duplicate to merge either: versions_to_check, for a curator
 bid:pub-late-paper a bbqs:Publication ;
   bbqs:title "A toolbox for quantifying freely moving behavior" ;
   bbqs:journal "J Neurosci" ;
@@ -396,7 +397,75 @@ bid:pub-late-pre a bbqs:Publication ;
   bbqs:pmid "300302" ;
   bbqs:year 2025 .
 
-# revision_links() — a preprint said to revise its paper: the link points the wrong way
+# chronology, as version_kind() reads it from the export (kg/identity_keys.json: PubMed id first,
+# then the posting date in a bioRxiv/medRxiv DOI, then the year). Each pair is one title, one
+# published record and one preprint, no link; each is decided by one signal alone.
+# The PubMed id alone: one year, no date in the arXiv DOI, the preprint added to PubMed after the
+# paper: later (versions_to_check)
+bid:pub-pmidlate-paper a bbqs:Publication ;
+  bbqs:title "Ordering two versions by their PubMed ids alone" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300801"^^xsd:anyURI ;
+  bbqs:pmid "300801" ;
+  bbqs:year 2026 .
+bid:pub-pmidlate-pre a bbqs:Publication ;
+  bbqs:title "Ordering two versions by their PubMed ids alone" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2601.300802"^^xsd:anyURI ;
+  bbqs:pmid "300802" ;
+  bbqs:year 2026 .
+# The year would decide wrongly: the preprint's year (2027) is a later version's, after the paper's,
+# but PubMed added it first: a pair to link (versions)
+bid:pub-drift-paper a bbqs:Publication ;
+  bbqs:title "A preprint whose year drifted past its paper's" ;
+  bbqs:journal "Cell" ;
+  bbqs:doi "10.1016/j.cell.2026.300812"^^xsd:anyURI ;
+  bbqs:pmid "300812" ;
+  bbqs:year 2026 .
+bid:pub-drift-pre a bbqs:Publication ;
+  bbqs:title "A preprint whose year drifted past its paper's" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2501.300811"^^xsd:anyURI ;
+  bbqs:pmid "300811" ;
+  bbqs:year 2027 .
+# The DOI's date alone: no PubMed ids; the preprint's year (2027) drifted, its DOI says it was posted
+# in 2025, before the paper's 2026: a pair to link (versions)
+bid:pub-posted-paper a bbqs:Publication ;
+  bbqs:title "A preprint dated by its bioRxiv DOI, not by its year" ;
+  bbqs:journal "eLife" ;
+  bbqs:doi "10.7554/eLife.300822"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-posted-pre a bbqs:Publication ;
+  bbqs:title "A preprint dated by its bioRxiv DOI, not by its year" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.08.08.300821"^^xsd:anyURI ;
+  bbqs:year 2027 .
+# The year alone: no PubMed ids, no date in the arXiv DOI, the preprint's year after the paper's:
+# later (versions_to_check)
+bid:pub-yearlate-paper a bbqs:Publication ;
+  bbqs:title "A preprint later than its paper by year alone" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300832"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-yearlate-pre a bbqs:Publication ;
+  bbqs:title "A preprint later than its paper by year alone" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2701.300831"^^xsd:anyURI ;
+  bbqs:year 2027 .
+# No year at all, the preprint first in PubMed: a pair to link (versions)
+bid:pub-noyear-paper a bbqs:Publication ;
+  bbqs:title "Two versions that carry no year at all" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.300842"^^xsd:anyURI ;
+  bbqs:pmid "300842" .
+bid:pub-noyear-pre a bbqs:Publication ;
+  bbqs:title "Two versions that carry no year at all" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/300841"^^xsd:anyURI ;
+  bbqs:pmid "300841" .
+
+# revision_links() — a preprint said to revise its paper: the link points the wrong way (and its
+# title group is versions_to_check: a link to correct, never a merge)
 bid:pub-wrongway-paper a bbqs:Publication ;
   bbqs:title "A version link that points the wrong way" ;
   bbqs:journal "Cell" ;

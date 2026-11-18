@@ -78,6 +78,10 @@ PREPRINT_VENUES = ("biorxiv", "medrxiv", "arxiv", "research square", "res sq", "
 PREPRINT_DOI_PREFIXES = ("10.64898/", "10.48550/", "10.21203/", "10.2139/", "10.31234/", "10.20944/")
 PREPRINT_DOI_PATTERNS = (r"^10\.1101/([0-9]{4}\.[0-9]{2}\.[0-9]{2}\.)?[0-9]{6,}",)
 _PREPRINT_DOI = [re.compile(p, re.A) for p in PREPRINT_DOI_PATTERNS]
+# The posting date a bioRxiv or medRxiv DOI carries (10.1101/ or bioRxiv's 2026 prefix 10.64898/,
+# then YYYY.MM.DD.): the date the first version was posted. Its group 1 is the year.
+PREPRINT_DOI_DATE = r"^10\.(?:1101|64898)/([0-9]{4})\.[0-9]{2}\.[0-9]{2}\.[0-9]{6,}"
+_PREPRINT_DOI_DATE = re.compile(PREPRINT_DOI_DATE, re.A)
 
 
 def _text(v) -> str:
@@ -162,15 +166,30 @@ def is_preprint(journal, doi) -> bool:
             or any(p.search(d) for p in _PREPRINT_DOI))
 
 
-def preprint_is_later(preprint_year, preprint_pmid, published_year, published_pmid) -> bool:
-    """Is the preprint later than its published version? By year when both are known and differ, else
-    by PubMed id (their keys, as numbers: PubMed numbers records in the order it adds them) when both
-    have one; else False, as nothing says so. The pairing rule never links such a pair: a "preprint"
-    that comes after the paper is another work with the same title, or a record with a wrong year."""
-    if preprint_year is not None and published_year is not None and preprint_year != published_year:
-        return preprint_year > published_year
+def posted_year(doi):
+    """The year a dated bioRxiv/medRxiv DOI was posted ('10.1101/2023.06.25.546478' -> 2023); else None."""
+    m = _PREPRINT_DOI_DATE.search(doi_key(doi) or "")
+    return int(m.group(1)) if m else None
+
+
+def preprint_is_later(preprint_year, preprint_pmid, preprint_doi, published_year, published_pmid) -> bool:
+    """Is the preprint later than its published version? First by PubMed id, when both have one and they
+    differ (their keys, as numbers: PubMed numbers records in the order it adds them). Otherwise by the
+    preprint's earliest known date against the published year: the posting year in a dated
+    bioRxiv/medRxiv DOI, else the preprint's own year. Else False, as nothing says so.
+
+    The preprint's own year only breaks a tie. bioRxiv and PubMed give a preprint the year of its
+    latest version, so that year drifts later as versions are posted: CaBLAM's preprint, posted on
+    2023-06-25, has the year 2025. Deciding by it first would refuse real pairs. The pairing rule never
+    links a preprint that is later: it is another work with the same title, or a record with a wrong
+    PMID, DOI or year."""
     a, b = pmid_key(preprint_pmid), pmid_key(published_pmid)
-    return a is not None and b is not None and int(a) > int(b)
+    if a is not None and b is not None and a != b:
+        return int(a) > int(b)
+    first = posted_year(preprint_doi)
+    if first is None:
+        first = preprint_year
+    return first is not None and published_year is not None and first > published_year
 
 
 def load_spec(path=SPEC) -> dict:
@@ -197,6 +216,9 @@ def check(spec: dict | None = None) -> list[str]:
                         ("doi_patterns", PREPRINT_DOI_PATTERNS)):
         if sorted(pre.get(field, [])) != sorted(mine):
             problems.append(f"preprint {field}: kg/identity_keys.py has {sorted(mine)}, the JSON {sorted(pre.get(field, []))}")
+    date = spec["keys"].get("chronology", {}).get("doi_date")
+    if date != PREPRINT_DOI_DATE:
+        problems.append(f"chronology doi_date: kg/identity_keys.py has {PREPRINT_DOI_DATE!r}, the JSON {date!r}")
     greek = spec["keys"].get("name", {}).get("greek", {})
     if greek != GREEK:
         diff = sorted(set(greek.items()) ^ set(GREEK.items()))

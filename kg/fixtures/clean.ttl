@@ -144,6 +144,22 @@ bid:pub-lm-preprint a bbqs:Publication ;
   bbqs:doi "10.1101/2024.05.01.590001"^^xsd:anyURI ;
   bbqs:pmid "300401" ;
   bbqs:year 2024 .
+# a pair a curator linked by hand although PubMed added the preprint after the paper (so the rule
+# calls it later and would not link it): a link that exists is resolved, before the order is read,
+# as public.kg_link_publication_versions reports it (noop, already linked)
+bid:pub-hand-published a bbqs:Publication ;
+  bbqs:title "A pair a curator linked by hand against the PubMed order" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300851"^^xsd:anyURI ;
+  bbqs:pmid "300851" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-hand-preprint .
+bid:pub-hand-preprint a bbqs:Publication ;
+  bbqs:title "A pair a curator linked by hand against the PubMed order" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.12.01.300852"^^xsd:anyURI ;
+  bbqs:pmid "300852" ;
+  bbqs:year 2026 .
 
 # a URL alone is no identity: two tools on one lab homepage, two calls on one NIH topic page. Each
 # pair shares a URL key but not a name, so duplicates() lists it as advisory and counts nothing

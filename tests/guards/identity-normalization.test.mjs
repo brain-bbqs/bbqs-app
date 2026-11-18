@@ -49,7 +49,7 @@ async function ts() {
 
 const show = (v) => JSON.stringify(v);
 // A vector whose input is a list is the function's arguments: preprint (journal, doi) and chronology
-// (preprint year, preprint pmid, published year, published pmid).
+// (preprint year, preprint pmid, preprint doi, published year, published pmid).
 const callTs = (I, fn, input) => (Array.isArray(input) ? I[fn](...input) : I[fn](input));
 
 test("every vector in kg/identity_keys.json gives its `want` through _shared/identity-keys.ts", async () => {
@@ -81,6 +81,9 @@ test("the TypeScript preprint venues, DOI prefixes and DOI shapes, and its Greek
   const greek = spec().keys.name.greek;
   assert.ok(greek && Object.keys(greek).length >= 49, "kg/identity_keys.json's name rule has no Greek table (every capital and small letter, and the final sigma)");
   assert.deepEqual({ ...(I.GREEK || {}) }, greek, "GREEK in identity-keys.ts vs kg/identity_keys.json's name.greek");
+  const date = spec().keys.chronology.doi_date;
+  assert.ok(date, "kg/identity_keys.json's chronology rule names no doi_date (the posting date in a bioRxiv/medRxiv DOI)");
+  assert.equal(I.PREPRINT_DOI_DATE, date, "PREPRINT_DOI_DATE in identity-keys.ts vs kg/identity_keys.json's chronology.doi_date");
 });
 
 test("identity-keys.ts imports nothing and uses no Deno global, so Node and Deno load the same file", () => {
@@ -161,9 +164,10 @@ function vectorBlock(text, marker, width) {
 }
 
 // The rows of the migration's self-test blocks: (kind, input, second input, want), and the pairing
-// rule's order of versions: (preprint year, preprint pmid, published year, published pmid, want).
+// rule's order of versions: (preprint year, preprint pmid, preprint doi, published year, published
+// pmid, want).
 const selfTestRows = (text) => vectorBlock(text, "identity-vectors", 4);
-const chronologyRows = (text) => vectorBlock(text, "chronology-vectors", 5);
+const chronologyRows = (text) => vectorBlock(text, "chronology-vectors", 6);
 
 test("the vectors the migration tests Postgres on give the same keys through the TypeScript", async () => {
   // When the migration is applied, keys-02 refuses to run unless Postgres returns `want` for each of
@@ -182,9 +186,9 @@ test("the vectors the migration tests Postgres on give the same keys through the
   }
   const order = chronologyRows(text);
   assert.ok(order.length >= 8, `${name}: only ${order.length} chronology rows`);
-  for (const [py, pp, uy, up, want] of order) {
-    const got = I[keys.chronology.ts](py, pp, uy, up);
-    if (got !== want) bad.push(`chronology: ${keys.chronology.ts}(${show([py, pp, uy, up])}) = ${show(got)}, Postgres must give ${show(want)}`);
+  for (const [py, pp, pd, uy, up, want] of order) {
+    const got = I[keys.chronology.ts](py, pp, pd, uy, up);
+    if (got !== want) bad.push(`chronology: ${keys.chronology.ts}(${show([py, pp, pd, uy, up])}) = ${show(got)}, Postgres must give ${show(want)}`);
   }
   assert.deepEqual(bad, [], `${name}'s self-test and supabase/functions/_shared/identity-keys.ts disagree`);
 });

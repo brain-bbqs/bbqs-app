@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PageMeta } from "@/components/PageMeta";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 
 type AssignableRole = "admin" | "curator" | "member";
 
@@ -307,7 +308,9 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           email,
           pending_role: addRole === "member" ? null : addRole,
         });
-        if (error) throw error;
+        // An email or name already on another record (investigators_email_unique_ci,
+        // investigators_name_key) is said as such; any other error as it came.
+        if (error) throw new Error(alreadyInKgMessage(error, { email, name }) ?? error.message);
         toast.success(
           `Invited ${email}. Tier ${TIER_META[addRole].tier} will be applied on their first sign-in.`,
         );
@@ -392,7 +395,7 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           secondary_emails: cleanedSecondaries,
         })
         .eq("id", emailEditTarget.investigator_id);
-      if (error) throw error;
+      if (error) throw new Error(alreadyInKgMessage(error, { email: primary, name: trimmedName }) ?? error.message);
 
       // Also sync full_name on the linked auth profile, if any.
       const { data: linkedInv } = await supabase
@@ -524,7 +527,9 @@ export default function AdminUsers({ embedded = false }: AdminUsersProps = {}) {
           onClick: async () => {
             try {
               const { error } = await supabase.from("investigators").insert(existing as any);
-              if (error) throw error;
+              // Restored as it was: a key another record took in the meantime (its email, ORCID iD or
+              // node) is said as such.
+              if (error) throw new Error(alreadyInKgMessage(error) ?? error.message);
               toast.success("Investigator restored");
               queryClient.invalidateQueries({ queryKey: ["admin-users-list-v2"] });
             } catch (e: any) {

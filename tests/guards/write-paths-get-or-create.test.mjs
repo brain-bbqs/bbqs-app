@@ -115,6 +115,9 @@ test("add_resource decides by name within its resource_type, never by an ilike p
   assert.match(before, /if \(decision\.action === "update"\) \{\s*const row = decision\.row;[\s\S]*resources\?id=eq\.\$\{row\.id\}`, \{\s*$/,
     "the PATCH is not of decision.row inside the update branch");
   assert.match(body, /same_as:\s*\{/, "no same_as parameter: there is no explicit way to update a record that has another name");
+  assert.match(body, /distinct:\s*\{/, "no distinct parameter: a resource that only shares a URL with another cannot be added");
+  assert.match(body, /decideResource\(all, \{[\s\S]{0,200}\bdistinct:/, "add_resource does not pass distinct to decideResource");
+  assert.doesNotMatch(body, /const name = String\(a\.name\)/, "a missing name is read as the text \"undefined\"");
 });
 
 test("add_funding_opportunity decides by the FON key alone, PATCHes inside a 23505 handler, and supersedes only when told", () => {
@@ -125,6 +128,7 @@ test("add_funding_opportunity decides by the FON key alone, PATCHes inside a 235
   assert.match(body, /decideFundingCall\(/, "add_funding_opportunity does not decide with decideFundingCall");
   assert.match(body, /\bsupersedes\b/, "no supersedes parameter: a final notice cannot take over its forecast's row");
   assert.doesNotMatch(body, /already belongs to/, "a notice URL another call holds is refused: it is a hint, never an identity");
+  assert.doesNotMatch(fn("bbqs-mcp"), /uq_funding_opportunities_url_key/, "advice about a URL index 20261117181500 never builds");
   const writes = [...body.matchAll(/restC\(\s*(`funding_opportunities\?id=eq\.\$\{row\.id\}`|"funding_opportunities")/g)];
   assert.equal(writes.length, 2, "one PATCH and one POST expected");
   for (const w of writes) {
@@ -135,11 +139,13 @@ test("add_funding_opportunity decides by the FON key alone, PATCHes inside a 235
 
 test("update_my_profile turns an ORCID 23505 into a clear refusal and saves the other fields without the ORCID", () => {
   // WHY (review db_edge#4): member_self_update writes all fields in one UPDATE, so a typed ORCID iD
-  // another record holds (uq_investigators_orcid_key) refused the whole save with a raw 409.
+  // another record holds (uq_investigators_orcid_key) refused the whole save with a raw 409. The rule
+  // is saveProfileLeavingOutHeldOrcid, driven below.
   const body = toolBody(fn("bbqs-mcp"), "update_my_profile");
-  assert.match(body, /catch \(e\) \{\s*if \(!isUniqueViolation\(e\)\) throw e;/, "a 23505 from member_self_update is shown raw");
-  assert.match(body, /rpcC\("member_self_update", \{ \.\.\.args, _orcid: null \}\)/, "the other fields are not saved without the ORCID");
-  assert.match(body, /ask a curator to merge/, "the refusal does not say what to do");
+  assert.match(body, /saveProfileLeavingOutHeldOrcid\(\(x\) => rpcC\("member_self_update", x\), args, others\)/,
+    "update_my_profile does not save through saveProfileLeavingOutHeldOrcid (a held ORCID iD left out, the rest saved, both said)");
+  assert.doesNotMatch(body, /rpcC\("member_self_update", \{ \.\.\.args, _orcid: null \}\)/, "update_my_profile retries on its own, past the helper's rule");
+  assert.match(body, /orcid_not_saved: r\.orcidNotSaved/, "the result does not say the ORCID iD was not saved");
   for (const tool of ["create_grant", "repoint_grant"]) {
     assert.match(toolBody(fn("bbqs-mcp"), tool), /keyedRpcC\(/, `${tool}: a 23505 from the RPC is shown raw`);
   }
@@ -156,6 +162,16 @@ test("seed-consortium writes nothing to a record a name alone found unless it ha
   assert.ok(guard > 0, "an ambiguous match, or a name-only match onto a record with an email, is not skipped");
   const update = src.slice(at).search(/\.from\("investigators"\)\.update\(/);
   assert.ok(update > guard, "seed-consortium updates a matched person before it checks the match");
+  // The curator's worklist (verification of db_edge#3): every person not written, in full, and a
+  // note says what was done only once it is done.
+  assert.match(src.slice(at, at + guard + 400), /needsCurator\.push\(/, "a person a name alone found is not put on the curator's worklist");
+  assert.match(src, /needsCuratorDetails: needsCurator[,\s]/, "the curator's worklist is not returned whole");
+  assert.doesNotMatch(src, /needsCurator\.slice\(|notes\.slice\(/, "the worklist or the notes are cut short");
+  assert.match(src, /errorDetailsOmitted/, "a capped errorDetails does not say how many it leaves out");
+  const updated = src.slice(at).search(/updated\+\+;\s*if \(byNameOnly\) \{\s*notes\.push\(/);
+  assert.ok(updated > update, "the name-only note is not written after the update succeeded");
+  assert.doesNotMatch(src.slice(at, at + update), /notes\.push\(`\$\{person\.name\}: matched by name only[^`]*updated it/,
+    "the note says 'updated it' before anything was updated");
 });
 
 test("grant numbers are reduced to the NIH core before they are looked up or written", () => {
@@ -494,8 +510,10 @@ test("the matchers fold URLs, FONs and resource names with the identity keys", a
   assert.deepEqual(hits({ type: "software", name: "lightning-pose" }), ["s1:name:same"]);
   assert.deepEqual(hits({ type: "software", name: "LP", repoUrl: "github.com/paninski-lab/lightning-pose/" }), ["s1:repo_url:hint"],
     "a repository URL alone is a hint, not the same record");
-  assert.deepEqual(hits({ type: "software", repoUrl: "https://github.com/paninski-lab/lightning-pose" }), ["s1:repo_url:same"],
-    "with no name to compare, the URL is all there is");
+  assert.deepEqual(hits({ type: "software", repoUrl: "https://github.com/paninski-lab/lightning-pose" }), ["s1:repo_url:hint"],
+    "with no name to compare, a URL is still only a hint (review: a blank name PATCHed DeepLabCut by its homepage)");
+  assert.deepEqual(hits({ type: "software", name: "   ", url: "https://lightning-pose.readthedocs.io/" }), ["s1:url:hint"],
+    "a blank name is no name");
   assert.deepEqual(hits({ type: "ml_model", name: "Lightning Pose" }), [], "never across resource types");
 });
 
@@ -509,12 +527,26 @@ test("add_resource's rule: a different-named resource that shares only a homepag
   const ds = { id: "ds", name: "DeepLabCut", resource_type: "dataset", external_url: null };
   const d = (rows, q) => K.decideResource(rows, { type: "software", ...q });
 
+  // A record that shares only a URL is written neither way on a guess: not updated (it may be another
+  // tool), and no new record beside it (it may be this one under another name, and no tool removes
+  // a resource again). The refusal says how to say which it is.
   const homepage = d([dlc], { name: "DeepLabCut-Live", url: "https://www.mackenziemathislab.org/deeplabcut/" });
-  assert.equal(homepage.action, "insert", "the homepage DeepLabCut-Live shares with DeepLabCut does not make it DeepLabCut");
-  assert.match(homepage.note, /The software "DeepLabCut" \(id dlc\) has the same homepage URL\. It was not changed/);
-  assert.match(homepage.note, /same_as="dlc"/);
+  assert.equal(homepage.action, "refuse", "the homepage DeepLabCut-Live shares with DeepLabCut does not make it DeepLabCut, nor another tool");
+  assert.match(homepage.error, /the software "DeepLabCut" \(id dlc\) has the same homepage URL.*Nothing was written/);
+  assert.match(homepage.error, /call again with same_as="dlc": that record is updated\. If it is another software, call again with distinct=true/);
+  const live2 = d([dlc], { name: "DeepLabCut-Live", url: "https://www.mackenziemathislab.org/deeplabcut/", distinct: true });
+  assert.equal(live2.action, "insert", "distinct=true adds it as its own record");
+  assert.match(live2.note, /Added as its own record \(distinct=true\)\. The software "DeepLabCut" \(id dlc\) has the same homepage URL\. It was not changed/);
   const repo = d([dlc], { name: "DLC tools", repoUrl: "github.com/DeepLabCut/DeepLabCut/" });
-  assert.deepEqual([repo.action, /same repository URL/.test(repo.note)], ["insert", true]);
+  assert.deepEqual([repo.action, /same repository URL/.test(repo.error)], ["refuse", true]);
+  assert.equal(d([dlc], { name: "DLC tools", repoUrl: "github.com/DeepLabCut/DeepLabCut/", distinct: true }).action, "insert");
+  for (const blank of ["", "   ", "\t", null]) {
+    const r = d([dlc], { name: blank, url: "https://www.mackenziemathislab.org/deeplabcut/", description: "x" });
+    assert.equal(r.action, "refuse", `a blank name (${JSON.stringify(blank)}) is refused, never matched to the URL's record`);
+    assert.match(r.error, /needs a name/);
+  }
+  assert.match(d([dlc], { name: "DLC", sameAs: "dlc", distinct: true }).error, /pass one of them/, "same_as and distinct contradict each other");
+  assert.equal(d([dlc], { name: "DeepLabCut", distinct: true }).action, "update", "distinct never overrides a record with this name");
 
   const byName = d([dlc, live, ds], { name: "deep-lab-cut", url: "https://www.mackenziemathislab.org/deeplabcut" });
   assert.deepEqual([byName.action, byName.row?.id, byName.matchedBy], ["update", "dlc", "name+url"]);
@@ -533,7 +565,7 @@ test("add_resource's rule: a different-named resource that shares only a homepag
 
   const cjk = { id: "cjk", name: "深度标注", resource_type: "software", external_url: "https://lab.example/tools" };
   assert.deepEqual([d([cjk], { name: "深度标注", url: "https://lab.example/tools" }).action, d([cjk], { name: "别的工具", url: "https://lab.example/tools" }).action],
-    ["update", "insert"], "a name with no name key is compared exactly");
+    ["update", "refuse"], "a name with no name key is compared exactly (another name on the same URL: say which it is)");
   assert.match(d([ds], { name: "DeepLabCut" }).note, /Also in the KG under another type: dataset "DeepLabCut" \(id ds\)/);
 });
 
@@ -578,14 +610,78 @@ test("people: a name that fits a record with another email, or several records, 
   const tw = seed({ name: "Bijan Pesaran", email: "bp@example.org" });
   assert.deepEqual([tw.row?.id, tw.ambiguous], ["tw", false], "a twin with no email is still reused (the RePORTER-twin case)");
   const two = K.matchPeople(rows, { name: "LI NA" });
-  assert.deepEqual([two.row, two.by, two.ambiguous], [null, "name", true], "two records with the name key are two candidates, not one");
-  assert.match(two.reason, /2 records match by name/);
+  assert.deepEqual([two.row, two.by, two.ambiguous], [null, "name", true], "two records with the name key and two emails are two candidates, not one");
+  assert.match(two.reason, /2 records with 2 different emails match by name/);
   assert.deepEqual(K.matchPeople(rows, { name: "LI NA", email: "lina@b.example" }).row.id, "b", "an email still decides it");
 
   const db = fakeDb({ investigators: rows, resources: [] });
   const made = await K.findOrCreateInvestigator(K.kgSession(db), { name: "Chuck Mikell", email: "charles.mikell@stonybrookmedicine.edu" });
   assert.deepEqual([made.ok, made.ambiguous], [false, ["ns"]]);
   assert.deepEqual(db.log, [], "no second Chuck Mikell, and nothing written to the namesake");
+});
+
+test("people: a curated record and its email-less RePORTER copy are one person, and the curated one is reused", async () => {
+  // WHY (verification of db_edge#3): matchPeople made every group of two or more name-key records
+  // ambiguous, so nih-grants and add-project-by-grant linked a RePORTER PI to neither record of the
+  // documented twin pair (20260811120000), and the PI dropped out of pi@ (Principle III, #283). Only
+  // records that carry two different emails are two people.
+  const K = await kgWrite();
+  const keeper = { id: "keeper", name: "Bijan Pesaran", email: "bp@example.org", resource_id: "res-i1", created_at: "2026-02-01T00:00:00Z" };
+  const stub = { id: "stub", name: "BIJAN  PESARAN", email: null, resource_id: null, created_at: "2025-02-01T00:00:00Z" };
+  const stub2 = { id: "stub2", name: "bijan pesaran", email: "  ", resource_id: null, created_at: "2024-02-01T00:00:00Z" };
+  const m = (rows, p) => { const r = K.matchPeople(rows, p); return [r.row?.id ?? null, r.by, r.ambiguous]; };
+  assert.deepEqual(m([stub, keeper], { name: "BIJAN PESARAN" }), ["keeper", "name", false], "the curated record, the one with the email");
+  assert.deepEqual(m([stub2, stub, keeper], { name: "Bijan Pesaran" }), ["keeper", "name", false], "a blank email is none");
+  assert.deepEqual(m([stub, { ...stub2, email: null, resource_id: "res-s2" }], { name: "Bijan Pesaran" }), ["stub2", "name", false],
+    "two email-less copies: the node, then the oldest");
+  assert.deepEqual(m([keeper, { ...stub, email: "bijan@other.example" }], { name: "Bijan Pesaran" }), [null, "name", true],
+    "two different emails: a curator tells them apart");
+  assert.deepEqual(m([keeper, { ...stub, email: "BP@example.org " }], { name: "Bijan Pesaran" }), ["keeper", "name", false],
+    "one email in two spellings is one email");
+
+  const db = fakeDb({ investigators: [stub, keeper], resources: [] });
+  const r = await K.findOrCreateInvestigator(K.kgSession(db), { name: "BIJAN PESARAN", reporterProfileId: 12 });
+  assert.deepEqual([r.ok, r.row?.id, r.created, r.matchedBy], [true, "keeper", false, "name"], "nih-grants' call links the curated record");
+  assert.deepEqual(db.log, [], "and writes nothing");
+});
+
+test("the member's own profile, through the MCP: an ORCID iD another record holds is left out, said, and only it is retried", async () => {
+  // WHY (verification of db_edge#4): when the retry without the ORCID failed for another reason, the
+  // member got only that second error, never told the ORCID iD was left out; and nothing pinned that
+  // only an ORCID 23505 is retried.
+  const K = await kgWrite();
+  const args = { _institution: "New Institute", _orcid: "0000-0003-9999-0001", _research_areas: null, _skills: null, _secondary_emails: ["x@y"], _requested_working_groups: null };
+  const held = new Error('409 {"code":"23505","details":"Key (kg_orcid_key(orcid))=(0000-0003-9999-0001) already exists.","message":"duplicate key value violates unique constraint \\"uq_investigators_orcid_key\\""}');
+  const run = async (answers, asked = ["institution", "secondary_emails"], a = args) => {
+    const calls = [];
+    try {
+      const r = await K.saveProfileLeavingOutHeldOrcid(async (x) => { calls.push(x); const ans = answers[calls.length - 1]; if (ans instanceof Error) throw ans; return ans; }, a, asked);
+      return { calls, r };
+    } catch (e) {
+      return { calls, error: e.message };
+    }
+  };
+  const ok = await run([held, { ok: true }]);
+  assert.deepEqual(ok.calls.map((c) => c._orcid), ["0000-0003-9999-0001", null], "saved again with the stored ORCID kept (a null _orcid)");
+  assert.deepEqual(ok.calls[1], { ...args, _orcid: null }, "every other field is sent unchanged");
+  assert.deepEqual([ok.r.result, ok.r.saved], [{ ok: true }, ["institution", "secondary_emails"]]);
+  assert.match(ok.r.orcidNotSaved, /The ORCID iD 0000-0003-9999-0001 is already on another person's record in the KG \(uq_investigators_orcid_key\).*ask a curator to merge/);
+
+  const both = await run([held, new Error('403 {"code":"42501","message":"x@y belongs to another member; ask a curator to merge the records"}')]);
+  assert.equal(both.calls.length, 2);
+  assert.match(both.error, /^The ORCID iD 0000-0003-9999-0001 is already on another person's record.*The other fields \(institution, secondary_emails\) were not saved either: .*x@y belongs to another member/,
+    "a failed retry still says the ORCID iD was left out, then why the rest was not saved");
+
+  const node = await run([new Error('409 {"code":"23505","details":"Key (resource_id)=(r1) already exists.","message":"duplicate key value violates unique constraint \\"uq_investigators_resource_id\\""}')]);
+  assert.deepEqual([node.calls.length, /^Nothing was saved: .*uq_investigators_resource_id/.test(node.error)], [1, true], "only an ORCID 23505 is retried");
+  const alone = await run([held], []);
+  assert.deepEqual([alone.calls.length, /Nothing else was asked, so nothing was saved/.test(alone.error)], [1, true]);
+  const noOrcid = await run([held], ["institution"], { ...args, _orcid: null });
+  assert.deepEqual([noOrcid.calls.length, /^Nothing was saved/.test(noOrcid.error)], [1, true], "no ORCID was sent: nothing to leave out");
+  const other = await run([new Error("500 boom")]);
+  assert.deepEqual([other.calls.length, other.error], [1, "500 boom"], "any other error is thrown as it came");
+  const first = await run([{ ok: true }]);
+  assert.deepEqual([first.calls.length, first.r.orcidNotSaved], [1, null]);
 });
 
 // ── src: the pages that write an identity key say a refusal as what it is ─────────────────────────
@@ -610,6 +706,7 @@ test("a unique violation is said as the key it is; every other error is left alo
   assert.match(L.alreadyInKgMessage(pg("uq_projects_award_key", "R34DA059506"), { award: "R34DA059506" }), /award R34DA059506 is already in the KG under another spelling/);
   assert.match(L.alreadyInKgMessage(pg("uq_publications_resource_id", "x")), /node in the KG belongs to another record/, "resource_id is not read as a DOI or PMID");
   assert.match(L.alreadyInKgMessage(pg("some_new_key", "x")), /already in the KG \(some_new_key\)/);
+  assert.equal(L.keyKind("uq_funding_opportunities_url_key"), null, "a URL is no key: no message claims the database refuses a second one");
 });
 
 test("the member's own profile saves without an ORCID iD another record holds, and says so", async () => {
@@ -633,36 +730,176 @@ test("the member's own profile saves without an ORCID iD another record holds, a
   }
 });
 
-test("every src page that writes an identity key turns a 23505 into alreadyInKg's message", () => {
-  // WHY (review db_edge#4): after 20261117181500 these writes are refused by a uq_* index, and showed the
-  // raw Postgres text, or (InvestigatorSummary) no reason at all.
+// The identity-keyed columns of each table, from kg/identity_keys.json: every key's unique index
+// (table and column), the keys in force before it (an email, a dandiset), and resource_id on each
+// node table (one detail row per node). A write of any of them can be refused with 23505.
+function keyedColumns() {
+  const s = JSON.parse(read("kg/identity_keys.json"));
+  const cols = {};
+  const add = (t, c) => (cols[t] ??= new Set()).add(c);
+  for (const k of [...Object.values(s.keys), ...(s.existing || [])]) {
+    for (const d of k.db || []) for (const c of d.columns || (d.column ? [d.column] : [])) add(d.table, c);
+  }
+  for (const t of s.one_row_per_node || []) add(t, "resource_id");
+  return cols;
+}
+
+/** The argument of the write call that starts at src[i] (just after "insert(" etc.), up to its
+ *  matching parenthesis, with strings and template literals skipped. */
+function callArgument(src, i) {
+  let depth = 1, j = i;
+  const stack = [];
+  while (j < src.length) {
+    const c = src[j];
+    if (stack.length && stack[stack.length - 1] === "`") {
+      if (c === "\\") { j += 2; continue; }
+      if (c === "`") stack.pop();
+      else if (c === "$" && src[j + 1] === "{") { stack.push("${"); j += 2; continue; }
+      j++; continue;
+    }
+    if (c === "'" || c === '"') {
+      const q = c; j++;
+      while (j < src.length && src[j] !== q) j += src[j] === "\\" ? 2 : 1;
+      j++; continue;
+    }
+    if (c === "`") { stack.push("`"); j++; continue; }
+    if (c === "}" && stack.length && stack[stack.length - 1] === "${") { stack.pop(); j++; continue; }
+    if (c === "(" || c === "[" || c === "{") depth++;
+    if (c === ")" || c === "]" || c === "}") { depth--; if (depth === 0) return src.slice(i, j); }
+    j++;
+  }
+  return src.slice(i);
+}
+
+/** The columns an insert/upsert/update argument writes: the keys of an object literal (shorthand
+ *  ones too), or null when that cannot be read (a variable, a spread, a computed key): then every
+ *  keyed column of the table counts as written. */
+function columnsWritten(arg) {
+  const a = arg.trim();
+  if (!a.startsWith("{")) return null;
+  const body = callArgument(a, 1);
+  const parts = [];
+  let depth = 0, start = 0, quote = null;
+  for (let j = 0; j < body.length; j++) {
+    const c = body[j];
+    if (quote) { if (c === "\\") j++; else if (c === quote) quote = null; continue; }
+    if (c === "'" || c === '"' || c === "`") { quote = c; continue; }
+    if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) depth--;
+    else if (c === "," && depth === 0) { parts.push(body.slice(start, j)); start = j + 1; }
+  }
+  parts.push(body.slice(start));
+  const keys = new Set();
+  for (const raw of parts) {
+    const part = raw.trim();
+    if (!part) continue;
+    if (part.startsWith("...") || part.startsWith("[")) return null;
+    const m = part.match(/^["']?([A-Za-z_$][\w$]*)["']?\s*(:|$)/);
+    if (!m) return null;
+    keys.add(m[1]);
+  }
+  return keys;
+}
+
+/** Every src write (insert, upsert, update) of an identity-keyed column: file, line, table, call,
+ *  the keyed columns it writes, and its statement text. */
+function keyedSrcWrites(files = srcFiles()) {
+  const cols = keyedColumns();
+  const tables = Object.keys(cols);
+  const from = new RegExp(`\\.from\\(\\s*["'](${tables.join("|")})["'](?:\\s+as\\s+any)?\\s*\\)(?:\\s+as\\s+any\\s*\\))?`, "g");
+  const out = [];
+  for (const p of files) {
+    const rel = relative(join(ROOT, "src"), p).replace(/\\/g, "/");
+    if (rel.startsWith("integrations/")) continue;
+    const s = readFileSync(p, "utf8");
+    for (const m of s.matchAll(from)) {
+      const tail = s.slice(m.index + m[0].length, m.index + m[0].length + 1500);
+      const call = tail.match(/^\s*\.(insert|upsert|update)\(/);
+      if (!call) continue;
+      const written = columnsWritten(callArgument(tail, call[0].length));
+      const hit = written === null ? [...cols[m[1]]] : [...written].filter((c) => cols[m[1]].has(c));
+      if (!hit.length) continue;
+      out.push({ file: `src/${rel}`, line: lineOf(s, m.index), table: m[1], op: call[1], columns: hit.sort(), at: m.index, src: s });
+    }
+  }
+  return out;
+}
+
+// Writes of a keyed table whose key is provably never written, each with the check that proves it.
+// A new write of a keyed column is not exempt: it must say a 23505 as what it is.
+const KEY_NEVER_WRITTEN = {
+  "src/pages/JobBoard.tsx": (w) => w.table === "jobs" && /^\.from\("jobs"\)\s*\.(insert|update)\(\{\s*\.\.\.data,/.test(w.src.slice(w.at, w.at + 200))
+    && /interface JobFormData \{[^}]*\}/.test(w.src) && !/interface JobFormData \{[^}]*resource_id/.test(w.src),   // { ...data }: a JobFormData, which has no resource_id
+  "src/hooks/useMetadataEditor.ts": (w) => w.table === "projects" && w.op === "update"
+    && /\.update\(row\)\s*\.eq\("grant_number", grantNumber\)/.test(w.src.slice(w.at, w.at + 300))
+    && /grant_number: grantNumber,/.test(w.src),   // sets grant_number to the value it selects the row by
+};
+
+test("every src write of an identity-keyed column turns a 23505 into alreadyInKg's message", () => {
+  // WHY (review db_edge#4, and its verification): after 20261117181500 these writes are refused by a
+  // uq_* index (and investigators' email by investigators_email_unique_ci), and showed the raw
+  // Postgres text, or (InvestigatorSummary) no reason at all. The check is per statement, on every
+  // table and column kg/identity_keys.json keys, for .update() as well as .insert()/.upsert().
   const writers = {
     "components/profile/MemberProfileEditor.tsx": /saveOwnProfile\(/,                         // investigators.orcid (member_self_update)
     "components/entity-summary/summaries/InvestigatorSummary.tsx": /alreadyInKgMessage\(err/,   // investigators.orcid, inline edit
     "pages/Publications.tsx": /alreadyInKgMessage\(err, \{ doi:/,                               // publications.doi
     "components/funding/AddFundingOpportunityDialog.tsx": /alreadyInKgMessage\(error, \{ fon/,  // funding_opportunities.fon
     "components/project-profile/useProjectProfileEditor.ts": /alreadyInKgMessage\(e, \{ award:/, // projects.grant_number (upsert)
+    "pages/AdminUsers.tsx": /alreadyInKgMessage\(error, \{ email/,                              // investigators.email, name
+    "pages/AdminAccessRequests.tsx": /alreadyInKgMessage\(invErr, \{ email/,                    // investigators.email, name
   };
   for (const [p, use] of Object.entries(writers)) {
     const s = srcFile(p);
     assert.match(s, /from "@\/lib\/alreadyInKg"/, `${p} does not import @/lib/alreadyInKg`);
     assert.match(s, use, `${p} does not say a 23505 as what it is`);
   }
-  // Any other src insert or upsert into a table with an identity index must be added to the list above.
-  const keyed = /\.from\(\s*["'](publications|funding_opportunities|grants|projects|organizations)["'](?:\s+as\s+any)?\s*\)/g;
-  const unhandled = [];
-  for (const p of srcFiles()) {
-    const rel = relative(join(ROOT, "src"), p).replace(/\\/g, "/");
-    if (rel.startsWith("integrations/")) continue;
-    const s = readFileSync(p, "utf8");
-    for (const m of s.matchAll(keyed)) {
-      const statement = s.slice(m.index, m.index + 300).split(";")[0];
-      if (/\.(insert|upsert)\(/.test(statement) && !(rel in writers)) unhandled.push(`src/${rel}:${lineOf(s, m.index)}`);
-    }
+  const cols = keyedColumns();
+  for (const [t, c] of [["investigators", "orcid"], ["investigators", "email"], ["publications", "doi"], ["publications", "pmid"],
+    ["organizations", "name"], ["grants", "grant_number"], ["projects", "grant_number"], ["funding_opportunities", "fon"], ["jobs", "resource_id"]]) {
+    assert.ok(cols[t]?.has(c), `kg/identity_keys.json no longer keys ${t}.${c}: this check would skip its writes`);
   }
-  assert.deepEqual([...new Set(unhandled)], [], "src inserts or upserts into an identity-keyed table that show a 23505 raw");
+  const unhandled = [];
+  for (const w of keyedSrcWrites()) {
+    const exempt = KEY_NEVER_WRITTEN[w.file];
+    if (exempt && exempt(w)) continue;
+    // The write's own error handling: the next statements after it, up to its handler.
+    const after = w.src.slice(w.at, w.at + 1500);
+    const handled = /from "@\/lib\/alreadyInKg"/.test(w.src) && /\b(alreadyInKgMessage|saveOwnProfile)\(/.test(after);
+    if (!handled) unhandled.push(`${w.file}:${w.line} ${w.table}.${w.op} (${w.columns.join(", ")})`);
+  }
+  assert.deepEqual(unhandled, [], "src writes of an identity-keyed column that show a 23505 raw: say it with alreadyInKgMessage at the write");
   const selfUpdates = srcFiles()
     .filter((p) => { const s = readFileSync(p, "utf8"); return /rpc\(\s*["']member_self_update["']/.test(s) && !/saveOwnProfile\(/.test(s); })
     .map((p) => relative(ROOT, p));
   assert.deepEqual(selfUpdates, [], "member_self_update called without saveOwnProfile: a held ORCID iD refuses the whole save");
+});
+
+test("the src write check sees inserts, upserts and updates of every keyed column, and nothing else", () => {
+  // The check must be able to fail (review: three planted raw writes passed the old one).
+  const dir = mkdtempSync(join(tmpdir(), "bbqs-src-guard-"));
+  try {
+    const file = join(dir, "RawKeyWrites.tsx");
+    writeFileSync(file, [
+      'export async function raw(supabase: any, name: string, orcid: string, doi: string, id: string, field: string) {',
+      '  await supabase.from("investigators").insert({ name, orcid });',
+      '  await supabase.from("publications").update({ doi }).eq("id", id);',
+      '  await supabase.from("organizations").update({ name: name.trim() }).eq("id", id);',
+      '  await supabase.from("investigators").update({ [field]: name }).eq("id", id);',
+      '  await (supabase.from("projects" as any) as any).upsert({ grant_number: name, title: "x" });',
+      '  await supabase.from("species").insert({ resource_id: id, common_name: name });',
+      '  await supabase.from("investigators").update({ institution: name, research_areas: [] }).eq("id", id);',
+      '  await supabase.from("announcements").insert({ title: `Read ${name}`, content: name });',
+      '  await supabase.from("publications").delete().eq("id", id);',
+      "}",
+    ].join("\n"));
+    const got = keyedSrcWrites([file]).map((w) => `${w.table}.${w.op}:${w.columns.join("+")}`);
+    assert.deepEqual(got, [
+      "investigators.insert:orcid", "publications.update:doi", "organizations.update:name",
+      `investigators.update:${[...keyedColumns().investigators].sort().join("+")}`,
+      "projects.upsert:grant_number", "species.insert:resource_id",
+    ], "the planted keyed writes, and no other");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

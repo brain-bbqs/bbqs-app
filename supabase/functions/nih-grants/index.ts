@@ -338,9 +338,12 @@ async function seedGrantEntities(supabase: any, kg: KgSession, grantNumber: stri
   }
 
   // 4. Ensure investigators exist and are linked. Found by RePORTER profile id, then by name key
-  // ("Sima  Mofakham", "BIJAN PESARAN"), then by a unique first + last name, so RePORTER variants
-  // like "Patrick T McGrath" resolve to a curated "Patrick McGrath" row (preserving its email). A new
-  // person is written before their spine row, so a failed insert leaves no orphan node.
+  // ("Sima  Mofakham", "BIJAN PESARAN"; where a curated record and its email-less RePORTER copy both
+  // have that key, the curated one, with its email), then by a unique first + last name, so RePORTER
+  // variants like "Patrick T McGrath" resolve to a curated "Patrick McGrath" row (preserving its
+  // email). Records with two different emails under one name are two people for a curator to tell
+  // apart: nothing is linked and a warning says why (matchPeople). A new person is written before
+  // their spine row, so a failed insert leaves no orphan node.
   const piDetails: any[] = projectData.piDetails || [];
   for (const pi of piDetails) {
     const piName = (pi.fullName || "").trim();

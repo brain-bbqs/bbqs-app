@@ -29,6 +29,10 @@ export const PREPRINT_VENUES = ["biorxiv", "medrxiv", "arxiv", "research square"
 export const PREPRINT_DOI_PREFIXES = ["10.64898/", "10.48550/", "10.21203/", "10.2139/", "10.31234/", "10.20944/"];
 export const PREPRINT_DOI_PATTERNS = ["^10\\.1101/([0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.)?[0-9]{6,}"];
 const PREPRINT_DOI = PREPRINT_DOI_PATTERNS.map((p) => new RegExp(p));
+// The posting date a bioRxiv or medRxiv DOI carries (10.1101/ or bioRxiv's 2026 prefix 10.64898/,
+// then YYYY.MM.DD.): when the first version was posted. Its group 1 is the year.
+export const PREPRINT_DOI_DATE = "^10\\.(?:1101|64898)/([0-9]{4})\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{6,}";
+const DOI_DATE = new RegExp(PREPRINT_DOI_DATE);
 
 // Greek letters by name, so the name and title rules keep them (alpha-synuclein and beta-synuclein
 // are two titles): every capital (U+0391-U+03A9) and small letter (U+03B1-U+03C9) of the basic Greek
@@ -121,13 +125,23 @@ export function isPreprint(journal: Text, doi: Text): boolean {
     || PREPRINT_DOI.some((p) => p.test(d));
 }
 
-/** Is the preprint later than its published version? By year when both are known and differ, else by
- *  PubMed id (their keys, compared as numbers) when both have one; else false. The pairing rule never
- *  links such a pair (public.kg_link_publication_versions skips it and says why). */
-export function preprintIsLater(preprintYear: Year, preprintPmid: Text, publishedYear: Year, publishedPmid: Text): boolean {
-  if (preprintYear != null && publishedYear != null && preprintYear !== publishedYear) return preprintYear > publishedYear;
+/** The year a dated bioRxiv/medRxiv DOI was posted ('10.1101/2023.06.25.546478' -> 2023); else null. */
+export function postedYear(doi: Text): number | null {
+  const m = (doiKey(doi) ?? "").match(DOI_DATE);
+  return m ? Number(m[1]) : null;
+}
+
+/** Is the preprint later than its published version? First by PubMed id, when both have one and they
+ *  differ (their keys, compared as numbers); otherwise by the preprint's earliest known date against the
+ *  published year: the posting year in a dated bioRxiv/medRxiv DOI, else its own year; else false.
+ *  A preprint's own year drifts later as new versions are posted, so it only breaks a tie. The pairing
+ *  rule never links a later preprint (public.kg_link_publication_versions skips it and says why). */
+export function preprintIsLater(
+  preprintYear: Year, preprintPmid: Text, preprintDoi: Text, publishedYear: Year, publishedPmid: Text,
+): boolean {
   const a = pmidKey(preprintPmid);
   const b = pmidKey(publishedPmid);
-  if (a == null || b == null) return false;
-  return a.length !== b.length ? a.length > b.length : a > b;   // keys have no leading zeros
+  if (a != null && b != null && a !== b) return a.length !== b.length ? a.length > b.length : a > b;   // keys have no leading zeros
+  const first = postedYear(preprintDoi) ?? preprintYear;
+  return first != null && publishedYear != null && first > publishedYear;
 }

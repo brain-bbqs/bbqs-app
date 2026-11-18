@@ -178,9 +178,9 @@ function vectorBlock(text, marker, width) {
 }
 
 // (kind, input, second input, want) for the one- and two-argument rules, and (preprint year,
-// preprint pmid, published year, published pmid, want) for the order of two versions.
+// preprint pmid, preprint doi, published year, published pmid, want) for the order of two versions.
 const selfTestRows = (text) => vectorBlock(text, "identity-vectors", 4);
-const chronologyRows = (text) => vectorBlock(text, "chronology-vectors", 5);
+const chronologyRows = (text) => vectorBlock(text, "chronology-vectors", 6);
 
 /** The body of one public.kg_* function as the migration writes it (to its closing $fn$;). */
 function functionBody(fn) {
@@ -341,6 +341,21 @@ test("the preprint venues, DOI prefixes and DOI shapes are the same in kg/identi
   assert.deepEqual(venues[1].split("|").sort(), [...p.venues].sort(), `${p.sql}: venues differ from the JSON`);
   assert.deepEqual(prefixes[1].split("|").map((x) => `10.${x}/`).sort(), [...p.doi_prefixes].sort(), `${p.sql}: DOI prefixes differ from the JSON`);
   assert.deepEqual(res.slice(2).sort(), [...(p.doi_patterns || [])].sort(), `${p.sql}: DOI shapes differ from the JSON`);
+});
+
+test("the posting date of a bioRxiv/medRxiv DOI is read by one pattern in kg/identity_keys.py, the JSON and the SQL", () => {
+  // The order of two versions falls back on it when PubMed does not order them: a preprint's own
+  // year drifts later as versions are posted, the date in its DOI does not.
+  const c = spec().keys.chronology;
+  assert.ok(c && c.doi_date, "kg/identity_keys.json's chronology rule names no doi_date");
+  const py = read("kg/identity_keys.py").match(/^PREPRINT_DOI_DATE = r"([^"]+)"[ \t]*$/m);
+  assert.ok(py, "no one-line PREPRINT_DOI_DATE = r\"...\" in kg/identity_keys.py");
+  assert.equal(py[1], c.doi_date, "PREPRINT_DOI_DATE: kg/identity_keys.py vs the JSON's chronology.doi_date");
+  const { name, body } = functionBody(fnName(c.sql));
+  const res = [...body.matchAll(/FROM\s*'((?:[^']|'')*)'/g)].map((m) => m[1].replace(/''/g, "'"));
+  assert.deepEqual(res, [c.doi_date], `${name}: ${c.sql} must read the posting year with the JSON's doi_date (got ${JSON.stringify(res)})`);
+  assert.match(body, /kg_pmid_key\(_preprint_pmid\)[\s\S]*kg_pmid_key\(_published_pmid\)/,
+    `${name}: ${c.sql} must order two versions by their PubMed ids first`);
 });
 
 test("kg_name_key spells out the JSON's Greek letters", () => {

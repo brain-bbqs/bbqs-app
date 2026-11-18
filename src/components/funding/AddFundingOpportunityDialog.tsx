@@ -82,7 +82,7 @@ export function AddFundingOpportunityDialog({ trigger, onCreated }: Props) {
     if (error) {
       // A FON already in the KG (uq_funding_opportunities_fon_key, 20261117181500, or the exact
       // funding_opportunities_fon_key) is said as such; any other error as it came.
-      const dup = alreadyInKgMessage(error, { fon, url });
+      const dup = alreadyInKgMessage(error, { fon });
       toast({ title: dup ? "Already in the KG" : "Failed to add opportunity", description: dup ?? error.message, variant: "destructive" });
       return;
     }

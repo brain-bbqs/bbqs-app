@@ -713,48 +713,34 @@
    ]
   },
   "chronology": {
-   "rule": "is the preprint later than its published version? By year, when both years are known and differ; otherwise by PubMed id (their pmid keys, compared as numbers: PubMed numbers its records in the order it adds them), when both have one; otherwise false, as nothing says so. A preprint that is later is no earlier version: public.kg_link_publication_versions skips the pair and says why, and kg/quality.py does not count it as a pair to link. The database records a year and no date.",
+   "rule": "is the preprint later than its published version? First by PubMed id, when both have one and the two differ: their pmid keys compared as numbers (PubMed numbers its records in the order it adds them). Otherwise by the earliest date known of the preprint against the published year: the year of the posting date a dated bioRxiv/medRxiv DOI carries (doi_date: 10.1101/ or 10.64898/, then YYYY.MM.DD.), else the preprint's own year; it is later when that year is after the published year. Otherwise false, as nothing says so. A preprint's own year is no posting date: bioRxiv and PubMed give it the year of its latest version, so it drifts later as new versions are posted (6 of the 15 dated bioRxiv records of the 2026-11-17 export have a year 1 or 2 years after the date in their DOI). So the year only breaks a tie: it never outvotes the PubMed id or the DOI's date. A preprint that is later is no earlier version: public.kg_link_publication_versions skips the pair and says how a curator links it by hand if they find it one work after all, and kg/quality.py lists its group as versions_to_check, never as a duplicate to merge. The database records a year and no date.",
    "sql": "public.kg_preprint_is_later",
    "ts": "preprintIsLater",
    "py": "preprint_is_later",
    "args": [
     "preprint_year",
     "preprint_pmid",
+    "preprint_doi",
     "published_year",
     "published_pmid"
    ],
+   "doi_date": "^10\\.(?:1101|64898)/([0-9]{4})\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{6,}",
    "vectors": [
     [
      [
       2025,
       "41040807",
-      2026,
+      null,
+      2025,
       "42131509"
      ],
      false
     ],
     [
      [
-      2025,
-      "99999999",
-      2026,
-      "10000000"
-     ],
-     false
-    ],
-    [
-     [
-      2025,
-      "37425712",
-      2019,
-      "41331138"
-     ],
-     true
-    ],
-    [
-     [
       2026,
       "90000017",
+      null,
       2026,
       "90000016"
      ],
@@ -764,6 +750,7 @@
      [
       2026,
       "90000016",
+      null,
       2026,
       "90000017"
      ],
@@ -771,8 +758,49 @@
     ],
     [
      [
+      2027,
+      "37425712",
+      "10.1101/2023.06.25.546478",
+      2026,
+      "41331138"
+     ],
+     false
+    ],
+    [
+     [
+      2027,
+      "37425712",
+      null,
+      2026,
+      "41331138"
+     ],
+     false
+    ],
+    [
+     [
+      2025,
+      "99999999",
+      null,
+      2026,
+      "10000000"
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      "37425712",
+      "10.1101/2027.01.01.546478",
+      2026,
+      "41331138"
+     ],
+     false
+    ],
+    [
+     [
       null,
       "200002",
+      null,
       null,
       "200001"
      ],
@@ -782,6 +810,7 @@
      [
       null,
       "PMID: 0200001",
+      null,
       2026,
       "200002"
      ],
@@ -792,7 +821,78 @@
       2026,
       "123456789012345678901",
       null,
+      null,
       "99"
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      null,
+      "10.1101/2025.04.04.640001",
+      2026,
+      null
+     ],
+     false
+    ],
+    [
+     [
+      2025,
+      null,
+      "https://doi.org/10.1101/2027.01.05.640002",
+      2026,
+      null
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      null,
+      "10.1101/2026.02.02.640003",
+      2026,
+      null
+     ],
+     false
+    ],
+    [
+     [
+      null,
+      null,
+      "10.64898/2027.06.01.728862",
+      2026,
+      null
+     ],
+     true
+    ],
+    [
+     [
+      null,
+      null,
+      "doi:10.1101/2020.03.17.20037572",
+      2019,
+      null
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      null,
+      "10.1101/087593",
+      2026,
+      null
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      null,
+      "10.21203/rs.3.rs-1/v1",
+      2026,
+      null
      ],
      true
     ],
@@ -800,6 +900,7 @@
      [
       2026,
       "abc",
+      null,
       2026,
       "123"
      ],
@@ -807,7 +908,28 @@
     ],
     [
      [
+      2027,
+      "abc",
+      null,
+      2026,
+      "123"
+     ],
+     true
+    ],
+    [
+     [
+      2027,
+      "41331138",
+      null,
+      2026,
+      "0041331138"
+     ],
+     true
+    ],
+    [
+     [
       2025,
+      null,
       null,
       2026,
       null
@@ -817,6 +939,7 @@
     [
      [
       2026,
+      null,
       null,
       2025,
       null
@@ -825,6 +948,17 @@
     ],
     [
      [
+      null,
+      null,
+      "10.1101/2027.01.05.640002",
+      null,
+      null
+     ],
+     false
+    ],
+    [
+     [
+      null,
       null,
       null,
       null,
@@ -842,6 +976,7 @@
    "db": [
     {
      "table": "investigators",
+     "column": "email",
      "index": "investigators_email_unique_ci"
     }
    ],
@@ -861,6 +996,10 @@
    "db": [
     {
      "table": "dandisets",
+     "columns": [
+      "instance",
+      "dandiset_id"
+     ],
      "index": "(instance, dandiset_id) unique, 20260524231145"
     }
    ],

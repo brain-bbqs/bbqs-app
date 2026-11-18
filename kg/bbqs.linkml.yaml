@@ -640,7 +640,7 @@ slots:
   year:        { slot_uri: schema:datePublished, range: integer }
   citations:   { range: integer }
   rcr:         { range: float, description: "Relative Citation Ratio." }
-  revision_of: { slot_uri: bbqs:revision_of, exact_mappings: [prov:wasRevisionOf], range: Publication, multivalued: true, description: "The earlier version this publication revises: a published paper points at its preprint(s), as PROV's newer prov:wasRevisionOf older. Two records linked, never merged, so each keeps its own PMID, DOI and date. Written from resource_links (predicate revision_of), where public.kg_link_publication_versions records a pair: the same title, one of them a preprint that is not later than the other (by year, then PubMed id), both credited to one project." }
+  revision_of: { slot_uri: bbqs:revision_of, exact_mappings: [prov:wasRevisionOf], range: Publication, multivalued: true, description: "The earlier version this publication revises: a published paper points at its preprint(s), as PROV's newer prov:wasRevisionOf older. Two records linked, never merged, so each keeps its own PMID, DOI and date. Written from resource_links (predicate revision_of), where public.kg_link_publication_versions records a pair: the same title, one of them a preprint that is not later than the other (by PubMed id, else by the posting date in a bioRxiv/medRxiv DOI, else by year), both credited to one project." }
 
   # ---- datasets / software / models ----------------------------------------
   license:     { slot_uri: schema:license }

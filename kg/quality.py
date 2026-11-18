@@ -466,25 +466,37 @@ class KGQuality:
         values = sorted(str(o) for o in self.graph.objects(node, BBQS.pmid))
         return values[0] if values else None
 
+    def _doi(self, node):
+        values = sorted(str(o) for o in self.graph.objects(node, BBQS.doi))
+        return values[0] if values else None
+
     def later(self, preprint, paper) -> bool:
-        """Is this preprint later than this paper (kg/identity_keys.py preprint_is_later: by year,
-        else by PubMed id)? Then it is no earlier version of it, and the pairing rule never links them."""
-        return preprint_is_later(self._year(preprint), self._pmid(preprint), self._year(paper), self._pmid(paper))
+        """Is this preprint later than this paper (kg/identity_keys.py preprint_is_later: by PubMed id,
+        else by the posting date in its bioRxiv/medRxiv DOI or else its year, against the paper's
+        year)? Then it is no earlier version of it, and the pairing rule never links them."""
+        return preprint_is_later(self._year(preprint), self._pmid(preprint), self._doi(preprint),
+                                 self._year(paper), self._pmid(paper))
 
     def version_kind(self, nodes) -> str:
         """What publications sharing one title are, by the pairing rule public.kg_link_publication_versions
         applies (kg/identity_keys.json: title, preprint, chronology):
 
           "linked_versions": one published record, the rest preprints, and every revision_of inside
-              the group runs from that record to a preprint, each preprint linked: resolved.
+              the group runs from that record to a preprint, each preprint linked: resolved. A pair a
+              curator linked by hand is resolved whatever its order says, as the database reports it
+              (linked, before the order is tested).
           "versions": the same, not all linked yet, and each preprint still to link no later than the
-              paper (by year, else by PubMed id): a pair to link, which the function links once a
-              project credits both.
-          "duplicate": anything else. Two records with one DOI or PMID are one record whatever links
-              them; two published records, or none, are merged before any version link (the function
-              skips them); a revision_of that runs from a preprint, or between two preprints, points
-              the wrong way; a "preprint" later than the paper is another work with the same title,
-              or a wrong year. A curator decides each."""
+              paper (chronology: by PubMed id, else by the date in its DOI, else by year): a pair to
+              link, which the function links once a project credits both.
+          "versions_to_check": one published record and its preprints, but a revision_of inside the
+              group runs from a preprint (or between two preprints, or to the paper itself), or a
+              preprint still to link is later than the paper. The fault is a link or an order, not a
+              second record: correct the link, or the record whose PMID, DOI or year is wrong (a
+              "preprint" later than its paper may be another work with the same title). Never a
+              merge: a preprint and its paper are two records of one work.
+          "duplicate": anything else, for a curator to merge. Two records with one DOI or PMID are
+              one record whatever links them; two published records, or none, are a duplicate to
+              merge before any version link (the function skips them)."""
         nodes, g = set(nodes), self.graph
         for by in ("doi", "pmid"):
             held = set()
@@ -499,12 +511,12 @@ class KGQuality:
         paper = published[0]
         links = {(s, o) for s, o in g.subject_objects(BBQS.revision_of) if s in nodes and o in nodes}
         if any(s != paper or o == paper for s, o in links):
-            return "duplicate"
+            return "versions_to_check"
         unlinked = nodes - {paper} - {o for _s, o in links}
         if not unlinked:
             return "linked_versions"
         if any(self.later(p, paper) for p in unlinked):
-            return "duplicate"
+            return "versions_to_check"
         return "versions"
 
     def revision_links(self) -> dict:
@@ -534,9 +546,11 @@ class KGQuality:
         its duplicates, and cleaning them gets harder as it grows, so they are counted here and the CI
         gate fails when the count rises: a new one is stopped at the next export, not found later.
 
-        A title shared by publications is one of three things (version_kind()): versions already
+        A title shared by publications is one of four things (version_kind()): versions already
         linked by revision_of (`linked_versions`, resolved, not counted); a preprint and its
-        published version not linked yet (`versions`, counted apart: linked, never merged); or a
+        published version not linked yet (`versions`, counted apart: linked, never merged); a
+        preprint and its paper whose link points the wrong way or whose order is wrong
+        (`versions_to_check`, counted apart: a link or a value to correct, never a merge); or a
         duplicate. Two publications with one DOI or one PMID are one record whatever links them.
         A shared URL counts only with a shared name: alone it is `advisory` (listed, not counted),
         since a homepage or a topic page can serve several records. Role records are skipped: their
@@ -583,6 +597,7 @@ class KGQuality:
         self._dupes = {"groups": out, "count": len(dup),
                        "nodes": len({n for d in dup for n in d["nodes"]}),
                        "versions": sum(1 for d in out if d["kind"] == "versions"),
+                       "versions_to_check": sum(1 for d in out if d["kind"] == "versions_to_check"),
                        "linked_versions": sum(1 for d in out if d["kind"] == "linked_versions"),
                        "advisory": sum(1 for d in out if d["kind"] == "advisory")}
         return self._dupes
@@ -665,6 +680,8 @@ class KGQuality:
             # A preprint and its published version are one work in two records: linked, never merged.
             if title_kind.get(pub) == "versions":
                 checks.append("preprint_pair")
+            elif title_kind.get(pub) == "versions_to_check":
+                checks.append("version_to_check")
             elif title_kind.get(pub) == "duplicate":
                 checks.append("same_title")
             elif versions[pub]:
@@ -877,7 +894,8 @@ class KGQuality:
         rl = report.get("revision_links") or {}
         lines += ["", f"possible duplicates: {d.get('count', 0)} groups ({d.get('nodes', 0)} nodes); "
                       f"preprint + published pairs: {d.get('versions', 0)} to link, "
-                      f"{d.get('linked_versions', 0)} linked (revision_of); "
+                      f"{d.get('linked_versions', 0)} linked (revision_of), "
+                      f"{d.get('versions_to_check', 0)} to check (a link from the preprint, or a preprint later than its paper); "
                       f"shared URL only (advisory, not counted): {d.get('advisory', 0)}; "
                       f"revision_of links to check (reversed, or two titles): {rl.get('count', 0)}"]
         lines += ["", f"SHACL validation shapes (violations: {report['violation_count']}, warnings: {report.get('warning_count', 0)}):"]
