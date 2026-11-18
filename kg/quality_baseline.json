@@ -1,7 +1,5 @@
 {
-  "violations": {
-    "ProjectRoleTokenShape": 1
-  },
+  "violations": {},
   "warnings": {
     "AuthorOrcidResolvesShape": 147
   },

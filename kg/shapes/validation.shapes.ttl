@@ -26,8 +26,9 @@ bbqs:ProjectRoleTokenShape
     sh:path bbqs:project_role ;
     sh:minCount 1 ;
     sh:maxCount 1 ;
-    sh:in ( "PI" "contact_pi" "co_pi" "mpi" "co-investigator" "trainee" "postdoc" "graduate_student"
-             "research_staff" "data_manager" "project_manager" "nih_program" "admin" "other" ) ;
+    sh:in ( "PI" "contact_pi" "co_pi" "mpi" "co-investigator" "collaborator" "trainee" "postdoc"
+             "graduate_student" "research_staff" "data_manager" "project_manager" "nih_program" "admin"
+             "other" ) ;
     sh:message "ProjectRole.project_role must be a canonical token, not free text (#283)." ;
   ] .
 

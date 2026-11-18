@@ -796,16 +796,19 @@ enums:
 
   project_role_enum:
     description: >-
-      Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql) can store in
-      grant_investigators.role, plus trainee, which it deliberately passes through unmapped.
-      tests/guards/role-vocabulary-parity holds the two equal. NB: the separator is inconsistent --
-      co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case.
+      Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql, with collaborator
+      since 20261118140000) can store in grant_investigators.role, plus trainee, which it deliberately
+      passes through unmapped. tests/guards/kg-role-vocabulary-parity holds the two equal, and
+      tests/guards/role-ui-vocabulary holds every role menu to the function. NB: the separator is
+      inconsistent -- co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is
+      upper case.
     permissible_values:
       PI: {}
       contact_pi: {}
       co_pi: {}
       mpi: {}
       co-investigator: {}
+      collaborator: {}
       trainee: {}
       postdoc: {}
       graduate_student: {}
