@@ -16,6 +16,7 @@ import { ProjectQuestionnaireBody } from "@/components/project-profile/ProjectQu
 import { useProjectProfileEditor } from "@/components/project-profile/useProjectProfileEditor";
 import { Database } from "lucide-react";
 import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
+import { fetchPublicProjectMetadata } from "@/lib/projectPublicMetadata";
 
 function formatBytes(bytes: number | null | undefined): string {
   if (!bytes) return "—";
@@ -84,12 +85,20 @@ export function GrantSummary({ id }: { id: string }) {
 
       // Get project metadata
       // Named columns: a visitor may not read last_edited_by or the questionnaire attribution
-      // (20261117190000), and select("*") asks for them.
-      const { data: project } = await supabase
-        .from("projects")
-        .select("id, grant_number, grant_id, organization_id, resource_id, metadata, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at")
-        .eq("grant_number", grant.grant_number)
-        .maybeSingle();
+      // (20261117190000), and select("*") asks for them. Nor metadata (20261118120000): every
+      // questionnaire answer is for signed-in users, and the Summary and Details tabs show only the
+      // public keys, from project_metadata_public. The Full profile tab reads the rest, signed in.
+      const [{ data: projectRow }, publicMetadata] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("id, grant_number, grant_id, organization_id, resource_id, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at")
+          .eq("grant_number", grant.grant_number)
+          .maybeSingle(),
+        fetchPublicProjectMetadata([grant.grant_number]),
+      ]);
+      const project = projectRow
+        ? { ...projectRow, metadata: publicMetadata.get(grant.grant_number) ?? {} }
+        : null;
 
       // Get linked EMBER dandisets (read-only, public)
       const { data: dsLinks } = await supabase

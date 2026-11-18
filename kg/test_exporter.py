@@ -38,18 +38,21 @@ sys.path.insert(0, str(HERE))
 from bbqs_kg import BBQS, BID, PUBLIC_COLUMNS, BBQSKnowledgeGraph  # noqa: E402
 from roundtrip import RoundTrip  # noqa: E402
 
-# The columns anon may not read, as the migration that hides them lists them (its one list).
-HIDE_MIGRATION = HERE.parent / "supabase" / "migrations" / "20261117190000_hide_private_columns_from_anon.sql"
+# The columns anon may not read, as the migrations that hide them list them (their kg_private_from_anon
+# rows): 20261117190000, and 20261118120000, which added projects.metadata (every questionnaire answer).
+HIDE_MIGRATIONS = [HERE.parent / "supabase" / "migrations" / name for name in (
+    "20261117190000_hide_private_columns_from_anon.sql", "20261118120000_privacy_round_two.sql")]
 
 
 def private_from_anon() -> dict:
-    """object -> the columns 20261117190000 takes from anon, read from its kg_private_from_anon rows."""
-    sql = HIDE_MIGRATION.read_text(encoding="utf8")
-    block = sql[sql.index("INSERT INTO kg_private_from_anon"):]
-    block = block[:block.index(";")]
+    """object -> the columns the migrations take from anon, read from their kg_private_from_anon rows."""
     private = {}
-    for obj, col in re.findall(r"\(\s*'([a-z_]+)',\s*'([a-z_]+)',\s*'", block):
-        private.setdefault(obj, set()).add(col)
+    for path in HIDE_MIGRATIONS:
+        sql = path.read_text(encoding="utf8")
+        block = sql[sql.index("INSERT INTO kg_private_from_anon"):]
+        block = block[:block.index(";")]
+        for obj, col in re.findall(r"\(\s*'([a-z_]+)',\s*'([a-z_]+)',\s*'", block):
+            private.setdefault(obj, set()).add(col)
     return private
 
 
@@ -381,7 +384,7 @@ class OnlyTheColumnsAnonMayRead(unittest.TestCase):
 
     def test_the_migration_lists_what_it_hides(self):
         self.assertTrue({"user_id", "pending_role"} <= PRIVATE_FROM_ANON["investigators_public"])
-        self.assertTrue({"last_edited_by", "questionnaire_submitted_by"} <= PRIVATE_FROM_ANON["projects"])
+        self.assertTrue({"last_edited_by", "questionnaire_submitted_by", "metadata"} <= PRIVATE_FROM_ANON["projects"])
         self.assertTrue({"raw", "hidden_reason", "hidden_by"} <= PRIVATE_FROM_ANON["dandisets"])
 
     def test_no_object_read_column_by_column_is_refused(self):

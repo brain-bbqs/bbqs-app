@@ -18,16 +18,24 @@ import { useFieldProvenance } from "@/hooks/useFieldProvenance";
 import { TOP_LEVEL_FIELDS, COMPLETENESS_FIELDS } from "@/data/questionnaire-fields";
 import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 
+/** The project row's columns anyone may read (20261117190000). */
+const PROJECT_COLUMNS =
+  "id, grant_number, grant_id, organization_id, resource_id, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at";
+
 export function useProjectProfileEditor(grantNumber: string | null, canEdit: boolean) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [changes, setChanges] = useState<Record<string, any>>({});
   const [isCommitting, setIsCommitting] = useState(false);
+  // Every questionnaire answer (projects.metadata) is for signed-in users only (20261118120000), and
+  // the profile shows a visitor the sign-in gate anyway. A visitor's row therefore has no metadata.
+  const signedIn = !!user;
 
   const { data, isLoading } = useQuery({
     // Same key as the page used, so opening the tab after the page (or the reverse) is a cache hit
-    // and the two never show different values for the same project.
-    queryKey: ["project-profile", grantNumber],
+    // and the two never show different values for the same project. Signing in is part of the key:
+    // a visitor's row (no answers) must never be the one an editor saves over.
+    queryKey: ["project-profile", grantNumber, signedIn],
     enabled: !!grantNumber,
     queryFn: async () => {
       const { data: grant, error: gErr } = await supabase
@@ -35,12 +43,13 @@ export function useProjectProfileEditor(grantNumber: string | null, canEdit: boo
       if (gErr) throw gErr;
       if (!grant) return null;
       // Named columns: a visitor may not read last_edited_by or the questionnaire attribution
-      // (20261117190000), and select("*") asks for them.
+      // (20261117190000), and select("*") asks for them; metadata only signed in.
+      const columns = signedIn ? `${PROJECT_COLUMNS}, metadata` : PROJECT_COLUMNS;
       const { data: project } = await supabase
         .from("projects")
-        .select("id, grant_number, grant_id, organization_id, resource_id, metadata, metadata_completeness, keywords, study_species, study_human, website, onboarding_status, created_at, updated_at")
+        .select(columns)
         .eq("grant_number", grantNumber!).maybeSingle();
-      return { grant, project };
+      return { grant, project, hasAnswers: signedIn };
     },
   });
 
@@ -108,6 +117,9 @@ export function useProjectProfileEditor(grantNumber: string | null, canEdit: boo
         ...topLevel,
       };
       if (Object.keys(metaChanges).length > 0) {
+        // The write replaces metadata whole, so it must start from every answer: a row read without
+        // them (signed out, or before the row was read signed in) would erase the rest.
+        if (!data.hasAnswers) throw new Error("Sign in again to save: the questionnaire answers were not loaded.");
         row.metadata = { ...((data.project as any)?.metadata || {}), ...metaChanges };
       }
       const { error } = await (supabase.from("projects" as any) as any)

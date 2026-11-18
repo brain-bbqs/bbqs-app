@@ -6,8 +6,9 @@
  *
  *  The transformation logic below is lifted UNCHANGED from the YAML hook, so every consumer
  *  (5 diagrams, Species.tsx, SpeciesSummary) receives the same shape it always did. Only the source
- *  changed: KG `projects.metadata` for the Marr levels and synergy prose, and the already-cached
- *  `nih-grants` response for titles, institutions and PI names.
+ *  changed: KG `projects.metadata` for the Marr levels and synergy prose (its public keys, through
+ *  project_metadata_public: these pages are public), and the already-cached `nih-grants` response
+ *  for titles, institutions and PI names.
  *
  *  WHERE EACH FIELD COMES FROM now that it is the KG:
  *    computational / algorithmic / implementation  metadata.marr_l1/l2/l3_*
@@ -28,6 +29,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { coreGrantNumber } from "@/lib/grantNumber";
+import { fetchPublicProjectMetadata } from "@/lib/projectPublicMetadata";
 import type { MarrProject } from "@/data/marr-projects";
 import type { SynergyNode, SynergyLink } from "@/data/marr-synergies";
 
@@ -256,11 +258,17 @@ export function useMarrProjects(): MarrProjectsData {
     queryKey: ["marr-projects-kg"],
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("grant_number, study_species, keywords, metadata");
+      // Not metadata: every questionnaire answer is for signed-in users (20261118120000). These pages
+      // are public, and read the keys they show from project_metadata_public.
+      const [{ data, error }, publicMetadata] = await Promise.all([
+        supabase.from("projects").select("grant_number, study_species, keywords"),
+        fetchPublicProjectMetadata(),
+      ]);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((p) => ({
+        ...p,
+        metadata: (p.grant_number ? publicMetadata.get(p.grant_number) : undefined) ?? null,
+      }));
     },
   });
 

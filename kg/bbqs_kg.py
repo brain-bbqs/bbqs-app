@@ -54,9 +54,11 @@ TYPE_CLASS = {
 # private column (auth user id, e-mail address, review note); tests/guards/anon-private-columns
 # checks that against the migration, and test_exporter.py serves these objects the way PostgREST
 # does after it. Every column here exists live (types.ts), so the lists work before the migration too.
+# projects.metadata, every questionnaire answer, is not anon's since 20261118120000_privacy_round_two,
+# and the export writes nothing from it, so it is not asked for.
 PUBLIC_COLUMNS = {
     "resources": "id,name,resource_type,description,external_url,metadata,organization_id,created_at,updated_at",
-    "projects": "id,grant_number,grant_id,organization_id,resource_id,metadata,metadata_completeness,keywords,"
+    "projects": "id,grant_number,grant_id,organization_id,resource_id,metadata_completeness,keywords,"
                 "study_species,study_human,website,onboarding_status,created_at,updated_at",
     "investigators_public": "id,name,orcid,profile_url,role,working_groups,research_areas,skills,resource_id,"
                             "scholar_id,created_at,updated_at,onboarded",
