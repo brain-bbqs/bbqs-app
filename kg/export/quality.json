@@ -2,15 +2,15 @@
  "data_file": "kg/export/bbqs.ttl",
  "access": "anon",
  "source": "kg/export/bbqs.ttl",
- "built_at": "2026-11-17T17:09:28+00:00",
- "commit": "4ade9382 + uncommitted kg/ changes",
+ "built_at": "2026-11-18T16:31:46+00:00",
+ "commit": "82b02acb + uncommitted kg/ changes",
  "structure": {
-  "triples": 5352,
+  "triples": 5362,
   "nodes": 758,
-  "edges": 1046,
-  "components": 104,
-  "largest_component": 572,
-  "isolated": 76,
+  "edges": 1050,
+  "components": 101,
+  "largest_component": 575,
+  "isolated": 73,
   "dangling_refs": [],
   "per_class": {
    "Announcement": {
@@ -23,11 +23,11 @@
    },
    "Benchmark": {
     "nodes": 4,
-    "isolated": 4,
-    "mean_degree": 0.0,
-    "max_degree": 0,
-    "out_edges": 0,
-    "in_edges": 0
+    "isolated": 2,
+    "mean_degree": 0.5,
+    "max_degree": 1,
+    "out_edges": 1,
+    "in_edges": 1
    },
    "Dataset": {
     "nodes": 20,
@@ -80,17 +80,17 @@
    "Investigator": {
     "nodes": 246,
     "isolated": 7,
-    "mean_degree": 2.27,
+    "mean_degree": 2.28,
     "max_degree": 6,
     "out_edges": 268,
-    "in_edges": 291
+    "in_edges": 293
    },
    "Job": {
     "nodes": 6,
     "isolated": 0,
-    "mean_degree": 1.0,
-    "max_degree": 1,
-    "out_edges": 6,
+    "mean_degree": 1.33,
+    "max_degree": 2,
+    "out_edges": 8,
     "in_edges": 0
    },
    "MLModel": {
@@ -104,9 +104,9 @@
    "Project": {
     "nodes": 33,
     "isolated": 0,
-    "mean_degree": 11.64,
+    "mean_degree": 11.67,
     "max_degree": 27,
-    "out_edges": 256,
+    "out_edges": 257,
     "in_edges": 128
    },
    "ProjectRole": {
@@ -143,11 +143,11 @@
    },
    "SoftwareTool": {
     "nodes": 23,
-    "isolated": 22,
-    "mean_degree": 0.04,
+    "isolated": 21,
+    "mean_degree": 0.09,
     "max_degree": 1,
     "out_edges": 1,
-    "in_edges": 0
+    "in_edges": 1
    },
    "Species": {
     "nodes": 14,
@@ -260,15 +260,33 @@
     "count": 3
    },
    {
+    "from": "Job",
+    "predicate": "posted_by",
+    "to": "Investigator",
+    "count": 2
+   },
+   {
+    "from": "SoftwareTool",
+    "predicate": "part_of_org",
+    "to": "ResearchOrganization",
+    "count": 1
+   },
+   {
+    "from": "Benchmark",
+    "predicate": "evaluates",
+    "to": "SoftwareTool",
+    "count": 1
+   },
+   {
     "from": "Event",
     "predicate": "part_of_org",
     "to": "ResearchOrganization",
     "count": 1
    },
    {
-    "from": "SoftwareTool",
-    "predicate": "part_of_org",
-    "to": "ResearchOrganization",
+    "from": "Project",
+    "predicate": "produced",
+    "to": "Benchmark",
     "count": 1
    }
   ]
@@ -1645,10 +1663,6 @@
      "https://github.com/paninski-lab/lightning-pose"
     ],
     [
-     "DeepLabCut",
-     "https://deeplabcut.github.io/DeepLabCut/"
-    ],
-    [
      "OpenPose",
      "https://github.com/CMU-Perceptual-Computing-Lab/openpose"
     ],
@@ -1699,6 +1713,10 @@
     [
      "JAABA",
      "https://jaaba.sourceforge.net/"
+    ],
+    [
+     "DeepLabCut",
+     "https://deeplabcut.github.io/DeepLabCut/"
     ]
    ],
    "row_count": 18,
@@ -1724,46 +1742,96 @@
    ],
    "rows": [
     [
+     "PRIMED-AI: Data-to-Model Academic-Industrial Partnerships (D2M-AIP) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (UG3/UH3 Clinical Trial Optional)",
+     "2026-10-20"
+    ],
+    [
+     "Utilizing the Full Power of Empire AI — Request for Applications (Simons Foundation)",
+     "2026-12-01"
+    ],
+    [
      "BRAIN Initiative: Data Knowledgebase Ecosystem and NeuroAI Integration (NIH Highlighted Topic)",
      "2027-09-29"
+    ],
+    [
+     "Development and Testing of a Multi-use Frameworks Playbook for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U01 Clinical Trial Not Allowed)",
+     "2026-10-10"
     ],
     [
      "BRAIN Initiative: Research Resource Grants for Technology Integration and Dissemination (U24 Clinical Trial Not Allowed)",
      "2028-10-07"
     ],
     [
+     "Validation Center for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U54 Clinical Trials Not Allowed)",
+     "2026-10-03"
+    ],
+    [
      "BRAIN Initiative: Integrative Team-Research BRAIN Circuits Program - iBCP (RM1 Clinical Trial Not Allowed)",
      "2028-06-24"
+    ],
+    [
+     "NSF Graduate Research Fellowship Program (GRFP)",
+     "2026-10-23"
+    ],
+    [
+     "Model-to-Clinic (M2C) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (UG3/UH3 Clinical Trial Optional)",
+     "2026-10-20"
     ],
     [
      "BRAIN Initiative: Theories, Models and Methods for Analysis of Complex Data from the Brain (R01 Clinical Trial Not Allowed)",
      "2027-11-09"
     ]
    ],
-   "row_count": 4,
+   "row_count": 10,
    "status": "answered"
   },
   {
    "id": "CQ18",
    "area": "announcements",
    "question": "Which jobs are posted, and by which institution?",
-   "access": "full",
+   "access": "anon",
    "set": "adopted",
    "reads": "rows",
-   "sparql": "SELECT ?title ?institution WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .\n}",
+   "sparql": "SELECT ?title ?institution WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title .\n  { ?job bbqs:part_of_org ?org . ?org bbqs:name ?institution }\n  UNION\n  { ?job bbqs:job_institution ?institution . FILTER NOT EXISTS { ?job bbqs:part_of_org ?linked } }\n}",
    "terms": [
     "Job",
     "job_institution",
-    "name"
+    "name",
+    "part_of_org"
    ],
    "unmodeled": [],
    "columns": [
     "title",
     "institution"
    ],
-   "rows": [],
-   "row_count": 0,
-   "status": "n/a"
+   "rows": [
+    [
+     "Postdoctoral position in statistical methods for behavioral analysis",
+     "NEW YORK UNIVERSITY"
+    ],
+    [
+     "Theoretical Understanding of Distributed Neural Population Dynamics (Theory_PD)",
+     "UNIVERSITY OF CALIFORNIA BERKELEY"
+    ],
+    [
+     "Organoid Intelligence through Control of Neural Population Dynamics (FBC_PD)",
+     "UNIVERSITY OF CALIFORNIA BERKELEY"
+    ],
+    [
+     "Canada Impact+ Postdoctoral Research Training Award ($70K/yr, 2 years)",
+     "MCGILL UNIVERSITY"
+    ],
+    [
+     "Canada Impact+ Doctoral Research Training Award ($40K/yr, 3 years)",
+     "MCGILL UNIVERSITY"
+    ],
+    [
+     "Engineer/Data Science positions at International Brain Laboratory (IBL) ",
+     "INTERNATIONAL BRAIN LABORATORY"
+    ]
+   ],
+   "row_count": 6,
+   "status": "answered"
   },
   {
    "id": "CQ19",
@@ -3098,14 +3166,15 @@
    "id": "CQ35",
    "area": "announcements",
    "question": "Which jobs does each institution advertise?",
-   "access": "full",
+   "access": "anon",
    "set": "adopted",
    "reads": "rows",
-   "sparql": "SELECT ?institution (COUNT(?job) AS ?jobs) (GROUP_CONCAT(?title; separator=\"; \") AS ?titles) WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title ; bbqs:job_institution ?institution .\n} GROUP BY ?institution ORDER BY DESC(?jobs)",
+   "sparql": "SELECT ?institution (COUNT(?job) AS ?jobs) (GROUP_CONCAT(?title; separator=\"; \") AS ?titles) WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title .\n  { ?job bbqs:part_of_org ?org . ?org bbqs:name ?institution }\n  UNION\n  { ?job bbqs:job_institution ?institution . FILTER NOT EXISTS { ?job bbqs:part_of_org ?linked } }\n} GROUP BY ?org ?institution ORDER BY DESC(?jobs)",
    "terms": [
     "Job",
     "job_institution",
-    "name"
+    "name",
+    "part_of_org"
    ],
    "unmodeled": [],
    "columns": [
@@ -3113,15 +3182,36 @@
     "jobs",
     "titles"
    ],
-   "rows": [],
-   "row_count": 0,
-   "status": "n/a"
+   "rows": [
+    [
+     "UNIVERSITY OF CALIFORNIA BERKELEY",
+     "2",
+     "Theoretical Understanding of Distributed Neural Population Dynamics (Theory_PD); Organoid Intelligence through Control of Neural Population Dynamics (FBC_PD)"
+    ],
+    [
+     "MCGILL UNIVERSITY",
+     "2",
+     "Canada Impact+ Postdoctoral Research Training Award ($70K/yr, 2 years); Canada Impact+ Doctoral Research Training Award ($40K/yr, 3 years)"
+    ],
+    [
+     "NEW YORK UNIVERSITY",
+     "1",
+     "Postdoctoral position in statistical methods for behavioral analysis"
+    ],
+    [
+     "INTERNATIONAL BRAIN LABORATORY",
+     "1",
+     "Engineer/Data Science positions at International Brain Laboratory (IBL) "
+    ]
+   ],
+   "row_count": 4,
+   "status": "answered"
   },
   {
    "id": "CQ36",
    "area": "announcements",
    "question": "Which kinds of role are being advertised?",
-   "access": "full",
+   "access": "anon",
    "set": "adopted",
    "reads": "rows",
    "sparql": "SELECT ?job_type (COUNT(?job) AS ?postings) WHERE {\n  ?job a bbqs:Job ; bbqs:job_type ?job_type .\n} GROUP BY ?job_type ORDER BY DESC(?postings)",
@@ -3136,16 +3226,16 @@
    ],
    "rows": [],
    "row_count": 0,
-   "status": "n/a"
+   "status": "empty"
   },
   {
    "id": "CQ37",
    "area": "announcements",
    "question": "Who posted each job?",
-   "access": "full",
+   "access": "anon",
    "set": "adopted",
    "reads": "rows",
-   "sparql": "SELECT ?title ?poster WHERE { ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?poster }",
+   "sparql": "SELECT ?title ?poster WHERE {\n  ?job a bbqs:Job ; bbqs:name ?title ; bbqs:posted_by ?person .\n  ?person bbqs:name ?poster .\n}",
    "terms": [
     "Job",
     "name",
@@ -3156,9 +3246,18 @@
     "title",
     "poster"
    ],
-   "rows": [],
-   "row_count": 0,
-   "status": "n/a"
+   "rows": [
+    [
+     "Postdoctoral position in statistical methods for behavioral analysis",
+     "Cristina Savin"
+    ],
+    [
+     "Engineer/Data Science positions at International Brain Laboratory (IBL) ",
+     "Nader Nikbakht"
+    ]
+   ],
+   "row_count": 2,
+   "status": "answered"
   },
   {
    "id": "CQ38",
@@ -3236,9 +3335,26 @@
     "title",
     "expires"
    ],
-   "rows": [],
-   "row_count": 0,
-   "status": "empty"
+   "rows": [
+    [
+     "PRIMED-AI: Data-to-Model Academic-Industrial Partnerships (D2M-AIP) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (UG3/UH3 Clinical Trial Optional)",
+     "2026-10-20"
+    ],
+    [
+     "Model-to-Clinic (M2C) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (UG3/UH3 Clinical Trial Optional)",
+     "2026-10-20"
+    ],
+    [
+     "NSF Graduate Research Fellowship Program (GRFP)",
+     "2026-10-23"
+    ],
+    [
+     "Utilizing the Full Power of Empire AI — Request for Applications (Simons Foundation)",
+     "2026-12-01"
+    ]
+   ],
+   "row_count": 4,
+   "status": "answered"
   },
   {
    "id": "CQ40",
@@ -3353,8 +3469,8 @@
   }
  ],
  "competency_summary": {
-  "answered": 30,
-  "n/a": 7,
+  "answered": 34,
+  "n/a": 3,
   "empty": 3,
   "none": 2
  },
@@ -3369,6 +3485,17 @@
     "Investigator",
     "author_orcids",
     "orcid"
+   ],
+   "missing_inputs": [],
+   "exercised": true
+  },
+  {
+   "shape": "AwardUniquePerProjectShape",
+   "target_class": "Project",
+   "targets": 33,
+   "checks": [
+    "Project",
+    "grant_number"
    ],
    "missing_inputs": [],
    "exercised": true
@@ -3409,6 +3536,17 @@
    "exercised": true
   },
   {
+   "shape": "DoiUniquePerPublicationShape",
+   "target_class": "Publication",
+   "targets": 89,
+   "checks": [
+    "Publication",
+    "doi"
+   ],
+   "missing_inputs": [],
+   "exercised": true
+  },
+  {
    "shape": "EmailUniquePerPersonShape",
    "target_class": "Investigator",
    "targets": 246,
@@ -3421,6 +3559,17 @@
     "secondary_emails"
    ],
    "exercised": false
+  },
+  {
+   "shape": "FonUniquePerCallShape",
+   "target_class": "FundingOpportunity",
+   "targets": 13,
+   "checks": [
+    "FundingOpportunity",
+    "fon"
+   ],
+   "missing_inputs": [],
+   "exercised": true
   },
   {
    "shape": "GradedProvenancePrecedenceShape",
@@ -3505,7 +3654,19 @@
    "target_class": "Investigator",
    "targets": 246,
    "checks": [
+    "Investigator",
     "orcid"
+   ],
+   "missing_inputs": [],
+   "exercised": true
+  },
+  {
+   "shape": "PmidUniquePerPublicationShape",
+   "target_class": "Publication",
+   "targets": 89,
+   "checks": [
+    "Publication",
+    "pmid"
    ],
    "missing_inputs": [],
    "exercised": true
@@ -3545,6 +3706,19 @@
    "exercised": true
   },
   {
+   "shape": "RevisionOfLinksTwoPublicationsShape",
+   "target_class": "subjects of revision_of",
+   "targets": 0,
+   "checks": [
+    "Publication",
+    "revision_of"
+   ],
+   "missing_inputs": [
+    "revision_of"
+   ],
+   "exercised": false
+  },
+  {
    "shape": "StudiesSpeciesResolvesShape",
    "target_class": "Project",
    "targets": 33,
@@ -3572,7 +3746,7 @@
    "exercised": true
   }
  ],
- "violation_count": 0,
+ "violation_count": 1,
  "warning_count": 147,
  "entities": [
   {
@@ -3929,13 +4103,16 @@
      "DLC Leaderboard"
     ]
    },
-   "out": [],
+   "out": [
+    {
+     "predicate": "evaluates",
+     "target": "https://brain-bbqs.org/id/4009a1f6-c173-495b-9725-bb51571a3cdf"
+    }
+   ],
    "in": [],
    "dangling": [],
-   "degree": 0,
-   "flags": [
-    "isolated"
-   ],
+   "degree": 1,
+   "flags": [],
    "violations": []
   },
   {
@@ -3954,12 +4131,15 @@
     ]
    },
    "out": [],
-   "in": [],
-   "dangling": [],
-   "degree": 0,
-   "flags": [
-    "isolated"
+   "in": [
+    {
+     "predicate": "produced",
+     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+    }
    ],
+   "dangling": [],
+   "degree": 1,
+   "flags": [],
    "violations": []
   },
   {
@@ -6116,7 +6296,7 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
+     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
     },
     {
      "predicate": "device_category",
@@ -6124,11 +6304,11 @@
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/429c73a9-8440-4f1f-a2f7-a8a1b75958a7"
+     "source": "https://brain-bbqs.org/id/85dba242-244b-4a63-b463-b9e6bf4d29e1"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/85dba242-244b-4a63-b463-b9e6bf4d29e1"
+     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
     },
     {
      "predicate": "device_category",
@@ -6136,7 +6316,7 @@
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
+     "source": "https://brain-bbqs.org/id/429c73a9-8440-4f1f-a2f7-a8a1b75958a7"
     }
    ],
    "dangling": [],
@@ -6300,11 +6480,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
+     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
     },
     {
      "predicate": "uses_device_category",
@@ -6312,11 +6488,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
+     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
     },
     {
      "predicate": "uses_device_category",
@@ -6324,39 +6496,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
     },
     {
      "predicate": "uses_device_category",
@@ -6364,7 +6504,47 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
     }
    ],
    "dangling": [],
@@ -6449,11 +6629,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ce24eb59-9276-4e28-9d93-342515a4e970"
+     "source": "https://brain-bbqs.org/id/ab492763-6805-4afd-bf3f-28eec5276d6d"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ab492763-6805-4afd-bf3f-28eec5276d6d"
+     "source": "https://brain-bbqs.org/id/ce24eb59-9276-4e28-9d93-342515a4e970"
     }
    ],
    "dangling": [],
@@ -6576,7 +6756,31 @@
    "in": [
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
     },
     {
      "predicate": "uses_device_category",
@@ -6588,43 +6792,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
-    },
-    {
-     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
     },
     {
      "predicate": "uses_device_category",
@@ -6632,7 +6804,15 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
     }
    ],
    "dangling": [],
@@ -6845,6 +7025,14 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/e285ab2b-1a7d-4b2e-9400-b24d6faff6de"
     },
     {
@@ -6853,19 +7041,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+     "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
     },
     {
      "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
     },
     {
      "predicate": "uses_device_category",
@@ -6912,59 +7092,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/dda87113-f453-47bd-8c34-14855db21e4a"
-    },
-    {
-     "predicate": "device_category",
      "source": "https://brain-bbqs.org/id/a25d5bdb-97ea-4995-a9aa-fcb6059fcb1f"
     },
     {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1e2423ff-965b-4485-8557-797c1e1dee38"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/e285ab2b-1a7d-4b2e-9400-b24d6faff6de"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
+     "predicate": "device_category",
+     "source": "https://brain-bbqs.org/id/dda87113-f453-47bd-8c34-14855db21e4a"
     },
     {
      "predicate": "uses_device_category",
@@ -6972,15 +7104,15 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
+     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/bf3493c0-de28-4731-9baf-c976ccc7c484"
+     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
+     "source": "https://brain-bbqs.org/id/1e2423ff-965b-4485-8557-797c1e1dee38"
     },
     {
      "predicate": "uses_device_category",
@@ -6988,15 +7120,15 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+     "source": "https://brain-bbqs.org/id/e285ab2b-1a7d-4b2e-9400-b24d6faff6de"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
+     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
     },
     {
      "predicate": "uses_device_category",
@@ -7004,11 +7136,59 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/bf3493c0-de28-4731-9baf-c976ccc7c484"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
     }
    ],
    "dangling": [],
@@ -7051,7 +7231,7 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/3b549548-0ca5-4c7e-91ba-a6a1ed51705e"
+     "source": "https://brain-bbqs.org/id/8d1248d6-6ad4-449a-b268-69c17fb8e0bd"
     },
     {
      "predicate": "device_category",
@@ -7059,7 +7239,31 @@
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/8d1248d6-6ad4-449a-b268-69c17fb8e0bd"
+     "source": "https://brain-bbqs.org/id/3b549548-0ca5-4c7e-91ba-a6a1ed51705e"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
     },
     {
      "predicate": "uses_device_category",
@@ -7071,35 +7275,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
-    },
-    {
-     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
     },
     {
      "predicate": "uses_device_category",
@@ -7107,7 +7283,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
     },
     {
      "predicate": "uses_device_category",
@@ -7115,11 +7291,15 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3846417f-c783-484b-9cfc-fbbf8f83fdf5"
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
     }
    ],
    "dangling": [],
@@ -7161,7 +7341,7 @@
    "in": [
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
     },
     {
      "predicate": "uses_device_category",
@@ -7169,7 +7349,7 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
+     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
     }
    ],
    "dangling": [],
@@ -7211,19 +7391,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/773ddab2-ad45-41ac-8003-b80935d30c32"
-    },
-    {
-     "predicate": "device_category",
      "source": "https://brain-bbqs.org/id/f8ca9029-6e50-43a2-802d-e61784795036"
     },
     {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+     "predicate": "device_category",
+     "source": "https://brain-bbqs.org/id/773ddab2-ad45-41ac-8003-b80935d30c32"
     },
     {
      "predicate": "uses_device_category",
@@ -7235,11 +7407,19 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+     "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
     },
     {
      "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
     }
    ],
    "dangling": [],
@@ -7440,11 +7620,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/ba876f06-02b2-4ca2-bbc0-2877890b6f6a"
+     "source": "https://brain-bbqs.org/id/66955dda-ed5c-4e05-bfbb-5f9f203af4dd"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/66955dda-ed5c-4e05-bfbb-5f9f203af4dd"
+     "source": "https://brain-bbqs.org/id/ba876f06-02b2-4ca2-bbc0-2877890b6f6a"
     }
    ],
    "dangling": [],
@@ -7645,11 +7825,11 @@
    "in": [
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/7eb373e9-092d-418d-b3ff-4f7d8e4fb939"
+     "source": "https://brain-bbqs.org/id/b26a04a7-e254-470c-9d43-1c618d60434e"
     },
     {
      "predicate": "device_category",
-     "source": "https://brain-bbqs.org/id/b26a04a7-e254-470c-9d43-1c618d60434e"
+     "source": "https://brain-bbqs.org/id/7eb373e9-092d-418d-b3ff-4f7d8e4fb939"
     },
     {
      "predicate": "device_category",
@@ -7657,27 +7837,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/bf3493c0-de28-4731-9baf-c976ccc7c484"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
+     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
     },
     {
      "predicate": "uses_device_category",
@@ -7685,35 +7849,11 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/e285ab2b-1a7d-4b2e-9400-b24d6faff6de"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
     },
     {
      "predicate": "uses_device_category",
@@ -7725,11 +7865,31 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/a98fe953-d2ad-4770-8c8c-1759f8500c4a"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
+     "source": "https://brain-bbqs.org/id/bf3493c0-de28-4731-9baf-c976ccc7c484"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/2db5ee93-296a-446a-a3e6-59fd3d28c4a6"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
     },
     {
      "predicate": "uses_device_category",
@@ -7737,7 +7897,23 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/35f57798-cd39-4ec1-a147-3b0ccf9d3608"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/df28e74c-eeb6-40e2-a5e4-a9220ad7c540"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/22e61529-38ba-465f-b38b-274e24160fb6"
     },
     {
      "predicate": "uses_device_category",
@@ -7745,7 +7921,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/80db3a04-a9ad-486d-abf1-4b20f8370ff9"
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
     }
    ],
    "dangling": [],
@@ -7837,19 +8017,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
     },
     {
      "predicate": "uses_device_category",
@@ -7857,11 +8029,27 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/ca25b66c-c03f-4d7e-90e8-93bc12fafeb1"
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
     },
     {
      "predicate": "uses_device_category",
@@ -7869,7 +8057,11 @@
     },
     {
      "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
+     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
+    },
+    {
+     "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
     },
     {
      "predicate": "uses_device_category",
@@ -7881,27 +8073,15 @@
     },
     {
      "predicate": "uses_device_category",
+     "source": "https://brain-bbqs.org/id/492fdfe9-53d5-4926-8ef0-933e957fed18"
+    },
+    {
+     "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
     },
     {
      "predicate": "uses_device_category",
      "source": "https://brain-bbqs.org/id/1573f2f2-dfe7-476f-ba44-55011c0f5d1b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
-    },
-    {
-     "predicate": "uses_device_category",
-     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
     }
    ],
    "dangling": [],
@@ -8543,11 +8723,11 @@
    "in": [
     {
      "predicate": "manufacturer",
-     "source": "https://brain-bbqs.org/id/2538b9fd-01c4-453f-a20b-e7351cfa8c21"
+     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
     },
     {
      "predicate": "manufacturer",
-     "source": "https://brain-bbqs.org/id/6c4c36dd-6d17-47d9-8bff-c1cde1750dc7"
+     "source": "https://brain-bbqs.org/id/2538b9fd-01c4-453f-a20b-e7351cfa8c21"
     }
    ],
    "dangling": [],
@@ -8701,11 +8881,11 @@
     },
     {
      "predicate": "manufacturer",
-     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
+     "source": "https://brain-bbqs.org/id/4dc711e8-2a6e-458e-88cb-a5dcd9b8336e"
     },
     {
      "predicate": "manufacturer",
-     "source": "https://brain-bbqs.org/id/4dc711e8-2a6e-458e-88cb-a5dcd9b8336e"
+     "source": "https://brain-bbqs.org/id/f77c0d96-5deb-4d90-bc8e-7acb14863595"
     }
    ],
    "dangling": [],
@@ -9093,6 +9273,9 @@
     "description": [
      "Develops and tests a \"playbook\" of standardized frameworks and protocols for building reliable, deployable multimodal AI clinical decision support tools that integrate clinical imaging with other health data. 5 awards anticipated, $2M total."
     ],
+    "expiration_date": [
+     "2026-10-10"
+    ],
     "external_url": [
      "https://simpler.grants.gov/opportunity/5b0a5980-5b84-4cdf-9370-2a36c301760b"
     ],
@@ -9106,7 +9289,7 @@
      "2026-06-30"
     ],
     "status": [
-     "open"
+     "closed"
     ],
     "url": [
      "https://simpler.grants.gov/opportunity/5b0a5980-5b84-4cdf-9370-2a36c301760b"
@@ -9177,6 +9360,9 @@
     "description": [
      "Catalyzes translation of AI-enabled, image-centered multimodal clinical decision support tools from prototype training and testing toward real-world clinical application. 8 awards anticipated."
     ],
+    "expiration_date": [
+     "2026-10-20"
+    ],
     "external_url": [
      "https://simpler.grants.gov/opportunity/360c4588-1512-4fa4-9b61-52a3f1d6c368"
     ],
@@ -9190,7 +9376,7 @@
      "2026-06-30"
     ],
     "status": [
-     "open"
+     "closed"
     ],
     "url": [
      "https://simpler.grants.gov/opportunity/360c4588-1512-4fa4-9b61-52a3f1d6c368"
@@ -9216,6 +9402,9 @@
     "activity_code": [
      "Fellowship"
     ],
+    "expiration_date": [
+     "2026-10-23"
+    ],
     "external_url": [
      "https://www.nsf.gov/funding/opportunities/grfp-nsf-graduate-research-fellowship-program/nsf26-526/solicitation"
     ],
@@ -9229,7 +9418,7 @@
      "2026-08-25"
     ],
     "status": [
-     "open"
+     "closed"
     ],
     "url": [
      "https://www.nsf.gov/funding/opportunities/grfp-nsf-graduate-research-fellowship-program/nsf26-526/solicitation"
@@ -9258,6 +9447,9 @@
     "description": [
      "Supports academic-industrial partnerships developing Software as a Medical Device (SaMD) multimodal AI clinical decision support tools combining medical imaging with other health data. 8 awards anticipated; foreign organizations eligible."
     ],
+    "expiration_date": [
+     "2026-10-20"
+    ],
     "external_url": [
      "https://simpler.grants.gov/opportunity/d07ebcd7-96cf-40cb-8ae3-f401b6274080"
     ],
@@ -9271,7 +9463,7 @@
      "2026-06-30"
     ],
     "status": [
-     "open"
+     "closed"
     ],
     "url": [
      "https://simpler.grants.gov/opportunity/d07ebcd7-96cf-40cb-8ae3-f401b6274080"
@@ -9299,6 +9491,9 @@
     ],
     "description": [
      "Supports cutting-edge mathematics and basic science research that uses Empire AI's multinode GPU clusters and foundational machine learning models, in computational astrophysics, physics, biology, mathematics, neuroscience, or computational physical chemistry. Up to $6M total over two years (2027-06-01 to 2029-05-31), 6-12 awards. PI must be tenure-track/tenured at an Empire AI member institution (Columbia, Cornell, CUNY, SUNY, RPI, NYU, Rochester, RIT, Icahn/Mount Sinai); additional PIs may join by subcontract from outside institutions."
+    ],
+    "expiration_date": [
+     "2026-12-01"
     ],
     "external_url": [
      "https://www.simonsfoundation.org/grant/utilizing-the-full-power-of-empire-ai-request-for-applications/"
@@ -9345,6 +9540,9 @@
     "description": [
      "Establishes a dedicated hub for comprehensive evaluation and characterization of AI-enabled, image-based multimodal CDS tools from the PRIMED-AI Consortium — verification, validation, interoperability, and uncertainty quantification. 1 award, $2.0M–$2.7M; foreign organizations ineligible."
     ],
+    "expiration_date": [
+     "2026-10-03"
+    ],
     "external_url": [
      "https://simpler.grants.gov/opportunity/40ac94ea-e7b9-44af-9ae4-d3340c342757"
     ],
@@ -9358,7 +9556,7 @@
      "2026-06-30"
     ],
     "status": [
-     "open"
+     "closed"
     ],
     "url": [
      "https://simpler.grants.gov/opportunity/40ac94ea-e7b9-44af-9ae4-d3340c342757"
@@ -9664,11 +9862,11 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/f0b8e0cd-ac28-4f72-8410-be9b81689d08"
+     "source": "https://brain-bbqs.org/id/role/bf0e6573-c228-4923-badd-e3667105e287"
     },
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/bf0e6573-c228-4923-badd-e3667105e287"
+     "source": "https://brain-bbqs.org/id/role/f0b8e0cd-ac28-4f72-8410-be9b81689d08"
     },
     {
      "predicate": "members",
@@ -10171,11 +10369,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
+     "source": "https://brain-bbqs.org/id/99bc7f7b-2a3d-4e34-99f1-ec08e12133b2"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/99bc7f7b-2a3d-4e34-99f1-ec08e12133b2"
+     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
     }
    ],
    "dangling": [],
@@ -10874,10 +11072,14 @@
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/6efc2552-7cd7-4e53-bd2d-41fee6824cf7"
+    },
+    {
+     "predicate": "posted_by",
+     "source": "https://brain-bbqs.org/id/12234308-3c6b-4d75-a135-f8fb127d4389"
     }
    ],
    "dangling": [],
-   "degree": 4,
+   "degree": 5,
    "flags": [],
    "violations": []
   },
@@ -11198,19 +11400,19 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
-    },
-    {
-     "predicate": "held_by",
      "source": "https://brain-bbqs.org/id/role/62fcc478-1ee4-43f5-a5b0-ae02c6955cbf"
     },
     {
-     "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7867bb2b-3001-431a-9a3b-0f5bd5ad64f2"
+     "predicate": "held_by",
+     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
     },
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/5b794afd-cf08-4107-81c8-522a29714830"
+    },
+    {
+     "predicate": "members",
+     "source": "https://brain-bbqs.org/id/7867bb2b-3001-431a-9a3b-0f5bd5ad64f2"
     }
    ],
    "dangling": [],
@@ -11790,11 +11992,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7de07dc9-72c0-4900-be0d-c375d927a6b4"
+     "source": "https://brain-bbqs.org/id/52fcb5e7-1274-4621-b368-17f269eaec86"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/52fcb5e7-1274-4621-b368-17f269eaec86"
+     "source": "https://brain-bbqs.org/id/7de07dc9-72c0-4900-be0d-c375d927a6b4"
     }
    ],
    "dangling": [],
@@ -11959,11 +12161,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
+     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
+     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
     }
    ],
    "dangling": [],
@@ -13429,11 +13631,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/7924e7d9-5b53-4525-95ef-3f5a6b9112a5"
+     "source": "https://brain-bbqs.org/id/1ec93ddb-bb26-4062-9a18-1214bc458102"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/1ec93ddb-bb26-4062-9a18-1214bc458102"
+     "source": "https://brain-bbqs.org/id/7924e7d9-5b53-4525-95ef-3f5a6b9112a5"
     }
    ],
    "dangling": [],
@@ -14521,10 +14723,14 @@
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/7924e7d9-5b53-4525-95ef-3f5a6b9112a5"
+    },
+    {
+     "predicate": "posted_by",
+     "source": "https://brain-bbqs.org/id/ca41ad35-92a2-4391-95c3-0db49351b9a5"
     }
    ],
    "dangling": [],
-   "degree": 4,
+   "degree": 5,
    "flags": [],
    "violations": []
   },
@@ -14586,19 +14792,19 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/3dba6e02-b3c4-4cc8-89d8-bd8ef07d5341"
-    },
-    {
-     "predicate": "held_by",
      "source": "https://brain-bbqs.org/id/role/eedb7237-95d4-4633-8431-0a94da8db187"
     },
     {
-     "predicate": "members",
-     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
+     "predicate": "held_by",
+     "source": "https://brain-bbqs.org/id/role/3dba6e02-b3c4-4cc8-89d8-bd8ef07d5341"
     },
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/93fa0810-51f4-4e71-badf-e5e8d3e40dc3"
+    },
+    {
+     "predicate": "members",
+     "source": "https://brain-bbqs.org/id/32f14ee1-e0b4-4753-869a-f630f1786682"
     }
    ],
    "dangling": [],
@@ -14638,11 +14844,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/d2821755-977a-46a2-a089-169f6e66aeea"
+     "source": "https://brain-bbqs.org/id/6efc2552-7cd7-4e53-bd2d-41fee6824cf7"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/6efc2552-7cd7-4e53-bd2d-41fee6824cf7"
+     "source": "https://brain-bbqs.org/id/d2821755-977a-46a2-a089-169f6e66aeea"
     }
    ],
    "dangling": [],
@@ -15610,19 +15816,19 @@
    "in": [
     {
      "predicate": "held_by",
-     "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
-    },
-    {
-     "predicate": "held_by",
      "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
     },
     {
-     "predicate": "members",
-     "source": "https://brain-bbqs.org/id/622f970b-e529-441d-b5f3-739025a38aa9"
+     "predicate": "held_by",
+     "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
     },
     {
      "predicate": "members",
      "source": "https://brain-bbqs.org/id/e5044d9f-fe07-4a69-a9c3-7aecc245b941"
+    },
+    {
+     "predicate": "members",
+     "source": "https://brain-bbqs.org/id/622f970b-e529-441d-b5f3-739025a38aa9"
     }
    ],
    "dangling": [],
@@ -16475,11 +16681,11 @@
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/9515d721-456a-45d1-885c-d97a482317f8"
+     "source": "https://brain-bbqs.org/id/1424d10f-795c-47e5-a6d7-d6705fad611a"
     },
     {
      "predicate": "members",
-     "source": "https://brain-bbqs.org/id/1424d10f-795c-47e5-a6d7-d6705fad611a"
+     "source": "https://brain-bbqs.org/id/9515d721-456a-45d1-885c-d97a482317f8"
     }
    ],
    "dangling": [],
@@ -17176,11 +17382,15 @@
     {
      "predicate": "part_of_org",
      "target": "https://brain-bbqs.org/id/117670d4-58c8-49ed-acb8-311c357126ce"
+    },
+    {
+     "predicate": "posted_by",
+     "target": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
     }
    ],
    "in": [],
    "dangling": [],
-   "degree": 1,
+   "degree": 2,
    "flags": [],
    "violations": []
   },
@@ -17221,11 +17431,15 @@
     {
      "predicate": "part_of_org",
      "target": "https://brain-bbqs.org/id/5b794afd-cf08-4107-81c8-522a29714830"
+    },
+    {
+     "predicate": "posted_by",
+     "target": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
     }
    ],
    "in": [],
    "dangling": [],
-   "degree": 1,
+   "degree": 2,
    "flags": [],
    "violations": []
   },
@@ -17413,30 +17627,6 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/68749a60-249f-4eb2-ad4a-7ae78c76a2f9"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b450bf2e-e124-481f-8950-2e7b03832f17"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/455424c4-b3b7-466e-b6f0-c959fbb74b77"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/145ca46a-181b-4fb5-b546-3522f659e770"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/642bc862-c174-48ba-8b1b-e7c1356e07ab"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/3cc8ceb9-f7ea-4724-91ed-546efb08242b"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/7492a89a-dd5f-46af-871d-c6f9a0bd6eb7"
     },
     {
@@ -17449,11 +17639,35 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/68749a60-249f-4eb2-ad4a-7ae78c76a2f9"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/145ca46a-181b-4fb5-b546-3522f659e770"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/b450bf2e-e124-481f-8950-2e7b03832f17"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/455424c4-b3b7-466e-b6f0-c959fbb74b77"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/3cc8ceb9-f7ea-4724-91ed-546efb08242b"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/0dca4f7e-50c2-4cc8-ac51-1cbe7cd5deaa"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/5c64f851-de9f-4496-84da-58ed338ffa65"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/642bc862-c174-48ba-8b1b-e7c1356e07ab"
     }
    ],
    "dangling": [],
@@ -17569,11 +17783,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/0a29a35d-e673-42f7-a590-23f0fe7055f7"
+     "source": "https://brain-bbqs.org/id/role/92a2b8eb-f9ed-422a-9a23-d8a9e12cf331"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/92a2b8eb-f9ed-422a-9a23-d8a9e12cf331"
+     "source": "https://brain-bbqs.org/id/role/0a29a35d-e673-42f7-a590-23f0fe7055f7"
     },
     {
      "predicate": "on_project",
@@ -17661,15 +17875,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c65b0c08-04d4-42fb-9ca4-dcc64f2f78f8"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/a8f54c17-5723-4efe-99dd-6568342c734d"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/82abd87d-c378-4049-8c84-4eede3066410"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/c65b0c08-04d4-42fb-9ca4-dcc64f2f78f8"
     }
    ],
    "dangling": [],
@@ -17750,11 +17964,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/db582fe3-ef66-4a67-aca9-9daec764cd4c"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2de0b139-4980-4479-9362-e6d68c33d1c8"
+     "source": "https://brain-bbqs.org/id/role/8f554f84-7a48-4b4a-8032-cbab841613fd"
     },
     {
      "predicate": "on_project",
@@ -17762,7 +17972,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/8f554f84-7a48-4b4a-8032-cbab841613fd"
+     "source": "https://brain-bbqs.org/id/role/db582fe3-ef66-4a67-aca9-9daec764cd4c"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/2de0b139-4980-4479-9362-e6d68c33d1c8"
     }
    ],
    "dangling": [],
@@ -17894,11 +18108,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2cf61a9f-a799-4586-94fc-a71bc80104d6"
+     "source": "https://brain-bbqs.org/id/role/ad57ca2b-08ac-42a0-991e-61feaf2c5e39"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b6d62f54-1ff5-4355-8623-69dbe88aa41e"
+     "source": "https://brain-bbqs.org/id/role/2cf61a9f-a799-4586-94fc-a71bc80104d6"
     },
     {
      "predicate": "on_project",
@@ -17906,7 +18120,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/ad57ca2b-08ac-42a0-991e-61feaf2c5e39"
+     "source": "https://brain-bbqs.org/id/role/b6d62f54-1ff5-4355-8623-69dbe88aa41e"
     }
    ],
    "dangling": [],
@@ -17978,11 +18192,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b8a0aee0-0fb1-4ede-9846-a717a2b63d47"
+     "source": "https://brain-bbqs.org/id/role/0bfdefd7-14a0-48aa-93c2-9f80f19e8e72"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/0bfdefd7-14a0-48aa-93c2-9f80f19e8e72"
+     "source": "https://brain-bbqs.org/id/role/b8a0aee0-0fb1-4ede-9846-a717a2b63d47"
     }
    ],
    "dangling": [],
@@ -18075,7 +18289,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/df63e239-d918-4780-9eaa-ed34a5748f01"
+     "source": "https://brain-bbqs.org/id/role/4a0c2ae2-92fd-447a-a95e-419db4773d8f"
     },
     {
      "predicate": "on_project",
@@ -18087,7 +18301,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/4a0c2ae2-92fd-447a-a95e-419db4773d8f"
+     "source": "https://brain-bbqs.org/id/role/df63e239-d918-4780-9eaa-ed34a5748f01"
     }
    ],
    "dangling": [],
@@ -18165,6 +18379,10 @@
     },
     {
      "predicate": "produced",
+     "target": "https://brain-bbqs.org/id/4921bfdf-7432-48ac-911d-0cb825184ef1"
+    },
+    {
+     "predicate": "produced",
      "target": "https://brain-bbqs.org/id/a79d14cd-ae0e-4bce-b09f-8d16e6e15f7f"
     },
     {
@@ -18219,7 +18437,7 @@
     }
    ],
    "dangling": [],
-   "degree": 17,
+   "degree": 18,
    "flags": [],
    "violations": []
   },
@@ -18384,11 +18602,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/43ee45a2-22ea-4e73-9885-1efe24dc4caf"
+     "source": "https://brain-bbqs.org/id/role/70324d1e-344b-402d-bac2-afd900606e16"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/70324d1e-344b-402d-bac2-afd900606e16"
+     "source": "https://brain-bbqs.org/id/role/43ee45a2-22ea-4e73-9885-1efe24dc4caf"
     }
    ],
    "dangling": [],
@@ -18496,15 +18714,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2248b93b-ea65-48b3-a940-f45b80c06346"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/692b00f5-b8e0-4344-8bd0-75def6c4b99e"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/3300103b-a7d5-4bdd-8f50-24fb3e24767a"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/2248b93b-ea65-48b3-a940-f45b80c06346"
     }
    ],
    "dangling": [],
@@ -18709,11 +18927,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c35db851-d42d-43ad-b30c-64fb5b933dcf"
+     "source": "https://brain-bbqs.org/id/role/dce97439-b94a-4549-af78-4839bc63d315"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/068fdb34-5151-4b7f-b854-c9e147bdfcd1"
+     "source": "https://brain-bbqs.org/id/role/cfcdf43e-bc65-4c3b-8046-9429be511ed1"
     },
     {
      "predicate": "on_project",
@@ -18721,11 +18939,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/dce97439-b94a-4549-af78-4839bc63d315"
+     "source": "https://brain-bbqs.org/id/role/c35db851-d42d-43ad-b30c-64fb5b933dcf"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/cfcdf43e-bc65-4c3b-8046-9429be511ed1"
+     "source": "https://brain-bbqs.org/id/role/068fdb34-5151-4b7f-b854-c9e147bdfcd1"
     }
    ],
    "dangling": [],
@@ -18818,19 +19036,19 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d7f6d7e4-401f-43ea-a3e2-ac34d7e73f1f"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/86821e6a-b746-49fd-b4b6-5ea4dd02e5d7"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/73cef7ce-8dbb-48ba-8ee3-bcc0cca5fce8"
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/d7f6d7e4-401f-43ea-a3e2-ac34d7e73f1f"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/9478d651-eb81-4c6f-8b55-4cabb137e46d"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/86821e6a-b746-49fd-b4b6-5ea4dd02e5d7"
     }
    ],
    "dangling": [],
@@ -19005,11 +19223,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/535c5cae-fbd2-4199-a1c2-02af47928538"
+     "source": "https://brain-bbqs.org/id/role/d2505ade-278d-4203-8ebf-bbc8ebfc48c9"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d2505ade-278d-4203-8ebf-bbc8ebfc48c9"
+     "source": "https://brain-bbqs.org/id/role/535c5cae-fbd2-4199-a1c2-02af47928538"
     },
     {
      "predicate": "on_project",
@@ -19235,11 +19453,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c7360c73-0ef1-4e34-88ac-585b15257b2d"
+     "source": "https://brain-bbqs.org/id/role/d64865d3-893f-4968-bcba-e3b33a6a4f1b"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d64865d3-893f-4968-bcba-e3b33a6a4f1b"
+     "source": "https://brain-bbqs.org/id/role/c7360c73-0ef1-4e34-88ac-585b15257b2d"
     }
    ],
    "dangling": [],
@@ -19336,7 +19554,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/60988e88-27ec-4264-9203-98d80d2f3489"
+     "source": "https://brain-bbqs.org/id/role/b5ea3f60-fb2d-4b61-b6ca-04c67600b8b0"
     },
     {
      "predicate": "on_project",
@@ -19344,11 +19562,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b5ea3f60-fb2d-4b61-b6ca-04c67600b8b0"
+     "source": "https://brain-bbqs.org/id/role/295a454b-56ba-4d13-b630-75e3a333f965"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/295a454b-56ba-4d13-b630-75e3a333f965"
+     "source": "https://brain-bbqs.org/id/role/60988e88-27ec-4264-9203-98d80d2f3489"
     }
    ],
    "dangling": [],
@@ -19445,7 +19663,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/f25003fd-234f-453b-9bc8-238213a55269"
+     "source": "https://brain-bbqs.org/id/role/a617a421-6fe5-4f66-9c63-ce24bbea02eb"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/d1c407f2-001d-44da-ada2-0c59c6f8503a"
     },
     {
      "predicate": "on_project",
@@ -19453,11 +19675,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/a617a421-6fe5-4f66-9c63-ce24bbea02eb"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d1c407f2-001d-44da-ada2-0c59c6f8503a"
+     "source": "https://brain-bbqs.org/id/role/f25003fd-234f-453b-9bc8-238213a55269"
     }
    ],
    "dangling": [],
@@ -19715,15 +19933,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/1711154b-0f87-42e9-8cf6-c1316bdf48a5"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/fbe6026f-8aad-439e-8fe2-da3cce084d1c"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/b0b35286-4168-48d3-93d4-75ef191c6174"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/1711154b-0f87-42e9-8cf6-c1316bdf48a5"
     }
    ],
    "dangling": [],
@@ -19976,10 +20194,6 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/caef691a-ad28-4fbe-b098-6536757b49d6"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/4ee3ec6b-290f-4731-b8af-788bc47217e8"
     },
     {
@@ -19988,11 +20202,15 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/63cd8c2a-0860-4130-857c-c33765b115d5"
+     "source": "https://brain-bbqs.org/id/role/caef691a-ad28-4fbe-b098-6536757b49d6"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/bd6b0699-938f-4117-94d2-97177837e94c"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/63cd8c2a-0860-4130-857c-c33765b115d5"
     }
    ],
    "dangling": [],
@@ -20088,11 +20306,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/a474b99d-19ed-4d37-b39f-c22ba57b2101"
+     "source": "https://brain-bbqs.org/id/role/8730c049-9ec8-4a10-9e6f-0e5f0b33144e"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/8730c049-9ec8-4a10-9e6f-0e5f0b33144e"
+     "source": "https://brain-bbqs.org/id/role/a474b99d-19ed-4d37-b39f-c22ba57b2101"
     }
    ],
    "dangling": [],
@@ -20167,11 +20385,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b096be30-abda-4dbf-b167-4dea42f69dfa"
+     "source": "https://brain-bbqs.org/id/role/776f6ad8-5dbf-4a6b-a49e-4bdff826a969"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/29154919-0da2-4db6-a005-c5cf8451746d"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/b096be30-abda-4dbf-b167-4dea42f69dfa"
     },
     {
      "predicate": "on_project",
@@ -20180,10 +20402,6 @@
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/6344ea60-1fad-4b96-ac49-43e00f2acf04"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/776f6ad8-5dbf-4a6b-a49e-4bdff826a969"
     }
    ],
    "dangling": [],
@@ -20242,7 +20460,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/182058c5-770d-4ac3-984a-ea1f4d8d48f1"
+     "source": "https://brain-bbqs.org/id/role/bc9cb644-1dc5-4caf-ae76-da464cb8e2dc"
     },
     {
      "predicate": "on_project",
@@ -20250,11 +20468,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/2c2dc99f-9c5e-43ad-8c5a-7012d2feedba"
+     "source": "https://brain-bbqs.org/id/role/182058c5-770d-4ac3-984a-ea1f4d8d48f1"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/bc9cb644-1dc5-4caf-ae76-da464cb8e2dc"
+     "source": "https://brain-bbqs.org/id/role/2c2dc99f-9c5e-43ad-8c5a-7012d2feedba"
     }
    ],
    "dangling": [],
@@ -20335,11 +20553,23 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/82015065-d290-4efc-982b-75d67daa4d00"
+     "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/cee6c154-1e7f-4a7a-afa7-5117b7f7e384"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/4d3e76c2-2bbb-43b6-9950-982b6ac296cd"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/b87d800c-a0aa-4ea4-aa2e-4fba4fbf8480"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/c3efc4fa-34d8-4630-93b5-7dd34f4e03cd"
     },
     {
      "predicate": "on_project",
@@ -20351,19 +20581,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/b87d800c-a0aa-4ea4-aa2e-4fba4fbf8480"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/cee6c154-1e7f-4a7a-afa7-5117b7f7e384"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c3efc4fa-34d8-4630-93b5-7dd34f4e03cd"
+     "source": "https://brain-bbqs.org/id/role/82015065-d290-4efc-982b-75d67daa4d00"
     }
    ],
    "dangling": [],
@@ -20441,15 +20659,15 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/182007aa-956e-44c7-92ff-39e22486c0a1"
-    },
-    {
-     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/99b4e8a5-97d9-4392-9cfd-da2d0cc46470"
     },
     {
      "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/4fe6e211-9d96-4f8b-8753-c5a002e13b72"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/182007aa-956e-44c7-92ff-39e22486c0a1"
     },
     {
      "predicate": "on_project",
@@ -20536,11 +20754,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/bf0e6573-c228-4923-badd-e3667105e287"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
+     "source": "https://brain-bbqs.org/id/role/63311822-3561-4d3f-929d-42da23209e90"
     },
     {
      "predicate": "on_project",
@@ -20548,7 +20762,11 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/63311822-3561-4d3f-929d-42da23209e90"
+     "source": "https://brain-bbqs.org/id/role/bf0e6573-c228-4923-badd-e3667105e287"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/1de9735a-b2fe-4554-85a2-01fb284ebd01"
     },
     {
      "predicate": "on_project",
@@ -20671,11 +20889,7 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/86c8c08c-3aa2-4ef9-a9a0-a7158781799b"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/f9acc694-4a05-45f7-b0be-24c6dd4a7637"
+     "source": "https://brain-bbqs.org/id/role/dbaa6f57-01e4-4168-88fa-7fa673a6cf6f"
     },
     {
      "predicate": "on_project",
@@ -20683,11 +20897,15 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/f9acc694-4a05-45f7-b0be-24c6dd4a7637"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/da20601e-5e20-41cc-a57b-63e66c143df4"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/f2d69865-0ee2-4b99-81e8-b84658c9eb1e"
+     "source": "https://brain-bbqs.org/id/role/86c8c08c-3aa2-4ef9-a9a0-a7158781799b"
     },
     {
      "predicate": "on_project",
@@ -20695,7 +20913,7 @@
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/dbaa6f57-01e4-4168-88fa-7fa673a6cf6f"
+     "source": "https://brain-bbqs.org/id/role/f2d69865-0ee2-4b99-81e8-b84658c9eb1e"
     }
    ],
    "dangling": [],
@@ -20775,11 +20993,11 @@
    "in": [
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c6847ede-7f3e-4557-9af6-0740d2a0babc"
+     "source": "https://brain-bbqs.org/id/role/540b143e-459b-41df-98bd-9ec0b18d9bd6"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/d530f31d-a94a-4d0d-8e40-3c41610d768a"
+     "source": "https://brain-bbqs.org/id/role/eed7f06b-7ec2-42e5-8307-da70b41c7482"
     },
     {
      "predicate": "on_project",
@@ -20787,19 +21005,19 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/c70a461e-5956-4c4f-aaba-40f11cc7b350"
+    },
+    {
+     "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/d530f31d-a94a-4d0d-8e40-3c41610d768a"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/3df7974f-d227-4954-a984-3d403436fa70"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/29a72f60-6de3-4c19-928c-05cd16342d6e"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/540b143e-459b-41df-98bd-9ec0b18d9bd6"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/800262fc-b2dd-4041-ab94-e9cf166d50b3"
+     "source": "https://brain-bbqs.org/id/role/c6847ede-7f3e-4557-9af6-0740d2a0babc"
     },
     {
      "predicate": "on_project",
@@ -20807,15 +21025,15 @@
     },
     {
      "predicate": "on_project",
+     "source": "https://brain-bbqs.org/id/role/29a72f60-6de3-4c19-928c-05cd16342d6e"
+    },
+    {
+     "predicate": "on_project",
      "source": "https://brain-bbqs.org/id/role/39fa5a3f-6869-4e43-a085-b6d94ee497fa"
     },
     {
      "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/c70a461e-5956-4c4f-aaba-40f11cc7b350"
-    },
-    {
-     "predicate": "on_project",
-     "source": "https://brain-bbqs.org/id/role/eed7f06b-7ec2-42e5-8307-da70b41c7482"
+     "source": "https://brain-bbqs.org/id/role/800262fc-b2dd-4041-ab94-e9cf166d50b3"
     }
    ],
    "dangling": [],
@@ -22194,6 +22412,43 @@
    "degree": 2,
    "flags": [],
    "violations": []
+  },
+  {
+   "id": "https://brain-bbqs.org/id/role/57b86bca-ace5-49e8-8145-7c49011d8cd6",
+   "class": "ProjectRole",
+   "label": "collaborator on U24DA064429",
+   "facts": {
+    "project_role": [
+     "collaborator"
+    ],
+    "role_source": [
+     "curator"
+    ]
+   },
+   "out": [
+    {
+     "predicate": "held_by",
+     "target": "https://brain-bbqs.org/id/f3f570c9-991c-4a67-a40a-5f0903f91762"
+    },
+    {
+     "predicate": "on_project",
+     "target": "https://brain-bbqs.org/id/4a00b65d-6b1b-4385-86c7-9f72c2724152"
+    }
+   ],
+   "in": [],
+   "dangling": [],
+   "degree": 2,
+   "flags": [
+    "violation"
+   ],
+   "violations": [
+    {
+     "shape": "ProjectRoleTokenShape",
+     "message": "ProjectRole.project_role must be a canonical token, not free text (#283).",
+     "value": "collaborator",
+     "severity": "violation"
+    }
+   ]
   },
   {
    "id": "https://brain-bbqs.org/id/role/3d109ffa-adb1-4a1e-b2fd-5f516280d7f7",
@@ -24303,34 +24558,6 @@
     {
      "predicate": "held_by",
      "target": "https://brain-bbqs.org/id/95406597-a11e-4809-834d-8a6926c32164"
-    },
-    {
-     "predicate": "on_project",
-     "target": "https://brain-bbqs.org/id/4a00b65d-6b1b-4385-86c7-9f72c2724152"
-    }
-   ],
-   "in": [],
-   "dangling": [],
-   "degree": 2,
-   "flags": [],
-   "violations": []
-  },
-  {
-   "id": "https://brain-bbqs.org/id/role/57b86bca-ace5-49e8-8145-7c49011d8cd6",
-   "class": "ProjectRole",
-   "label": "research_staff on U24DA064429",
-   "facts": {
-    "project_role": [
-     "research_staff"
-    ],
-    "role_source": [
-     "curator"
-    ]
-   },
-   "out": [
-    {
-     "predicate": "held_by",
-     "target": "https://brain-bbqs.org/id/f3f570c9-991c-4a67-a40a-5f0903f91762"
     },
     {
      "predicate": "on_project",
@@ -28003,11 +28230,11 @@
    "in": [
     {
      "predicate": "produced",
-     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
+     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
     },
     {
      "predicate": "produced",
-     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
+     "source": "https://brain-bbqs.org/id/1e1fc06b-fe5c-4ec2-9f64-474f98ae31e8"
     }
    ],
    "dangling": [],
@@ -29012,6 +29239,14 @@
    "in": [
     {
      "predicate": "part_of_org",
+     "source": "https://brain-bbqs.org/id/1b79d65a-57fd-455c-96e7-acc3b3eb6c01"
+    },
+    {
+     "predicate": "part_of_org",
+     "source": "https://brain-bbqs.org/id/5b87def1-786b-470f-879c-9089ebde049d"
+    },
+    {
+     "predicate": "part_of_org",
      "source": "https://brain-bbqs.org/id/42efe7fa-561b-4a00-af58-78b71f9d4b1a"
     },
     {
@@ -29020,19 +29255,11 @@
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/5b87def1-786b-470f-879c-9089ebde049d"
-    },
-    {
-     "predicate": "part_of_org",
      "source": "https://brain-bbqs.org/id/eac8b2aa-4353-4d9a-af21-601294a8ef4a"
     },
     {
      "predicate": "part_of_org",
      "source": "https://brain-bbqs.org/id/00343fc4-d3b9-4b22-8445-dcef0a11a5e4"
-    },
-    {
-     "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/1b79d65a-57fd-455c-96e7-acc3b3eb6c01"
     }
    ],
    "dangling": [],
@@ -29716,7 +29943,7 @@
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/07448ab8-2717-4b6e-83e0-9abf492240e5"
+     "source": "https://brain-bbqs.org/id/9fe36a51-d470-42f8-baa1-0c7aa68a9dea"
     },
     {
      "predicate": "part_of_org",
@@ -29724,7 +29951,7 @@
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/9fe36a51-d470-42f8-baa1-0c7aa68a9dea"
+     "source": "https://brain-bbqs.org/id/07448ab8-2717-4b6e-83e0-9abf492240e5"
     }
    ],
    "dangling": [],
@@ -29861,7 +30088,7 @@
    "in": [
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/7766280c-d6f3-4c55-8e7e-f9207dbc1d1f"
+     "source": "https://brain-bbqs.org/id/30ae82dc-0473-443d-96ae-8bbf8b0206cb"
     },
     {
      "predicate": "part_of_org",
@@ -29873,7 +30100,7 @@
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/30ae82dc-0473-443d-96ae-8bbf8b0206cb"
+     "source": "https://brain-bbqs.org/id/7766280c-d6f3-4c55-8e7e-f9207dbc1d1f"
     },
     {
      "predicate": "part_of_org",
@@ -29898,11 +30125,11 @@
    "in": [
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/0f875168-9793-465b-9ab1-bf8f18492778"
+     "source": "https://brain-bbqs.org/id/a8990457-e9da-49eb-9a0c-5b2af1a4ca61"
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/a8990457-e9da-49eb-9a0c-5b2af1a4ca61"
+     "source": "https://brain-bbqs.org/id/0f875168-9793-465b-9ab1-bf8f18492778"
     }
    ],
    "dangling": [],
@@ -30050,15 +30277,7 @@
    "in": [
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/ac01b838-9803-4a39-8adf-6b9ac9883535"
-    },
-    {
-     "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/8b9d5dda-2b99-4e1c-ba27-968f74ef8b77"
-    },
-    {
-     "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/09e37e7e-a6a7-409a-b532-9f000647f007"
+     "source": "https://brain-bbqs.org/id/9db8fc93-1890-4237-b758-d5f94c5e6306"
     },
     {
      "predicate": "part_of_org",
@@ -30066,7 +30285,15 @@
     },
     {
      "predicate": "part_of_org",
-     "source": "https://brain-bbqs.org/id/9db8fc93-1890-4237-b758-d5f94c5e6306"
+     "source": "https://brain-bbqs.org/id/09e37e7e-a6a7-409a-b532-9f000647f007"
+    },
+    {
+     "predicate": "part_of_org",
+     "source": "https://brain-bbqs.org/id/ac01b838-9803-4a39-8adf-6b9ac9883535"
+    },
+    {
+     "predicate": "part_of_org",
+     "source": "https://brain-bbqs.org/id/8b9d5dda-2b99-4e1c-ba27-968f74ef8b77"
     }
    ],
    "dangling": [],
@@ -30940,12 +31167,15 @@
     ]
    },
    "out": [],
-   "in": [],
-   "dangling": [],
-   "degree": 0,
-   "flags": [
-    "isolated"
+   "in": [
+    {
+     "predicate": "evaluates",
+     "source": "https://brain-bbqs.org/id/b9f28848-dd76-4bf7-9fd6-a4d1509154eb"
+    }
    ],
+   "dangling": [],
+   "degree": 1,
+   "flags": [],
    "violations": []
   },
   {
@@ -31811,7 +32041,11 @@
    "in": [
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
+     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
     },
     {
      "predicate": "studies_species",
@@ -31827,15 +32061,11 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/1f64a2ba-572e-415a-ac19-68a6e3a0f15e"
+     "source": "https://brain-bbqs.org/id/4f2619b1-a6a4-48e5-b21a-0f5455354ea9"
     },
     {
      "predicate": "studies_species",
      "source": "https://brain-bbqs.org/id/071aa27a-456a-4eb1-abd2-35d9f0eceaf7"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/f294b0d9-175a-47c7-854c-d4d750009812"
     }
    ],
    "dangling": [],
@@ -31870,7 +32100,23 @@
    "in": [
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
+     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
     },
     {
      "predicate": "studies_species",
@@ -31878,7 +32124,15 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/38289d36-f3a6-43e1-955b-db1d3d400cb2"
+     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
+    },
+    {
+     "predicate": "studies_species",
+     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
     },
     {
      "predicate": "studies_species",
@@ -31890,35 +32144,11 @@
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/d663edcd-08bc-426b-b97d-a45cd47a97c0"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/3a4fb38d-dc54-4d06-a1cf-a5a959d3321b"
-    },
-    {
-     "predicate": "studies_species",
      "source": "https://brain-bbqs.org/id/80e226a5-f7e6-49d2-a64a-524940d498a5"
     },
     {
      "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/4614269a-0d7f-4390-b4cc-568a09fa6a45"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/3352859e-5677-46dd-89d6-17c898b6f097"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/f70949e4-d1f6-4364-a940-741c96057bae"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/797fd7cf-49dc-40a2-811d-aeec94460ead"
-    },
-    {
-     "predicate": "studies_species",
-     "source": "https://brain-bbqs.org/id/b02aaf9f-0a7e-4759-b1ba-cb100a2d4eed"
+     "source": "https://brain-bbqs.org/id/adc6c1dd-57a9-49bb-a57d-521fd1208a76"
     }
    ],
    "dangling": [],
@@ -32064,191 +32294,15 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
+     "source": "https://brain-bbqs.org/id/0da76ce9-654a-4940-a9c6-d0785167ebad"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4f18ae48-4099-486d-8e89-1a8a736e59e4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d69b71df-b5e8-490c-8df0-5a7883fac0d5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/67f260ea-2946-4086-9111-c926fb4e6df7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4b90a4f4-0010-4b31-8adb-db169e15a70a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1962a240-a592-484c-b812-122a5dad2951"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/afe5dc6f-8e97-48c9-bb79-5af130f1e62a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/189027bf-98cc-4173-8571-06759988ff2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0ded1b71-e572-475b-8457-bf370ed6335f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/af80d437-679c-42d0-aeed-fc7129b8a7b7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5835b3d1-bdaf-4f30-a9e7-cf70d1861b61"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8c977c24-da2f-4866-b860-b71aa2540bd4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c140b518-3ea9-4cad-a8b2-c7b30385589b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ee077b61-eb2c-4cd9-b587-a46418c45265"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bf6867b2-09d3-4cc3-89ba-b931b646cd42"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9045540f-6ba2-4b95-bc69-98527f947a27"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/196ba606-dec6-4863-876e-907559234c80"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9095f7a2-0d1a-4ac7-9cdd-12f28dbe42ea"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/24981995-2cd1-407a-9d2c-0f89f026edeb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/60b6dd1c-dbb1-46e3-9a33-abc7aca65a8a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/93a3260d-e267-451b-9960-06cc9ae3a40c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
+     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
     },
     {
      "predicate": "member_of_group",
@@ -32256,11 +32310,47 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
+     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
+     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0b1dab3b-4478-4149-a41a-72cf69d47788"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1962a240-a592-484c-b812-122a5dad2951"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a82b872c-fb47-43ba-9d01-258026913f06"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/93a3260d-e267-451b-9960-06cc9ae3a40c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/538a6b26-2685-4ea8-9f0d-91ae90693108"
     },
     {
      "predicate": "member_of_group",
@@ -32272,71 +32362,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0f8bad99-d648-46e7-97cc-a669746511ee"
+     "source": "https://brain-bbqs.org/id/c6056429-1e03-4506-8484-5be9acff8170"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1f6fa922-b662-4325-aac7-cb622ac10ef3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7a5a1c11-f5f8-4643-b444-71228b1f298a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0da76ce9-654a-4940-a9c6-d0785167ebad"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/00618660-a724-4059-85c1-c6ca3ccc1744"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a7318228-623e-4f94-a7e6-5e3fed968e1a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
     },
     {
      "predicate": "member_of_group",
@@ -32344,67 +32374,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+     "source": "https://brain-bbqs.org/id/be8d825d-140a-4d72-a39a-2534cf2b4145"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d0f582a1-20fd-43ca-a9f1-21bf0ee548c1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3161638e-fa1b-4af1-a998-a34139b2a0b1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0b1dab3b-4478-4149-a41a-72cf69d47788"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/41e042c3-81ad-486b-b933-bf77fcefd4f5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4cd9c282-4677-471a-81c0-aa97d94a687e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fa291a57-48b1-4ad1-87da-4a04a01787e8"
+     "source": "https://brain-bbqs.org/id/67f260ea-2946-4086-9111-c926fb4e6df7"
     },
     {
      "predicate": "member_of_group",
@@ -32412,47 +32386,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
+     "source": "https://brain-bbqs.org/id/5835b3d1-bdaf-4f30-a9e7-cf70d1861b61"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a82b872c-fb47-43ba-9d01-258026913f06"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6119344c-d2da-45d1-8d69-ea22d8859dd3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/732f511e-4b61-412b-b54d-9c8dbd93c273"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6996650-b858-4ddb-b422-4fd92fdfaac4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/be8d825d-140a-4d72-a39a-2534cf2b4145"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c6056429-1e03-4506-8484-5be9acff8170"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2634f607-be46-4d8d-baae-6ec0d66a5436"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ddf3df70-64df-4112-822c-1ebf2bb895e0"
+     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
     },
     {
      "predicate": "member_of_group",
@@ -32460,19 +32398,31 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9045540f-6ba2-4b95-bc69-98527f947a27"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4f18ae48-4099-486d-8e89-1a8a736e59e4"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bab963f7-54f8-4b01-a914-de675535b004"
+     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/196ba606-dec6-4863-876e-907559234c80"
     },
     {
      "predicate": "member_of_group",
@@ -32480,11 +32430,291 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4cd9c282-4677-471a-81c0-aa97d94a687e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6119344c-d2da-45d1-8d69-ea22d8859dd3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f088160e-1dea-4cb9-b73f-1c30d0e40053"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/189027bf-98cc-4173-8571-06759988ff2b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/00618660-a724-4059-85c1-c6ca3ccc1744"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3161638e-fa1b-4af1-a998-a34139b2a0b1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/98076d7b-270f-4a2a-af91-53d1b7644c90"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/732f511e-4b61-412b-b54d-9c8dbd93c273"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/eaa38acf-84a1-44ce-a1c6-eda307583731"
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/41e042c3-81ad-486b-b933-bf77fcefd4f5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/af80d437-679c-42d0-aeed-fc7129b8a7b7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0ded1b71-e572-475b-8457-bf370ed6335f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/60b6dd1c-dbb1-46e3-9a33-abc7aca65a8a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d69b71df-b5e8-490c-8df0-5a7883fac0d5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7a5a1c11-f5f8-4643-b444-71228b1f298a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/afe5dc6f-8e97-48c9-bb79-5af130f1e62a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bf6867b2-09d3-4cc3-89ba-b931b646cd42"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2634f607-be46-4d8d-baae-6ec0d66a5436"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d0f582a1-20fd-43ca-a9f1-21bf0ee548c1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/24981995-2cd1-407a-9d2c-0f89f026edeb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8c977c24-da2f-4866-b860-b71aa2540bd4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fa291a57-48b1-4ad1-87da-4a04a01787e8"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a7318228-623e-4f94-a7e6-5e3fed968e1a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0f8bad99-d648-46e7-97cc-a669746511ee"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/ddf3df70-64df-4112-822c-1ebf2bb895e0"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6996650-b858-4ddb-b422-4fd92fdfaac4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4b90a4f4-0010-4b31-8adb-db169e15a70a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c140b518-3ea9-4cad-a8b2-c7b30385589b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1f6fa922-b662-4325-aac7-cb622ac10ef3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9095f7a2-0d1a-4ac7-9cdd-12f28dbe42ea"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bab963f7-54f8-4b01-a914-de675535b004"
     },
     {
      "predicate": "member_of_group",
@@ -32496,27 +32726,27 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/538a6b26-2685-4ea8-9f0d-91ae90693108"
+     "source": "https://brain-bbqs.org/id/ee077b61-eb2c-4cd9-b587-a46418c45265"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9a233497-f3cd-4888-b5b6-a83630e5f1ee"
+     "source": "https://brain-bbqs.org/id/ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
     }
    ],
    "dangling": [],
@@ -32537,63 +32767,19 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a3de5020-ea6c-41c1-b397-3e0f6d43e98a"
+     "source": "https://brain-bbqs.org/id/9fd2cbaa-449d-4c9d-bcbb-b627f245cbf3"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e058af74-abc7-453f-8aa6-93cd056c50e3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
+     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
     },
     {
      "predicate": "member_of_group",
@@ -32601,11 +32787,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/03f8e307-5f04-4d22-9aef-c1bb9d3e6905"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
+     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
     },
     {
      "predicate": "member_of_group",
@@ -32613,23 +32795,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
     },
     {
      "predicate": "member_of_group",
@@ -32637,7 +32807,11 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+     "source": "https://brain-bbqs.org/id/5f8ac3c4-a0fb-44d6-ae2d-b505816d4141"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
     },
     {
      "predicate": "member_of_group",
@@ -32645,7 +32819,19 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0a39ab50-9241-4b17-b6d4-77d5ac81e519"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
     },
     {
      "predicate": "member_of_group",
@@ -32653,11 +32839,55 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+     "source": "https://brain-bbqs.org/id/02f970e3-bc54-4d97-b033-fe732d43fbb3"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/03f8e307-5f04-4d22-9aef-c1bb9d3e6905"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b2b7ce80-8dbf-4cf8-804c-9daebe9a9fa5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b1b421fc-5477-4c2f-8968-ab757344ab2d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
     },
     {
      "predicate": "member_of_group",
@@ -32665,15 +32895,23 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
+     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
+     "source": "https://brain-bbqs.org/id/b2c565ea-4b4a-4586-9543-e61df6570936"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e058af74-abc7-453f-8aa6-93cd056c50e3"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
     },
     {
      "predicate": "member_of_group",
@@ -32681,7 +32919,87 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7eb2abf1-f38f-4693-afb6-9313f96d2ff4"
+     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5f18877b-67fd-4779-be9a-d859314e0b4a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f1ff44d0-aff1-4a53-91e6-7a6b64aa0af0"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a3de5020-ea6c-41c1-b397-3e0f6d43e98a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3d87d6b0-c802-4610-813b-86b94e3e76d6"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9045540f-6ba2-4b95-bc69-98527f947a27"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/79d8d638-23c0-490f-8044-dbe06e0f63b5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6cedc563-ca67-467e-9c98-48b5b67123de"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
     },
     {
      "predicate": "member_of_group",
@@ -32693,111 +33011,23 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/22edcc49-fd41-4423-92b6-89e7abba292d"
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6450030e-c137-4842-8bae-8d6dd913c50b"
+     "source": "https://brain-bbqs.org/id/783ff194-17e8-46d9-bd1f-57ca4070a90c"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9fd2cbaa-449d-4c9d-bcbb-b627f245cbf3"
+     "source": "https://brain-bbqs.org/id/a6f825d6-cb5c-4136-9208-eee059bf6f49"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8fa8009e-d4af-4b39-b0e5-7efed3696a4c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e729b65b-8a22-4dc9-9d4d-d525f33f778f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b050adf2-88b1-42e2-912b-2843d5b96854"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ab51c79a-9096-4c6b-9724-ae605b7ffae2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f0d2d9d0-b5e5-4f52-a40d-0d5a06229b14"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9fb13eb4-a3bc-483a-9969-f3908d13143d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b1b421fc-5477-4c2f-8968-ab757344ab2d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/de5929a1-5c9a-4f4f-8d0f-4cc0d040160f"
+     "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
     },
     {
      "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/8c977c24-da2f-4866-b860-b71aa2540bd4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4626de5c-667e-4f70-be3e-44dffde3887b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/9045540f-6ba2-4b95-bc69-98527f947a27"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0410e3c0-a5b5-4f3f-a0e0-2dc7e71c2d18"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7db5db3c-9f1f-4e01-a942-e05c340cbd8e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/02f970e3-bc54-4d97-b033-fe732d43fbb3"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/09865181-38c6-44d9-aba4-68e373f0286d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b2c565ea-4b4a-4586-9543-e61df6570936"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/709c64f2-d02c-48f9-b286-b9222a106f27"
     }
    ],
    "dangling": [],
@@ -32818,11 +33048,15 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b359432d-39e2-4ab8-bb3b-16afe458820c"
+     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
+     "source": "https://brain-bbqs.org/id/5fd6169e-d169-41be-8cd0-e8a691f0b345"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b49aee4-301e-46c9-b22d-209481f68437"
     },
     {
      "predicate": "member_of_group",
@@ -32830,11 +33064,35 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c2074402-c96d-40c5-8b3c-ad8a8fcf2031"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/a5644db3-8ade-4026-9139-c1945c0869d6"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d3b32f3b-0a12-4eec-b49e-b9274f934b5a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6340c8ee-1d5b-45f0-87ff-c320a38df17d"
     },
     {
      "predicate": "member_of_group",
@@ -32842,23 +33100,83 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e6d4c722-8089-4163-901c-3a77f6a2a90b"
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/aa8884d6-2eae-451a-828a-92e4595c273e"
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
+     "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d2f77d44-3a20-4759-be29-69403ae039ef"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6a1a2d08-5aec-4450-a9db-8dad62b8f4c4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/178d1833-2f0c-4a20-9f06-c3106f12b21c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2febecec-70dd-4db0-8bed-2060a1d13b5e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b359432d-39e2-4ab8-bb3b-16afe458820c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/353d2c1b-0f19-47a0-98be-6a721845c0c2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
     },
     {
      "predicate": "member_of_group",
@@ -32870,11 +33188,15 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
+     "source": "https://brain-bbqs.org/id/e6d4c722-8089-4163-901c-3a77f6a2a90b"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+     "source": "https://brain-bbqs.org/id/aa8884d6-2eae-451a-828a-92e4595c273e"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/dfbc5c5d-f4a9-4b08-8454-321df0c98e18"
     },
     {
      "predicate": "member_of_group",
@@ -32882,23 +33204,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d2f77d44-3a20-4759-be29-69403ae039ef"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a72c6169-713d-49ef-b9c2-4d9d05247473"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/ec6cb02d-5d60-4e1b-bfa8-e7ce7f857f90"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
+     "source": "https://brain-bbqs.org/id/4543ce04-8f6e-4713-8fa7-2552664e28ae"
     },
     {
      "predicate": "member_of_group",
@@ -32906,51 +33212,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f33c9c03-f685-4166-b0bf-9ce704b5fa78"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
-    },
-    {
-     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/cf033709-106e-4288-a326-f7bb353ba0a4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d25f9d24-5496-41a5-9a39-b686719d9eb7"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/bcdcd220-fa82-47d4-9c1b-7a8da03dadd8"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/353d2c1b-0f19-47a0-98be-6a721845c0c2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6a1a2d08-5aec-4450-a9db-8dad62b8f4c4"
     },
     {
      "predicate": "member_of_group",
@@ -32958,59 +33220,27 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b49aee4-301e-46c9-b22d-209481f68437"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/178d1833-2f0c-4a20-9f06-c3106f12b21c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5fd6169e-d169-41be-8cd0-e8a691f0b345"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
-    },
-    {
-     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8e52b630-7ecc-4336-9f31-d0b6a1c85100"
+     "source": "https://brain-bbqs.org/id/0823bcd5-786e-4d68-91b0-95bdec0b5d37"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d3b32f3b-0a12-4eec-b49e-b9274f934b5a"
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6340c8ee-1d5b-45f0-87ff-c320a38df17d"
+     "source": "https://brain-bbqs.org/id/ec6cb02d-5d60-4e1b-bfa8-e7ce7f857f90"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c2074402-c96d-40c5-8b3c-ad8a8fcf2031"
+     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40f7a980-ec6a-4278-82f7-b7ea3601ce40"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e03557cc-99aa-4b15-8786-bde9a5253fd1"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2febecec-70dd-4db0-8bed-2060a1d13b5e"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/a5644db3-8ade-4026-9139-c1945c0869d6"
+     "source": "https://brain-bbqs.org/id/d25f9d24-5496-41a5-9a39-b686719d9eb7"
     }
    ],
    "dangling": [],
@@ -33031,43 +33261,7 @@
    "in": [
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
-    },
-    {
-     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/e6fb5750-5310-4d85-8beb-4cc8addbd988"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/43d7d5a8-8912-4a93-b571-f3c97f41bd9d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
     },
     {
      "predicate": "member_of_group",
@@ -33075,103 +33269,7 @@
     },
     {
      "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/b0b69ef8-90b3-481a-b095-a01f1ddf4663"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
-    },
-    {
-     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/c3989bae-203d-43b6-8f09-90935634f1d2"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/c9fb9f5b-29a9-4138-9434-894ab7b7a909"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/5ed180e1-004a-49d3-a05f-e8a4da27718f"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
-    },
-    {
-     "predicate": "member_of_group",
-     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
     },
     {
      "predicate": "member_of_group",
@@ -33179,11 +33277,143 @@
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fedfc5af-eb8e-4ee5-88e7-a18ab2f00b26"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/1b3e8304-f2d6-4ed6-aa5c-7d49ca278344"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/43d7d5a8-8912-4a93-b571-f3c97f41bd9d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/b0b69ef8-90b3-481a-b095-a01f1ddf4663"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6f2586d0-5743-4ab9-83b6-915ffa98736a"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c9fb9f5b-29a9-4138-9434-894ab7b7a909"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/924e4ef8-ee41-480e-9d33-9807b471878d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/42fcde10-7fc8-4243-9c6f-845abf7d194c"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/0f3bb33c-e7ee-4013-af5d-894d1adfa0ee"
     },
     {
      "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/831a48e1-025d-499a-bf11-83d05285ed4b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/d303b6df-88e0-4e0d-88f6-46b3d45c1ea4"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/f34a38e7-364a-4091-8436-a8c52b684cc2"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/af52d4d6-a0e2-4a87-b747-6ede8ebf212f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/5ed180e1-004a-49d3-a05f-e8a4da27718f"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/13ccc90e-b105-48b2-8590-4804cd2b5f54"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/25f1bccb-0c04-4e0e-8951-ac2620fb969c"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/6d29e182-e1cd-43d5-9f95-7cfef6ff9396"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/8694fef3-33b8-491f-a806-7d0c8b5a60bf"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/397816f1-2188-4817-af29-e7aa82ef1afb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2984e917-2448-4596-9648-b52dc92b2c5d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/82e9264e-8bec-4d1e-ab39-9e42f8f5384d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/81d6f976-8ae2-4e38-853a-9e0fe8ac7839"
+    },
+    {
+     "predicate": "member_of_group",
      "source": "https://brain-bbqs.org/id/5cac268b-ef4e-4b85-8a9b-9f968992dfe7"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/fe4790d5-bf32-469d-b098-cb4f44f6fa19"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40d5a0bc-769a-4450-9355-d561ff9494eb"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3576ac45-d083-4c4c-84c0-04a44227dc2b"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/54ef6069-cc01-4d5b-9aaa-8ef9e1505001"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/77aecb31-a637-4d08-9a35-e72ea6a46fe5"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/3be55dd2-fe02-418e-a97b-aa223e988663"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/c302f348-ef46-4a60-801c-55a7783ca421"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/57f1a4fe-523b-4963-b6e6-a38c7da47500"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/40a825b2-31fc-4ffe-b686-9b09a1576b33"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/2fb1cdc9-28b2-4709-adf4-c914a44e042d"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/7ef0ea15-6f36-4bca-8eee-626e9bf76254"
+    },
+    {
+     "predicate": "member_of_group",
+     "source": "https://brain-bbqs.org/id/e0d25d6e-4879-436d-980f-e690e3e5a937"
     }
    ],
    "dangling": [],
@@ -33216,6 +33446,7 @@
     "author_orcids": 2,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -33233,6 +33464,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33250,6 +33482,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33266,6 +33499,7 @@
      }
     ],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_project",
      "roster_unchecked",
@@ -33284,6 +33518,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33301,6 +33536,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33318,6 +33554,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33335,6 +33572,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33352,6 +33590,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33369,6 +33608,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33386,6 +33626,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33403,6 +33644,7 @@
     "author_orcids": 4,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -33420,6 +33662,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33437,6 +33680,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33454,6 +33698,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33471,6 +33716,7 @@
     "author_orcids": 2,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -33488,6 +33734,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33505,6 +33752,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -33523,6 +33771,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -33541,6 +33790,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33558,6 +33808,7 @@
     "author_orcids": 27,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "preprint_pair",
@@ -33576,6 +33827,7 @@
     "author_orcids": 11,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "preprint_pair",
@@ -33594,6 +33846,7 @@
     "author_orcids": 4,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "preprint_pair",
@@ -33612,6 +33865,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -33630,6 +33884,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33647,6 +33902,7 @@
     "author_orcids": 7,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -33664,6 +33920,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33681,6 +33938,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33698,6 +33956,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33715,6 +33974,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33732,6 +33992,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33749,6 +34010,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33766,6 +34028,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33783,6 +34046,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33800,6 +34064,7 @@
     "author_orcids": 6,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -33817,6 +34082,7 @@
     "author_orcids": 3,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -33834,6 +34100,7 @@
     "author_orcids": 2,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -33851,6 +34118,7 @@
     "author_orcids": 5,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -33868,6 +34136,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33885,6 +34154,7 @@
     "author_orcids": 3,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -33902,6 +34172,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -33920,6 +34191,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -33938,6 +34210,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33955,6 +34228,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33972,6 +34246,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -33989,6 +34264,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34006,6 +34282,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34023,6 +34300,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34040,6 +34318,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34057,6 +34336,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34074,6 +34354,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34091,6 +34372,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34108,6 +34390,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34125,6 +34408,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34142,6 +34426,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34159,6 +34444,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34176,6 +34462,7 @@
     "author_orcids": 3,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -34193,6 +34480,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34210,6 +34498,7 @@
     "author_orcids": 3,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -34227,6 +34516,7 @@
     "author_orcids": 48,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -34244,6 +34534,7 @@
     "author_orcids": 4,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -34261,6 +34552,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34278,6 +34570,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34295,6 +34588,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34312,6 +34606,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34334,6 +34629,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "several_projects",
      "authors_unchecked",
@@ -34352,6 +34648,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34369,6 +34666,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34386,6 +34684,7 @@
     "author_orcids": 1,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "no_roster_author",
      "no_text"
@@ -34403,6 +34702,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34420,6 +34720,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34442,6 +34743,7 @@
      }
     ],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -34459,6 +34761,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34476,6 +34779,7 @@
     "author_orcids": 4,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "roster_unchecked",
      "no_text"
@@ -34493,6 +34797,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34510,6 +34815,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34527,6 +34833,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34544,6 +34851,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34561,6 +34869,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34578,6 +34887,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34595,6 +34905,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34612,6 +34923,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34629,6 +34941,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34646,6 +34959,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34663,6 +34977,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34689,6 +35004,7 @@
      }
     ],
     "texts": [],
+    "versions": [],
     "checks": [
      "preprint_pair",
      "no_text"
@@ -34706,6 +35022,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "preprint_pair",
@@ -34724,6 +35041,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34741,6 +35059,7 @@
     "author_orcids": 0,
     "investigator_authors": [],
     "texts": [],
+    "versions": [],
     "checks": [
      "authors_unchecked",
      "no_text"
@@ -34752,7 +35071,7 @@
   "groups": [
    {
     "class": "Publication",
-    "by": "name",
+    "by": "title",
     "value": "braidinputdrivennonlineardynamicalmodelingofneuralbehavioraldata",
     "kind": "versions",
     "nodes": [
@@ -34762,7 +35081,7 @@
    },
    {
     "class": "Publication",
-    "by": "name",
+    "by": "title",
     "value": "cablamahighcontrastbioluminescentca2indicatorderivedfromanengineeredoplophorusgracilirostrisluciferase",
     "kind": "versions",
     "nodes": [
@@ -34772,7 +35091,7 @@
    },
    {
     "class": "Publication",
-    "by": "name",
+    "by": "title",
     "value": "capuchinai10developmentofamachinelearningbasedtouchscreenparadigmtotestcognitioninwildcapuchins",
     "kind": "versions",
     "nodes": [
@@ -34782,7 +35101,7 @@
    },
    {
     "class": "Publication",
-    "by": "name",
+    "by": "title",
     "value": "dynamicalmodelingofbehaviorallyrelevantspatiotemporalpatternsinneuralimagingdata",
     "kind": "versions",
     "nodes": [
@@ -34792,7 +35111,7 @@
    },
    {
     "class": "Publication",
-    "by": "name",
+    "by": "title",
     "value": "unsuperviseddiscoveryoffamilyspecificvocalusageinthemongoliangerbil",
     "kind": "versions",
     "nodes": [
@@ -34803,6 +35122,12 @@
   ],
   "count": 0,
   "nodes": 0,
-  "versions": 5
+  "versions": 5,
+  "linked_versions": 0,
+  "advisory": 0
+ },
+ "revision_links": {
+  "count": 0,
+  "links": []
  }
 }

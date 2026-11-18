@@ -1,5 +1,7 @@
 {
-  "violations": {},
+  "violations": {
+    "ProjectRoleTokenShape": 1
+  },
   "warnings": {
     "AuthorOrcidResolvesShape": 147
   },
@@ -35,7 +37,9 @@
     "CQ33",
     "CQ34",
     "CQ35",
+    "CQ37",
     "CQ38",
+    "CQ39",
     "CQ41",
     "CQ42"
   ],
@@ -57,7 +61,7 @@
     "StudiesSpeciesResolvesShape",
     "UrlFieldsAreUrlsShape"
   ],
-  "isolated": 76,
+  "isolated": 73,
   "nodes": 758,
   "duplicates": 0,
   "versions": 5,

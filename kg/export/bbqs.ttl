@@ -53,12 +53,13 @@ bid:0823bcd5-786e-4d68-91b0-95bdec0b5d37 a bbqs:Investigator ;
 bid:09e37e7e-a6a7-409a-b532-9f000647f007 a bbqs:FundingOpportunity ;
     bbqs:activity_code "UG3/UH3" ;
     bbqs:description "Supports academic-industrial partnerships developing Software as a Medical Device (SaMD) multimodal AI clinical decision support tools combining medical imaging with other health data. 8 awards anticipated; foreign organizations eligible." ;
+    bbqs:expiration_date "2026-10-20"^^xsd:date ;
     bbqs:external_url "https://simpler.grants.gov/opportunity/d07ebcd7-96cf-40cb-8ae3-f401b6274080"^^xsd:anyURI ;
     bbqs:fon "RFA-RM-27-012" ;
     bbqs:name "PRIMED-AI: Data-to-Model Academic-Industrial Partnerships (D2M-AIP) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (UG3/UH3 Clinical Trial Optional)" ;
     bbqs:part_of_org bid:2548a017-fd14-4934-9762-b30d7071821a ;
     bbqs:posted_date "2026-06-30"^^xsd:date ;
-    bbqs:status "open" ;
+    bbqs:status "closed" ;
     bbqs:url "https://simpler.grants.gov/opportunity/d07ebcd7-96cf-40cb-8ae3-f401b6274080"^^xsd:anyURI .
 
 bid:0a91143c-35e4-4cf1-a1d5-301b6a8651ae a bbqs:MLModel ;
@@ -107,7 +108,8 @@ bid:0f8bad99-d648-46e7-97cc-a669746511ee a bbqs:Investigator ;
 
 bid:12234308-3c6b-4d75-a135-f8fb127d4389 a bbqs:Job ;
     bbqs:name "Postdoctoral position in statistical methods for behavioral analysis" ;
-    bbqs:part_of_org bid:5b794afd-cf08-4107-81c8-522a29714830 .
+    bbqs:part_of_org bid:5b794afd-cf08-4107-81c8-522a29714830 ;
+    bbqs:posted_by bid:831a48e1-025d-499a-bf11-83d05285ed4b .
 
 bid:130afdbe-9128-4afb-a7cd-f27967d52a7a a bbqs:Device ;
     bbqs:aliases "GPS (Garmin)",
@@ -216,6 +218,7 @@ bid:1ec93ddb-bb26-4062-9a18-1214bc458102 a bbqs:ResearchOrganization ;
 bid:20adc9fb-c389-48a7-85ec-931501f0ce13 a bbqs:FundingOpportunity ;
     bbqs:activity_code "Research Grant" ;
     bbqs:description "Supports cutting-edge mathematics and basic science research that uses Empire AI's multinode GPU clusters and foundational machine learning models, in computational astrophysics, physics, biology, mathematics, neuroscience, or computational physical chemistry. Up to $6M total over two years (2027-06-01 to 2029-05-31), 6-12 awards. PI must be tenure-track/tenured at an Empire AI member institution (Columbia, Cornell, CUNY, SUNY, RPI, NYU, Rochester, RIT, Icahn/Mount Sinai); additional PIs may join by subcontract from outside institutions." ;
+    bbqs:expiration_date "2026-12-01"^^xsd:date ;
     bbqs:external_url "https://www.simonsfoundation.org/grant/utilizing-the-full-power-of-empire-ai-request-for-applications/"^^xsd:anyURI ;
     bbqs:fon "SIMONS-EMPIRE-AI-2026" ;
     bbqs:name "Utilizing the Full Power of Empire AI — Request for Applications (Simons Foundation)" ;
@@ -430,13 +433,6 @@ bid:3fb868da-b941-439e-a81e-927a543defd3 a bbqs:FundingOpportunity ;
     bbqs:status "closed" ;
     bbqs:url "https://grants.nih.gov/grants/guide/rfa-files/RFA-NS-25-018.html"^^xsd:anyURI .
 
-bid:4009a1f6-c173-495b-9725-bb51571a3cdf a bbqs:SoftwareTool ;
-    bbqs:description "Markerless pose estimation of user-defined body parts across species" ;
-    bbqs:external_url "https://deeplabcut.github.io/DeepLabCut/"^^xsd:anyURI ;
-    bbqs:language "Python" ;
-    bbqs:name "DeepLabCut" ;
-    bbqs:repo_url "https://deeplabcut.github.io/DeepLabCut/"^^xsd:anyURI .
-
 bid:40d5a0bc-769a-4450-9355-d561ff9494eb a bbqs:Investigator ;
     bbqs:consortium_role "Research Staff (Scientist and others)" ;
     bbqs:member_of_group bid:4737d7d7-4bbe-4b72-b397-5f341a0dd5dd,
@@ -507,11 +503,6 @@ bid:47974228-8745-4b67-8857-4450426743a7 a bbqs:Device ;
     bbqs:output_signals "LFP",
         "Spikes" ;
     bbqs:product_url "https://open-ephys.org/"^^xsd:anyURI .
-
-bid:4921bfdf-7432-48ac-911d-0cb825184ef1 a bbqs:Benchmark ;
-    bbqs:description "Vocal Call Locator benchmark: 767,295 rodent sounds with ground-truth sources across 9 datasets, for sound source localization from multi-channel audio" ;
-    bbqs:external_url "https://vclbenchmark.flatironinstitute.org"^^xsd:anyURI ;
-    bbqs:name "VCL Benchmark" .
 
 bid:4b90a4f4-0010-4b31-8adb-db169e15a70a a bbqs:Investigator ;
     bbqs:consortium_role "Software Developer" ;
@@ -1045,12 +1036,13 @@ bid:8ae4d852-9f43-4d4e-a7fb-6cef12ef9af8 a bbqs:DeviceCategory ;
 bid:8b9d5dda-2b99-4e1c-ba27-968f74ef8b77 a bbqs:FundingOpportunity ;
     bbqs:activity_code "U01" ;
     bbqs:description "Develops and tests a \"playbook\" of standardized frameworks and protocols for building reliable, deployable multimodal AI clinical decision support tools that integrate clinical imaging with other health data. 5 awards anticipated, $2M total." ;
+    bbqs:expiration_date "2026-10-10"^^xsd:date ;
     bbqs:external_url "https://simpler.grants.gov/opportunity/5b0a5980-5b84-4cdf-9370-2a36c301760b"^^xsd:anyURI ;
     bbqs:fon "RFA-RM-27-011" ;
     bbqs:name "Development and Testing of a Multi-use Frameworks Playbook for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U01 Clinical Trial Not Allowed)" ;
     bbqs:part_of_org bid:2548a017-fd14-4934-9762-b30d7071821a ;
     bbqs:posted_date "2026-06-30"^^xsd:date ;
-    bbqs:status "open" ;
+    bbqs:status "closed" ;
     bbqs:url "https://simpler.grants.gov/opportunity/5b0a5980-5b84-4cdf-9370-2a36c301760b"^^xsd:anyURI .
 
 bid:8c8402e7-5b64-4903-957e-8c7f3548512d a bbqs:SoftwareTool ;
@@ -1181,12 +1173,13 @@ bid:9cac1ce6-16e0-400b-adda-ad5d2a8597a9 a bbqs:Dataset ;
 bid:9db8fc93-1890-4237-b758-d5f94c5e6306 a bbqs:FundingOpportunity ;
     bbqs:activity_code "U54" ;
     bbqs:description "Establishes a dedicated hub for comprehensive evaluation and characterization of AI-enabled, image-based multimodal CDS tools from the PRIMED-AI Consortium — verification, validation, interoperability, and uncertainty quantification. 1 award, $2.0M–$2.7M; foreign organizations ineligible." ;
+    bbqs:expiration_date "2026-10-03"^^xsd:date ;
     bbqs:external_url "https://simpler.grants.gov/opportunity/40ac94ea-e7b9-44af-9ae4-d3340c342757"^^xsd:anyURI ;
     bbqs:fon "RFA-RM-27-014" ;
     bbqs:name "Validation Center for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (U54 Clinical Trials Not Allowed)" ;
     bbqs:part_of_org bid:2548a017-fd14-4934-9762-b30d7071821a ;
     bbqs:posted_date "2026-06-30"^^xsd:date ;
-    bbqs:status "open" ;
+    bbqs:status "closed" ;
     bbqs:url "https://simpler.grants.gov/opportunity/40ac94ea-e7b9-44af-9ae4-d3340c342757"^^xsd:anyURI .
 
 bid:9e20b70e-9f64-4e32-bc64-18efbf8293bd a bbqs:DeviceCategory ;
@@ -1274,12 +1267,13 @@ bid:a82b872c-fb47-43ba-9d01-258026913f06 a bbqs:Investigator ;
 
 bid:a8990457-e9da-49eb-9a0c-5b2af1a4ca61 a bbqs:FundingOpportunity ;
     bbqs:activity_code "Fellowship" ;
+    bbqs:expiration_date "2026-10-23"^^xsd:date ;
     bbqs:external_url "https://www.nsf.gov/funding/opportunities/grfp-nsf-graduate-research-fellowship-program/nsf26-526/solicitation"^^xsd:anyURI ;
     bbqs:fon "NSF 26-526" ;
     bbqs:name "NSF Graduate Research Fellowship Program (GRFP)" ;
     bbqs:part_of_org bid:62826284-8258-4f21-af3e-64fc755ef2b2 ;
     bbqs:posted_date "2026-08-25"^^xsd:date ;
-    bbqs:status "open" ;
+    bbqs:status "closed" ;
     bbqs:url "https://www.nsf.gov/funding/opportunities/grfp-nsf-graduate-research-fellowship-program/nsf26-526/solicitation"^^xsd:anyURI .
 
 bid:a991c266-2e08-46e8-b579-8d10341fc344 a bbqs:Device ;
@@ -1349,12 +1343,13 @@ bid:ab51c79a-9096-4c6b-9724-ae605b7ffae2 a bbqs:Investigator ;
 bid:ac01b838-9803-4a39-8adf-6b9ac9883535 a bbqs:FundingOpportunity ;
     bbqs:activity_code "UG3/UH3" ;
     bbqs:description "Catalyzes translation of AI-enabled, image-centered multimodal clinical decision support tools from prototype training and testing toward real-world clinical application. 8 awards anticipated." ;
+    bbqs:expiration_date "2026-10-20"^^xsd:date ;
     bbqs:external_url "https://simpler.grants.gov/opportunity/360c4588-1512-4fa4-9b61-52a3f1d6c368"^^xsd:anyURI ;
     bbqs:fon "RFA-RM-27-013" ;
     bbqs:name "Model-to-Clinic (M2C) for Precision Medicine with AI: Integrating Imaging with Multimodal Data (PRIMED-AI) (UG3/UH3 Clinical Trial Optional)" ;
     bbqs:part_of_org bid:2548a017-fd14-4934-9762-b30d7071821a ;
     bbqs:posted_date "2026-06-30"^^xsd:date ;
-    bbqs:status "open" ;
+    bbqs:status "closed" ;
     bbqs:url "https://simpler.grants.gov/opportunity/360c4588-1512-4fa4-9b61-52a3f1d6c368"^^xsd:anyURI .
 
 bid:b0b69ef8-90b3-481a-b095-a01f1ddf4663 a bbqs:Investigator ;
@@ -1416,6 +1411,7 @@ bid:b91a5db1-9e21-4158-a14f-087f59f5bd8d a bbqs:Device ;
 
 bid:b9f28848-dd76-4bf7-9fd6-a4d1509154eb a bbqs:Benchmark ;
     bbqs:description "Performance comparison for DLC-based approaches" ;
+    bbqs:evaluates bid:4009a1f6-c173-495b-9725-bb51571a3cdf ;
     bbqs:external_url "https://huggingface.co/spaces/DeepLabCut/Leaderboard"^^xsd:anyURI ;
     bbqs:name "DLC Leaderboard" .
 
@@ -1503,7 +1499,8 @@ bid:c96b95c1-3ba5-4da4-9683-d714b853e4d8 a bbqs:Investigator ;
 bid:ca41ad35-92a2-4391-95c3-0db49351b9a5 a bbqs:Job ;
     bbqs:external_url "https://www.internationalbrainlab.com/opportunities#community-engineer"^^xsd:anyURI ;
     bbqs:name "Engineer/Data Science positions at International Brain Laboratory (IBL) " ;
-    bbqs:part_of_org bid:117670d4-58c8-49ed-acb8-311c357126ce .
+    bbqs:part_of_org bid:117670d4-58c8-49ed-acb8-311c357126ce ;
+    bbqs:posted_by bid:5f8ac3c4-a0fb-44d6-ae2d-b505816d4141 .
 
 bid:ce24eb59-9276-4e28-9d93-342515a4e970 a bbqs:Device ;
     bbqs:aliases "Eye tracking (Tobii / Pupil)",
@@ -2056,7 +2053,7 @@ bid:ffac8b9d-1a4c-4b02-ad6d-3cd1fd2d4980 a bbqs:Investigator ;
 <https://brain-bbqs.org/id/role/57b86bca-ace5-49e8-8145-7c49011d8cd6> a bbqs:ProjectRole ;
     bbqs:held_by bid:f3f570c9-991c-4a67-a40a-5f0903f91762 ;
     bbqs:on_project bid:4a00b65d-6b1b-4385-86c7-9f72c2724152 ;
-    bbqs:project_role "research_staff" ;
+    bbqs:project_role "collaborator" ;
     bbqs:role_source "curator" .
 
 <https://brain-bbqs.org/id/role/58923333-d8e5-4e54-a86d-c229e523fec8> a bbqs:ProjectRole ;
@@ -3153,6 +3150,13 @@ bid:3eaf894a-5a66-47be-b36f-ce28d5cd1e9c a bbqs:DeviceManufacturer ;
     bbqs:homepage_url "https://www.baslerweb.com/"^^xsd:anyURI ;
     bbqs:name "Basler AG" .
 
+bid:4009a1f6-c173-495b-9725-bb51571a3cdf a bbqs:SoftwareTool ;
+    bbqs:description "Markerless pose estimation of user-defined body parts across species" ;
+    bbqs:external_url "https://deeplabcut.github.io/DeepLabCut/"^^xsd:anyURI ;
+    bbqs:language "Python" ;
+    bbqs:name "DeepLabCut" ;
+    bbqs:repo_url "https://deeplabcut.github.io/DeepLabCut/"^^xsd:anyURI .
+
 bid:40a825b2-31fc-4ffe-b686-9b09a1576b33 a bbqs:Investigator ;
     bbqs:consortium_role "Research Staff (Scientist and others)" ;
     bbqs:member_of_group bid:4737d7d7-4bbe-4b72-b397-5f341a0dd5dd,
@@ -3252,6 +3256,11 @@ bid:491ac537-b3f6-45b9-93f3-1249fd809ebc a bbqs:Species ;
     bbqs:common_name "White-faced Capuchin" ;
     bbqs:name "White-faced Capuchin" ;
     bbqs:taxonomy_class "Mammalia" .
+
+bid:4921bfdf-7432-48ac-911d-0cb825184ef1 a bbqs:Benchmark ;
+    bbqs:description "Vocal Call Locator benchmark: 767,295 rodent sounds with ground-truth sources across 9 datasets, for sound source localization from multi-channel audio" ;
+    bbqs:external_url "https://vclbenchmark.flatironinstitute.org"^^xsd:anyURI ;
+    bbqs:name "VCL Benchmark" .
 
 bid:4b31df5d-6d5c-49d5-9abd-ecc1cbafe965 a bbqs:Publication ;
     bbqs:doi "10.1002/adfm.202500696"^^xsd:anyURI ;
@@ -4928,18 +4937,6 @@ bid:5bb15430-32e5-457f-b6ce-e4f3790687fa a bbqs:Investigator ;
     bbqs:name "Brett E Youngerman" ;
     bbqs:orcid <https://orcid.org/0000-0001-8264-0476> .
 
-bid:5f8ac3c4-a0fb-44d6-ae2d-b505816d4141 a bbqs:Investigator ;
-    bbqs:consortium_role "Research Staff (Scientist and others)" ;
-    bbqs:member_of_group bid:47cf050c-ab07-42fa-b251-d1fecc7ceb40,
-        bid:f340cdf9-cdfc-43f4-b18b-4d9fbebac604 ;
-    bbqs:name "Nader Nikbakht" ;
-    bbqs:orcid <https://orcid.org/0000-0002-9726-9115> ;
-    bbqs:research_areas "Behavioral neuroscience",
-        "Computational and systems neuroscience",
-        "Neural computation",
-        "Neuro-AI",
-        "neurobiology" .
-
 bid:5fd6169e-d169-41be-8cd0-e8a691f0b345 a bbqs:Investigator ;
     bbqs:consortium_role "Principal Investigator (PI)" ;
     bbqs:member_of_group bid:4be84d82-5396-4c3d-907f-8c6e10787cd3 ;
@@ -5017,13 +5014,6 @@ bid:7f92ea75-530c-40bf-83a4-3e1eba4d4179 a bbqs:Species ;
     bbqs:common_name "Mongolian Gerbil" ;
     bbqs:name "Mongolian Gerbil" ;
     bbqs:taxonomy_class "Mammalia" .
-
-bid:831a48e1-025d-499a-bf11-83d05285ed4b a bbqs:Investigator ;
-    bbqs:consortium_role "Principal Investigator (PI)" ;
-    bbqs:member_of_group bid:4737d7d7-4bbe-4b72-b397-5f341a0dd5dd,
-        bid:47cf050c-ab07-42fa-b251-d1fecc7ceb40 ;
-    bbqs:name "Cristina Savin" ;
-    bbqs:orcid <https://orcid.org/0000-0002-3414-8244> .
 
 bid:864e9b52-4173-4b92-bd81-d0bc6a7fc3cb a bbqs:Investigator ;
     bbqs:consortium_role "Principal Investigator (PI)" ;
@@ -5573,6 +5563,7 @@ auditory/behavioral covariates (encoding models).""" ;
         bid:2370e3b0-8941-46f8-99b0-a30d467e764e,
         bid:38fab5c5-6eb6-4ba1-980a-78e5c2bf2312,
         bid:44b1ac85-feb2-4792-9f46-109cf7876f4a,
+        bid:4921bfdf-7432-48ac-911d-0cb825184ef1,
         bid:a79d14cd-ae0e-4bce-b09f-8d16e6e15f7f,
         bid:b75b460e-560d-48d4-af7d-1152d34c1d79 ;
     bbqs:reporter_project_num "5R34DA059513-02" ;
@@ -5626,6 +5617,18 @@ quantitative descriptions of animal behavior.""" ;
     bbqs:uses_device_category bid:dac56889-e81e-478e-827d-7f08bb15efd3,
         bid:ffee4fa8-d435-43e4-8c3d-9c4570b54ab0 .
 
+bid:5f8ac3c4-a0fb-44d6-ae2d-b505816d4141 a bbqs:Investigator ;
+    bbqs:consortium_role "Research Staff (Scientist and others)" ;
+    bbqs:member_of_group bid:47cf050c-ab07-42fa-b251-d1fecc7ceb40,
+        bid:f340cdf9-cdfc-43f4-b18b-4d9fbebac604 ;
+    bbqs:name "Nader Nikbakht" ;
+    bbqs:orcid <https://orcid.org/0000-0002-9726-9115> ;
+    bbqs:research_areas "Behavioral neuroscience",
+        "Computational and systems neuroscience",
+        "Neural computation",
+        "Neuro-AI",
+        "neurobiology" .
+
 bid:7a2ad901-f50d-40bc-a404-b4ef0c33944b a bbqs:Investigator ;
     bbqs:consortium_role "Principal Investigator (PI)" ;
     bbqs:external_url "https://reporter.nih.gov/search/results?pi_id=10362438"^^xsd:anyURI ;
@@ -5678,6 +5681,13 @@ to develop future neuromodulatory therapeutic approaches to facilitate the retur
         bid:e2c21bfc-1707-4f6d-aa18-c6db03f53c2d,
         bid:e9d52180-5701-46ba-b5dc-7fc6fa32233b,
         bid:f328ad53-2dd2-490f-adf1-40e9cd85b5bd .
+
+bid:831a48e1-025d-499a-bf11-83d05285ed4b a bbqs:Investigator ;
+    bbqs:consortium_role "Principal Investigator (PI)" ;
+    bbqs:member_of_group bid:4737d7d7-4bbe-4b72-b397-5f341a0dd5dd,
+        bid:47cf050c-ab07-42fa-b251-d1fecc7ceb40 ;
+    bbqs:name "Cristina Savin" ;
+    bbqs:orcid <https://orcid.org/0000-0002-3414-8244> .
 
 bid:a7b15b50-1f35-4e02-91d5-c28593457e3d a bbqs:DeviceManufacturer ;
     bbqs:name "Western Psychological Services" .

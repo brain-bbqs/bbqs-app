@@ -67,20 +67,20 @@ To serve it on a public URL for a claude.ai connector, see [On a public URL](kg/
 ### Benchmark
 
 <!-- kg-mcp-benchmark:start -->
-Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
+Graph: 653 nodes, 973 links, export of 2026-11-18. Server 0.2.0.
 
 | | Result |
 |---|---|
-| Competency questions that return rows on this export | **32 of 42** |
-| Those 32, asked as SPARQL through the server: same rows as the export queried directly | **32 of 32** |
-| Those 32, asked without SPARQL through the graph tools: same rows again | **32 of 32** |
-| The other 10 (3 need the full export, 7 find none in this export): no rows either way | **10 of 10** |
-| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,689 cases) | **67%** (68% looking up to 8 links) |
-| The same for `get_neighbors`, which lists by distance alone | 50% (53% walking through hubs) |
-| Strengths equal to a slow second version of the rule, exactly | **578 of 578** starting nodes |
-| A `find_related` call (median; 95th percentile) | 13 ms; 22 ms |
-| A `find_paths` call | 10 ms; 21 ms |
-| A `find_related` reply (median; largest of the 116 timed) | 13.4 kB; 17.8 kB |
+| Competency questions that return rows on this export | **34 of 42** |
+| Those 34, asked as SPARQL through the server: same rows as the export queried directly | **34 of 34** |
+| Those 34, asked without SPARQL through the graph tools: same rows again | **34 of 34** |
+| The other 8 (3 need the full export, 5 find none in this export): no rows either way | **8 of 8** |
+| Hide a real tie: the hidden end is among the first ten `find_related` lists after the start's direct ties (1,696 cases) | **67%** (68% looking up to 8 links) |
+| The same for `get_neighbors`, which lists by distance alone | 50% (52% walking through hubs) |
+| Strengths equal to a slow second version of the rule, exactly | **581 of 581** starting nodes |
+| A `find_related` call (median; 95th percentile) | 12 ms; 18 ms |
+| A `find_paths` call | 7 ms; 15 ms |
+| A `find_related` reply (median; largest of the 117 timed) | 13.9 kB; 18.4 kB |
 
 <details><summary>All 42 questions, both ways</summary>
 
@@ -102,7 +102,7 @@ Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 | CQ14 | Which device categories does each project use? | 127 | same | same | from each project, the device categories one link away |
 | CQ15 | Which devices does each manufacturer make, by category? | 35 | same | same | from each device, its maker and its category |
 | CQ16 | Which software tools does the consortium provide, with their repositories? | 18 | same | same | list the software tools; read each one's repository |
-| CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 4 | same | same | list the funding calls; keep those still open |
+| CQ17 | Which funding opportunities are still open (expiration after 2026-09-29)? | 10 | same | same | list the funding calls; keep those still open |
 | CQ18 | Which jobs are posted, and by which institution? | 6 | same | same | list the jobs; from each, its organization's name, or the institution it names if it has none |
 | CQ19 | Where did R34DA059723's title come from (source class and grade)? *(needs the full export)* | 0 | none | none | list the provenance records; keep the project's title; read the source's grade |
 | CQ20 | Which investigators are on more than one project, and which projects? | 7 | same | same | from each project, its people; keep those on more than one |
@@ -122,9 +122,9 @@ Graph: 653 nodes, 969 links, export of 2026-11-17. Server 0.2.0.
 | CQ34 | Which organizations have investigators on more than one project? | 10 | same | same | from each organization, its members; from each member, their projects |
 | CQ35 | Which jobs does each institution advertise? | 4 | same | same | list the jobs; group them by organization, or by the institution named |
 | CQ36 | Which kinds of role are being advertised? *(none in this export)* | 0 | none | none | list the jobs; count them by kind |
-| CQ37 | Who posted each job? *(none in this export)* | 0 | none | none | list the jobs; from each, the person who posted it |
+| CQ37 | Who posted each job? | 2 | same | same | list the jobs; from each, the person who posted it |
 | CQ38 | Which projects have no outputs recorded? | 12 | same | same | list the projects; keep those that produced nothing |
-| CQ39 | Which funding opportunities expire between 2026-10-14 and 2027-04-14? *(none in this export)* | 0 | none | none | list the funding calls; keep those expiring in the window |
+| CQ39 | Which funding opportunities expire between 2026-10-14 and 2027-04-14? | 4 | same | same | list the funding calls; keep those expiring in the window |
 | CQ40 | How many values come from a source graded below 3, by source and table? *(needs the full export)* | 0 | none | none | list the provenance records; read each source's grade |
 | CQ41 | Which datasets did each grant fund, and who are its PIs? | 7 | same | same | from each project, the datasets it funded and its PIs |
 | CQ42 | Which working groups have no member with a role on any project? *(none in this export)* | 0 | none | none | from each working group, its members; see whether any has a project |

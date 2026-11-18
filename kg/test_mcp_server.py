@@ -2485,12 +2485,13 @@ class TheBenchmark(unittest.TestCase):
             status.setdefault(q["status"], []).append(q["id"])
         self.assertEqual(status, {
             "answered": [f"CQ{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22,
-                                                23, 25, 26, 28, 29, 32, 33, 34, 35, 38, 41)],
+                                                23, 25, 26, 28, 29, 32, 33, 34, 35, 37, 38, 39, 41)],
             "needs the full export": ["CQ19", "CQ30", "CQ40"],
-            # CQ36 and CQ37 are anon questions with no rows here only because the committed export
-            # (2026-11-17) predates the exporter that writes job_type (public_jobs) and posted_by
-            # (public_job_posters). A fresh export moves them to "answered": update this then.
-            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ36", "CQ37", "CQ39", "CQ42"]})
+            # The export of 2026-11-18 is the first with posted_by (CQ37, public_job_posters) and with
+            # the calls' expiration dates filled (CQ39). CQ36 still has no rows: the live public_jobs
+            # view gave anon no rows that day, so no Job node carries a job_type. When an export has
+            # them, CQ36 moves to "answered": update this then.
+            "none in this export": ["CQ24", "CQ27", "CQ31", "CQ36", "CQ42"]})
         readme = (HERE / "README.md").read_text(encoding="utf8")
         for name in status["needs the full export"] + status["none in this export"] + status.get("not modelled", []):
             self.assertIn(name, readme)
