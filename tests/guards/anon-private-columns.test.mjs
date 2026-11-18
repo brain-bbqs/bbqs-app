@@ -339,6 +339,16 @@ test("the site and the e2e checks never ask a column-restricted object for every
         for (const c of e.cols) if (PRIVATE.get(e.object)?.has(c)) problems.push(`${relative(ROOT, p)}: embeds ${e.object}(${c}), which anon may not read`);
       }
     }
+    // selectWithOptionalColumns (src/lib/optionalColumns.ts) builds the select itself, from two
+    // literal lists (tests/guards/optional-columns holds them literal): they are column lists too,
+    // for visitors and for signed-in users alike.
+    for (const [, obj, req, opt] of code.matchAll(/selectWithOptionalColumns(?:<[^>(]*>)?\(\s*["'`]([a-z_]+)["'`]\s*,\s*["'`]([^"'`]*)["'`]\s*,\s*\[([^\]]*)\]/g)) {
+      const named = [...req.split(","), ...[...opt.matchAll(/["'`]([^"'`]+)["'`]/g)].map((x) => x[1])]
+        .map((c) => c.trim().split(/[\s:(!]/)[0]);
+      const hidden = new Set([...(PRIVATE.get(obj) ?? []), ...(PRIVATE_FROM_AUTHENTICATED.get(obj) ?? [])]);
+      const bad = named.filter((c) => hidden.has(c));
+      if (bad.length) problems.push(`${relative(ROOT, p)}: ${obj} names ${bad.join(", ")} through selectWithOptionalColumns, which is hidden`);
+    }
     // A raw REST call: select=* on one of these objects, or on a table named by a variable.
     for (const [, table] of code.matchAll(/\/rest\/v1\/([a-z_]+|\$\{[^}]+\})\?(?:[^"'`\s]*&)?select=\*/g)) {
       if (PRIVATE.has(table) || table.startsWith("${")) problems.push(`${relative(ROOT, p)}: REST select=* on ${table}`);

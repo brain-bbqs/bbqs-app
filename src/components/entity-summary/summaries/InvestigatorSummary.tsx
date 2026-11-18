@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { selectWithOptionalColumns } from "@/lib/optionalColumns";
 import { SummaryField } from "../SummaryField";
 import { SummaryTabs } from "../SummaryTabs";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
@@ -390,11 +391,10 @@ export function InvestigatorSummary({ id }: { id: string }) {
     queryFn: async () => {
       // Named public columns: a visitor may not read user_id or pending_role (20261117190000), and
       // select("*") asks for both. Ownership is read from the base table (useInvestigatorOwnership).
-      const { data: inv, error } = await supabase
-        .from("investigators_public" as any)
-        .select("id, name, orcid, profile_url, role, working_groups, research_areas, skills, resource_id, scholar_id, created_at, updated_at, onboarded")
-        .eq("id", id)
-        .single() as { data: any; error: any };
+      // `onboarded` exists only once 20261008120000 is applied: asked for as an optional column.
+      const { data: inv, error } = await selectWithOptionalColumns<any>("investigators_public",
+        "id, name, orcid, profile_url, role, working_groups, research_areas, skills, resource_id, scholar_id, created_at, updated_at",
+        ["onboarded"], (query) => query.eq("id", id).single());
       if (error) throw error;
 
       // Get organizations
