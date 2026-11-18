@@ -159,11 +159,14 @@ class FakePostgrest:
     A table in `missing` answers as PostgREST does for one that does not exist (`code` 42P01, or
     PGRST205 from a newer PostgREST), one in `refused` as for one anon may not read (401, 42501).
     An object in `private` is read column by column, as anon reads it once 20261117190000 is
-    applied: select=*, or a select naming one of its private columns, is refused (401, 42501)."""
+    applied: select=*, or a select naming one of its private columns, is refused (401, 42501).
+    A column in `absent` does not exist in this database: a select naming it is refused the way
+    PostgREST refuses it (400, 42703, "column <table>.<column> does not exist"), first one first."""
 
-    def __init__(self, tables, missing=(), refused=(), missing_code="42P01", private=None):
+    def __init__(self, tables, missing=(), refused=(), missing_code="42P01", private=None, absent=None):
         self.tables, self.missing, self.refused, self.missing_code = tables, set(missing), set(refused), missing_code
         self.private = PRIVATE_FROM_ANON if private is None else private
+        self.absent = absent or {}
         self.asked = []
         self.selects = {}          # table -> the select= it was asked for
 
@@ -177,6 +180,10 @@ class FakePostgrest:
             raise self._error(request.full_url, 404, self.missing_code, f"relation \"public.{table}\" does not exist")
         if table in self.refused:
             raise self._error(request.full_url, 401, "42501", f"permission denied for view {table}")
+        if table in self.absent:
+            gone = [c.strip() for c in select.split(",") if c.strip() in self.absent[table]]
+            if gone:
+                raise self._error(request.full_url, 400, "42703", f"column {table}.{gone[0]} does not exist")
         if table in self.private:
             named = {c.strip() for c in select.split(",")}
             if "*" in named or named & self.private[table]:
@@ -203,6 +210,48 @@ def export(**rest):
 
 def objects(graph, subject: str, slot: str) -> set:
     return set(graph.objects(BID[subject], BBQS[slot]))
+
+
+class AColumnThisDatabaseLacks(unittest.TestCase):
+    """A PUBLIC_COLUMNS entry the live database does not have (42703) costs that one column, not the
+    whole object. On 2026-11-18 investigators_public answered 42703 to the column list, and the export
+    lost every person's ORCID, roles, working groups, research areas and skills."""
+
+    # one person with every fact the view carries, so losing the view would show
+    TABLES = {**TABLES, "investigators_public": [{**INVESTIGATORS_PUBLIC[0], "orcid": "0000-0002-1825-0097",
+                                                  "role": "Principal Investigator", "research_areas": ["vision"],
+                                                  "skills": ["python"]}, *INVESTIGATORS_PUBLIC[1:]]}
+    SLOTS = ("orcid", "consortium_role", "research_areas", "skills")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.full = export(tables=cls.TABLES)[1]
+
+    def count(self, graph, slot):
+        return len(list(graph.triples((None, BBQS[slot], None))))
+
+    def test_the_object_is_still_exported_without_that_column(self):
+        kg, g, said, fake = export(tables=self.TABLES, absent={"investigators_public": {"onboarded"}})
+        self.assertNotIn("investigators_public", kg.unreadable)
+        self.assertEqual(kg.missing_columns, {"investigators_public": ["onboarded"]})
+        self.assertIn("column onboarded does not exist in this database", said)
+        asked = [sel.split(",") for sel in fake.selects["investigators_public"]]
+        # asked for once, refused once, and then neither in the retry nor in any later read of the view
+        self.assertEqual(sum("onboarded" in sel for sel in asked), 1, asked)
+        for slot in self.SLOTS:
+            self.assertGreater(self.count(self.full, slot), 0, slot)
+            self.assertEqual(self.count(g, slot), self.count(self.full, slot), slot)
+
+    def test_several_missing_columns_are_dropped_one_by_one(self):
+        kg, g, said, fake = export(tables=self.TABLES, absent={"investigators_public": {"onboarded", "scholar_id"}})
+        self.assertEqual(sorted(kg.missing_columns["investigators_public"]), ["onboarded", "scholar_id"])
+        self.assertNotIn("investigators_public", kg.unreadable)
+        self.assertEqual(self.count(g, "orcid"), self.count(self.full, "orcid"))
+
+    def test_any_other_refusal_still_gives_no_rows(self):
+        kg, g, said, fake = export(tables=self.TABLES, refused={"investigators_public"})
+        self.assertEqual(kg.unreadable.get("investigators_public"), "HTTP 401 42501")
+        self.assertEqual(kg.missing_columns, {})
 
 
 class JobDetails(unittest.TestCase):

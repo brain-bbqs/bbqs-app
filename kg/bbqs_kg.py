@@ -94,6 +94,7 @@ class BBQSKnowledgeGraph:
         self.graph.bind("bbqs", BBQS)
         self.graph.bind("bid", BID)
         self.unreadable = {}       # table -> why fetch() got no rows (HTTP status, PostgREST code)
+        self.missing_columns = {}  # table -> PUBLIC_COLUMNS entries this database does not have (42703)
 
     @staticmethod
     def _client_default(js_const):
@@ -115,21 +116,37 @@ class BBQSKnowledgeGraph:
         self.unreadable, e.g. "HTTP 404 42P01" (missing) or "HTTP 401 42501" (refused)."""
         if select == "*":
             select = PUBLIC_COLUMNS.get(table, "*")
-        req = urllib.request.Request(
-            f"{self.url}/rest/v1/{table}?select={select}",
-            headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as r:
-                return json.loads(r.read() or "[]")
-        except urllib.error.HTTPError as e:
-            try:                                   # PostgREST names the cause in the body: 42P01, PGRST205, 42501
-                code = json.loads(e.read() or b"{}").get("code") or ""
-            except (AttributeError, OSError, TypeError, ValueError):
-                code = ""
-            self.unreadable[table] = f"HTTP {e.code}" + (f" {code}" if code else "")
-            print(f"  ! {table}: {self.unreadable[table]} (RLS hidden or missing)", file=sys.stderr)
-            return []
+        columns = None if select == "*" else [c.strip() for c in select.split(",") if c.strip()]
+        if columns:                                # a column found missing earlier in this run: not asked again
+            columns = [c for c in columns if c not in self.missing_columns.get(table, ())] or columns
+        while True:
+            req = urllib.request.Request(
+                f"{self.url}/rest/v1/{table}?select={','.join(columns) if columns else '*'}",
+                headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    return json.loads(r.read() or "[]")
+            except urllib.error.HTTPError as e:
+                try:                               # PostgREST names the cause in the body: 42P01, PGRST205, 42501
+                    body = json.loads(e.read() or b"{}")
+                    code, message = body.get("code") or "", body.get("message") or ""
+                except (AttributeError, OSError, TypeError, ValueError):
+                    code, message = "", ""
+                # A column this database does not have (42703: an older or newer schema than the one
+                # PUBLIC_COLUMNS names) costs that one column, not the whole table: drop it, say so, and
+                # ask again. Anything else still gives no rows.
+                gone = re.search(r'column (?:"?\w+"?\.)?"?(\w+)"? does not exist', message)
+                if code == "42703" and columns and gone and gone.group(1) in columns:
+                    columns.remove(gone.group(1))
+                    self.missing_columns.setdefault(table, []).append(gone.group(1))
+                    print(f"  ! {table}: column {gone.group(1)} does not exist in this database; "
+                          "exported without it", file=sys.stderr)
+                    if columns:
+                        continue
+                self.unreadable[table] = f"HTTP {e.code}" + (f" {code}" if code else "")
+                print(f"  ! {table}: {self.unreadable[table]} (RLS hidden or missing)", file=sys.stderr)
+                return []
 
     @staticmethod
     def mechanism(grant_number):
