@@ -11,7 +11,7 @@ import { recordCurationAudit, showUndoableToast } from "@/lib/curation-audit";
 interface Comment {
   id: string;
   content: string;
-  user_id: string;
+  user_id?: string;      // only when signed in
   created_at: string;
   profile?: { full_name: string | null; email: string };
 }
@@ -21,27 +21,31 @@ export function EntityComments({ resourceId }: { resourceId: string }) {
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState("");
 
+  // A visitor may not read who wrote a comment (user_id, an auth user id: 20261117190000), so it is
+  // asked for only when signed in. A visitor could never read the authors' profiles anyway, so the
+  // comments read the same to them as before: text, date, no author.
+  const signedIn = !!user;
   const { data: comments = [], isLoading } = useQuery({
-    queryKey: ["entity-comments", resourceId],
+    queryKey: ["entity-comments", resourceId, signedIn],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entity_comments")
-        .select("id, content, user_id, created_at")
+        .select(signedIn ? "id, content, user_id, created_at" : "id, content, created_at")
         .eq("resource_id", resourceId)
         .order("created_at", { ascending: true });
       if (error) throw error;
+      const rows = (data || []) as unknown as { id: string; content: string; user_id?: string; created_at: string }[];
 
       // Fetch profiles for comment authors
-      const userIds = [...new Set((data || []).map((c) => c.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", userIds);
+      const userIds = [...new Set(rows.map((c) => c.user_id).filter((u): u is string => !!u))];
+      const { data: profiles } = userIds.length
+        ? await supabase.from("profiles").select("id, full_name, email").in("id", userIds)
+        : { data: [] as { id: string; full_name: string | null; email: string }[] };
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-      return (data || []).map((c) => ({
+      return rows.map((c) => ({
         ...c,
-        profile: profileMap.get(c.user_id),
+        profile: c.user_id ? profileMap.get(c.user_id) : undefined,
       })) as Comment[];
     },
     enabled: !!resourceId,
@@ -82,6 +86,7 @@ export function EntityComments({ resourceId }: { resourceId: string }) {
       // Snapshot before deletion so revert can restore
       const { data: prev } = await supabase
         .from("entity_comments")
+        // signed-in only: deleting is for the comment's author, so user_id is readable here
         .select("id, resource_id, user_id, parent_id, content, created_at")
         .eq("id", commentId)
         .maybeSingle();
@@ -131,7 +136,8 @@ export function EntityComments({ resourceId }: { resourceId: string }) {
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(c.created_at), "MMM d, yyyy 'at' h:mm a")}
                   </span>
-                  {user?.id === c.user_id && (
+                  {/* Both sides must be set: a visitor has neither, and undefined === undefined. */}
+                  {!!user && !!c.user_id && user.id === c.user_id && (
                     <button
                       onClick={() => deleteComment.mutate(c.id)}
                       className="text-muted-foreground hover:text-destructive transition-colors"

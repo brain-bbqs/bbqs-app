@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { selectWithOptionalColumns } from "@/lib/optionalColumns";
 import { SummaryField } from "../SummaryField";
 import { SummaryTabs } from "../SummaryTabs";
 import { useEntitySummary } from "@/contexts/EntitySummaryContext";
@@ -14,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ExternalLink, FileText, User, Pencil, Check, X, UserCheck, UserPlus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 import { ProvenanceScope } from "@/components/provenance/ProvenanceScope";
 
 // Editable inline field
@@ -387,11 +389,12 @@ export function InvestigatorSummary({ id }: { id: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["entity-investigator", id],
     queryFn: async () => {
-      const { data: inv, error } = await supabase
-        .from("investigators_public" as any)
-        .select("*")
-        .eq("id", id)
-        .single() as { data: any; error: any };
+      // Named public columns: a visitor may not read user_id or pending_role (20261117190000), and
+      // select("*") asks for both. Ownership is read from the base table (useInvestigatorOwnership).
+      // `onboarded` exists only once 20261008120000 is applied: asked for as an optional column.
+      const { data: inv, error } = await selectWithOptionalColumns<any>("investigators_public",
+        "id, name, orcid, profile_url, role, working_groups, research_areas, skills, resource_id, scholar_id, created_at, updated_at",
+        ["onboarded"], (query) => query.eq("id", id).single());
       if (error) throw error;
 
       // Get organizations
@@ -509,8 +512,11 @@ export function InvestigatorSummary({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["investigator-private", id] });
       toast({ title: "Updated", description: "Profile field saved." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to save. Try again.", variant: "destructive" });
+    // An ORCID iD (uq_investigators_orcid_key, 20261117181500), email or name already on another
+    // record is said as such; any other error as it came, never a bare "try again".
+    onError: (err: any, vars) => {
+      const dup = alreadyInKgMessage(err, { [vars.field]: vars.value });
+      toast({ title: dup ? "Not saved" : "Error", description: dup ?? err?.message ?? "Failed to save. Try again.", variant: "destructive" });
     },
   });
 

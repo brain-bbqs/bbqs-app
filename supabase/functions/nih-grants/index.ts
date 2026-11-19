@@ -1,6 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { syncReporterPis, type ReporterPi } from "../_shared/grant-sync.ts";
 import { requireCuratorOrService } from "../_shared/auth.ts";
+import { awardKey, nihAwardCore } from "../_shared/identity-keys.ts";
+import {
+  findOrCreateInvestigator, findOrCreateOrganization, isUniqueViolation, kgSession, uniqueViolationText, type KgSession,
+} from "../_shared/kg-write.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -263,31 +267,45 @@ async function reporterTitleSearch(title: string): Promise<any[]> {
 // ─── Full entity seeding pipeline ───────────────────────────
 // Given a grant number and its fetched data, ensures all related
 // entities exist: organization, resource nodes, investigators,
-// grant_investigators links, and project metadata row.
+// grant_investigators links, and project metadata row. Each is found
+// first, by the identity key the database's uq_* indexes refuse a second
+// row by (_shared/kg-write.ts), and written only when it is not there.
+// Throws when the grant itself cannot be written; returns what it had to
+// leave out (a person or organization it could not match or write).
 
-async function seedGrantEntities(supabase: any, grantNumber: string, projectData: any) {
-  // 1. Upsert grant row
-  const { data: grantRow } = await supabase
-    .from("grants")
-    .upsert({
-      grant_number: grantNumber,
-      title: projectData.title || "Unknown",
-      abstract: projectData.abstract || null,
-      award_amount: projectData.awardAmount || null,
-      fiscal_year: projectData.fiscalYear || null,
-      nih_link: projectData.nihLink || null,
-      reporter_project_num: projectData.reporterProjectNum ?? null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "grant_number" })
-    .select("id, resource_id")
-    .single();
-
-  if (!grantRow) {
-    console.error(`Failed to upsert grant ${grantNumber}`);
-    return;
+async function seedGrantEntities(supabase: any, kg: KgSession, grantNumber: string, projectData: any): Promise<string[]> {
+  const warnings: string[] = [];
+  // 1. The grant row: the one already holding this award, however its number is spelled (by award
+  // key, as uq_grants_award_key compares), updated by id. An upsert on the exact grant_number would
+  // add '1U01DA063534' next to 'U01DA063534'. A new award is stored as its NIH core.
+  const fields = {
+    title: projectData.title || "Unknown",
+    abstract: projectData.abstract || null,
+    award_amount: projectData.awardAmount || null,
+    fiscal_year: projectData.fiscalYear || null,
+    nih_link: projectData.nihLink || null,
+    reporter_project_num: projectData.reporterProjectNum ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  const { data: grants, error: readErr } = await supabase.from("grants").select("id, grant_number");
+  if (readErr) throw new Error(`could not read grants: ${readErr.message}`);
+  const same = (grants || []).filter((g: any) => awardKey(g.grant_number) === awardKey(grantNumber));
+  if (same.length > 1) {
+    throw new Error(`${same.map((g: any) => g.grant_number).join(" and ")} are one award recorded twice: merge them; not refreshed`);
+  }
+  const write = same.length
+    ? supabase.from("grants").update(fields).eq("id", same[0].id)
+    : supabase.from("grants").insert({ grant_number: nihAwardCore(grantNumber) ?? grantNumber, ...fields });
+  const { data: grantRow, error: grantErr } = await write.select("id, grant_number, resource_id").single();
+  if (grantErr || !grantRow) {
+    // A 23505 here is another writer's row for this award (uq_grants_award_key), written after the read.
+    throw new Error(isUniqueViolation(grantErr)
+      ? `grant ${grantNumber} was not written: it is already in the KG (${uniqueViolationText(grantErr)}), written in the meantime; refresh again to update that row`
+      : `grant ${grantNumber} was not written: ${grantErr?.message ?? "no row returned"}`);
   }
 
   const grantId = grantRow.id;
+  const storedNumber: string = grantRow.grant_number;
 
   // 2. Ensure grant has a resource node
   if (!grantRow.resource_id) {
@@ -309,95 +327,35 @@ async function seedGrantEntities(supabase: any, grantNumber: string, projectData
     }
   }
 
-  // 3. Ensure organization exists
+  // 3. Ensure organization exists ("UNIVERSITY OF CALIFORNIA, SAN DIEGO" is the curated "University
+  // of California San Diego": found by name key, never added as a second organization).
   const institutionName = projectData.institution;
   let orgId: string | null = null;
   if (institutionName && institutionName !== "Unknown") {
-    const { data: existingOrg } = await supabase
-      .from("organizations")
-      .select("id")
-      .ilike("name", institutionName)
-      .maybeSingle();
-
-    if (existingOrg) {
-      orgId = existingOrg.id;
-    } else {
-      const { data: newOrg } = await supabase
-        .from("organizations")
-        .insert({ name: institutionName })
-        .select("id")
-        .single();
-      orgId = newOrg?.id || null;
-    }
+    const org = await findOrCreateOrganization(kg, institutionName);
+    if (org.ok) orgId = org.row.id;
+    else warnings.push(`${storedNumber}: organization not linked: ${org.error}`);
   }
 
-  // 4. Ensure investigators exist and are linked
+  // 4. Ensure investigators exist and are linked. Found by RePORTER profile id, then by name key
+  // ("Sima  Mofakham", "BIJAN PESARAN"; where a curated record and its email-less RePORTER copy both
+  // have that key, the curated one, with its email), then by a unique first + last name, so RePORTER
+  // variants like "Patrick T McGrath" resolve to a curated "Patrick McGrath" row (preserving its
+  // email). Records with two different emails under one name are two people for a curator to tell
+  // apart: nothing is linked and a warning says why (matchPeople). A new person is written before
+  // their spine row, so a failed insert leaves no orphan node.
   const piDetails: any[] = projectData.piDetails || [];
   for (const pi of piDetails) {
     const piName = (pi.fullName || "").trim();
     if (!piName) continue;
 
-    // Find existing investigator: try exact match first, then fuzzy
-    // first+last token match so RePORTER variants like "Patrick T McGrath"
-    // resolve to a curated "Patrick McGrath" row (preserving its email).
-    const normalized = piName.replace(/\s+/g, " ").trim();
-    const tokens = normalized.split(" ").filter(Boolean);
-    const firstTok = tokens[0]?.toLowerCase() || "";
-    const lastTok = tokens[tokens.length - 1]?.toLowerCase() || "";
-
-    let existingInv: { id: string; resource_id: string | null } | null = null;
-    const { data: exact } = await supabase
-      .from("investigators")
-      .select("id, resource_id")
-      .ilike("name", normalized)
-      .maybeSingle();
-    existingInv = exact || null;
-
-    if (!existingInv && firstTok && lastTok) {
-      const { data: candidates } = await supabase
-        .from("investigators")
-        .select("id, resource_id, name, email")
-        .ilike("name", `${firstTok}%${lastTok}`);
-      const match = (candidates || []).find((c: any) => {
-        const t = (c.name || "").replace(/\s+/g, " ").trim().toLowerCase().split(" ");
-        return t[0] === firstTok && t[t.length - 1] === lastTok;
-      });
-      // Prefer the variant that already has an email
-      const withEmail = (candidates || []).find((c: any) => {
-        const t = (c.name || "").replace(/\s+/g, " ").trim().toLowerCase().split(" ");
-        return t[0] === firstTok && t[t.length - 1] === lastTok && c.email;
-      });
-      existingInv = (withEmail || match) ? { id: (withEmail || match).id, resource_id: (withEmail || match).resource_id } : null;
+    const person = await findOrCreateInvestigator(kg, { name: piName, reporterProfileId: pi.profileId });
+    if (!person.ok) {
+      warnings.push(`${storedNumber}: ${piName} not linked: ${person.error}`);
+      continue;
     }
-
-    let invId: string;
-    if (existingInv) {
-      invId = existingInv.id;
-    } else {
-      // Create resource node for investigator
-      const { data: invResource } = await supabase
-        .from("resources")
-        .insert({
-          name: piName,
-          resource_type: "investigator",
-        })
-        .select("id")
-        .single();
-
-      const { data: newInv } = await supabase
-        .from("investigators")
-        .insert({
-          name: piName,
-          resource_id: invResource?.id || null,
-        })
-        .select("id")
-        .single();
-
-      if (!newInv) continue;
-      invId = newInv.id;
-
-      console.log(`Created investigator: ${piName} (${invId})`);
-    }
+    const invId = person.row.id;
+    if (person.created) console.log(`Created investigator: ${piName} (${invId})`);
 
     // Link investigator to organization
     if (orgId) {
@@ -428,24 +386,34 @@ async function seedGrantEntities(supabase: any, grantNumber: string, projectData
       name: pi.fullName || "",
       isContactPi: !!pi.isContactPi,
     }));
-  await syncReporterPis(supabase, grantId, grantNumber, reporterPis);
+  await syncReporterPis(supabase, grantId, storedNumber, reporterPis);
 
-  // 5. Ensure project metadata row exists
-  const { data: existingProject } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("grant_number", grantNumber)
-    .maybeSingle();
+  // 5. Ensure project metadata row exists: the one on this grant, or holding this award under another
+  // spelling of its number (uq_projects_award_key).
+  const { data: projects, error: projErr } = await supabase.from("projects").select("id, grant_id, grant_number");
+  if (projErr) {
+    warnings.push(`${storedNumber}: projects not read, so no project row was added: ${projErr.message}`);
+    return warnings;
+  }
+  const existingProject = (projects || []).find((p: any) =>
+    p.grant_id === grantId || awardKey(p.grant_number) === awardKey(storedNumber));
 
   if (!existingProject) {
-    await supabase
+    const { error } = await supabase
       .from("projects")
       .insert({
-        grant_number: grantNumber,
+        grant_number: storedNumber,
         grant_id: grantId,
       });
-    console.log(`Created project metadata for ${grantNumber}`);
+    if (error) {
+      warnings.push(isUniqueViolation(error)
+        ? `${storedNumber}: project row not added: one is already in the KG for this award (${uniqueViolationText(error)}), written in the meantime`
+        : `${storedNumber}: project row not written: ${error.message}`);
+    } else {
+      console.log(`Created project metadata for ${storedNumber}`);
+    }
   }
+  return warnings;
 }
 
 // ─── Main handler ───────────────────────────────────────────
@@ -626,32 +594,39 @@ Deno.serve(async (req) => {
     // ACTION: refresh — full pipeline: fetch from NIH APIs, seed all entities. ?grant=<number>
     // scopes it to one award (targeted, fast) instead of the whole roster.
     if (action === "refresh") {
-      const one = url.searchParams.get("grant");
+      // ?grant= in any NIH spelling ('1R61MH142354-01') is reduced to its core: the RePORTER search
+      // key, and the award key seedGrantEntities finds the stored grant row by.
+      const raw = url.searchParams.get("grant");
+      const one = raw ? (nihAwardCore(raw) ?? raw.trim()) : null;
       const grantNumbers = one ? [one] : await loadGrantNumbers(supabase);
       console.log(`Refreshing ${grantNumbers.length} grants (full pipeline)...`);
 
+      // One run's reads of organizations and investigators, shared by every grant it seeds.
+      const kg = kgSession(supabase);
       let updatedCount = 0;
       const errors: string[] = [];
+      const warnings: string[] = [];
 
       for (const grant of grantNumbers) {
         try {
           const projectData = await fetchGrantData(grant);
           if (projectData) {
-            await seedGrantEntities(supabase, grant, projectData);
+            warnings.push(...await seedGrantEntities(supabase, kg, grant, projectData));
             updatedCount++;
           }
           await new Promise(resolve => setTimeout(resolve, 150));
         } catch (err) {
+          // A grant that could not be written is an error, never counted as updated.
           const msg = err instanceof Error ? err.message : "unknown";
           errors.push(`${grant}: ${msg}`);
           console.error(`Error seeding ${grant}:`, msg);
         }
       }
 
-      console.log(`Refresh complete: ${updatedCount} grants fully seeded, ${errors.length} errors`);
+      console.log(`Refresh complete: ${updatedCount} grants fully seeded, ${errors.length} errors, ${warnings.length} warnings`);
 
       return new Response(
-        JSON.stringify({ success: true, updated: updatedCount, errors: errors.length, errorDetails: errors }),
+        JSON.stringify({ success: true, updated: updatedCount, errors: errors.length, errorDetails: errors, warnings }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -671,11 +646,16 @@ Deno.serve(async (req) => {
       console.log("No grants found, performing initial full seed...");
 
       const results = [];
+      const kg = kgSession(supabase);
       for (const grant of GRANT_NUMBERS) {
         const projectData = await fetchGrantData(grant);
         if (projectData) {
-          await seedGrantEntities(supabase, grant, projectData);
-          results.push(projectData);
+          try {
+            await seedGrantEntities(supabase, kg, grant, projectData);
+            results.push(projectData);
+          } catch (err) {
+            console.error(`Error seeding ${grant}:`, err instanceof Error ? err.message : err);
+          }
         }
         await new Promise(resolve => setTimeout(resolve, 150));
       }

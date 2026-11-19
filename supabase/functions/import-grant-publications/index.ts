@@ -8,12 +8,21 @@
 // the list uses and upserts them into `publications` + `project_publications`, so
 // both views agree and the pubs become curatable KG nodes.
 //
-// Idempotent: dedupes publications by PMID (then DOI) and links by
-// (project_id, publication_id), so it is safe to re-run. Run for one grant
-// (POST { "grant_number": "U24MH136628" }) or all consortium grants (no body).
+// Idempotent: a paper is recognised by its PMID key, then its DOI key (_shared/kg-write.ts, the keys
+// the uq_publications_* indexes refuse a second row by), and links by (project_id, publication_id),
+// so it is safe to re-run. Each paper it touches is given its KG node (a spine row) if it has none,
+// and a preprint is linked to its published version (resource_links revision_of) by
+// public.kg_link_publication_versions(), once 20261117181500 is applied; before that the result says
+// version_links "unavailable". Run for one grant (POST { "grant_number": "U24MH136628" }) or all
+// consortium grants (no body).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { bearerOf, getCorsHeaders, isServiceRole, requireAdmin } from "../_shared/auth.ts";
+import { awardKey, nihAwardCore } from "../_shared/identity-keys.ts";
+import {
+  ensureSpineRow, findOrCreatePublication, isUniqueViolation, kgSession, linkPublicationVersions,
+  VERSION_LINKS_UNAVAILABLE, type KgSession, type VersionLinks,
+} from "../_shared/kg-write.ts";
 
 // ─── NIH / iCite / PubMed fetch helpers ────────────────────────
 // Mirrors the logic in `nih-grants` so the publications we import are exactly
@@ -34,10 +43,10 @@ interface ReporterPub {
   pubmedLink: string;
 }
 
-// Match the core_project_num derivation used by nih-grants' list handler so we
-// query RePORTER with the same key that produced the count on the list page.
+// The NIH core ('1R34DA059506-01' -> 'R34DA059506'), the key RePORTER's core_project_nums takes and
+// the one that produced the count on the list page. A number that is not NIH-shaped is sent as stored.
 function coreProjectNumFor(grantNumber: string): string {
-  return grantNumber.replace(/^\d+/, "").replace(/-\d+$/, "");
+  return nihAwardCore(grantNumber) ?? grantNumber.trim();
 }
 
 async function fetchReporterPmids(coreProjectNum: string): Promise<any[]> {
@@ -147,6 +156,9 @@ async function fetchPublicationsForGrant(grantNumber: string): Promise<ReporterP
 }
 
 // ─── KG upsert ──────────────────────────────────────────────────
+// Through _shared/kg-write.ts: a paper already in the KG is reused, never copied; a new one is
+// inserted; either way it gets its node, so a preprint and its published version can be linked
+// (two records joined by revision_of, never merged into one).
 
 interface GrantResult {
   grant_number: string;
@@ -154,37 +166,40 @@ interface GrantResult {
   reporter_count: number;
   pubs_created: number;
   pubs_reused: number;
+  /** How each reused paper was recognised. */
+  pubs_matched: { pmid: number; doi: number };
+  spine_rows_created: number;
   links_created: number;
   links_existing: number;
+  /** The revision_of links for this grant's papers, or why there are none. */
+  version_links: VersionLinks | string | null;
+  /** Papers the KG already held under another write, or under two records (a PMID and a DOI). */
+  already_in_kg: string[];
   skipped?: string;
 }
 
-// Upsert one publication (dedupe by PMID, then DOI) and return its id.
-async function upsertPublication(admin: any, pub: ReporterPub): Promise<{ id: string; created: boolean } | null> {
-  // 1. Dedupe by PMID.
-  let existing: { id: string } | null = null;
-  if (pub.pmid) {
-    const { data } = await admin.from("publications").select("id").eq("pmid", pub.pmid).maybeSingle();
-    if (data) existing = data;
-  }
-  // 2. Fall back to DOI (case-insensitive).
-  if (!existing && pub.doi) {
-    const { data } = await admin.from("publications").select("id").ilike("doi", pub.doi).maybeSingle();
-    if (data) existing = data;
-  }
+const emptyResult = (grantNumber: string, projectId: string | null): GrantResult => ({
+  grant_number: grantNumber,
+  project_id: projectId,
+  reporter_count: 0,
+  pubs_created: 0,
+  pubs_reused: 0,
+  pubs_matched: { pmid: 0, doi: 0 },
+  spine_rows_created: 0,
+  links_created: 0,
+  links_existing: 0,
+  version_links: null,
+  already_in_kg: [],
+});
 
-  if (existing) {
-    // Refresh only volatile citation metrics; leave curator-editable fields alone.
-    await admin
-      .from("publications")
-      .update({ citations: pub.citations, rcr: pub.rcr })
-      .eq("id", existing.id);
-    return { id: existing.id, created: false };
-  }
+async function importForProject(kg: KgSession, grantNumber: string, projectId: string): Promise<GrantResult> {
+  const result = emptyResult(grantNumber, projectId);
+  const pubs = await fetchPublicationsForGrant(grantNumber);
+  result.reporter_count = pubs.length;
+  const papers: string[] = [];
 
-  const { data: inserted, error } = await admin
-    .from("publications")
-    .insert({
+  for (const pub of pubs) {
+    const found = await findOrCreatePublication(kg, {
       pmid: pub.pmid || null,
       doi: pub.doi || null,
       title: pub.title || "Unknown",
@@ -195,56 +210,57 @@ async function upsertPublication(admin: any, pub: ReporterPub): Promise<{ id: st
       rcr: pub.rcr || null,
       keywords: pub.keywords.length ? pub.keywords : null,
       pubmed_link: pub.pubmedLink || null,
-    })
-    .select("id")
-    .single();
+    });
+    if (!found.ok) {
+      console.error(`Publication PMID=${pub.pmid} not written: ${found.error}`);
+      if (found.already_in_kg) result.already_in_kg.push(found.error);
+      continue;
+    }
+    const paper = found.row;
+    if (found.note) result.already_in_kg.push(`PMID ${pub.pmid}: ${found.note}`);
+    if (found.created) {
+      result.pubs_created++;
+    } else {
+      result.pubs_reused++;
+      if (found.matchedBy === "pmid" || found.matchedBy === "doi") result.pubs_matched[found.matchedBy]++;
+      // Refresh only volatile citation metrics; leave curator-editable fields alone.
+      await kg.db.from("publications").update({ citations: pub.citations, rcr: pub.rcr }).eq("id", paper.id);
+    }
 
-  if (error || !inserted) {
-    console.error(`Failed to insert publication PMID=${pub.pmid}:`, error?.message);
-    return null;
-  }
-  return { id: inserted.id, created: true };
-}
+    // Its node: a paper without one is not in the graph, and cannot be linked to its other version.
+    const spine = await ensureSpineRow(kg, "publications", paper, {
+      name: paper.title || pub.title || "Unknown",
+      resource_type: "publication",
+      external_url: pub.pubmedLink || null,
+    });
+    if (spine.created) result.spine_rows_created++;
+    else if (!spine.ok) console.error(`No node for PMID=${pub.pmid}: ${spine.error}`);
+    papers.push(paper.id);
 
-async function importForProject(admin: any, grantNumber: string, projectId: string): Promise<GrantResult> {
-  const result: GrantResult = {
-    grant_number: grantNumber,
-    project_id: projectId,
-    reporter_count: 0,
-    pubs_created: 0,
-    pubs_reused: 0,
-    links_created: 0,
-    links_existing: 0,
-  };
-
-  const pubs = await fetchPublicationsForGrant(grantNumber);
-  result.reporter_count = pubs.length;
-
-  for (const pub of pubs) {
-    const up = await upsertPublication(admin, pub);
-    if (!up) continue;
-    if (up.created) result.pubs_created++;
-    else result.pubs_reused++;
-
-    // Link to project (idempotent: check-then-insert, constraint-agnostic).
-    const { data: link } = await admin
+    // Link to project (idempotent: check-then-insert; a 23505 means another run linked it first).
+    const { data: link } = await kg.db
       .from("project_publications")
       .select("publication_id")
       .eq("project_id", projectId)
-      .eq("publication_id", up.id)
+      .eq("publication_id", paper.id)
       .maybeSingle();
 
     if (link) {
       result.links_existing++;
     } else {
-      const { error: linkErr } = await admin
+      const { error: linkErr } = await kg.db
         .from("project_publications")
-        .insert({ project_id: projectId, publication_id: up.id });
-      if (linkErr) console.error(`Link insert failed (${grantNumber} -> ${up.id}):`, linkErr.message);
-      else result.links_created++;
+        .insert({ project_id: projectId, publication_id: paper.id });
+      if (!linkErr) result.links_created++;
+      else if (isUniqueViolation(linkErr)) result.links_existing++;
+      else console.error(`Link insert failed (${grantNumber} -> ${paper.id}):`, linkErr.message);
     }
   }
 
+  // Now that each of this grant's papers is a node: link each preprint to its published version.
+  const versions = await linkPublicationVersions(kg.db, papers);
+  result.version_links = versions.available ? versions : (versions.note ?? VERSION_LINKS_UNAVAILABLE);
+  if (versions.error) console.error(`Version links for ${grantNumber}: ${versions.error}`);
   return result;
 }
 
@@ -264,10 +280,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Named on this server-side client (Principle X): without it these service-role writes read
+    // 'unknown' in data_audit_log. No source-class header: declaring one is a separate decision that
+    // raises what the importer may overwrite (20260831160000).
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { global: { headers: { "x-bbqs-client": "import-grant-publications" } } },
     );
+    const kg = kgSession(admin);
 
     // Optional { grant_number } in the body scopes the import to one grant.
     let grantNumberFilter: string | null = null;
@@ -283,11 +304,13 @@ Deno.serve(async (req) => {
     }
 
     // The `projects` table is the canonical consortium list and gives us the
-    // project_id that `project_publications` links to.
-    let query = admin.from("projects").select("id, grant_number");
-    if (grantNumberFilter) query = query.eq("grant_number", grantNumberFilter);
-    const { data: projects, error: projErr } = await query;
+    // project_id that `project_publications` links to. A grant is found by its award key, so
+    // '1U24MH136628-01' finds the project stored as U24MH136628.
+    const { data: allProjects, error: projErr } = await admin.from("projects").select("id, grant_number");
     if (projErr) throw new Error(`Failed to read projects: ${projErr.message}`);
+    const projects = grantNumberFilter
+      ? (allProjects ?? []).filter((p: { grant_number: string }) => awardKey(p.grant_number) === awardKey(grantNumberFilter))
+      : allProjects;
 
     if (!projects || projects.length === 0) {
       return new Response(
@@ -304,17 +327,11 @@ Deno.serve(async (req) => {
     const results: GrantResult[] = [];
     for (const project of projects) {
       try {
-        results.push(await importForProject(admin, project.grant_number, project.id));
+        results.push(await importForProject(kg, project.grant_number, project.id));
       } catch (err) {
         console.error(`Import failed for ${project.grant_number}:`, err);
         results.push({
-          grant_number: project.grant_number,
-          project_id: project.id,
-          reporter_count: 0,
-          pubs_created: 0,
-          pubs_reused: 0,
-          links_created: 0,
-          links_existing: 0,
+          ...emptyResult(project.grant_number, project.id),
           skipped: err instanceof Error ? err.message : "unknown error",
         });
       }
@@ -322,16 +339,21 @@ Deno.serve(async (req) => {
       await new Promise((r) => setTimeout(r, 150));
     }
 
-    const totals = results.reduce(
-      (acc, r) => ({
-        reporter_count: acc.reporter_count + r.reporter_count,
-        pubs_created: acc.pubs_created + r.pubs_created,
-        pubs_reused: acc.pubs_reused + r.pubs_reused,
-        links_created: acc.links_created + r.links_created,
-        links_existing: acc.links_existing + r.links_existing,
-      }),
-      { reporter_count: 0, pubs_created: 0, pubs_reused: 0, links_created: 0, links_existing: 0 },
-    );
+    const sum = (f: (r: GrantResult) => number) => results.reduce((n, r) => n + f(r), 0);
+    const linked = (k: "done" | "noop" | "skipped") =>
+      sum((r) => (r.version_links && typeof r.version_links === "object" ? r.version_links[k] : 0));
+    const unavailable = results.find((r) => typeof r.version_links === "string")?.version_links;
+    const totals = {
+      reporter_count: sum((r) => r.reporter_count),
+      pubs_created: sum((r) => r.pubs_created),
+      pubs_reused: sum((r) => r.pubs_reused),
+      pubs_matched: { pmid: sum((r) => r.pubs_matched.pmid), doi: sum((r) => r.pubs_matched.doi) },
+      spine_rows_created: sum((r) => r.spine_rows_created),
+      links_created: sum((r) => r.links_created),
+      links_existing: sum((r) => r.links_existing),
+      version_links: unavailable ?? { done: linked("done"), noop: linked("noop"), skipped: linked("skipped") },
+      already_in_kg: sum((r) => r.already_in_kg.length),
+    };
 
     return new Response(
       JSON.stringify({ success: true, grants: results.length, totals, results }),

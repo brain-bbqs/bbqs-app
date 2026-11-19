@@ -26,9 +26,16 @@ from pathlib import Path
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 
+from identity_keys import nih_award_core, orcid_key
+
 HERE = Path(__file__).resolve().parent
 BBQS = Namespace("https://brain-bbqs.org/schema#")
 BID = Namespace("https://brain-bbqs.org/id/")
+
+# The resource_links predicates the exporter writes, each a kg/bbqs.linkml.yaml slot: the predicates
+# resource_links_predicate_check lets the table hold (tests/guards/kg-resource-links-parity holds
+# the two equal). A row with any other predicate is never written.
+RESOURCE_LINK_SLOTS = frozenset({"trained_on", "evaluates", "was_attributed_to", "produced", "revision_of"})
 
 # resources.resource_type -> bbqs class local name. A type absent here (e.g. deprecated `project`)
 # is NOT minted as a node.
@@ -41,6 +48,27 @@ TYPE_CLASS = {
     "working_group": "WorkingGroup", "event": "Event", "standard": "Standard",
 }
 
+# The columns anon may read of the objects whose anon access is column by column (migration
+# 20261117190000_hide_private_columns_from_anon). PostgREST runs select=* as SELECT *, which needs
+# every column, so anon is refused it on these: fetch() asks for these columns instead. None is a
+# private column (auth user id, e-mail address, review note); tests/guards/anon-private-columns
+# checks that against the migration, and test_exporter.py serves these objects the way PostgREST
+# does after it. Every column here exists live (types.ts), so the lists work before the migration too.
+# projects.metadata, every questionnaire answer, is not anon's since 20261118120000_privacy_round_two,
+# and the export writes nothing from it, so it is not asked for.
+PUBLIC_COLUMNS = {
+    "resources": "id,name,resource_type,description,external_url,metadata,organization_id,created_at,updated_at",
+    "projects": "id,grant_number,grant_id,organization_id,resource_id,metadata_completeness,keywords,"
+                "study_species,study_human,website,onboarding_status,created_at,updated_at",
+    "investigators_public": "id,name,orcid,profile_url,role,working_groups,research_areas,skills,resource_id,"
+                            "scholar_id,created_at,updated_at,onboarded",
+    "dandisets": "id,resource_id,instance,dandiset_id,name,description,contact_name,file_count,size_bytes,"
+                 "license,access,species,award_numbers,draft_url,api_url,neurosift_url,last_synced_at,"
+                 "created_at,updated_at",
+    "announcements": "id,title,content,link,link_text,is_external_link,organization_id,resource_id,"
+                     "created_at,updated_at",
+}
+
 
 def _shown(path) -> str:
     """A path for log lines, relative to kg/ when it can be (relpath fails across Windows drives)."""
@@ -51,7 +79,7 @@ def _shown(path) -> str:
 
 
 class BBQSKnowledgeGraph:
-    """Exports the BBQS KG from Supabase and validates it against the SHACL consistency shapes."""
+    """Exports the BBQS KG from Supabase and validates it against the SHACL validation shapes."""
 
     DEFAULT_EXPORT_PATH = HERE / "export" / "bbqs.ttl"
     DEFAULT_SHAPES_DIR = HERE / "shapes"
@@ -67,6 +95,8 @@ class BBQSKnowledgeGraph:
         self.graph = Graph()
         self.graph.bind("bbqs", BBQS)
         self.graph.bind("bid", BID)
+        self.unreadable = {}       # table -> why fetch() got no rows (HTTP status, PostgREST code)
+        self.missing_columns = {}  # table -> PUBLIC_COLUMNS entries this database does not have (42703)
 
     @staticmethod
     def _client_default(js_const):
@@ -79,17 +109,46 @@ class BBQSKnowledgeGraph:
         return m.group(1) if m else None
 
     def fetch(self, table, select="*"):
-        """All rows of a table via PostgREST (tables here are < 1000 rows, so one request)."""
-        req = urllib.request.Request(
-            f"{self.url}/rest/v1/{table}?select={select}",
-            headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as r:
-                return json.loads(r.read() or "[]")
-        except urllib.error.HTTPError as e:
-            print(f"  ! {table}: HTTP {e.code} (RLS hidden or missing)", file=sys.stderr)
-            return []
+        """All rows of a table via PostgREST (tables here are < 1000 rows, so one request).
+
+        "*" means every column anon may read: PUBLIC_COLUMNS for an object anon reads column by column.
+
+        A table or view this key may not read, or that does not exist (a migration not applied yet),
+        gives no rows: the export goes on without it, and the reason is printed and kept in
+        self.unreadable, e.g. "HTTP 404 42P01" (missing) or "HTTP 401 42501" (refused)."""
+        if select == "*":
+            select = PUBLIC_COLUMNS.get(table, "*")
+        columns = None if select == "*" else [c.strip() for c in select.split(",") if c.strip()]
+        if columns:                                # a column found missing earlier in this run: not asked again
+            columns = [c for c in columns if c not in self.missing_columns.get(table, ())] or columns
+        while True:
+            req = urllib.request.Request(
+                f"{self.url}/rest/v1/{table}?select={','.join(columns) if columns else '*'}",
+                headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Range": "0-9999"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    return json.loads(r.read() or "[]")
+            except urllib.error.HTTPError as e:
+                try:                               # PostgREST names the cause in the body: 42P01, PGRST205, 42501
+                    body = json.loads(e.read() or b"{}")
+                    code, message = body.get("code") or "", body.get("message") or ""
+                except (AttributeError, OSError, TypeError, ValueError):
+                    code, message = "", ""
+                # A column this database does not have (42703: an older or newer schema than the one
+                # PUBLIC_COLUMNS names) costs that one column, not the whole table: drop it, say so, and
+                # ask again. Anything else still gives no rows.
+                gone = re.search(r'column (?:"?\w+"?\.)?"?(\w+)"? does not exist', message)
+                if code == "42703" and columns and gone and gone.group(1) in columns:
+                    columns.remove(gone.group(1))
+                    self.missing_columns.setdefault(table, []).append(gone.group(1))
+                    print(f"  ! {table}: column {gone.group(1)} does not exist in this database; "
+                          "exported without it", file=sys.stderr)
+                    if columns:
+                        continue
+                self.unreadable[table] = f"HTTP {e.code}" + (f" {code}" if code else "")
+                print(f"  ! {table}: {self.unreadable[table]} (RLS hidden or missing)", file=sys.stderr)
+                return []
 
     @staticmethod
     def mechanism(grant_number):
@@ -99,15 +158,25 @@ class BBQSKnowledgeGraph:
 
     @staticmethod
     def orcid_iri(value):
-        """An ORCID iD in any common form ('0000-...', 'orcid.org/...', a full URL) -> its IRI."""
-        m = re.search(r"(\d{4}-\d{4}-\d{4}-\d{3}[\dX])", str(value or ""))
-        return URIRef(f"https://orcid.org/{m.group(1)}") if m else None
+        """An ORCID iD in any common form ('0000-...', 'orcid.org/...', a full URL, a lower-case x) ->
+        its one IRI, by the ORCID key (kg/identity_keys.py) the database's unique index uses."""
+        key = orcid_key(value) if value else None
+        return URIRef(f"https://orcid.org/{key}") if key else None
 
     @staticmethod
     def core_award(value):
-        """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds."""
-        m = re.search(r"[A-Z][A-Z0-9]{2}[A-Z]{2}\d{6}", str(value or "").upper())
-        return m.group(0) if m else None
+        """'1R34DA059723-01' / 'R34DA059723' -> 'R34DA059723', the form grants.grant_number holds
+        (the NIH core, kg/identity_keys.py's nih_award_core)."""
+        return nih_award_core(value) if value else None
+
+    @staticmethod
+    def timestamp(value):
+        """A timestamptz as PostgREST writes it ('2026-12-31T23:59:59+00:00') -> an xsd:dateTime literal.
+        Anything else -> None: not written, rather than written as a literal of the wrong type."""
+        text = str(value or "").strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?", text):
+            return Literal(text, datatype=XSD.dateTime)
+        return None
 
     def add(self, subj, pred, value, cast=str, datatype=None):
         if value is not None and value != "":
@@ -134,6 +203,7 @@ class BBQSKnowledgeGraph:
         # resource_id, so every role holder resolves either way.
         inv_node = {**id_map("investigators_public"), **id_map("investigators")}
         grant_node, gn_node, cat_node, wg_node, proj_node, pub_node = {}, {}, {}, {}, {}, {}
+        spine_class = {}                             # spine node -> its class, to attach detail rows by type
 
         # ---- 1. Node spine: one node per resources row, typed by resource_type ----
         skipped = collections.Counter()
@@ -143,6 +213,7 @@ class BBQSKnowledgeGraph:
                 skipped[r["resource_type"]] += 1
                 continue
             n = BID[r["id"]]
+            spine_class[n] = cls
             g.add((n, RDF.type, BBQS[cls]))
             if cls == "WorkingGroup" and r.get("name"):
                 wg_node[r["name"].strip().lower()] = n
@@ -246,11 +317,13 @@ class BBQSKnowledgeGraph:
                 if str(name).strip().lower() in not_applicable:
                     self.add(n, "study_scope", name)   # names no species by design (e.g. infra awards)
                     continue
-                self.add(n, "studies_species_name", name)  # the raw claim, verbatim
+                # Link, don't copy: a claim that resolves is the studies_species link alone (the name
+                # is the Species node's); only a claim with no node to link to is kept as text.
                 target = resolve_species(name)
                 if target is not None:
                     g.add((n, BBQS["studies_species"], target))
                 else:
+                    self.add(n, "studies_species_unresolved", name)
                     dangling_species.append((p["grant_number"], name))
 
         # Device categories (build key -> node for device_models), then models and manufacturers.
@@ -264,6 +337,9 @@ class BBQSKnowledgeGraph:
             self.add(n, "label", cat.get("label"))
             for meas in cat.get("measures") or []:
                 self.add(n, "measures", meas)
+            for use in cat.get("typical_use_cases") or []:
+                self.add(n, "typical_use_cases", use)
+            self.add(n, "schema_org_type", cat.get("schema_org_type"))
         for dm in self.fetch("device_models"):
             rid = dm.get("resource_id")
             if not rid:
@@ -275,14 +351,39 @@ class BBQSKnowledgeGraph:
             if dm.get("manufacturer_id") and dm["manufacturer_id"] in man_node:
                 g.add((n, BBQS["manufacturer"], man_node[dm["manufacturer_id"]]))
             self.add(n, "sampling_rate_hz", dm.get("sampling_rate_hz"), cast=None)
+            # The rest of what the catalog says about a model, slot for slot as bbqs.linkml.yaml declares it.
+            for al in dm.get("aliases") or []:
+                self.add(n, "aliases", al)
+            for sig in dm.get("output_signals") or []:
+                self.add(n, "output_signals", sig)
+            self.add(n, "price_tier", dm.get("price_tier"))
+            self.add(n, "regulatory_class", dm.get("regulatory_class"))
+            self.add(n, "product_url", dm.get("product_url"), datatype=XSD.anyURI)
+            for url in dm.get("manual_urls") or []:
+                self.add(n, "manual_urls", url, datatype=XSD.anyURI)
+            for url in dm.get("sdk_urls") or []:
+                self.add(n, "sdk_urls", url, datatype=XSD.anyURI)
         for man in self.fetch("device_manufacturers"):
             rid = man.get("resource_id")
             if not rid:
                 continue
             n = BID[rid]
             self.add(n, "homepage_url", man.get("homepage_url"), datatype=XSD.anyURI)
+            self.add(n, "country", man.get("country"))
             for al in man.get("aliases") or []:
                 self.add(n, "aliases", al)
+        # Which kinds of instrument each project uses: the project_device_usage view (anon-readable),
+        # one row per project and device category its methods evidence names. A row whose project or
+        # category has no node is skipped, not written as a dangling link.
+        uses = 0
+        core = {re.sub(r"^\d|-\w+$", "", k or ""): n for k, n in gn_node.items()}   # 1R34DA059723-01 -> R34DA059723
+        for u in self.fetch("project_device_usage"):
+            proj = (proj_node.get(u.get("project_id")) or gn_node.get(u.get("grant_number"))
+                    or core.get(re.sub(r"^\d|-\w+$", "", u.get("grant_number") or "")))
+            cat = cat_node.get(u.get("category_key"))
+            if proj is not None and cat is not None and (proj, BBQS["uses_device_category"], cat) not in g:
+                g.add((proj, BBQS["uses_device_category"], cat))
+                uses += 1
 
         for pub in self.fetch("publications"):
             rid = pub.get("resource_id")
@@ -321,6 +422,37 @@ class BBQSKnowledgeGraph:
             for code in fo.get("eligible_activity_codes") or []:
                 self.add(n, "eligible_activity_codes", code)
 
+        # Jobs: what the job board shows anyone, from the public_jobs view (the jobs table itself is not
+        # anon-readable; its contact fields and posted_by are hidden on purpose, 20260515233153, and
+        # are never read here). Each row goes onto its Job spine node; a row with none is skipped.
+        # Link, don't copy: the institution is the part_of_org link wherever an organization node
+        # resolves (the spine row's, or the job row's own organization_id), and the text as written
+        # (job_institution) only for a job with no such link.
+        job_rows, jobs_unnoded, bad_expiry = [], 0, 0
+        for jb in self.fetch("public_jobs"):
+            n = BID[jb["resource_id"]] if jb.get("resource_id") else None
+            if spine_class.get(n) != "Job":
+                jobs_unnoded += 1
+                continue
+            job_rows.append((n, jb))
+            for col in ("job_type", "location", "department"):
+                self.add(n, col, jb.get(col))
+            self.add(n, "application_url", jb.get("application_url"), datatype=XSD.anyURI)
+            expires = self.timestamp(jb.get("expires_at"))
+            if expires is not None:
+                g.add((n, BBQS["expires_at"], expires))
+            elif jb.get("expires_at"):
+                bad_expiry += 1
+            if jb.get("is_active") is not None:
+                g.add((n, BBQS["is_active"], Literal(bool(jb["is_active"]))))
+            if jb.get("organization_id") in org_node:
+                g.add((n, BBQS["part_of_org"], org_node[jb["organization_id"]]))
+        jobs_as_text = set()
+        for n, jb in job_rows:                       # after every row's link, so row order cannot matter
+            if (n, BBQS["part_of_org"], None) not in g and str(jb.get("institution") or "").strip():
+                self.add(n, "job_institution", jb["institution"])
+                jobs_as_text.add(n)
+
         for o in self.fetch("organizations"):        # name/description already come from the spine row
             rid = o.get("resource_id")
             if rid:
@@ -350,6 +482,20 @@ class BBQSKnowledgeGraph:
             org, inv = org_node.get(io.get("organization_id")), inv_node.get(io.get("investigator_id"))
             if org is not None and inv is not None:
                 g.add((org, BBQS["members"], inv))
+        # Curated links between two spine rows (resource_links, 20261116150000; revision_of since
+        # 20261117181500): one row is one (subject, bbqs:<predicate>, object) link. Written only for a
+        # predicate in RESOURCE_LINK_SLOTS and only between two typed nodes: a row whose end is gone,
+        # or is a type the spine skips, is left out rather than written as a dangling link. A table
+        # not there yet (its migration not applied) gives no rows and a note, and the export goes on.
+        links_written = links_skipped = 0
+        for rl in self.fetch("resource_links", "subject_id,predicate,object_id"):
+            s = BID[rl["subject_id"]] if rl.get("subject_id") else None
+            o = BID[rl["object_id"]] if rl.get("object_id") else None
+            if rl.get("predicate") in RESOURCE_LINK_SLOTS and s in spine_class and o in spine_class:
+                g.add((s, BBQS[rl["predicate"]], o))
+                links_written += 1
+            else:
+                links_skipped += 1
         for pp in self.fetch("project_publications"):
             proj, pub = proj_node.get(pp.get("project_id")), pub_node.get(pp.get("publication_id"))
             if proj is not None and pub is not None:
@@ -368,6 +514,16 @@ class BBQSKnowledgeGraph:
             proj, ds = grant_node.get(gd.get("grant_id")), dandi_node.get(gd.get("dandiset_id"))
             if proj is not None and ds is not None:
                 g.add((proj, BBQS["funded_datasets"], ds))
+        # Who posted each job: public_job_posters (20261117170000) pairs a job's spine row with its
+        # poster's investigator spine row and holds nothing else; jobs.posted_by, an auth user id, stays
+        # hidden. Written only as a link between a Job node and an Investigator node.
+        posted = set()
+        for jp in self.fetch("public_job_posters"):
+            job = BID[jp["job_resource_id"]] if jp.get("job_resource_id") else None
+            person = BID[jp["poster_resource_id"]] if jp.get("poster_resource_id") else None
+            if spine_class.get(job) == "Job" and spine_class.get(person) == "Investigator":
+                g.add((job, BBQS["posted_by"], person))
+                posted.add((job, person))
 
         # ---- 4. Reified per-project role (grant_investigators) ----
         roles = 0
@@ -392,6 +548,18 @@ class BBQSKnowledgeGraph:
         print(f"Wrote {out_path}: {len(g)} triples")
         print("Nodes by type: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         print(f"ProjectRole edges: {roles}")
+        print(f"uses_device_category edges: {uses}")
+        print(f"Job details (public_jobs): {len(job_rows)} rows on a Job node"
+              + (f", {jobs_unnoded} with no Job node (skipped)" if jobs_unnoded else "")
+              + f"; institution kept as text for {len(jobs_as_text)} jobs (no organization node to link)"
+              + (f"; {bad_expiry} expires_at not a timestamp (not written)" if bad_expiry else ""))
+        print(f"posted_by links (public_job_posters): {len(posted)}")
+        print(f"resource_links: {links_written} written, {links_skipped} skipped")
+        for table, lost in (("public_jobs", "job details (kind, place, expiry, link, institution text)"),
+                            ("public_job_posters", "posted_by"),
+                            ("resource_links", "curated links (" + ", ".join(sorted(RESOURCE_LINK_SLOTS)) + ")")):
+            if table in self.unreadable:
+                print(f"  {table} not readable ({self.unreadable[table]}): no {lost} in this export")
         if skipped:
             print("Skipped (deprecated/unknown resource_type, not noded): " +
                   ", ".join(f"{k}={v}" for k, v in sorted(skipped.items())))
@@ -442,7 +610,7 @@ class BBQSKnowledgeGraph:
 
         edges = []
         asserted_predicates = {"on_project", "studies_species", "part_of_org", "held_by",
-                                "device_category", "manufacturer"}
+                                "device_category", "manufacturer"} | RESOURCE_LINK_SLOTS
         for s, p, o in g:
             local = str(p).rsplit("#", 1)[-1]
             if local in asserted_predicates and not isinstance(o, Literal):

@@ -33,7 +33,7 @@ bid:2db5ee93-296a-446a-a3e6-59fd3d28c4a6  a  bbqs:Project ;          # ← TYPE
     bbqs:external_url         "https://reporter.nih.gov/project-details/5R34DA059723-02" ;
     bbqs:reporter_project_num "5R34DA059723-02" ;
     bbqs:studies_human        false ;
-    bbqs:studies_species_name "Freely moving animals" ;              # ← raw claim, unresolved
+    bbqs:studies_species_unresolved "Freely moving animals" ;        # ← a claim no Species matches
     bbqs:keywords             "Food-handling", "Foraging", "Kinematics", "Oromanual", "Sensorimotor" ;
     bbqs:abstract             "PROJECT SUMMARY  Oromanual food-handling …" .
 ```
@@ -42,9 +42,10 @@ Every line is one triple: (this project) — (predicate) — (value). The first 
 identity (the subject IRI) + type (`bbqs:Project`). The rest are edges to literal values (text,
 numbers, booleans).
 
-Notice `studies_species_name "Freely moving animals"` has **no** matching `bbqs:studies_species →`
-(a Species node) — one of our 9 dangling #7 cases living in the graph, exactly as designed so SHACL
-can flag it.
+Notice `studies_species_unresolved "Freely moving animals"`: no Species node matches the claim, so the
+exporter keeps it as text, and SHACL flags it (#7). A claim that does match is written only as the
+`bbqs:studies_species →` link, never as the name as well: the name belongs to the Species node (link,
+don't copy).
 
 ## Step 3 — edges to other nodes (relationships), and reification
 

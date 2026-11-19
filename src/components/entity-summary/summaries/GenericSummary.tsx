@@ -12,7 +12,11 @@ export function GenericSummary({ id, type }: { id: string; type: EntityType }) {
   const { data, isLoading } = useQuery({
     queryKey: ["entity-resource", id],
     queryFn: async () => {
-      const { data: res, error } = await supabase.from("resources").select("*").eq("id", id).single();
+      // Named columns: a visitor may not read created_by (20261117190000), and select("*") asks for it.
+      const { data: res, error } = await supabase
+        .from("resources")
+        .select("id, name, resource_type, description, external_url, metadata, organization_id, created_at, updated_at")
+        .eq("id", id).single();
       if (error) throw error;
       return res;
     },

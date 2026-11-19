@@ -42,7 +42,7 @@ function linkmlRoleTokens() {
 }
 
 function shapeRoleTokens() {
-  const src = read("kg/shapes/consistency.shapes.ttl");
+  const src = read("kg/shapes/validation.shapes.ttl");
   const m = src.match(/bbqs:ProjectRoleTokenShape\b[\s\S]*?sh:in\s*\(([^)]*)\)/);
   assert.ok(m, "could not find the sh:in list of ProjectRoleTokenShape");
   return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort();
@@ -62,6 +62,6 @@ test("the #4 shape accepts the same role tokens as the schema", () => {
   assert.deepEqual(
     shapeRoleTokens(),
     linkmlRoleTokens(),
-    "ProjectRoleTokenShape's sh:in (kg/shapes/consistency.shapes.ttl) disagrees with project_role_enum.",
+    "ProjectRoleTokenShape's sh:in (kg/shapes/validation.shapes.ttl) disagrees with project_role_enum.",
   );
 });
