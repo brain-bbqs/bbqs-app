@@ -1464,6 +1464,39 @@ class TheExport(unittest.TestCase):
             self.assertIn("file_modified", self.kg.snapshot)
 
 
+class TheCommitDate(unittest.TestCase):
+    """The committed export is dated by its commit on every git and every Python. CI failed on
+    2026-11-19 with KeyError 'committed': the runner's git 2.56 prints a UTC commit's strict ISO date
+    as 2026-11-18T16:34:20Z, Python 3.10 cannot parse the Z, and the server fell back to the
+    checkout's time, which is not the age of the data."""
+
+    def with_git(self, script):
+        """Run _committed against a stand-in `git` on PATH that answers as `script` says."""
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        fake = Path(folder.name) / "git"
+        fake.write_text("#!/bin/sh\n" + script, encoding="utf8")
+        fake.chmod(0o755)
+        export = Path(folder.name) / "bbqs.ttl"
+        export.write_text("", encoding="utf8")
+        with mock.patch.dict(os.environ, {"PATH": folder.name + os.pathsep + os.environ.get("PATH", "")}):
+            return m._committed(export)
+
+    # What git 2.45+ prints for a commit made in UTC: %cI ends in Z; %ct is the same number everywhere.
+    NEW_GIT = 'case "$*" in *format=%cI*) echo 2026-11-18T16:34:20Z;; *format=%ct*) echo 1795019660;; esac\n'
+    OLD_GIT = 'case "$*" in *format=%cI*) echo 2026-11-18T16:34:20+00:00;; *format=%ct*) echo 1795019660;; esac\n'
+
+    def test_a_utc_commit_is_dated_whatever_git_prints_for_its_iso_date(self):
+        self.assertEqual(self.with_git(self.NEW_GIT), "2026-11-18T16:34:20Z")
+        self.assertEqual(self.with_git(self.OLD_GIT), "2026-11-18T16:34:20Z")
+
+    def test_a_file_git_does_not_know_or_that_has_changes_has_no_commit_date(self):
+        self.assertIsNone(self.with_git('case "$*" in *status*) echo " M bbqs.ttl";; *) echo 1795019660;; esac\n'))
+        self.assertIsNone(self.with_git('case "$*" in *status*) exit 128;; *) echo 1795019660;; esac\n'))
+        self.assertIsNone(self.with_git('exit 0\n'), "tracked and clean, but no commit holds it (a shallow clone)")
+        self.assertIsNone(self.with_git('case "$*" in *status*) ;; *) echo not-a-number;; esac\n'))
+
+
 class TheSource(unittest.TestCase):
     """Where the graph comes from: it is re-read when it changes, and a failed read never
     replaces a good graph with nothing."""

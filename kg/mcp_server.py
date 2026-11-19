@@ -297,8 +297,11 @@ def _committed(path: Path) -> str | None:
         status = git("status", "--porcelain")
         if status.returncode or status.stdout.strip():
             return None
-        return _iso(datetime.fromisoformat(git("log", "-1", "--format=%cI").stdout.strip()))
-    except (OSError, subprocess.SubprocessError, ValueError):
+        # Seconds since the epoch (%ct), never a formatted date: git 2.45 and later write a UTC
+        # commit's strict ISO date (%cI) with a trailing "Z", which Python 3.10 cannot parse, and
+        # the export then looked as old as the checkout on exactly the machines that run CI.
+        return _iso(datetime.fromtimestamp(int(git("log", "-1", "--format=%ct").stdout.strip()), tz=timezone.utc))
+    except (OSError, subprocess.SubprocessError, ValueError, OverflowError):
         return None
 
 
