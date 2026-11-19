@@ -100,8 +100,10 @@ jobs:
               description: `Class ${result.klass} (blast ${result.blast.level})`,
             });
 
-      # Class C is held by a SEPARATE required status that stays 'pending' until a human signs off
-      # (they add the `spec-signoff` label). This is what physically blocks the merge for danger layers.
+      # Class C is held by a SEPARATE required status that stays 'pending' until a signer adds the
+      # `spec-signoff` label. This is what physically blocks the merge for danger layers. The label is
+      # open to anyone with triage rights, so the gate asks who added it, and a push after the
+      # sign-off removes it: a sign-off covers the commits it was given on, like a stale review.
       - name: Class-C spec gate
         if: ${{ github.event.pull_request.state == 'open' }}
         uses: actions/github-script@v7
@@ -111,7 +113,7 @@ jobs:
             const result = JSON.parse(fs.readFileSync('classification.json', 'utf8'));
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
-            const hasSignoff = pr.labels.map(l => l.name).includes('spec-signoff');
+            const SIGNERS = ['nadernik'];
 
             if (result.klass !== 'C') {
               await github.rest.repos.createCommitStatus({
@@ -121,10 +123,25 @@ jobs:
               return;
             }
 
+            let labeled = pr.labels.map(l => l.name).includes('spec-signoff');
+            if (labeled && context.payload.action === 'synchronize') {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: 'spec-signoff' });
+              labeled = false;
+            }
+            let signer = null;
+            if (labeled) {
+              const events = await github.paginate(github.rest.issues.listEvents,
+                { owner, repo, issue_number: pr.number, per_page: 100 });
+              signer = events.filter(e => e.event === 'labeled' && e.label?.name === 'spec-signoff').pop()?.actor?.login ?? null;
+            }
+            const hasSignoff = labeled && SIGNERS.includes(signer);
+
             await github.rest.repos.createCommitStatus({
               owner, repo, sha: pr.head.sha, context: 'triage/spec-gate',
               state: hasSignoff ? 'success' : 'pending',
-              description: hasSignoff ? 'Spec sign-off present' : 'Danger layer — needs Spec Kit + `spec-signoff` label',
+              description: hasSignoff ? `Spec signed off by ${signer}`
+                : labeled ? `spec-signoff added by ${signer}, who is not a signer (${SIGNERS.join(', ')})`
+                : 'Danger layer — needs Spec Kit + `spec-signoff` label',
             });
 
             if (!hasSignoff) {
@@ -138,7 +155,7 @@ jobs:
                 '1. Create the Spec Kit artifacts in `bbqs-agent/specs/<NNN-feature>/` — `spec.md`, `plan.md` (with a **Constitution Check**), `tasks.md`, `qa-itinerary.md`.',
                 '2. Point `bbqs-agent/.specify/feature.json` at that directory.',
                 '3. Run the Find → Fix → Test → Verify-Live loop, incl. the sandbox QA workflow.',
-                '4. Add the **`spec-signoff`** label to this PR to release the `triage/spec-gate` check.',
+                '4. A signer (' + SIGNERS.join(', ') + ') adds the **`spec-signoff`** label to release the `triage/spec-gate` check. A push after that removes it.',
                 '',
                 'This gate is here because a small-looking diff to `' + (result.danger[0]?.path || 'a shared layer') + '` reaches far beyond the file it edits.',
               ].join('\n');
