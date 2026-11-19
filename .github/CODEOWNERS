@@ -2,3 +2,8 @@
 /kg/                       @nadernik
 /.github/workflows/kg.yml  @nadernik
 /.github/CODEOWNERS        @nadernik
+
+# Production schema and server code (#513 decision 4). The Class-C sign-off list lives in triage.yml.
+/supabase/migrations/      @nadernik
+/supabase/functions/       @nadernik
+/.github/workflows/triage.yml @nadernik
