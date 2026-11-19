@@ -32,11 +32,19 @@
 //     so a page that starts to show a new answer is a failing check, not a field that is silently
 //     empty for every visitor;
 //   * no later migration gives signed-in users those two columns back.
+//
+// BEFORE ROUND TWO IS APPLIED (2026-11-19). Migrations are applied by hand and round two is on hold,
+// so the site must show the same public project details whether the view exists yet or not. The
+// helper falls back to projects.metadata when the view is missing and cuts it to the view's keys:
+//   * that one read is the only place a visitor's code may name projects.metadata, and only inside
+//     the view-missing branch;
+//   * the helper's key lists equal the view's, and the fallback returns what the view would.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripTypeScriptTypes } from "node:module";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MIGRATIONS = join(ROOT, "supabase", "migrations");
@@ -85,6 +93,12 @@ export function stripJsComments(src) {
 // A query only a signed-in user can reach (a delete, an editor) may name a private column; it says so
 // in a comment inside its chain, e.g. `// signed-in only: deleting is for the comment's author`.
 const SIGNED_IN_ONLY = /signed-in only/i;
+// One read of projects.metadata may run for a visitor: the fallback of src/lib/projectPublicMetadata.ts,
+// made only when project_metadata_public does not exist, i.e. before 20261118120000 is applied, while
+// the column is still readable by everyone. It carries this marker, and the site test below holds the
+// marker to that one file and to the view-missing check around it.
+const BEFORE_ROUND2_ONLY = /before 20261118120000 only/i;
+const FALLBACK_FILE = join("src", "lib", "projectPublicMetadata.ts");
 
 /** Every .select(...) on one of `objects`: { object, arg, signedInOnly } with arg the text between
  *  the parens, and signedInOnly whether the chain carries the signed-in-only comment. */
@@ -111,7 +125,7 @@ export function selectsOn(src, objects) {
     }
     const lineStart = code.lastIndexOf("\n", m.index) + 1;
     const raw = src.slice(lineStart, start + s + ".select(".length + arg.length + 1);
-    found.push({ object: m[1], arg: arg.trim(), signedInOnly: SIGNED_IN_ONLY.test(raw) });
+    found.push({ object: m[1], arg: arg.trim(), signedInOnly: SIGNED_IN_ONLY.test(raw), beforeRound2Only: BEFORE_ROUND2_ONLY.test(raw) });
   }
   return found;
 }
@@ -325,6 +339,15 @@ test("the site and the e2e checks never ask a column-restricted object for every
     const src = readFileSync(p, "utf8");
     const consts = stringConsts(src);
     for (const s of selectsOn(src, OBJECTS)) {
+      if (s.beforeRound2Only) {
+        // allowed once: the fallback read, in its own file, inside the view-missing branch
+        const where = relative(ROOT, p);
+        const gated = /if \(viewMissing\(error\)\) \{[\s\S]*before 20261118120000 only/.test(src);
+        if (where !== FALLBACK_FILE || s.object !== "projects" || !gated) {
+          problems.push(`${where}: ${s.object} carries the before-20261118120000 marker, which is only for the view-missing fallback in ${FALLBACK_FILE}`);
+        }
+        continue;
+      }
       const why = selectProblem(s, PRIVATE.get(s.object), consts);
       if (why) problems.push(`${relative(ROOT, p)}: ${s.object} ${why}`);
     }
@@ -403,6 +426,106 @@ test("every questionnaire key a public page reads is one project_metadata_public
   assert.deepEqual(missing, [],
     "a public page reads a questionnaire key a visitor cannot see. Add it to project_metadata_public in a new "
     + "migration (CREATE OR REPLACE VIEW, the same three columns), if it is meant to be public.");
+});
+
+/** A `export const <name> = [ "a", "b", ... ] as const;` list in a TypeScript source. */
+export function exportedStringList(src, name) {
+  const body = stripJsComments(src).match(new RegExp(`export const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`));
+  assert.ok(body, `could not read ${name}`);
+  return [...body[1].matchAll(/["'`]([a-z0-9_]+)["'`]/g)].map((x) => x[1]);
+}
+
+/** The helper as a module, with a stand-in for the Supabase client. `answer(object)` is what a read of
+ *  that object returns; the result's `asked` lists every read made. */
+async function helperWith(answer) {
+  const asked = [];
+  const client = {
+    from: (object) => ({
+      select: (cols) => {
+        const call = { object, cols, in: null };
+        asked.push(call);
+        const query = {
+          in: (col, values) => { call.in = [col, values]; return query; },
+          then: (ok, no) => Promise.resolve(answer(object)).then(ok, no),
+        };
+        return query;
+      },
+    }),
+  };
+  const key = `__publicMetadataFake${asked.length}_${Math.random().toString(36).slice(2)}`;
+  globalThis[key] = client;
+  const js = stripTypeScriptTypes(read("src/lib/projectPublicMetadata.ts").replace(/import \{ supabase \}[^\n]*\n/, ""));
+  const mod = await import("data:text/javascript," + encodeURIComponent(`const supabase = globalThis.${key};\n${js}`));
+  return { mod, asked };
+}
+
+test("before round two is applied, a visitor is shown exactly what project_metadata_public would show", async () => {
+  const helper = read("src/lib/projectPublicMetadata.ts");
+  const defining = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()
+    .filter((f) => /view\s+public\.project_metadata_public\b/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
+  const { keys, deviceKeys } = publicMetadataKeys(readFileSync(join(MIGRATIONS, defining.at(-1)), "utf8").replace(/\r\n/g, "\n"));
+  assert.deepEqual(exportedStringList(helper, "PUBLIC_METADATA_KEYS").sort(), [...keys].sort(),
+    "PUBLIC_METADATA_KEYS (src/lib/projectPublicMetadata.ts) and the view's e.key IN (...) list differ: the "
+    + "page would show one thing before the migration and another after it. Change both, the view in a new migration.");
+  assert.deepEqual(exportedStringList(helper, "PUBLIC_DEVICE_KEYS").sort(), [...deviceKeys].sort(),
+    "PUBLIC_DEVICE_KEYS and the view's d.key IN (...) list differ");
+
+  const full = {
+    marr_l1_ethological_goal: "foraging", data_modalities: ["video"], curator_note: "not for visitors",
+    contact_email: "someone@example.org",
+    devices: { sensor: ["camera"], behavioral_rigs: [], vendor_quote: "not for visitors" },
+  };
+  const viewRows = [{ grant_number: "R01X", metadata: { marr_l1_ethological_goal: "foraging" } }];
+
+  // The view exists: it is the only read, and its rows are used as they are.
+  let { mod, asked } = await helperWith((object) => object === "project_metadata_public"
+    ? { data: viewRows, error: null } : { data: [{ grant_number: "R01X", metadata: full }], error: null });
+  let got = await mod.fetchPublicProjectMetadata(["R01X"]);
+  assert.deepEqual(asked.map((a) => a.object), ["project_metadata_public"], "the table is not read when the view exists");
+  assert.deepEqual(asked[0].in, ["grant_number", ["R01X"]]);
+  assert.deepEqual(got.get("R01X"), { marr_l1_ethological_goal: "foraging" });
+
+  // The view is missing (PostgREST PGRST205, Postgres 42P01): the column is read once and cut down.
+  for (const code of ["PGRST205", "42P01"]) {
+    ({ mod, asked } = await helperWith((object) => object === "project_metadata_public"
+      ? { data: null, error: { code, message: "Could not find the table 'public.project_metadata_public' in the schema cache" } }
+      : { data: [{ grant_number: "R01X", metadata: full }, { grant_number: "R01Y", metadata: { devices: "n/a", curator_note: "x" } },
+                 { grant_number: "R01Z", metadata: null }, { grant_number: null, metadata: full }], error: null }));
+    got = await mod.fetchPublicProjectMetadata();
+    assert.deepEqual(asked.map((a) => [a.object, a.cols]), [["project_metadata_public", "grant_number, metadata"], ["projects", "grant_number, metadata"]], code);
+    assert.deepEqual(got.get("R01X"), { marr_l1_ethological_goal: "foraging", data_modalities: ["video"], devices: { sensor: ["camera"], behavioral_rigs: [] } },
+      "the fallback returns the public keys only, and under devices the public device keys only");
+    assert.deepEqual(got.get("R01Y"), { devices: null }, "devices that is not an object is null, as in the view");
+    assert.deepEqual(got.get("R01Z"), {});
+    assert.equal(got.size, 3, "a project without a grant number is left out, as with the view");
+    assert.ok(!JSON.stringify([...got]).includes("not for visitors") && !JSON.stringify([...got]).includes("example.org"));
+  }
+
+  // The filter by grant number is applied to the fallback read as well.
+  ({ mod, asked } = await helperWith((object) => object === "project_metadata_public"
+    ? { data: null, error: { code: "PGRST205", message: "missing" } } : { data: [], error: null }));
+  await mod.fetchPublicProjectMetadata(["R01X", "R01Y"]);
+  assert.deepEqual(asked.map((a) => a.in), [["grant_number", ["R01X", "R01Y"]], ["grant_number", ["R01X", "R01Y"]]]);
+
+  // Any other refusal of the view is not a reason to read the table: nothing is shown.
+  ({ mod, asked } = await helperWith((object) => object === "project_metadata_public"
+    ? { data: null, error: { code: "42501", message: "permission denied for view project_metadata_public" } }
+    : { data: [{ grant_number: "R01X", metadata: full }], error: null }));
+  got = await mod.fetchPublicProjectMetadata();
+  assert.deepEqual(asked.map((a) => a.object), ["project_metadata_public"], "only a missing view starts the fallback");
+  assert.equal(got.size, 0);
+
+  // The fallback itself refused (the column is closed, the view is not there): empty, not an error.
+  ({ mod, asked } = await helperWith((object) => object === "project_metadata_public"
+    ? { data: null, error: { code: "PGRST205", message: "missing" } }
+    : { data: null, error: { code: "42501", message: "permission denied for table projects" } }));
+  got = await mod.fetchPublicProjectMetadata();
+  assert.equal(got.size, 0);
+
+  // No projects asked for: no read at all.
+  ({ mod, asked } = await helperWith(() => ({ data: [], error: null })));
+  assert.equal((await mod.fetchPublicProjectMetadata([])).size, 0);
+  assert.equal(asked.length, 0);
 });
 
 test("the KG exporter reads every column-restricted object it uses through PUBLIC_COLUMNS, with no private column", () => {
