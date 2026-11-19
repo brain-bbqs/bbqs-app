@@ -461,7 +461,7 @@ function buildServer(jwt: string, caller: Caller | null, meta: RequestMeta) {
     description: "[curator] Create/update a person and optionally link a grant roster, seeding their checklist. The roster link is load-bearing: pi@ derives from grant_investigators, not the role label. Raises 42P01 if the person has both an emailed record and an email-less name twin — find_person first when unsure.",
     parameters: obj({
       email: { type: "string" }, name: { type: "string" },
-      role: { type: "string", description: "contact_pi, co_pi, mpi, co-investigator, postdoc, graduate_student, research_staff" },
+      role: { type: "string", description: "contact_pi, co_pi, mpi, co-investigator, postdoc, graduate_student, research_staff, collaborator (someone not on the award or not in the awardee lab)" },
       grant_id: { type: "string" },
       working_groups: { type: "array", items: { type: "string" } },
       institution: { type: "string" },
