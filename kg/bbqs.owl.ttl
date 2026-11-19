@@ -783,6 +783,11 @@ bbqs:ProjectAnchor a owl:Class ;
     rdfs:label "co_pi" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
 
+<https://brain-bbqs.org/schema#ProjectRoleEnum#collaborator> a owl:Class ;
+    rdfs:label "collaborator" ;
+    rdfs:subClassOf bbqs:ProjectRoleEnum ;
+    skos:definition "Onboarded without another role: not on the award, or not in the awardee lab." .
+
 <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi> a owl:Class ;
     rdfs:label "contact_pi" ;
     rdfs:subClassOf bbqs:ProjectRoleEnum .
@@ -2744,13 +2749,14 @@ bbqs:Investigator a owl:Class ;
 
 bbqs:ProjectRoleEnum a owl:Class ;
     rdfs:label "project_role_enum" ;
-    owl:unionOf ( <https://brain-bbqs.org/schema#ProjectRoleEnum#PI> <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator> <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc> <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student> <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff> <https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#project_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#nih_program> <https://brain-bbqs.org/schema#ProjectRoleEnum#admin> <https://brain-bbqs.org/schema#ProjectRoleEnum#other> ) ;
-    skos:definition "Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql) can store in grant_investigators.role, plus trainee, which it deliberately passes through unmapped. tests/guards/role-vocabulary-parity holds the two equal. NB: the separator is inconsistent -- co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case." ;
+    owl:unionOf ( <https://brain-bbqs.org/schema#ProjectRoleEnum#PI> <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi> <https://brain-bbqs.org/schema#ProjectRoleEnum#mpi> <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator> <https://brain-bbqs.org/schema#ProjectRoleEnum#trainee> <https://brain-bbqs.org/schema#ProjectRoleEnum#postdoc> <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student> <https://brain-bbqs.org/schema#ProjectRoleEnum#research_staff> <https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#project_manager> <https://brain-bbqs.org/schema#ProjectRoleEnum#nih_program> <https://brain-bbqs.org/schema#ProjectRoleEnum#admin> <https://brain-bbqs.org/schema#ProjectRoleEnum#other> <https://brain-bbqs.org/schema#ProjectRoleEnum#collaborator> ) ;
+    skos:definition "Every token normalize_grant_role (latest definition in supabase/migrations/) can store in grant_investigators.role, plus trainee, which it deliberately passes through unmapped. tests/guards/kg-role-vocabulary-parity holds the two equal. NB: the separator is inconsistent -- co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case." ;
     skos:inScheme <https://brain-bbqs.org/schema/bbqs> ;
     linkml:permissible_values <https://brain-bbqs.org/schema#ProjectRoleEnum#PI>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#admin>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#co-investigator>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#co_pi>,
+        <https://brain-bbqs.org/schema#ProjectRoleEnum#collaborator>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#contact_pi>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#data_manager>,
         <https://brain-bbqs.org/schema#ProjectRoleEnum#graduate_student>,

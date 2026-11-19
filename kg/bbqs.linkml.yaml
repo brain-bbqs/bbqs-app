@@ -692,9 +692,9 @@ enums:
 
   project_role_enum:
     description: >-
-      Every token normalize_grant_role (20260811120000_canonical_role_vocabulary.sql) can store in
+      Every token normalize_grant_role (latest definition in supabase/migrations/) can store in
       grant_investigators.role, plus trainee, which it deliberately passes through unmapped.
-      tests/guards/role-vocabulary-parity holds the two equal. NB: the separator is inconsistent --
+      tests/guards/kg-role-vocabulary-parity holds the two equal. NB: the separator is inconsistent --
       co-investigator is hyphenated while co_pi/contact_pi use underscores -- and PI is upper case.
     permissible_values:
       PI: {}
@@ -711,6 +711,9 @@ enums:
       nih_program: {}
       admin: {}
       other: {}
+      collaborator:
+        description: >-
+          Onboarded without another role: not on the award, or not in the awardee lab.
 
   role_source_enum:
     description: Provenance of a ProjectRole assignment (grant_investigators.role_source; live 2026-09-21).

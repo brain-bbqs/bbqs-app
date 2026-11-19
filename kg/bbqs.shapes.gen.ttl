@@ -1431,7 +1431,7 @@ prov:Association a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "Canonical token (trg_normalize_grant_role enforces)." ;
-            sh:in ( "PI" "contact_pi" "co_pi" "mpi" "co-investigator" "trainee" "postdoc" "graduate_student" "research_staff" "data_manager" "project_manager" "nih_program" "admin" "other" ) ;
+            sh:in ( "PI" "contact_pi" "co_pi" "mpi" "co-investigator" "trainee" "postdoc" "graduate_student" "research_staff" "data_manager" "project_manager" "nih_program" "admin" "other" "collaborator" ) ;
             sh:maxCount 1 ;
             sh:order 2 ;
             sh:path <http://schema.org/roleName> ],

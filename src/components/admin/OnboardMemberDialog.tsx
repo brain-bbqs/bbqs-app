@@ -27,6 +27,7 @@ const ROLES: { value: string; label: string }[] = [
   { value: "project_manager", label: "Project Manager" },
   { value: "nih_program", label: "NIH Program" },
   { value: "admin", label: "Admin (role)" },
+  { value: "collaborator", label: "Collaborator" },
   { value: "other", label: "Other" },
 ];
 
