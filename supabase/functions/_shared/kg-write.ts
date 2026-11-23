@@ -222,6 +222,8 @@ export interface PersonMatch {
 
 /** The keys that only guess from a name. The others identify a person. */
 const NAME_GUESSES: ReadonlySet<PersonKey> = new Set(["name", "first_last"]);
+/** Both sides state the identifier, and state it differently. */
+const differs = (a: string | null, b: string | null) => !!a && !!b && a !== b;
 const personLabel = (rows: PersonRow[]) => rows.map((r) => `"${r.name}" (id ${r.id})`).join("; ");
 
 function peopleBy(key: PersonKey, rows: PersonRow[], p: PersonQuery): PersonRow[] {
@@ -256,6 +258,9 @@ function peopleBy(key: PersonKey, rows: PersonRow[], p: PersonQuery): PersonRow[
  *
  *  The name and first + last name are guesses, because namesakes exist (design D3), so a guess is
  *  `ambiguous` (nothing should be written, and `reason` says why) when:
+ *  - the query and a record the name finds both carry an ORCID iD, or both a RePORTER profile id, and
+ *    the two differ: they are two people of one name. A roster link decides pi@ (#283), so a
+ *    namesake's grant must never land on the other person. (Found in review of #520, 2026-11-19.)
  *  - the query carries an email and a record the name finds carries another one: that record is
  *    somebody else, or a twin only a curator can tell apart. (A record with this person's email was
  *    found by the email step already; a record with no email, a RePORTER twin, is still reused.)
@@ -272,6 +277,18 @@ export function matchPeople(rows: PersonRow[], p: PersonQuery, order: PersonKey[
     if (!hits.length) continue;
     if (!NAME_GUESSES.has(key)) return { row: pickPerson(hits), by: key, candidates: hits, ambiguous: false, reason: null };
     const how = key === "name" ? "name" : "first and last name";
+    // An identifier both carry, and carry differently, says they are two people, whatever the name says.
+    const anotherOrcid = hits.filter((r) => differs(orcidKey(p.orcid), orcidKey(r.orcid)));
+    const anotherProfile = hits.filter((r) => differs(profileKey(p.reporterProfileId), profileKey(r.reporter_profile_id)));
+    if (anotherOrcid.length || anotherProfile.length) {
+      const which = [anotherOrcid.length ? "ORCID iD" : "", anotherProfile.length ? "RePORTER profile id" : ""].filter(Boolean).join(" or ");
+      const others = [...new Set([...anotherOrcid, ...anotherProfile])];
+      return {
+        row: null, by: key, candidates: hits, ambiguous: true,
+        reason: `matched only by ${how} to ${personLabel(others)}, whose ${which} is not this person's: a namesake, ` +
+          "so nothing was written to it. If they are one person after all, correct the identifier on that record or merge them.",
+      };
+    }
     const elsewhere = asked.length ? hits.filter((r) => { const e = emailKey(r.email); return !!e && !asked.includes(e); }) : [];
     if (elsewhere.length) {
       return {

@@ -594,6 +594,44 @@ test("add_funding_opportunity's rule: the FON is the call; a shared notice URL i
   assert.deepEqual([none.action, none.notes], ["insert", ["No call with FON PAR-25-999 is in the KG, so nothing was superseded"]]);
 });
 
+test("people: a name that fits a record with another ORCID iD or RePORTER profile id is a namesake and writes nothing", async () => {
+  // Review of #520 (2026-11-19): "how is a match by name alone kept from linking a namesake to the wrong
+  // roster?" It was not, when the two carried different identifiers: only a different e-mail stopped it. A
+  // roster link decides pi@ (#283), so a namesake's grant on the wrong person is an entitlement given wrongly.
+  const K = await kgWrite();
+  const rows = [
+    { id: "jr", name: "Jane Roe", email: "jane.roe@example.org", orcid: "0000-0002-1825-0097", reporter_profile_id: 111, resource_id: "r1" },
+    { id: "tw", name: "SAM  TWIN", email: null, reporter_profile_id: 555 },     // a RePORTER copy ...
+    { id: "tc", name: "Sam Twin", email: "sam@example.org" },                    // ... of this curated record, which has no profile id
+    { id: "q1", name: "Pat Q Doe", email: "pat@example.org", reporter_profile_id: 7 },
+  ];
+  const m = (p) => { const r = K.matchPeople(rows, p); return [r.row?.id ?? null, r.by, r.ambiguous]; };
+  // identifiers agree, or the query has none: as before
+  assert.deepEqual(m({ name: "Jane Roe" }), ["jr", "name", false], "no identifier on the query: the name is all there is");
+  assert.deepEqual(m({ name: "J. Roe", reporterProfileId: 111 }), ["jr", "reporter_profile_id", false]);
+  assert.deepEqual(m({ name: "Jane Roe", orcid: "https://orcid.org/0000-0002-1825-0097" }), ["jr", "orcid", false]);
+  // identifiers differ: another person of the same name
+  const pid = K.matchPeople(rows, { name: "Jane Roe", reporterProfileId: 222 });
+  assert.deepEqual([pid.row, pid.by, pid.ambiguous], [null, "name", true], "another RePORTER profile id: not this person");
+  assert.match(pid.reason, /matched only by name to "Jane Roe" \(id jr\), whose RePORTER profile id is not this person's/);
+  const orc = K.matchPeople(rows, { name: "JANE ROE", orcid: "0000-0001-5109-3700" });
+  assert.deepEqual([orc.row, orc.by, orc.ambiguous], [null, "name", true], "another ORCID iD: not this person");
+  assert.match(orc.reason, /whose ORCID iD is not this person's/);
+  assert.doesNotMatch(pid.reason + orc.reason, /111|0097/, "the reason does not repeat the other person's identifiers");
+  // first and last name is a guess too
+  assert.deepEqual(m({ name: "Pat X Doe", reporterProfileId: 8 }), [null, "first_last", true]);
+  assert.deepEqual(m({ name: "Pat X Doe" }), ["q1", "first_last", false]);
+  // the twin pair: a third person of that name, with another profile id, joins neither record
+  assert.deepEqual(m({ name: "Sam Twin", reporterProfileId: 556 }), [null, "name", true]);
+  assert.deepEqual(m({ name: "Sam Twin", reporterProfileId: 555 }), ["tw", "reporter_profile_id", false]);
+  assert.deepEqual(m({ name: "Sam Twin" }), ["tc", "name", false], "the curated twin is still reused");
+
+  const db = fakeDb({ investigators: rows, resources: [] });
+  const made = await K.findOrCreateInvestigator(K.kgSession(db), { name: "Jane Roe", reporterProfileId: 222 });
+  assert.deepEqual([made.ok, made.ambiguous], [false, ["jr"]]);
+  assert.deepEqual(db.log, [], "no second Jane Roe, and nothing written to the namesake");
+});
+
 test("people: a name that fits a record with another email, or several records, is ambiguous and writes nothing", async () => {
   const K = await kgWrite();
   const rows = [
