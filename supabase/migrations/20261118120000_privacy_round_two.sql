@@ -7,6 +7,20 @@
 -- lose each other's login ids and pending role requests.
 -- ================================================================================================
 --
+-- ON HOLD (owner, 2026-11-19): DO NOT APPLY. Its first statement stops it before anything runs.
+-- A review of this script found faults it still has:
+--   * investigator_directory still shows signed-in members each other's user_id;
+--   * section 4a re-scopes RESTRICTIVE row-level policies as well as permissive ones;
+--   * applied after 20261117181500, the functions that script creates arrive open to anon again;
+--   * the gate "no auth.uid() means the service role" is still in the function bodies it keeps;
+--   * two of its guards miss cases (a grant back, a JSON-path read).
+-- Three of its fixes went ahead separately (#523: the provenance writer and the vote counters), and
+-- 20261118100000 closed the account-takeover path. The site does not depend on this script: it reads
+-- the public questionnaire keys with a fallback when project_metadata_public is missing
+-- (src/lib/projectPublicMetadata.ts). To lift the hold: fix the list above, have it reviewed, then
+-- remove the stop below and this notice in the same change (tests/guards/held-migrations holds them
+-- together).
+--
 -- WHY. PostgreSQL grants EXECUTE on every new function to PUBLIC, and Supabase's default privileges
 -- grant it to anon and authenticated by name as well, so nothing decided who may call a function.
 -- A SECURITY DEFINER function runs as its owner, past row-level security. An audit of every function
@@ -178,6 +192,13 @@
 -- public.projects TO anon; GRANT SELECT (user_id, pending_role) ON public.investigators_public TO
 -- authenticated. The view can stay; DROP VIEW public.project_metadata_public removes it.
 -- ================================================================================================
+
+-- ON HOLD: this statement is first, and it stops the script. Remove it only with the notice above.
+DO $hold$
+BEGIN
+  RAISE EXCEPTION 'privacy_round_two is ON HOLD (owner, 2026-11-19): a review found faults in it, listed in its header, and it must not be applied as written. NOTHING WAS CHANGED.';
+END
+$hold$;
 
 BEGIN;
 -- Principle X: a SQL-editor write has no auth.uid(), so the script names itself before anything else.
