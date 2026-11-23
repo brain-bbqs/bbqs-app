@@ -12,6 +12,7 @@ import { Loader2, Lock, Mail, Check, X, UserPlus, AlertTriangle, Trash2 } from "
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PageMeta } from "@/components/PageMeta";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 import { useSortableTable } from "@/components/admin/useSortableTable";
 import {
   Dialog,
@@ -232,7 +233,8 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
               return;
             }
           }
-          throw invErr;
+          // An email already on another record (investigators_email_unique_ci) is said as such.
+          throw new Error(alreadyInKgMessage(invErr, { email, name }) ?? invErr.message);
         }
       }
 
@@ -353,7 +355,7 @@ export default function AdminAccessRequests({ embedded = false }: AdminAccessReq
       const { error: invErr } = await supabase
         .from("investigators")
         .insert({ name: disambiguated, email });
-      if (invErr) throw invErr;
+      if (invErr) throw new Error(alreadyInKgMessage(invErr, { email, name: disambiguated }) ?? invErr.message);
 
       const { error } = await supabase
         .from("access_requests")

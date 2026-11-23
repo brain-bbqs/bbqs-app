@@ -137,9 +137,22 @@ Consortium project metadata. Each project is linked to a grant via `grant_id`.
 | `study_species` | `text[]` | Yes | `{}` | Species studied |
 | `study_human` | `boolean` | Yes | `false` | Human subjects flag |
 | `website` | `text` | Yes | — | Project website |
-| `last_edited_by` | `text` | Yes | — | Email of last editor |
+| `last_edited_by` | `text` | Yes | — | Email, auth user id or actor label of the last editor. **Not readable by anon** |
+| `questionnaire_submitted_by` | `text` | Yes | — | Email of the Data Questionnaire respondent. **Not readable by anon** |
+| `questionnaire_submitted_at` | `timestamptz` | Yes | — | When that response was submitted. **Not readable by anon** |
+| `questionnaire_response_id` | `text` | Yes | — | Google Forms responseId. **Not readable by anon** |
 | `created_at` | `timestamptz` | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | `now()` | — |
+
+**Anon reads named columns only** (20261117190000): anon may SELECT every column above except the four
+marked, so an anonymous `select=*` is refused. The questionnaire attribution was three keys inside
+`metadata` until then; `trg_aa_keep_questionnaire_attribution_private` moves them into the columns on
+every write. The same column-by-column rule covers `investigators_public` (no `user_id`, `pending_role`),
+`feature_suggestions_public` (no `submitter_name`, `github_username`), `resources.created_by`,
+`announcements.posted_by`, `entity_comments.user_id`, `dandisets` (`raw`, `hidden_reason`, `hidden_by`,
+`hidden_at`), `harvester_relations.approved_by` and `harvester_settings.updated_by`; anon may not read
+`project_questionnaire_status` at all. A column added later is hidden from anon until a migration runs
+`GRANT SELECT (<column>) ON public.<object> TO anon` (tests/guards/anon-private-columns).
 
 ### `investigators`
 

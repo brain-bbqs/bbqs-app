@@ -24,8 +24,10 @@ test.describe("tables load with data", () => {
 
   for (const table of CORE_TABLES) {
     test(`table has rows: ${table}`, async ({ request }) => {
+      // select=id, not *: anon may read only the public columns of resources and announcements
+      // (20261117190000), and select=* asks for every column, so it is refused (401) there.
       const res = await request.head(
-        `${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1`,
+        `${SUPABASE_URL}/rest/v1/${table}?select=id&limit=1`,
         {
           headers: {
             ...AUTH_HEADERS,

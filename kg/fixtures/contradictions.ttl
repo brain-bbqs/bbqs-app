@@ -1,5 +1,9 @@
-# Deliberately-inconsistent graph. Every consistency shape should fire on exactly one node here.
-# This is the RED half of the RED/GREEN pair that proves the shapes actually bite.
+# Deliberately-inconsistent graph. Every validation shape fires here (most on exactly one node),
+# and kg/quality.py duplicates() finds a folded pair of every identifier it checks and an unlinked
+# preprint + published pair (the last block). This is the RED half of the RED/GREEN pair that proves
+# the shapes and the duplicate count actually bite. kg/ci_check.py holds, node for node, what each
+# shape, duplicates() and revision_links() must report here (RED_EXPECTED): a check that stops
+# firing, or fires on another node than the one planted for it, fails the gate.
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
@@ -30,7 +34,7 @@ bid:proj-1 a bbqs:Project ;
   bbqs:name "Test project" ;
   bbqs:grant_number "1U01MH135430-01" ;
   bbqs:mechanism "R61" ;
-  bbqs:studies_species_name "Freely moving animals" .
+  bbqs:studies_species_unresolved "Freely moving animals" .
 
 # #12 — two verified provenance records disagree on projects.title for proj-1
 bid:sc-reporter a bbqs:SourceClass ; bbqs:is_verified true .
@@ -48,7 +52,7 @@ bid:role-dangling a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:ghost-investigator .
 
-# #14 — two Investigator nodes share one ORCID (merge candidate)
+# #14 — two Investigator nodes share one ORCID (merge candidate); the result names the other node
 bid:inv-dup-a a bbqs:Investigator ;
   bbqs:name "Alex Kim" ;
   bbqs:orcid <https://orcid.org/0000-0002-1111-2222> .
@@ -122,3 +126,371 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-dup-a , bid:inv-email-a ;
   bbqs:on_project bid:proj-renumbered .
+
+# #21 — two Publication nodes with one DOI: one record held twice
+bid:pub-doi-a a bbqs:Publication ;
+  bbqs:title "A paper held twice, by its DOI" ;
+  bbqs:doi "10.1000/abc.123"^^xsd:anyURI .
+bid:pub-doi-b a bbqs:Publication ;
+  bbqs:title "The same paper, entered again" ;
+  bbqs:doi "10.1000/abc.123"^^xsd:anyURI .
+
+# #22 — two Publication nodes with one PMID
+bid:pub-pmid-a a bbqs:Publication ;
+  bbqs:title "A paper held twice, by its PMID" ;
+  bbqs:pmid "123456" .
+bid:pub-pmid-b a bbqs:Publication ;
+  bbqs:title "Its second record" ;
+  bbqs:pmid "123456" .
+
+# #23 — two FundingOpportunity nodes with one FON
+bid:fo-a a bbqs:FundingOpportunity ;
+  bbqs:name "A funding call" ;
+  bbqs:fon "RFA-XX-27-001" .
+bid:fo-b a bbqs:FundingOpportunity ;
+  bbqs:name "The same call, entered again" ;
+  bbqs:fon "RFA-XX-27-001" .
+
+# #24 — two Project nodes with one grant number
+bid:proj-a a bbqs:Project ;
+  bbqs:name "An award" ;
+  bbqs:grant_number "R34DA000001" .
+bid:proj-b a bbqs:Project ;
+  bbqs:name "The same award, entered again" ;
+  bbqs:grant_number "R34DA000001" .
+
+# #25 — a revision_of that points at a Dataset, not at a Publication
+bid:pub-rev-a a bbqs:Publication ;
+  bbqs:title "A paper said to revise a dataset" ;
+  bbqs:revision_of bid:ds-rev .
+bid:ds-rev a bbqs:Dataset ;
+  bbqs:name "A dataset" .
+# #25 — a revision_of from a Dataset (the subject is not a Publication)
+bid:ds-rev-subject a bbqs:Dataset ;
+  bbqs:name "A dataset said to revise a paper" ;
+  bbqs:revision_of bid:pub-rev-target .
+bid:pub-rev-target a bbqs:Publication ;
+  bbqs:title "A paper a dataset is said to revise" .
+# #25 — a Publication that is a revision_of itself
+bid:pub-rev-self a bbqs:Publication ;
+  bbqs:title "A paper said to revise itself" ;
+  bbqs:revision_of bid:pub-rev-self .
+# #25 — two Publications, each a revision_of the other (and, for revision_links(), two titles)
+bid:pub-rev-x a bbqs:Publication ;
+  bbqs:title "One of two papers linked both ways" ;
+  bbqs:revision_of bid:pub-rev-y .
+bid:pub-rev-y a bbqs:Publication ;
+  bbqs:title "The other of two papers linked both ways" ;
+  bbqs:revision_of bid:pub-rev-x .
+
+# duplicates() — one identifier in two spellings is one key (kg/identity_keys.json), so each pair
+# below is a possible duplicate although no exact-match shape fires on it. One pair per identifier
+# kg/quality.py compares; ci_check.py fails if one of them stops being found.
+# orcid: an iD with a lower-case x, and the same iD with X
+bid:inv-orcid-x a bbqs:Investigator ;
+  bbqs:name "Rosa Diaz" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1825-009x> .
+bid:inv-orcid-X a bbqs:Investigator ;
+  bbqs:name "R. M. Diaz" ;
+  bbqs:orcid <https://orcid.org/0000-0002-1825-009X> .
+# doi: one DOI as a doi.org link in capitals, and bare
+bid:pub-doi-c a bbqs:Publication ;
+  bbqs:title "A paper with its DOI as a link" ;
+  bbqs:doi "https://doi.org/10.1000/ABC.456"^^xsd:anyURI .
+bid:pub-doi-d a bbqs:Publication ;
+  bbqs:title "A paper with its DOI bare" ;
+  bbqs:doi "10.1000/abc.456"^^xsd:anyURI .
+# pmid: one PMID with a leading zero, and without
+bid:pub-pmid-c a bbqs:Publication ;
+  bbqs:title "A paper with a padded PMID" ;
+  bbqs:pmid "0123458" .
+bid:pub-pmid-d a bbqs:Publication ;
+  bbqs:title "A paper with its PMID" ;
+  bbqs:pmid "123458" .
+# fon: one FON in lower case with spaces, and as NIH writes it
+bid:fo-c a bbqs:FundingOpportunity ;
+  bbqs:name "A forecast" ;
+  bbqs:fon "rfa xx 27 003" .
+bid:fo-d a bbqs:FundingOpportunity ;
+  bbqs:name "Its final notice" ;
+  bbqs:fon "RFA-XX-27-003" .
+# grant_number: one award with its application type and budget year, and its core number
+bid:proj-award-a a bbqs:Project ;
+  bbqs:name "A budget year of an award" ;
+  bbqs:grant_number "1R34DA000002-01" .
+bid:proj-award-b a bbqs:Project ;
+  bbqs:name "The award" ;
+  bbqs:grant_number "R34DA000002" .
+# A URL is a duplicate only with a name match: a landing page can serve several records (a URL
+# alone is advisory; the GREEN fixture has two such pairs). So each URL pair here has one name.
+# url: one notice page without its scheme and with www. in capitals, and over http with a slash
+bid:fo-e a bbqs:FundingOpportunity ;
+  bbqs:name "A call known by its page" ;
+  bbqs:url "WWW.grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-004.html"^^xsd:anyURI .
+bid:fo-f a bbqs:FundingOpportunity ;
+  bbqs:name "A call known by its page." ;
+  bbqs:url "HTTP://grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-004.html/"^^xsd:anyURI .
+# external_url: one tool's page over https and over http with www.
+bid:sw-a a bbqs:SoftwareTool ;
+  bbqs:name "Pose tool" ;
+  bbqs:external_url "https://github.com/bbqs-example/pose"^^xsd:anyURI .
+bid:sw-b a bbqs:SoftwareTool ;
+  bbqs:name "Pose Tool" ;
+  bbqs:external_url "http://www.github.com/bbqs-example/pose/"^^xsd:anyURI .
+# repo_url: one repository with the host in capitals
+bid:sw-c a bbqs:SoftwareTool ;
+  bbqs:name "Tracking library" ;
+  bbqs:repo_url "https://github.com/bbqs-example/track"^^xsd:anyURI .
+bid:sw-d a bbqs:SoftwareTool ;
+  bbqs:name "Tracking Library" ;
+  bbqs:repo_url "https://GitHub.com/bbqs-example/track/"^^xsd:anyURI .
+# doi, spelled so that the rule cannot read it (a space inside): no key, but the same spelling
+# twice, folded as written (trim, lower-case), is still one value
+bid:pub-doi-e a bbqs:Publication ;
+  bbqs:title "A paper whose DOI was mistyped" ;
+  bbqs:doi "10.1000/Bad DOI"^^xsd:anyURI .
+bid:pub-doi-f a bbqs:Publication ;
+  bbqs:title "Its second record, mistyped the same way" ;
+  bbqs:doi " 10.1000/bad doi "^^xsd:anyURI .
+# doi, by a resolver without its scheme and by www.doi.org
+bid:pub-doi-g a bbqs:Publication ;
+  bbqs:title "A paper with its DOI written as doi.org/..." ;
+  bbqs:doi "doi.org/10.1000/ABC.789"^^xsd:anyURI .
+bid:pub-doi-h a bbqs:Publication ;
+  bbqs:title "A paper with its DOI written as www.doi.org/..." ;
+  bbqs:doi "https://www.doi.org/10.1000/abc.789"^^xsd:anyURI .
+
+# versions — a preprint and its published version: one title, two DOIs and PMIDs, the preprint the
+# earlier, and no revision_of between them yet (duplicates() counts the pair to link; the GREEN
+# fixture links it)
+bid:pub-ver-published a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "Nat Methods" ;
+  bbqs:doi "10.1038/s41592-000-0001-x"^^xsd:anyURI ;
+  bbqs:pmid "200002" ;
+  bbqs:year 2026 .
+bid:pub-ver-preprint a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.01.01.000001"^^xsd:anyURI ;
+  bbqs:pmid "200001" ;
+  bbqs:year 2025 .
+
+# versions — a Learning & Memory paper and its bioRxiv preprint: both DOIs start 10.1101/, but only
+# the bioRxiv one has a preprint's shape, so this is a pair to link (not two preprints)
+bid:pub-lm-paper a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "Learn Mem" ;
+  bbqs:doi "10.1101/lm.054001.124"^^xsd:anyURI ;
+  bbqs:pmid "300402" ;
+  bbqs:year 2025 .
+bid:pub-lm-pre a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2024.05.01.590001"^^xsd:anyURI ;
+  bbqs:pmid "300401" ;
+  bbqs:year 2024 .
+
+# versions — publications are grouped by their title (bbqs:title, by kg/identity_keys.py title_key,
+# as the database pairs them), not by the spine's name; and a Greek letter counts: the alpha pair is
+# one work, the beta paper another
+bid:pub-alpha-paper a bbqs:Publication ;
+  bbqs:name "Spine name of the alpha paper" ;
+  bbqs:title "α-synuclein seeds spread along connected circuits" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300702"^^xsd:anyURI ;
+  bbqs:pmid "300702" ;
+  bbqs:year 2026 .
+bid:pub-alpha-pre a bbqs:Publication ;
+  bbqs:name "Spine name of the alpha preprint" ;
+  bbqs:title "α-synuclein seeds spread along connected circuits" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.07.01.300701"^^xsd:anyURI ;
+  bbqs:pmid "300701" ;
+  bbqs:year 2025 .
+bid:pub-beta-paper a bbqs:Publication ;
+  bbqs:title "β-synuclein seeds spread along connected circuits" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300703"^^xsd:anyURI ;
+  bbqs:pmid "300703" ;
+  bbqs:year 2026 .
+
+# version_kind — two published records and one preprint with one title, both papers linked to it:
+# still a duplicate to merge (a link never resolves two published records)
+bid:pub-vk2-a a bbqs:Publication ;
+  bbqs:title "Two published records of one paper and its preprint" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300101"^^xsd:anyURI ;
+  bbqs:pmid "300101" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-vk2-pre .
+bid:pub-vk2-b a bbqs:Publication ;
+  bbqs:title "Two published records of one paper and its preprint" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300102"^^xsd:anyURI ;
+  bbqs:pmid "300102" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-vk2-pre .
+bid:pub-vk2-pre a bbqs:Publication ;
+  bbqs:title "Two published records of one paper and its preprint" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.03.01.300100"^^xsd:anyURI ;
+  bbqs:pmid "300100" ;
+  bbqs:year 2025 .
+
+# version_kind — two published records and one preprint with one title, nothing linked: a duplicate
+# to merge first, not a pair to link (the pairing rule skips such a group). The two papers have one
+# year and no PMID, so neither is "later" than the other: only the count of papers decides here.
+bid:pub-vk3-a a bbqs:Publication ;
+  bbqs:title "Two published records of another paper and its preprint" ;
+  bbqs:journal "Cell" ;
+  bbqs:doi "10.1016/j.cell.2026.300111"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-vk3-b a bbqs:Publication ;
+  bbqs:title "Two published records of another paper and its preprint" ;
+  bbqs:journal "Cell Rep" ;
+  bbqs:doi "10.1016/j.celrep.2026.300112"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-vk3-pre a bbqs:Publication ;
+  bbqs:title "Two published records of another paper and its preprint" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.03.02.300110"^^xsd:anyURI ;
+  bbqs:pmid "300110" ;
+  bbqs:year 2025 .
+
+# version_kind — a paper and two preprint records, one of which holds the paper's DOI (in another
+# spelling): one record twice, whatever links them (the DOI pair is a duplicate on its own, and the
+# three-record title group is one too)
+bid:pub-vkd-paper a bbqs:Publication ;
+  bbqs:title "A paper whose DOI one of its preprint records also holds" ;
+  bbqs:journal "eLife" ;
+  bbqs:doi "10.7554/eLife.300201"^^xsd:anyURI ;
+  bbqs:pmid "300202" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-vkd-pre1 , bid:pub-vkd-pre2 .
+bid:pub-vkd-pre1 a bbqs:Publication ;
+  bbqs:title "A paper whose DOI one of its preprint records also holds" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "https://doi.org/10.7554/ELIFE.300201"^^xsd:anyURI ;
+  bbqs:pmid "300200" ;
+  bbqs:year 2025 .
+bid:pub-vkd-pre2 a bbqs:Publication ;
+  bbqs:title "A paper whose DOI one of its preprint records also holds" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.04.01.300199"^^xsd:anyURI ;
+  bbqs:pmid "300199" ;
+  bbqs:year 2025 .
+
+# version_kind — a "preprint" later than the paper (by PubMed id, by its DOI's date and by year):
+# another work with the same title, or a record with a wrong value; never a pair to link, and never
+# a duplicate to merge either: versions_to_check, for a curator
+bid:pub-late-paper a bbqs:Publication ;
+  bbqs:title "A toolbox for quantifying freely moving behavior" ;
+  bbqs:journal "J Neurosci" ;
+  bbqs:doi "10.1523/JNEUROSCI.0001-19.2019"^^xsd:anyURI ;
+  bbqs:pmid "300301" ;
+  bbqs:year 2019 .
+bid:pub-late-pre a bbqs:Publication ;
+  bbqs:title "A toolbox for quantifying freely moving behavior" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.03.03.300302"^^xsd:anyURI ;
+  bbqs:pmid "300302" ;
+  bbqs:year 2025 .
+
+# chronology, as version_kind() reads it from the export (kg/identity_keys.json: PubMed id first,
+# then the posting date in a bioRxiv/medRxiv DOI, then the year). Each pair is one title, one
+# published record and one preprint, no link; each is decided by one signal alone.
+# The PubMed id alone: one year, no date in the arXiv DOI, the preprint added to PubMed after the
+# paper: later (versions_to_check)
+bid:pub-pmidlate-paper a bbqs:Publication ;
+  bbqs:title "Ordering two versions by their PubMed ids alone" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300801"^^xsd:anyURI ;
+  bbqs:pmid "300801" ;
+  bbqs:year 2026 .
+bid:pub-pmidlate-pre a bbqs:Publication ;
+  bbqs:title "Ordering two versions by their PubMed ids alone" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2601.300802"^^xsd:anyURI ;
+  bbqs:pmid "300802" ;
+  bbqs:year 2026 .
+# The year would decide wrongly: the preprint's year (2027) is a later version's, after the paper's,
+# but PubMed added it first: a pair to link (versions)
+bid:pub-drift-paper a bbqs:Publication ;
+  bbqs:title "A preprint whose year drifted past its paper's" ;
+  bbqs:journal "Cell" ;
+  bbqs:doi "10.1016/j.cell.2026.300812"^^xsd:anyURI ;
+  bbqs:pmid "300812" ;
+  bbqs:year 2026 .
+bid:pub-drift-pre a bbqs:Publication ;
+  bbqs:title "A preprint whose year drifted past its paper's" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2501.300811"^^xsd:anyURI ;
+  bbqs:pmid "300811" ;
+  bbqs:year 2027 .
+# The DOI's date alone: no PubMed ids; the preprint's year (2027) drifted, its DOI says it was posted
+# in 2025, before the paper's 2026: a pair to link (versions)
+bid:pub-posted-paper a bbqs:Publication ;
+  bbqs:title "A preprint dated by its bioRxiv DOI, not by its year" ;
+  bbqs:journal "eLife" ;
+  bbqs:doi "10.7554/eLife.300822"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-posted-pre a bbqs:Publication ;
+  bbqs:title "A preprint dated by its bioRxiv DOI, not by its year" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.08.08.300821"^^xsd:anyURI ;
+  bbqs:year 2027 .
+# The year alone: no PubMed ids, no date in the arXiv DOI, the preprint's year after the paper's:
+# later (versions_to_check)
+bid:pub-yearlate-paper a bbqs:Publication ;
+  bbqs:title "A preprint later than its paper by year alone" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300832"^^xsd:anyURI ;
+  bbqs:year 2026 .
+bid:pub-yearlate-pre a bbqs:Publication ;
+  bbqs:title "A preprint later than its paper by year alone" ;
+  bbqs:journal "ArXiv" ;
+  bbqs:doi "10.48550/arXiv.2701.300831"^^xsd:anyURI ;
+  bbqs:year 2027 .
+# No year at all, the preprint first in PubMed: a pair to link (versions)
+bid:pub-noyear-paper a bbqs:Publication ;
+  bbqs:title "Two versions that carry no year at all" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.300842"^^xsd:anyURI ;
+  bbqs:pmid "300842" .
+bid:pub-noyear-pre a bbqs:Publication ;
+  bbqs:title "Two versions that carry no year at all" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/300841"^^xsd:anyURI ;
+  bbqs:pmid "300841" .
+
+# revision_links() — a preprint said to revise its paper: the link points the wrong way (and its
+# title group is versions_to_check: a link to correct, never a merge)
+bid:pub-wrongway-paper a bbqs:Publication ;
+  bbqs:title "A version link that points the wrong way" ;
+  bbqs:journal "Cell" ;
+  bbqs:doi "10.1016/j.cell.2026.300502"^^xsd:anyURI ;
+  bbqs:pmid "300502" ;
+  bbqs:year 2026 .
+bid:pub-wrongway-pre a bbqs:Publication ;
+  bbqs:title "A version link that points the wrong way" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.05.01.300501"^^xsd:anyURI ;
+  bbqs:pmid "300501" ;
+  bbqs:year 2025 ;
+  bbqs:revision_of bid:pub-wrongway-paper .
+
+# revision_links() — a paper said to revise the preprint of another work: the titles differ
+bid:pub-other-paper a bbqs:Publication ;
+  bbqs:title "Song learning in the zebra finch" ;
+  bbqs:journal "Nature" ;
+  bbqs:doi "10.1038/s41586-026-300602"^^xsd:anyURI ;
+  bbqs:pmid "300602" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-other-pre .
+bid:pub-other-pre a bbqs:Publication ;
+  bbqs:title "Ultrasonic calls of the house mouse" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.06.01.300601"^^xsd:anyURI ;
+  bbqs:pmid "300601" ;
+  bbqs:year 2025 .

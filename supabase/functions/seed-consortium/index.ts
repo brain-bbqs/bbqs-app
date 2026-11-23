@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import { getCorsHeaders, requireAdmin } from "../_shared/auth.ts";
+import { orcidKey } from "../_shared/identity-keys.ts";
+import { emailKey, findOrCreateInvestigator, kgSession, loadPeople, matchPeople, type PersonKey } from "../_shared/kg-write.ts";
 
 interface ConsortiumPerson {
   name: string;
@@ -2004,77 +2006,127 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // Service-role writes name themselves and the admin who ran them (Principle X); without the header
+  // they read 'unknown' in data_audit_log. Set on this server-side client only.
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    global: { headers: { "x-bbqs-client": `seed-consortium:${auth.user?.email ?? auth.user?.id ?? "admin"}` } },
+  });
 
   try {
     let created = 0;
     let updated = 0;
     let skipped = 0;
     const errors: string[] = [];
+    const notes: string[] = [];
+    // The curator's worklist: every roster person this run did not write because a name alone
+    // found them, returned in full (errors are capped; this list is not).
+    const needsCurator: string[] = [];
+
+    // The people, read once and matched here (_shared/kg-write.ts): by email, primary or secondary
+    // on either side (an email ilike on the primary column alone missed a member whose form address
+    // is their second one), then by ORCID, then by name key. A name is a guess (namesakes exist):
+    // a record it finds that carries another email, or records with the name that carry two
+    // different emails, are somebody a curator has to tell apart, so nothing is written to them
+    // (matchPeople's `ambiguous`), and the person goes on the curator's worklist (needsCurator).
+    // So a name only ever reuses a record that has no email (a RePORTER twin), and the
+    // sync_member_groups trigger, which skips a record without an email and otherwise keys Google
+    // Groups on it, is never fired for another person's address by a working_groups write from here.
+    const kg = kgSession(supabase);
+    const people = await loadPeople(kg);
+    const ORDER: PersonKey[] = ["email", "orcid", "name"];
 
     for (const person of CONSORTIUM_PEOPLE) {
       try {
-        // Try to find existing investigator by email (primary or secondary)
-        const allEmails = [person.email, ...person.secondary_emails].map(e => e.toLowerCase());
-        
-        const { data: existing } = await supabase
-          .from("investigators")
-          .select("id, email, secondary_emails, orcid, working_groups, role")
-          .or(allEmails.map(e => `email.ilike.${e}`).join(","))
-          .maybeSingle();
+        const emails = [person.email, ...person.secondary_emails].map((e) => e.toLowerCase());
+        const query = { name: person.name, email: emails[0], secondaryEmails: emails.slice(1), orcid: person.orcid || null };
+        // An ORCID goes on a record only if no other record holds it: one ORCID is one person
+        // (uq_investigators_orcid_key refuses a second once 20261117181500 is applied).
+        const orcidHeldElsewhere = (id: string | null) => {
+          const k = orcidKey(person.orcid);
+          return !!k && people.some((r) => r.id !== id && orcidKey(r.orcid) === k);
+        };
+        const match = matchPeople(people, query, ORDER);
+        // A name may only reuse a record that has no email. matchPeople already refuses one with
+        // another email when this person has an email; this also holds for a roster entry without one.
+        const nameOnly = match.by === "name" && !!match.row;
+        if (match.ambiguous || (nameOnly && emailKey(match.row!.email))) {
+          // For a curator: nothing is written to the record(s) found, and no second record is made.
+          needsCurator.push(`${person.name}: ${match.reason ?? `matched only by name to "${match.row!.name}" (id ${match.row!.id}), ` +
+            "which has an email this roster entry has none to compare with: nothing was written to it"}`);
+          continue;
+        }
+        const existing = match.row;
+        // Said once the update is done, as what was done (below).
+        const byNameOnly = nameOnly
+          ? `${person.name}: matched by name only, to "${existing!.name}" (id ${existing!.id}), which has no email`
+          : null;
 
         if (existing) {
+          const { data: current, error: readErr } = await supabase
+            .from("investigators")
+            .select("id, secondary_emails, orcid, working_groups, role")
+            .eq("id", existing.id)
+            .single();
+          if (readErr || !current) {
+            errors.push(`${person.name}: ${readErr?.message ?? "matched record not readable"}`);
+            continue;
+          }
+
           // Update with new data (merge, don't overwrite non-empty)
           const updates: Record<string, any> = {};
-          
+
           if (person.secondary_emails.length > 0) {
-            const existingSec = existing.secondary_emails || [];
+            const existingSec = current.secondary_emails || [];
             const merged = [...new Set([...existingSec, ...person.secondary_emails.map(e => e.toLowerCase())])];
             updates.secondary_emails = merged;
           }
-          
-          if (person.orcid && !existing.orcid) {
-            updates.orcid = person.orcid;
+
+          if (person.orcid && !current.orcid) {
+            if (orcidHeldElsewhere(current.id)) notes.push(`${person.name}: ORCID ${person.orcid} is on another record; not copied (merge them)`);
+            else updates.orcid = person.orcid;
           }
-          
+
           if (person.working_groups.length > 0) {
-            const existingWg = existing.working_groups || [];
+            const existingWg = current.working_groups || [];
             const merged = [...new Set([...existingWg, ...person.working_groups])];
             updates.working_groups = merged;
           }
-          
-          if (person.role && !existing.role) {
+
+          if (person.role && !current.role) {
             updates.role = person.role;
           }
 
           if (Object.keys(updates).length > 0) {
-            await supabase.from("investigators").update(updates).eq("id", existing.id);
-            updated++;
+            const { error: updateErr } = await supabase.from("investigators").update(updates).eq("id", current.id);
+            if (updateErr) {
+              errors.push(`${person.name}: ${updateErr.message}`);
+            } else {
+              // Later people in this run are matched against what was just written.
+              if (updates.orcid) existing.orcid = updates.orcid;
+              if (updates.secondary_emails) existing.secondary_emails = updates.secondary_emails;
+              updated++;
+              if (byNameOnly) {
+                notes.push(`${byNameOnly}: updated its ${Object.keys(updates).join(", ")}; its email was left for a curator to confirm`);
+              }
+            }
           } else {
             skipped++;
+            if (byNameOnly) notes.push(`${byNameOnly}: it already had everything the roster lists, so nothing was written`);
           }
         } else {
-          // Create new investigator with resource node
-          const { data: resource } = await supabase
-            .from("resources")
-            .insert({ name: person.name, resource_type: "investigator" })
-            .select("id")
-            .single();
+          // Create the person, then their node (findOrCreateInvestigator writes the person first).
+          if (person.orcid && orcidHeldElsewhere(null)) notes.push(`${person.name}: ORCID ${person.orcid} is on another record; not copied`);
+          const made = await findOrCreateInvestigator(kg, {
+            ...query, orcid: orcidHeldElsewhere(null) ? null : query.orcid,
+          }, { extra: { working_groups: person.working_groups, role: person.role || null }, order: ORDER });
 
-          const { error: insertErr } = await supabase.from("investigators").insert({
-            name: person.name,
-            email: person.email.toLowerCase(),
-            secondary_emails: person.secondary_emails.map(e => e.toLowerCase()),
-            orcid: person.orcid || null,
-            working_groups: person.working_groups,
-            role: person.role || null,
-            resource_id: resource?.id || null,
-          });
-
-          if (insertErr) {
-            errors.push(`${person.name}: ${insertErr.message}`);
-          } else {
+          if (!made.ok) {
+            errors.push(`${person.name}: ${made.error}`);
+          } else if (made.created) {
             created++;
+          } else {
+            skipped++;
+            if (made.note) notes.push(`${person.name}: ${made.note}`);
           }
         }
       } catch (err) {
@@ -2082,8 +2134,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // errorDetails is capped (a failure that repeats for every person, say RLS, would fill it), and
+    // says how many it leaves out; the curator's worklist and the notes are returned in full.
+    const SHOWN_ERRORS = 10;
     return new Response(
-      JSON.stringify({ success: true, created, updated, skipped, errors: errors.length, errorDetails: errors.slice(0, 10) }),
+      JSON.stringify({
+        success: true, created, updated, skipped,
+        errors: errors.length, errorDetails: errors.slice(0, SHOWN_ERRORS),
+        ...(errors.length > SHOWN_ERRORS ? { errorDetailsOmitted: errors.length - SHOWN_ERRORS } : {}),
+        needsCurator: needsCurator.length, needsCuratorDetails: needsCurator,
+        notes,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

@@ -25,9 +25,10 @@ export function ResourceSummary({ id }: { id: string }) {
     queryKey: ["entity-resource", id],
     queryFn: async () => {
       // Try resources table first
+      // Named columns: a visitor may not read created_by (20261117190000), and select("*") asks for it.
       const { data: resource, error } = await supabase
         .from("resources")
-        .select("*")
+        .select("id, name, resource_type, description, external_url, metadata, organization_id, created_at, updated_at")
         .eq("id", id)
         .single();
       if (error) throw error;

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 
 interface Props {
   trigger: React.ReactNode;
@@ -79,7 +80,10 @@ export function AddFundingOpportunityDialog({ trigger, onCreated }: Props) {
     });
     setSaving(false);
     if (error) {
-      toast({ title: "Failed to add opportunity", description: error.message, variant: "destructive" });
+      // A FON already in the KG (uq_funding_opportunities_fon_key, 20261117181500, or the exact
+      // funding_opportunities_fon_key) is said as such; any other error as it came.
+      const dup = alreadyInKgMessage(error, { fon });
+      toast({ title: dup ? "Already in the KG" : "Failed to add opportunity", description: dup ?? error.message, variant: "destructive" });
       return;
     }
     toast({ title: "Funding opportunity added" });

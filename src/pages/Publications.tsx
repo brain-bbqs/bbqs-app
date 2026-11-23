@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { toast } from "sonner";
+import { alreadyInKgMessage } from "@/lib/alreadyInKg";
 
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -187,7 +188,9 @@ export default function Publications() {
       setPubForm(INITIAL_PUB_FORM);
       toast.success("Publication added successfully!");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to add publication"),
+    // A DOI already in the KG (uq_publications_doi_key, 20261117181500) is said as such; any other
+    // error as it came.
+    onError: (err: any, vars) => toast.error(alreadyInKgMessage(err, { doi: vars?.doi }) ?? (err.message || "Failed to add publication")),
   });
 
   const handlePubSubmit = (e: React.FormEvent) => {

@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Users, ExternalLink, Columns3, Filter } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { selectWithOptionalColumns } from "@/lib/optionalColumns";
 import { normalizePiName, piProfileUrl, institutionUrl } from "@/lib/pi-utils";
 import { MARR_PROJECTS } from "@/data/marr-projects";
 // Note: PrincipalInvestigators still uses static MARR_PROJECTS as fallback
@@ -364,7 +365,11 @@ const ResearchAreasCell = ({ data }: { data: PIRow }) => {
 /* ── Data fetching ── */
 const fetchPIs = async (): Promise<PIRow[]> => {
   const [invResult, grantsResult, giResult, ioResult, orgResult] = await Promise.all([
-    supabase.from("investigators_public" as any).select("*"),
+    // Named columns, never "*": anon may read only the public columns of this view (20261117190000),
+    // and select=* asks for user_id and pending_role too, which a visitor is refused. `onboarded`
+    // exists only once 20261008120000 is applied, so it is asked for as an optional column.
+    selectWithOptionalColumns("investigators_public",
+      "id, name, profile_url, working_groups, research_areas, skills, resource_id", ["onboarded"]),
     supabase.from("grants").select("*"),
     supabase.from("grant_investigators").select("*"),
     supabase.from("investigator_organizations").select("investigator_id, organization_id"),
@@ -396,8 +401,8 @@ const fetchPIs = async (): Promise<PIRow[]> => {
 
     // Include investigators who have grants, working groups, or went through onboarding. The
     // roster is RePORTER-derived, so onboarded trainees/staff with no grant picked were invisible
-    // here (Jared Reiling, #232). `onboarded` comes from 20261008120000; until that is
-    // applied it is undefined and this falls back to grants-or-working-groups.
+    // here (Jared Reiling, #232). `onboarded` comes from 20261008120000, which production did not
+    // have on 2026-11-18; a row without it falls back to grants-or-working-groups.
     if (piGrantLinks.length === 0 && wgs.length === 0 && inv.onboarded !== true) continue;
 
     let piAsPi = 0;

@@ -1,5 +1,8 @@
-# The same graph as contradictions.ttl, corrected. Every consistency shape should pass (conforms).
-# This is the GREEN half of the pair.
+# The same graph as contradictions.ttl, corrected. Every validation shape passes (conforms), and
+# kg/quality.py duplicates() finds no possible duplicate and no pair left to link: its same-title
+# preprints and published papers are linked by revision_of, and the records that share only a URL
+# are advisory. revision_links() finds nothing. This is the GREEN half of the pair; kg/ci_check.py
+# holds what it must report (GREEN_EXPECTED).
 @prefix bbqs: <https://brain-bbqs.org/schema#> .
 @prefix bid:  <https://brain-bbqs.org/id/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
@@ -16,12 +19,11 @@ bid:inv-1 a bbqs:Investigator ;
   bbqs:consortium_role "Principal Investigator (PI)" .
 
 # #9 — mechanism matches the grant number
-# #7 — the study_species claim resolves, here through a Species alias
+# #7 — the study_species claim resolved (here through a Species alias), so only the link is written
 bid:proj-1 a bbqs:Project ;
   bbqs:name "Test project" ;
   bbqs:grant_number "1U01MH135430-01" ;
   bbqs:mechanism "U01" ;
-  bbqs:studies_species_name "Mus musculus" ;
   bbqs:studies_species bid:sp-mouse .
 bid:sp-mouse a bbqs:Species ;
   bbqs:name "House Mouse" ;
@@ -51,8 +53,8 @@ bid:inv-email-a a bbqs:Investigator ;
   bbqs:name "Lin Chen" ;
   bbqs:email "lyc5332@psu.edu" .
 bid:inv-email-b a bbqs:Investigator ;
-  bbqs:name "Sam Lee" ;
-  bbqs:secondary_emails "sam.lee@example.edu" .
+  bbqs:name "Robin Park" ;
+  bbqs:secondary_emails "robin.park@example.edu" .
 
 # #16 — only one ProjectRole edge for inv-1 + proj-1, so there's nothing to disagree with
 
@@ -111,3 +113,79 @@ bid:role-two a bbqs:ProjectRole ;
   bbqs:project_role "co_pi" ;
   bbqs:held_by bid:inv-dup-a ;
   bbqs:on_project bid:proj-renumbered .
+
+# #21, #22, #25 — a published paper and its preprint: one title, each its own DOI and PMID, the
+# preprint the earlier, two records linked by revision_of (published -> preprint), so duplicates()
+# counts them as linked versions
+bid:pub-published a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "Nat Methods" ;
+  bbqs:doi "10.1038/s41592-000-0001-x"^^xsd:anyURI ;
+  bbqs:pmid "200002" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-preprint .
+bid:pub-preprint a bbqs:Publication ;
+  bbqs:title "Mapping social behavior across five species" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.01.01.000001"^^xsd:anyURI ;
+  bbqs:pmid "200001" ;
+  bbqs:year 2025 .
+# the same for a Learning & Memory paper: its 10.1101/ DOI is a journal's, not a preprint's
+bid:pub-lm-published a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "Learn Mem" ;
+  bbqs:doi "10.1101/lm.054001.124"^^xsd:anyURI ;
+  bbqs:pmid "300402" ;
+  bbqs:year 2025 ;
+  bbqs:revision_of bid:pub-lm-preprint .
+bid:pub-lm-preprint a bbqs:Publication ;
+  bbqs:title "Memory consolidation across sleep in the zebra finch" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2024.05.01.590001"^^xsd:anyURI ;
+  bbqs:pmid "300401" ;
+  bbqs:year 2024 .
+# a pair a curator linked by hand although PubMed added the preprint after the paper (so the rule
+# calls it later and would not link it): a link that exists is resolved, before the order is read,
+# as public.kg_link_publication_versions reports it (noop, already linked)
+bid:pub-hand-published a bbqs:Publication ;
+  bbqs:title "A pair a curator linked by hand against the PubMed order" ;
+  bbqs:journal "Neuron" ;
+  bbqs:doi "10.1016/j.neuron.2026.300851"^^xsd:anyURI ;
+  bbqs:pmid "300851" ;
+  bbqs:year 2026 ;
+  bbqs:revision_of bid:pub-hand-preprint .
+bid:pub-hand-preprint a bbqs:Publication ;
+  bbqs:title "A pair a curator linked by hand against the PubMed order" ;
+  bbqs:journal "bioRxiv" ;
+  bbqs:doi "10.1101/2025.12.01.300852"^^xsd:anyURI ;
+  bbqs:pmid "300852" ;
+  bbqs:year 2026 .
+
+# a URL alone is no identity: two tools on one lab homepage, two calls on one NIH topic page. Each
+# pair shares a URL key but not a name, so duplicates() lists it as advisory and counts nothing
+bid:sw-dlc a bbqs:SoftwareTool ;
+  bbqs:name "DeepLabCut" ;
+  bbqs:external_url "https://www.mackenziemathislab.org/deeplabcut"^^xsd:anyURI .
+bid:sw-dlc-live a bbqs:SoftwareTool ;
+  bbqs:name "DeepLabCut-Live" ;
+  bbqs:external_url "https://www.mackenziemathislab.org/deeplabcut/"^^xsd:anyURI .
+bid:fo-topic-1 a bbqs:FundingOpportunity ;
+  bbqs:name "A notice listed on a highlighted-topic page" ;
+  bbqs:fon "NOT-XX-27-005" ;
+  bbqs:url "https://grants.nih.gov/funding/find-a-fit-for-your-research/highlighted-topics/18"^^xsd:anyURI .
+bid:fo-topic-2 a bbqs:FundingOpportunity ;
+  bbqs:name "Another notice on the same topic page" ;
+  bbqs:fon "NOT-XX-27-006" ;
+  bbqs:url "https://grants.nih.gov/funding/find-a-fit-for-your-research/highlighted-topics/18"^^xsd:anyURI .
+
+# #23 — two funding calls, two FONs and two notice pages
+bid:fo-a a bbqs:FundingOpportunity ;
+  bbqs:name "A funding call" ;
+  bbqs:fon "RFA-XX-27-001" ;
+  bbqs:url "https://grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-001.html"^^xsd:anyURI .
+bid:fo-b a bbqs:FundingOpportunity ;
+  bbqs:name "Another funding call" ;
+  bbqs:fon "RFA-XX-27-002" ;
+  bbqs:url "https://grants.nih.gov/grants/guide/rfa-files/RFA-XX-27-002.html"^^xsd:anyURI .
+
+# #24 — proj-1, proj-no-prov and proj-renumbered (above) are three awards with three grant numbers

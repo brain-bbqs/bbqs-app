@@ -39,12 +39,17 @@ export default function FeatureSuggestions() {
   const [githubUsername, setGithubUsername] = useState("");
   const [search, setSearch] = useState("");
 
+  // Who submitted a suggestion is shown to signed-in members only: a visitor may not read
+  // submitter_name or github_username (20261117190000), so asking for them as one fails the query.
+  const signedIn = !!user;
   const { data: suggestions = [], isLoading } = useQuery<Suggestion[]>({
-    queryKey: ["feature-suggestions"],
+    queryKey: ["feature-suggestions", signedIn],
     queryFn: async () => {
+      const columns = "id, title, description, github_issue_number, github_issue_url, status, votes, target_version, created_at, updated_at"
+        + (signedIn ? ", submitter_name, github_username" : "");
       const { data, error } = await supabase
         .from("feature_suggestions_public" as any)
-        .select("*")
+        .select(columns)
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;

@@ -39,9 +39,10 @@ const Announcements = () => {
   const { data: announcements, isLoading } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
+      // Named columns: a visitor may not read posted_by (20261117190000), and select("*") asks for it.
       const { data, error } = await (supabase as any)
         .from("announcements")
-        .select("*")
+        .select("id, title, content, link, link_text, is_external_link, organization_id, resource_id, created_at, updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as any[];

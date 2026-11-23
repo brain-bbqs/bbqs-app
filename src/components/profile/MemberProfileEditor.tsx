@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { edgeError } from "@/lib/edgeError";
+import { alreadyInKgMessage, saveOwnProfile } from "@/lib/alreadyInKg";
 
 const WORKING_GROUPS = [
   { token: "WG-Analytics", label: "Analytics" },
@@ -85,7 +86,9 @@ export function MemberProfileEditor({ embedded = false }: { embedded?: boolean }
   const save = async () => {
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("member_self_update", {
+      // An ORCID iD already on another person's record is left out and the rest still saved
+      // (saveOwnProfile); any other refusal saves nothing and is shown as it is.
+      const { data, error, orcidNotSaved } = await saveOwnProfile((args) => supabase.rpc("member_self_update", args), {
         _institution: institution.trim() || null,
         _orcid: orcid.trim() || null,
         _research_areas: toList(areas),
@@ -93,8 +96,12 @@ export function MemberProfileEditor({ embedded = false }: { embedded?: boolean }
         _secondary_emails: secondary.trim() ? [secondary.trim().toLowerCase()] : [],
         _requested_working_groups: [...reqWgs],
       });
-      if (error || (data as any)?.ok === false) throw new Error(await edgeError(error, data));
-      toast.success("Profile saved" + ([...reqWgs].sort().join() !== current.slice().sort().join() ? " — working-group changes sent for admin approval" : ""));
+      if (error || (data as any)?.ok === false) {
+        throw new Error([orcidNotSaved, alreadyInKgMessage(error) ?? await edgeError(error, data)].filter(Boolean).join(" "));
+      }
+      const wgNote = [...reqWgs].sort().join() !== current.slice().sort().join() ? " — working-group changes sent for admin approval" : "";
+      if (orcidNotSaved) toast.warning(`Profile saved, except the ORCID iD${wgNote}. ${orcidNotSaved}`, { duration: 15_000 });
+      else toast.success("Profile saved" + wgNote);
       refetch();
     } catch (e: any) {
       toast.error(e?.message ?? "Could not save");
