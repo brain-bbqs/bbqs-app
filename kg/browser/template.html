@@ -179,6 +179,10 @@
   .ai b { color: var(--warn); font-weight: 600; }
   details.evi > summary { cursor: pointer; font-size: 12.5px; color: var(--accent); }
   .evrow { border-left: 2px solid var(--line); padding-left: 8px; font-size: 13px; }
+  .sosa { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .sosa > div { border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; display: grid; gap: 3px; min-width: 0; align-content: start; }
+  .sosa .lbl { font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  pre.notes { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; margin: 0; padding: 8px 10px; border-left: 2px solid var(--line); max-height: 420px; overflow: auto; }
   .linkbtn.quiet:hover, .linkbtn.quiet:focus-visible { color: var(--accent); }
 
   .gx { display: grid; gap: 10px; }
@@ -376,7 +380,7 @@ const TABS = [
   ...(PUBS ? [["publications", "Publications", PUBS.count]] : []),
   ...(MT ? [["meetings", "Meetings", MT.meetings.length]] : []),
   ...(DV ? [["devices", "Devices", DV.devices.length]] : []),
-  ["questions", "Questions", CQS.length],
+  ["questions", "Questions", CQS.length + [MT, DV].reduce((n, s) => n + (s && Array.isArray(s.questions) ? s.questions.length : 0), 0)],
   ["shapes", "Shapes", REPORT.shapes.length],
   ["structure", "Structure", CLASSES.length],
 ];
@@ -809,6 +813,25 @@ function cell(v) {
   return esc(v);
 }
 let qSet = "all";
+// Answered from the internal records of this copy (kg/internal_package.py computes them and says how).
+const iqOpen = new Set(), iqAll = new Set(), IQ_ROWS = 40;
+function internalQuestionsHTML() {
+  const sets = [[MT, "Meetings"], [DV, "Devices"]].filter(([s]) => s && Array.isArray(s.questions) && s.questions.length);
+  if (!sets.length) return "";
+  const n = sets.reduce((sum, [s]) => sum + s.questions.length, 0);
+  return `<section style="display:grid;gap:12px"><h2 style="font-size:16px">Internal: meetings and devices · ${n}</h2>
+    <p class="note" style="margin:0;max-width:75ch">Answered from the meeting records and the device list this copy of the page carries. They are never asked of the public export and never shown on the public site. Each says how it is worked out, so the answer can be checked against the records.</p>
+    ${sets.map(([s, name]) => `<div class="qgroup"><h2>${name}</h2>${s.questions.map(q => {
+      const open = iqOpen.has(q.id), all = iqAll.has(q.id), rows = all ? q.rows : q.rows.slice(0, IQ_ROWS);
+      const pill = q.reads === "absence" ? (q.count ? `<span class="pill warn" title="This question lists what is missing or unverified">lists ${q.count}</span>` : `<span class="pill ok">none found</span>`)
+        : (q.count ? `<span class="pill ok">answered</span>` : `<span class="pill na">no rows</span>`);
+      return `<details class="q" data-iq="${esc(q.id)}" ${open ? "open" : ""}><summary><span class="id">${esc(q.id)}</span><span>${esc(q.question)}</span>
+        <span class="right"><span class="rc">${fmt(q.count)} rows</span>${pill}</span></summary>
+        ${open ? `<div class="body"><p>${esc(q.how)}</p>${q.rows.length ? `<div class="tbl"><table><thead><tr>${q.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(String(v))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+          ${q.rows.length > IQ_ROWS ? `<button class="linkbtn" data-iqall="${esc(q.id)}">${all ? `Show the first ${IQ_ROWS}` : `Show all ${fmt(q.rows.length)} rows`}</button>` : ""}` : `<p class="note">No rows.</p>`}</div>` : ""}</details>`;
+    }).join("")}</div>`).join("")}</section>`;
+}
 const QSETS = { adopted: "Scored by the CI gate", proposed: "Proposed in #441, not scored yet" };
 function renderQuestions() {
   const cq = CQS.filter(q => qSet === "all" || q.set === qSet);
@@ -842,7 +865,7 @@ function renderQuestions() {
   }).join("");
   $("#view").innerHTML = `<div style="display:grid;gap:16px">
     <div style="display:grid;gap:8px"><p style="margin:0;max-width:75ch">The questions this graph should be able to answer, each pinned to a real project, species or group so the answer can be checked against the site. The CI gate scores the ${CQS.filter(q => q.set === "adopted").length} adopted ones${CQS.some(q => q.set === "proposed") ? `; the ${CQS.filter(q => q.set === "proposed").length} proposed in #441 are asked here too, and scored once #441 adopts them` : ""}. An empty answer means a link the exporter doesn't write; an unmodeled one means a slot the schema doesn't have; none found means a question about what is missing found nothing missing.</p>
-    ${setFilt ? `<div class="filters">${setFilt}</div>` : ""}<div class="filters">${filt}</div></div>${groups || `<p class="empty">No question matches.</p>`}</div>`;
+    ${setFilt ? `<div class="filters">${setFilt}</div>` : ""}<div class="filters">${filt}</div></div>${groups || `<p class="empty">No question matches.</p>`}${internalQuestionsHTML()}</div>`;
 }
 
 // ---- shapes ------------------------------------------------------------------------------------
@@ -1066,6 +1089,7 @@ function renderPublications() {
 // Present only in the artifact build (kg/quality.py --internal): the working-group meeting records
 // from kg/meetings.py. They are summaries with attributions, not transcripts.
 const KIND = {
+  agenda: { text: "Agenda", plural: "Agenda items", c: "prov" },
   lesson: { text: "Lesson", plural: "Lessons", c: "species" },
   agreement: { text: "Agreement", plural: "Agreements", c: "project" },
   disagreement: { text: "Disagreement", plural: "Disagreements", c: "org" },
@@ -1084,8 +1108,40 @@ if (MT) for (const p of MT.people) for (const iri of p.investigators || []) PERS
 const ITEMS_OF = new Map();
 if (MT) for (const i of MT.items) { if (!ITEMS_OF.has(i.meeting)) ITEMS_OF.set(i.meeting, []); ITEMS_OF.get(i.meeting).push(i); }
 const MKINDS = { person: "Wrong person", missing: "Someone is missing", text: "The point is wrong", other: "Something else" };
-const MPAGE = 20;
-const mt = { q: "", kinds: new Set(), groups: new Set(), person: "", quoted: false, tied: false, newest: true, limit: MPAGE, flagging: null };
+const MPAGE = 20, EPAGE = 50;
+const mt = { q: "", kinds: new Set(), groups: new Set(), person: "", quoted: false, tied: false, newest: true, limit: MPAGE, flagging: null,
+             view: "points", focus: "", open: new Set(), eq: "", etiers: new Set(), ekind: "", espeaker: "", elimit: EPAGE };
+// What only the data package carries (kg/internal_package.py): the evidence behind the meetings, each
+// record with its tier. The tier says how it may be cited, and the page says so on every record.
+const EVIDENCE = (MT && Array.isArray(MT.evidence)) ? MT.evidence : [];
+const EV_OF = new Map();
+for (const e of EVIDENCE) if (e.meeting) { if (!EV_OF.has(e.meeting)) EV_OF.set(e.meeting, []); EV_OF.get(e.meeting).push(e); }
+const EV_TIER = {
+  TR: { cls: "ok", text: "transcript, not checked" }, T1: { cls: "ok", text: "written by a participant" },
+  T3: { cls: "na", text: "the note-taker's words" }, T2: { cls: "said", text: "the summary says" },
+  X: { cls: "na", text: "AI summary of the notes" }, A: { cls: "na", text: "computed" }, U: { cls: "warn", text: "unverified guess" },
+};
+const EV_KIND = { utterance: "transcript cue", chat_message: "chat line", document_comment: "document comment",
+  comment_thread_excerpt: "comment thread", team_slide_row: "team slide row", speaker_attribution: "workshop summary: who spoke",
+  unverified_candidate: "maker or model guessed", workshop_statement: "workshop statement", award_status: "award status",
+  device_discussion: "device discussion", notes_line: "line of the notes" };
+const NOTES_HOW = { cited: "the block the package cites for this meeting", same_group_and_date: "a block nothing cited, of the same group and date",
+  names_this_date: "found inside another meeting's block, under a line with this date",
+  names_this_month: "found inside another meeting's block, under a line with this month" };
+const CITE = (MT && MT.tiers) || (DV && DV.tiers) || {};
+const evTier = t => EV_TIER[t] ? `<span class="pill ${EV_TIER[t].cls}" title="${esc(CITE[t] || "")}">${esc(t)} · ${esc(EV_TIER[t].text)}</span>` : (t ? `<span class="pill na">${esc(t)}</span>` : "");
+const linkOut = (u, text) => /^https?:\/\//i.test(u || "") ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+function evWho(e) {
+  if (!e.speaker && !e.as_written) return e.author_note ? `<span class="note">(${esc(e.author_note)})</span> ` : "";
+  return `<b>${esc(e.speaker || e.as_written)}</b>${e.speaker && e.as_written && e.as_written !== e.speaker ? ` <span class="note">(written “${esc(e.as_written)}”)</span>` : ""}`
+    + (e.verify ? ` <span class="pill warn" title="${esc(e.basis || "")}">name to verify</span>` : (!e.speaker ? ` <span class="pill na" title="${esc(e.basis || "")}">not resolved to a person</span>` : "")) + ": ";
+}
+function evRowHTML(e, withMeeting) {
+  const m = withMeeting && e.meeting ? MEET_BY.get(e.meeting) : null;
+  const where = [EV_KIND[e.kind] || e.kind, e.start ? String(e.start).slice(0, 8) : "", e.date].filter(Boolean).map(esc).join(" · ");
+  return `<div class="evrow">${evTier(e.tier)} <span class="note">${where}${m ? ` · <button class="linkbtn" data-gomeeting="${esc(m.id)}">${esc(m.title || m.as_named || "meeting")}</button> (${esc(m.group)})` : ""}${e.award ? ` · ${esc(e.award)}` : ""}</span><br>
+    ${evWho(e)}<span>${esc(e.text)}</span><br><span class="note">${linkOut(e.url, e.source || "source")}${e.locator ? ` · ${esc(e.locator)}` : ""}</span></div>`;
+}
 
 function marked(text, quotes) {
   // The words the notes put in quotation marks, highlighted; everything else escaped as it is.
@@ -1100,7 +1156,7 @@ function marked(text, quotes) {
 }
 function whoHTML(item) {
   return item.who.map(w => w.name
-    ? `<button class="who" data-person="${esc(w.name)}" aria-pressed="${mt.person === w.name}" title="${esc(`${HOW_TIP[w.how] || ""}. The notes write “${w.as_written}”: ${w.basis}.`)}">${esc(w.name)}<span class="how">${esc(HOW[w.how] || w.how)}</span></button>`
+    ? `<button class="who" data-person="${esc(w.name)}" aria-pressed="${mt.person === w.name}" title="${esc(`${HOW_TIP[w.how] || ""}. The notes write “${w.as_written}”: ${w.basis}.`)}">${esc(w.name)}<span class="how">${esc(HOW[w.how] || w.how)}${w.verify ? " · to verify" : ""}</span></button>`
     : `<span class="who unres" tabindex="0" title="${esc(`Not resolved to one person: ${w.basis}.`)}">${esc(w.as_written)}?<span class="how">${esc(HOW[w.how] || w.how)}</span></span>`).join("");
 }
 const canFlag = () => RV.db && !(RV.readOnly || RV.canWrite === false);
@@ -1177,14 +1233,67 @@ function meetingHTML(m, items) {
       <h3>${esc(m.title || "Untitled meeting")}</h3>
       ${m.note ? `<span class="pill na" title="Note on the source">${esc(m.note)}</span>` : ""}
       <span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span>
-      ${(m.attendees || []).length ? `<span class="note" title="${esc(m.attendees.join(", "))}">${m.attendees.length} listed as attending</span>` : ""}</header>
+      ${(m.attendees || []).length ? `<span class="note" title="${esc(m.attendees.join(", "))}">${m.attendees.length} listed as attending</span>` : ""}
+      ${MT.from_package ? `<span class="pill na" title="${esc(CITE.X || "")}">points: AI summary of the notes</span>${m.transcript ? `<span class="pill ok" title="${esc(CITE.TR || "")}">has a transcript</span>` : ""}` : ""}</header>
+    ${MT.from_package && m.source ? `<span class="note">${linkOut(m.url, m.source)}${m.source_kind ? ` · ${esc(m.source_kind)}` : ""}</span>` : ""}
     ${agenda}
     ${rows.map(i => `<div class="pt">
       <span class="kind" style="color:var(--c-${KIND[i.kind].c})"><i class="swatch"></i>${esc(KIND[i.kind].text)}</span>
       <div style="display:grid;gap:4px;min-width:0"><span>${marked(i.text, i.quotes)}</span>
         ${i.who.length ? `<div class="chips">${whoHTML(i)}</div>` : ""}
         ${itemFlagHTML(i)}</div></div>`).join("") || (agenda ? "" : `<p class="note" style="margin:0">No points recorded for this meeting.</p>`)}
+    ${meetingBackingHTML(m)}
   </article>`;
+}
+function meetingBackingHTML(m) {
+  if (!MT.from_package) return "";
+  const nk = "n:" + m.id, ek = "e:" + m.id, rows = EV_OF.get(m.id) || [];
+  const notes = m.notes
+    ? `<details class="evi" data-mopen="${esc(nk)}" ${mt.open.has(nk) ? "open" : ""}><summary>The notes these points summarize${m.notes.repaired ? " · link repaired" : ""}</summary>${mt.open.has(nk)
+        ? `<p class="note" style="margin:6px 0 4px">${evTier("T3")} As written by the note-taker: ${esc(NOTES_HOW[m.notes.how] || m.notes.how)}. ${esc(m.notes.locator || "")}</p><pre class="notes">${esc(m.notes.text)}</pre>` : ""}</details>`
+    : `<span class="note"><span class="pill warn">no notes block</span> The package carries no notes for this meeting, so nothing here backs its points.</span>`;
+  const evidence = rows.length
+    ? `<details class="evi" data-mopen="${esc(ek)}" ${mt.open.has(ek) ? "open" : ""}><summary>Evidence · ${fmt(rows.length)} record${rows.length === 1 ? "" : "s"}${m.transcript ? ", with the transcript" : ""}</summary>${mt.open.has(ek)
+        ? `<div style="display:grid;gap:6px;padding-top:6px">${rows.map(e => evRowHTML(e, false)).join("")}</div>` : ""}</details>`
+    : `<span class="note">No evidence record names this meeting: its points rest on the notes alone.</span>`;
+  return notes + evidence;
+}
+function evidenceMatches(e) {
+  if (mt.etiers.size && !mt.etiers.has(e.tier)) return false;
+  if (mt.ekind && e.kind !== mt.ekind) return false;
+  if (mt.espeaker && (e.speaker || e.as_written) !== mt.espeaker) return false;
+  if (mt.eq) {
+    // The record's own words and who they are from: not its meeting's name, or every cue of the
+    // Data Standards group would answer a search for "data standards".
+    const hay = [e.text, e.speaker, e.as_written, e.award].join(" ").toLowerCase();
+    for (const word of mt.eq.toLowerCase().split(/\s+/).filter(Boolean)) if (!hay.includes(word)) return false;
+  }
+  return true;
+}
+function renderEvidence() {
+  const hits = EVIDENCE.filter(evidenceMatches);
+  const tiers = {}, kinds = {}, speakers = {};
+  for (const e of EVIDENCE) { tiers[e.tier] = (tiers[e.tier] || 0) + 1; kinds[e.kind] = (kinds[e.kind] || 0) + 1; const s = e.speaker || e.as_written; if (s) speakers[s] = (speakers[s] || 0) + 1; }
+  return `<div class="meet">
+    <aside class="facets">
+      <input class="search" id="meq" type="search" placeholder="Search what was said or written" value="${esc(mt.eq)}" aria-label="Search the evidence">
+      <fieldset><legend>Tier: how it may be cited</legend>${Object.keys(EV_TIER).filter(t => tiers[t]).map(t => `<label title="${esc(CITE[t] || "")}"><input type="checkbox" data-metier="${t}" ${mt.etiers.has(t) ? "checked" : ""}>${esc(t)} · ${esc(EV_TIER[t].text)}<span class="c">${fmt(tiers[t])}</span></label>`).join("")}</fieldset>
+      <fieldset><legend>Kind</legend><select id="mekind" class="search" aria-label="One kind of record"><option value="">Every kind</option>${Object.keys(kinds).sort().map(k => `<option value="${esc(k)}" ${mt.ekind === k ? "selected" : ""}>${esc(EV_KIND[k] || k)} · ${fmt(kinds[k])}</option>`).join("")}</select></fieldset>
+      <fieldset><legend>Speaker or author</legend><select id="mespeaker" class="search" aria-label="One person's records"><option value="">Everyone</option>${Object.keys(speakers).sort((a, b) => a.localeCompare(b)).map(k => `<option value="${esc(k)}" ${mt.espeaker === k ? "selected" : ""}>${esc(k)} · ${fmt(speakers[k])}</option>`).join("")}</select></fieldset>
+      <button class="linkbtn" id="meclear">Clear filters</button>
+    </aside>
+    <div class="list">
+      <p class="note" style="margin:0">Every record the package keeps as someone's words or writing, with where it comes from. The tier says how it may be cited: hover it. A search looks in the record's own words and its speaker's name, and all the words must be there.</p>
+      <div class="legend">${Object.keys(EV_TIER).filter(t => tiers[t]).map(t => `<span>${evTier(t)} ${esc(CITE[t] || "")}</span>`).join("")}</div>
+      <div class="meta"><span>${fmt(hits.length)} of ${fmt(EVIDENCE.length)} records</span></div>
+      ${hits.slice(0, mt.elimit).map(e => evRowHTML(e, true)).join("") || `<p class="empty">No record matches.</p>`}
+      ${hits.length > mt.elimit ? `<button class="copy more" id="memore">Show ${Math.min(EPAGE, hits.length - mt.elimit)} more records</button>` : ""}
+    </div></div>`;
+}
+function renderSources() {
+  const rows = [...(MT.sources || [])].sort((a, b) => b.records - a.records || a.title.localeCompare(b.title));
+  return `<div class="tbl"><table><thead><tr><th>Source</th><th>Kind</th><th>Tier of its records</th><th>Evidence records</th><th>Note</th></tr></thead><tbody>${rows.map(s =>
+    `<tr><td>${linkOut(s.url, s.title)}</td><td>${esc(s.kind)}</td><td>${evTier(s.tier)}</td><td class="mono">${s.records ? fmt(s.records) : `<span class="pill na" title="No evidence record cites this source">none</span>`}</td><td class="note">${esc(s.note)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function personHTML(name) {
   const p = PEOPLE.get(name);
@@ -1204,7 +1313,12 @@ function renderMeetings() {
   const hits = MT.items.filter(itemMatches), byMeeting = new Map();
   for (const i of hits) { if (!byMeeting.has(i.meeting)) byMeeting.set(i.meeting, []); byMeeting.get(i.meeting).push(i); }
   let meetings = MT.meetings.filter(m => itemFilters() ? byMeeting.has(m.id) : (!mt.groups.size || mt.groups.has(m.group)));
+  if (mt.focus) meetings = MT.meetings.filter(m => m.id === mt.focus);
   if (mt.newest) meetings = [...meetings].reverse();
+  const views = EVIDENCE.length ? `<div class="filters" role="group" aria-label="What to show">
+      <button data-mview="points" aria-pressed="${mt.view === "points"}">Points by meeting · ${fmt(MT.items.length)}</button>
+      <button data-mview="evidence" aria-pressed="${mt.view === "evidence"}">Evidence: who said or wrote what · ${fmt(EVIDENCE.length)}</button>
+      <button data-mview="sources" aria-pressed="${mt.view === "sources"}">Sources · ${fmt((MT.sources || []).length)}</button></div>` : "";
   const kindCount = {}, groupCount = {};
   for (const i of MT.items) kindCount[i.kind] = (kindCount[i.kind] || 0) + 1;
   for (const m of MT.meetings) groupCount[m.group] = (groupCount[m.group] || 0) + 1;
@@ -1213,13 +1327,15 @@ function renderMeetings() {
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
     <div style="display:grid;gap:6px"><p class="intro">Lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date, with who each point is tied to: <b>said</b> (the notes attribute it to them), <b>owns</b> (their action), <b>named</b> (the sentence mentions them). Hover a name to see how it was matched.</p>
       <p class="intro note"><span class="pill warn">not transcripts</span> ${esc(MT.caveat || "")}</p>
-      <p class="note" style="margin:0">${esc(src.description || "")} Built from <code>${esc(src.file || "the notes")}</code>${src.sha256 ? ` (sha256 ${esc(src.sha256.slice(0, 12))})` : ""}. Internal: this copy of the page only, never the public site.</p></div>
-    <div class="meet">
+      <p class="note" style="margin:0">${esc(src.description || "")} Built from <code>${esc(src.file || "the notes")}</code>${src.sha256 ? ` (sha256 ${esc(src.sha256.slice(0, 12))})` : ""}. Internal: this copy of the page only, never the public site.</p>
+      ${(MT.manifest || []).length ? `<div class="viol w"><span>These records differ from the package's own counts: ${MT.manifest.map(esc).join("; ")}</span></div>` : ""}
+      ${views}</div>
+    ${mt.view === "evidence" && EVIDENCE.length ? renderEvidence() : mt.view === "sources" && EVIDENCE.length ? renderSources() : `<div class="meet">
       <aside class="facets">
         <input class="search" id="mq" type="search" placeholder="Search points, meetings, people" value="${esc(mt.q)}" aria-label="Search meeting notes">
         <fieldset><legend>Person</legend>
           <select id="mperson" class="search" aria-label="Show one person's points"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p.name)}" ${mt.person === p.name ? "selected" : ""}>${esc(p.name)} · ${p.attributed + p.owns + p.named}</option>`).join("")}</select></fieldset>
-        <fieldset><legend>Kind</legend>${Object.entries(KIND).map(([k, v]) => `<label><input type="checkbox" data-mkind="${k}" ${mt.kinds.has(k) ? "checked" : ""}><i class="swatch" style="color:var(--c-${v.c})"></i>${v.plural}<span class="c">${kindCount[k] || 0}</span></label>`).join("")}</fieldset>
+        <fieldset><legend>Kind</legend>${Object.entries(KIND).filter(([k]) => kindCount[k]).map(([k, v]) => `<label><input type="checkbox" data-mkind="${k}" ${mt.kinds.has(k) ? "checked" : ""}><i class="swatch" style="color:var(--c-${v.c})"></i>${v.plural}<span class="c">${kindCount[k] || 0}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Group</legend>${Object.keys(groupCount).sort().map(g => `<label><input type="checkbox" data-mgroup="${esc(g)}" ${mt.groups.has(g) ? "checked" : ""}>${esc(g)}<span class="c">${groupCount[g]}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Only</legend>
           <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>Points someone said or owns</label>
@@ -1228,13 +1344,14 @@ function renderMeetings() {
       </aside>
       <div class="list">
         ${mt.person ? personHTML(mt.person) : ""}
+        ${mt.focus ? `<div class="flagbox" style="background:var(--surface)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><span>Showing one meeting.</span><button class="linkbtn" id="mfocus-clear">Show every meeting</button></div></div>` : ""}
         ${RV.msubErr ? `<div class="viol w"><span>${esc(RV.msubErr)}</span></div>` : ""}
         <div class="meta"><span>${fmt(hits.length)} of ${fmt(MT.items.length)} points · ${fmt(meetings.length)} meeting${meetings.length === 1 ? "" : "s"}</span>
           <button class="linkbtn" id="morder">${mt.newest ? "Newest first" : "Oldest first"} ⇅</button></div>
         ${meetings.slice(0, mt.limit).map(m => meetingHTML(m, byMeeting.get(m.id) || [])).join("") || `<p class="empty">No point matches these filters.</p>`}
         ${meetings.length > mt.limit ? `<button class="copy more" id="mmore">Show ${Math.min(MPAGE, meetings.length - mt.limit)} more meetings</button>` : ""}
       </div>
-    </div>
+    </div>`}
   </div>`;
 }
 function meetingFlagsHTML() {
@@ -1262,15 +1379,25 @@ function inMeetingsHTML(e) {
 $("#view").addEventListener("toggle", e => {
   const d = e.target.closest && e.target.closest("details[data-pub]");
   if (d) d.open ? pOpen.add(d.dataset.pub) : pOpen.delete(d.dataset.pub);
+  // Long lists (a meeting's notes and evidence, a device's mentions, a question's rows) are written
+  // into the page only while their box is open.
+  for (const [attr, open] of [["mopen", mt.open], ["dopen", dv.open], ["iq", iqOpen]]) {
+    const box = e.target.closest && e.target.closest(`details[data-${attr}]`);
+    if (box && box === e.target && box.open !== open.has(box.dataset[attr])) { box.open ? open.add(box.dataset[attr]) : open.delete(box.dataset[attr]); render(); }
+  }
 }, true);
 $("#view").addEventListener("input", e => {
   if (e.target.id === "pq") { pQ = e.target.value; render(); }
   else if (e.target.id === "mq") { mt.q = e.target.value; mt.limit = MPAGE; render(); }
+  else if (e.target.id === "meq") { mt.eq = e.target.value; mt.elimit = EPAGE; render(); }
   else if (e.target.id === "mflag-note") RV.mdraft = { item: mt.flagging, problem: $("#mflag-kind").value, note: e.target.value };
 });
 $("#view").addEventListener("change", e => {
   const t = e.target, d = t.dataset || {};
   if (t.id === "mflag-kind") { RV.mdraft = { item: mt.flagging, problem: t.value, note: $("#mflag-note").value }; return; }
+  if (d.metier) { t.checked ? mt.etiers.add(d.metier) : mt.etiers.delete(d.metier); mt.elimit = EPAGE; render(); return; }
+  if (t.id === "mekind") { mt.ekind = t.value; mt.elimit = EPAGE; render(); return; }
+  if (t.id === "mespeaker") { mt.espeaker = t.value; mt.elimit = EPAGE; render(); return; }
   if (d.mkind) t.checked ? mt.kinds.add(d.mkind) : mt.kinds.delete(d.mkind);
   else if (d.mgroup) t.checked ? mt.groups.add(d.mgroup) : mt.groups.delete(d.mgroup);
   else if (t.id === "mperson") mt.person = t.value;
@@ -1289,6 +1416,12 @@ $("#view").addEventListener("click", e => {
   else if (d.person) { mt.person = mt.person === d.person ? "" : d.person; mt.limit = MPAGE; render(); $("#view").scrollIntoView({ block: "start" }); }
   else if (d.goperson) { mt.person = d.goperson; mt.limit = MPAGE; tab = "meetings"; store.set("tab", tab); render(); }
   else if (t.id === "mperson-clear") { mt.person = ""; render(); }
+  else if (d.mview) { mt.view = d.mview; render(); }
+  else if (t.id === "memore") { mt.elimit += EPAGE; render(); }
+  else if (t.id === "meclear") { Object.assign(mt, { eq: "", ekind: "", espeaker: "", elimit: EPAGE }); mt.etiers.clear(); render(); }
+  else if (t.id === "mfocus-clear") { mt.focus = ""; render(); }
+  else if (d.gomeeting) { Object.assign(mt, { view: "points", focus: d.gomeeting, q: "", person: "", quoted: false, tied: false, limit: MPAGE }); mt.kinds.clear(); mt.groups.clear(); mt.open.add("e:" + d.gomeeting); tab = "meetings"; store.set("tab", tab); render(); $("#view").scrollIntoView({ block: "start" }); }
+  else if (d.iqall) { iqAll.has(d.iqall) ? iqAll.delete(d.iqall) : iqAll.add(d.iqall); render(); }
   else if (t.id === "mclear") { Object.assign(mt, { q: "", person: "", quoted: false, tied: false, limit: MPAGE }); mt.kinds.clear(); mt.groups.clear(); render(); }
   else if (t.id === "morder") { mt.newest = !mt.newest; render(); }
   else if (t.id === "mmore") { mt.limit += MPAGE; render(); }
@@ -1324,7 +1457,10 @@ if (DV) {
     if (!DEVICES_OF_PERSON.get(iri).includes(d.id)) DEVICES_OF_PERSON.get(iri).push(d.id);
   }
 }
-const dv = { q: "", tiers: new Set(), kinds: new Set(), cats: new Set(), award: "", person: "", flagging: null };
+const dv = { q: "", tiers: new Set(), kinds: new Set(), cats: new Set(), award: "", person: "", flagging: null, view: "awards", prop: "", open: new Set() };
+const PROPS = (DV && Array.isArray(DV.properties)) ? DV.properties : [];
+const PROP_BY = new Map(PROPS.map(x => [x.key, x]));
+const MENTION = (DV && Array.isArray(DV.mention_lines)) ? DV.mention_lines : [];
 const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
 const tierPill = t => TIER_UI[t] ? `<span class="pill ${TIER_UI[t].cls}" title="${esc((DV.tiers || {})[t] || "")}">${esc(t)} · ${esc(TIER_UI[t].text)}</span>` : "";
 const toVerify = text => /verify|likely/i.test(text || "");
@@ -1388,6 +1524,7 @@ async function removeDeviceFlag(id) {
 }
 function deviceMatches(d) {
   if (dv.award && d.award !== dv.award) return false;
+  if (dv.prop && !(d.observes || []).some(o => o.key === dv.prop)) return false;
   if (dv.kinds.size && !dv.kinds.has(d.kind)) return false;
   if (dv.cats.size && !dv.cats.has(d.category)) return false;
   for (const t of dv.tiers) if (!d.tiers.includes(t)) return false;
@@ -1405,7 +1542,7 @@ function deviceRowHTML(d) {
   return `<div class="pt dev" id="dev-${esc(d.id)}">
     <span class="kind" style="color:var(--c-product)"><i class="swatch"></i>${esc(d.category || "device")}</span>
     <div style="display:grid;gap:4px;min-width:0">
-      <span><b>${esc(d.name)}</b>${d.kind && d.kind !== "device/sensor" ? ` <span class="pill na">${esc(d.kind)}</span>` : ""}${d.measures.length ? ` <span class="muted">· measures ${d.measures.map(esc).join(", ")}</span>` : ""}</span>
+      ${Array.isArray(d.observes) ? sosaHTML(d) : `<span><b>${esc(d.name)}</b>${d.kind && d.kind !== "device/sensor" ? ` <span class="pill na">${esc(d.kind)}</span>` : ""}${d.measures.length ? ` <span class="muted">· measures ${d.measures.map(esc).join(", ")}</span>` : ""}</span>`}
       ${d.tools.length || d.sharing.length ? `<span class="note">${d.tools.length ? `tools: ${d.tools.map(esc).join(", ")}` : ""}${d.tools.length && d.sharing.length ? " · " : ""}${d.sharing.length ? `sharing: ${d.sharing.map(esc).join(", ")}` : ""}</span>` : ""}
       <div class="chips">${d.tiers.map(tierPill).join("")}</div>
       ${d.presenter ? `<span><span class="muted">Spoke to it (workshop summary, not yet checked against the transcript):</span> ${spokeHTML(d.presenter)}</span>` : ""}
@@ -1413,8 +1550,47 @@ function deviceRowHTML(d) {
       ${ai ? `<div class="ai"><b>AI-predicted, unverified:</b> ${esc([ai.manufacturer, ai.model].filter(Boolean).join(" · "))}
         <span class="note">From the AI-assembled device list; nothing on a slide or in the workshop summary backs it. Confirm with the lab before using it.</span>${catalogHTML(c.ai_manufacturer, "a catalog maker has this name")}${catalogHTML(c.ai_model, "a catalog device has this name")}</div>` : ""}
       ${evidenceHTML(d)}
+      ${mentionsHTML(d)}
       ${deviceFlagHTML(d)}
     </div></div>`;
+}
+// SOSA/SSN: the actual instrument (sosa:Sensor) apart from what it observes (sosa:ObservableProperty),
+// with the species as the feature of interest. A method is a procedure, not an instrument.
+function sosaHTML(d) {
+  const tip = k => esc((DV.sosa || {})[k] || "");
+  const goes = (d.sensor || []).filter(x => x.toLowerCase() !== d.name.toLowerCase());
+  return `<div class="sosa">
+    <div title="${tip(d.procedure ? "procedure" : "sensor")}"><span class="lbl">${d.procedure ? "Procedure · a method, not an instrument" : "Sensor · the actual instrument"}</span><b>${esc(d.name)}</b>
+      ${goes.length ? `<span class="note">searched for as: ${goes.map(esc).join(" · ")}</span>` : ""}</div>
+    <div title="${tip("property")}"><span class="lbl">Observes · the observable property</span>${d.observes.length
+      ? `<div class="chips">${d.observes.map(o => `<button class="who" data-dprop="${esc(o.key)}" aria-pressed="${dv.prop === o.key}" title="Show every line that observes this">${esc(o.label)}<span class="how">${(PROP_BY.get(o.key) || { awards: [] }).awards.length} award${(PROP_BY.get(o.key) || { awards: [] }).awards.length === 1 ? "" : "s"}</span></button>`).join("")}</div>`
+      : `<span class="muted">not stated on the list</span>`}</div>
+    <div title="${tip("feature")}"><span class="lbl">Feature of interest · the species</span>${d.feature ? esc(d.feature) : `<span class="muted">not stated</span>`}</div>
+  </div>`;
+}
+function mentionRowHTML(h) {
+  const who = h.speaker || h.as_written ? `<b>${esc(h.speaker || h.as_written)}</b>${h.verify ? ` <span class="pill warn">name to verify</span>` : ""}: ` : "";
+  const where = [EV_KIND[h.kind] || h.kind, h.date].filter(Boolean).map(esc).join(" · ");
+  return `<div class="evrow">${evTier(h.tier)} <span class="note">${where}${h.meeting && MEET_BY.has(h.meeting) ? ` · <button class="linkbtn" data-gomeeting="${esc(h.meeting)}">${esc(h.meeting_title || "meeting")}</button>` : (h.meeting_title ? ` · ${esc(h.meeting_title)}` : "")}${h.group ? ` (${esc(h.group)})` : ""}</span><br>
+    ${who}<span>${esc(h.text)}</span><br><span class="note">${linkOut(h.url, h.source || "source")}${h.locator ? ` · ${esc(h.locator)}` : ""}</span></div>`;
+}
+function mentionsHTML(d) {
+  const m = d.mentions || {};
+  const groups = [...(m.sensor || []).map(g => [g, "the sensor"]), ...(m.property || []).map(g => [g, "what it observes"])];
+  const n = new Set(groups.flatMap(([g]) => g.hits)).size;
+  if (!n) return "";
+  const key = "m:" + d.id, open = dv.open.has(key);
+  return `<details class="evi" data-dopen="${esc(key)}" ${open ? "open" : ""}><summary>Named in the notes and transcripts · ${n} line${n === 1 ? "" : "s"}</summary>${open
+    ? `<div style="display:grid;gap:10px;padding-top:6px"><span class="note">Lines found by matching the words, never by a model: a line can be about something else of the same name.</span>${groups.map(([g, what]) =>
+        `<div style="display:grid;gap:6px"><span class="note">Naming ${esc(what)}, “${esc(g.term)}” · ${g.hits.length}</span>${g.hits.map(h => mentionRowHTML(MENTION[h])).join("")}</div>`).join("")}</div>` : ""}</details>`;
+}
+function propertiesHTML() {
+  const q = dv.q.toLowerCase();
+  const rows = PROPS.filter(x => !q || [x.label, ...x.awards].join(" ").toLowerCase().includes(q));
+  return `<div class="list"><p class="note" style="margin:0">What the instruments observe (sosa:ObservableProperty), as the list names it under “measures”, one row per name however it is spelled. Choose one to see every line that observes it.</p>
+    <div class="meta"><span>${fmt(rows.length)} of ${fmt(PROPS.length)} observable properties</span></div>
+    <div class="tbl"><table><thead><tr><th>Observable property</th><th>Awards</th><th>Lines</th><th>Which awards</th></tr></thead><tbody>${rows.map(x =>
+      `<tr><td><button class="linkbtn" data-dprop="${esc(x.key)}">${esc(x.label)}</button></td><td class="mono">${x.awards.length}</td><td class="mono">${x.devices.length}</td><td class="note">${x.awards.map(esc).join(", ")}</td></tr>`).join("")}</tbody></table></div></div>`;
 }
 function discussionHTML() {
   const rows = [...(DV.discussion || [])].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -1444,7 +1620,10 @@ function renderDevices() {
     <div style="display:grid;gap:6px"><p class="intro">Every device and sensor the teams listed for the Data Blitz, by award, with what backs each line. ${fmt(count(d => d.kind === "device/sensor"))} devices and sensors and ${fmt(count(d => d.kind !== "device/sensor"))} methods across ${fmt(DV.awards.length)} awards; ${fmt(count(d => d.presenter))} have someone named as speaking to them, and ${fmt(count(d => d.ai_predicted))} carry an AI-predicted model or maker.</p>
       <p class="intro note"><span class="pill warn">AI-predicted models are not facts</span> ${esc(DV.caveat || "")}</p>
       <div class="legend">${Object.keys(TIER_UI).filter(t => (DV.tiers || {})[t]).map(t => `<span>${tierPill(t)} ${esc(DV.tiers[t])} (${fmt(tierCount[t] || 0)} records)</span>`).join("")}</div>
-      <p class="note" style="margin:0">${esc(src.description || "")} Internal: this copy of the page only, never the public site.</p></div>
+      <p class="note" style="margin:0">${esc(src.description || "")} Internal: this copy of the page only, never the public site.</p>
+      ${PROPS.length ? `<div class="filters" role="group" aria-label="What to show">
+        <button data-dview="awards" aria-pressed="${dv.view === "awards"}">By award · ${fmt(DV.devices.length)} lines</button>
+        <button data-dview="properties" aria-pressed="${dv.view === "properties"}">By what is observed · ${fmt(PROPS.length)} properties</button></div>` : ""}</div>
     <div class="meet">
       <aside class="facets">
         <input class="search" id="dq" type="search" placeholder="Search devices, measures, makers, people" value="${esc(dv.q)}" aria-label="Search the device list">
@@ -1454,7 +1633,8 @@ function renderDevices() {
         <details class="facetmore" ${dv.cats.size ? "open" : ""}><summary>Category · ${Object.keys(cats).length}</summary><fieldset>${Object.keys(cats).sort().map(k => `<label><input type="checkbox" data-dcat="${esc(k)}" ${dv.cats.has(k) ? "checked" : ""}>${esc(k)}<span class="c">${cats[k]}</span></label>`).join("")}</fieldset></details>
         <button class="linkbtn" id="dclear">Clear filters</button>
       </aside>
-      <div class="list">
+      ${dv.view === "properties" && PROPS.length ? propertiesHTML() : `<div class="list">
+        ${dv.prop && PROP_BY.has(dv.prop) ? `<div class="flagbox" style="background:var(--surface)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><h2>Observes: ${esc(PROP_BY.get(dv.prop).label)}</h2><button class="linkbtn" id="dprop-clear">Show every line</button></div><span>${fmt(PROP_BY.get(dv.prop).devices.length)} line${PROP_BY.get(dv.prop).devices.length === 1 ? "" : "s"} across ${fmt(PROP_BY.get(dv.prop).awards.length)} award${PROP_BY.get(dv.prop).awards.length === 1 ? "" : "s"} list this as measured.</span></div>` : ""}
         ${person ? `<div class="flagbox" style="background:var(--surface)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between"><h2>${esc(person.label)}</h2><button class="linkbtn" id="dperson-clear">Show everyone</button></div><span>Named as speaking to ${fmt(hits.length)} device${hits.length === 1 ? "" : "s"} at the workshop, per the summary. ${refLink(dv.person)}</span></div>` : ""}
         ${RV.dsubErr ? `<div class="viol w"><span>${esc(RV.dsubErr)}</span></div>` : ""}
         <div class="meta"><span>${fmt(hits.length)} of ${fmt(DV.devices.length)} lines · ${fmt(byAward.size)} award${byAward.size === 1 ? "" : "s"}</span></div>
@@ -1464,8 +1644,8 @@ function renderDevices() {
           ${a.status ? `<span class="note"><b>At the Blitz</b>: ${esc(a.status)}</span>` : ""}
           ${byAward.get(a.award).map(deviceRowHTML).join("")}
         </article>`).join("") || `<p class="empty">No device matches these filters.</p>`}
-        ${dv.award || dv.person || dv.tiers.size || dv.kinds.size || dv.cats.size ? "" : discussionHTML()}
-      </div>
+        ${dv.award || dv.person || dv.prop || dv.tiers.size || dv.kinds.size || dv.cats.size ? "" : discussionHTML()}
+      </div>`}
     </div>
   </div>`;
 }
@@ -1517,7 +1697,10 @@ $("#view").addEventListener("click", e => {
   if (d.goaward) { Object.assign(dv, { award: d.goaward, person: "", q: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); tab = "devices"; store.set("tab", tab); render(); }
   else if (d.godevperson) { Object.assign(dv, { person: d.godevperson, award: "", q: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); tab = "devices"; store.set("tab", tab); render(); }
   else if (t.id === "dperson-clear") { dv.person = ""; render(); }
-  else if (t.id === "dclear") { Object.assign(dv, { q: "", award: "", person: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); render(); }
+  else if (d.dview) { dv.view = d.dview; render(); }
+  else if (d.dprop) { dv.prop = dv.prop === d.dprop && dv.view === "awards" ? "" : d.dprop; dv.view = "awards"; render(); $("#view").scrollIntoView({ block: "start" }); }
+  else if (t.id === "dprop-clear") { dv.prop = ""; render(); }
+  else if (t.id === "dclear") { Object.assign(dv, { q: "", award: "", person: "", prop: "" }); dv.tiers.clear(); dv.kinds.clear(); dv.cats.clear(); render(); }
   else if (d.dflag) { dv.flagging = d.dflag; RV.dopened = (RV.dflags.get(d.dflag) || {}).flagged_at || null; RV.ddraft = null; RV.dstatus = ""; render(); $("#dflag-note")?.focus(); }
   else if (d.dflagcancel) { dv.flagging = null; RV.ddraft = null; render(); }
   else if (d.dflagsave) saveDeviceFlag(d.dflagsave);

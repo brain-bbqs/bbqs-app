@@ -162,6 +162,8 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
 | `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
 | `devices.py` | The consortium device list → the Inspector's Devices records (by award, each line with its tier: slide, workshop, notes, AI-predicted). Internal: reads and writes files outside the repo only. |
+| `package_reader.py` | The meetings data package, read from its folder, with its rules: the tier decides how a record may be cited, a name is kept as written with how it was resolved, a shared account is never a person, contact data is replaced by markers. |
+| `internal_package.py` | The data package → both records at once, with what only the package has: every meeting item, the notes each summarizes, the evidence (who said or wrote what, with tier and locator), devices as sensor / observable property / procedure, the verbatim mentions, and the internal questions. Internal: reads and writes files outside the repo only. |
 | `shapes/validation.shapes.ttl` | Hand-written SHACL validation for the cross-field/cross-node **contradiction** checks and dangling claims (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per validation shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
@@ -440,6 +442,43 @@ python kg/devices.py /path/to/device_list_folder --out /outside/the/repo/devices
 python kg/quality.py --fragment /outside/the/repo/inspector.html \
   --internal /outside/the/repo/meetings.json --internal /outside/the/repo/devices.json
 ```
+
+**Both tabs from the meetings data package (artifact copy only).** `internal_package.py` builds the
+two records from the package itself, in the same shapes, so the two tabs read either:
+
+```bash
+python -I kg/internal_package.py /path/to/BBQS_KG_Data_Package --out-dir /outside/the/repo/internal
+python kg/quality.py --fragment /outside/the/repo/inspector.html \
+  --internal /outside/the/repo/internal/meetings.json --internal /outside/the/repo/internal/devices.json
+```
+
+What the package adds, and how each thing is marked:
+
+- **Meetings.** Every item of every meeting, agenda items included. An item is an AI summary of that
+  meeting's notes (tier X), never a quote, and the meeting shows the notes block it summarizes, with
+  how the block was found when the package's own link was missing. *Evidence* lists every record the
+  package keeps as someone's words or writing, searchable, each with its tier and what the tier
+  allows: TR a transcript cue nobody has checked, T1 written by a participant, T3 the note-taker's
+  words, T2 "the summary says", U an unverified guess. A name the package only guessed is flagged
+  *to verify*; a shared account is never shown as a person.
+- **Devices, in SOSA/SSN terms.** A line of the device list is one award's reported use of an
+  instrument (an `ssn:Deployment`), not a catalogue entry. The page keeps the **sensor**, the actual
+  instrument (`sosa:Sensor`), apart from what it **observes** (`sosa:ObservableProperty`, the list's
+  "measures", one property per name however it is spelled), with the award's species as the feature
+  of interest. A method is a procedure (`sosa:Procedure`), not a sensor. A maker or model that only
+  the AI-assembled list gives stays *AI-predicted, unverified*. *Mentions* are the lines of the
+  notes and the transcripts that name the sensor or the property, found by matching the words and
+  never by a model, each with its tier, speaker, meeting and locator.
+- **Questions.** Thirteen internal questions (M1 to M10 about meetings, D1 to D5 about devices) are
+  answered when the records are built, each with how it is worked out, and shown on the Questions
+  tab of the artifact copy only. They are never asked of the public export.
+
+`kg/test_internal.py` holds all of it to a synthetic package (`kg/fixtures/synthetic_package.py`:
+invented people, awards and text in the package's layout), and runs with the exporter's tests on
+CI. The real package is never read there: the builder refuses to run on CI, refuses a package or an
+output folder inside the repository, and `tests/guards/inspector-internal-data` refuses a workflow
+that names it and any package file committed by name.
+
 
 `quality.py` refuses any of these paths inside the repository and never puts the records in `--html`
 or `--json`. `tests/guards/inspector-internal-data.test.mjs` checks the committed copy, the

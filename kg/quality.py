@@ -748,6 +748,8 @@ class KGQuality:
         for person in internal.get("people") or []:
             person.pop("investigators", None)
             person.pop("match", None)
+            if person.get("not_a_person"):          # a shared account (kg/internal_package.py): never an investigator
+                continue
             hits, how = self.match_person(person.get("name", ""))
             if hits:
                 person["investigators"], person["match"] = hits, how

@@ -19,6 +19,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const read = (p) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n");
 const MARK = /"kind":\s*"bbqs-(meetings|devices)"/;
+// The scripts that build the records: from the notes, from the device list, and (2026-11-23) from the
+// meetings data package. Each refuses to run on CI; this keeps anyone from asking it to.
+const BUILDERS = /\b(meetings|devices|internal_package)\.py\b|kg\.(meetings|devices|internal_package)\b/;
 
 test("the template has the report placeholder, then the internal one, once each", () => {
   const src = read("kg/browser/template.html");
@@ -41,11 +44,12 @@ test("no workflow builds a page with the meeting notes", () => {
     for (const name of names.filter((n) => /\.(ya?ml|sh|py|mjs|js)$/.test(n))) {
       const src = read(join(".github", sub, name));
       assert.doesNotMatch(src, /--internal\b/, `.github/${sub}/${name} passes --internal`);
-      assert.doesNotMatch(src, /\b(meetings|devices)\.py\b|kg\.(meetings|devices)\b/, `.github/${sub}/${name} runs kg/meetings.py or kg/devices.py; the records stay off CI`);
+      assert.doesNotMatch(src, BUILDERS, `.github/${sub}/${name} runs kg/meetings.py, kg/devices.py or kg/internal_package.py; the records stay off CI`);
     }
   }
   const scripts = JSON.stringify(JSON.parse(read("package.json")).scripts || {});
-  assert.doesNotMatch(scripts, /--internal\b|\b(meetings|devices)\.py\b/, "a package.json script builds the internal records");
+  assert.doesNotMatch(scripts, /--internal\b/, "a package.json script builds a page with the internal records");
+  assert.doesNotMatch(scripts, BUILDERS, "a package.json script builds the internal records");
 });
 
 test("no meeting records are committed", () => {
@@ -70,8 +74,11 @@ test("no meeting records are committed", () => {
 test("no raw copy of the notes or the device list is committed", () => {
   // The inputs carry no marker, so they are known by name: the extraction of the meeting notes and
   // the device list's files (kg/meetings.py and kg/devices.py read them from outside the repo).
+  // ... and the data package's own files (kg/internal_package.py reads them from outside the repo; the
+  // synthetic package of kg/fixtures/synthetic_package.py is written to a temporary folder, never here).
   const raw = new Set(["meetings_extracted.json", "meetings_flat.csv", "person_roles.csv", "devices.csv",
-                       "device_evidence.csv", "device_discussion_crosscutting.csv", "bbqs_devices_kg.json"]);
+                       "device_evidence.csv", "device_discussion_crosscutting.csv", "bbqs_devices_kg.json",
+                       "nodes.jsonl", "evidence.jsonl", "edges.jsonl", "person_aliases.csv", "meeting_notes_segments.jsonl"]);
   const skip = new Set([".git", "node_modules", "dist", ".venv"]);
   const hits = [];
   const walk = (dir) => {

@@ -527,5 +527,11 @@ class TheQuestionsReadWhatTheExporterWrites(unittest.TestCase):
         self.assertEqual(self.rows("CQ37"), [("Postdoc in vision", "Pat Poster")])
 
 
+# The internal records' tests (kg/test_internal.py) run with these, on a synthetic package, so the KG
+# workflow runs them without a step of its own.
+from test_internal import (ContactDataStaysOut, DeviceTerms, NotesBlocks, TheInspectorRecords,  # noqa: E402,F401
+                           ThePackageIsRead, ThePeopleAreLinkedAndTheSharedAccountIsNot,
+                           TheRecordsStayOutOfTheRepository, WhoSaidIt)
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
