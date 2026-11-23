@@ -344,46 +344,31 @@ class TheInspectorRecords(unittest.TestCase):
         self.assertIn("AI summary", self.meetings["caveat"])
         self.assertEqual(set(self.meetings["tiers"]), set(pr.TIERS))
 
-    def test_a_name_is_kept_as_written_with_how_it_was_read_and_a_guess_is_flagged(self):
-        who = {w["as_written"]: w for w in self.item[M1 + ":agreements-01"]["who"]}
-        self.assertEqual(who["Ada"]["name"], "Ada Example")
-        self.assertFalse(who["Ada"]["verify"])
-        self.assertEqual(who["Ben"]["name"], "Ben Sample")
-        self.assertTrue(who["Ben"]["verify"])
-        self.assertIn("a guess the package marks to verify", who["Ben"]["basis"])
-        self.assertTrue(self.evidence["utt:2026-01-15-0002"]["verify"])
-        self.assertFalse(self.evidence["utt:2026-01-15-0001"]["verify"])
-        # the source's own "likely ... verify" in a speaker line is a flag too, and resolves nobody
-        marked = self.evidence["devx:xev-001"]
-        self.assertEqual((marked["speaker"], marked["verify"]), ("", True))
-
-    def test_a_shared_account_is_never_a_person(self):
-        comment = self.evidence["cmt:ex-0002"]
-        self.assertEqual((comment["speaker"], comment["as_written"]), ("", "Shared Desk"))
-        self.assertIn("a shared account, not a person", comment["basis"])
-        shared = [p for p in self.meetings["people"] if p["name"] == "Shared Desk"]
-        self.assertEqual([p.get("not_a_person") for p in shared], [True])
-        self.assertTrue(all(not p.get("not_a_person") for p in self.meetings["people"] if p["name"] != "Shared Desk"))
-        self.assertNotIn("Shared Desk", [s for m in self.meetings["meetings"] for s in m["speakers"]])
-
-    def test_a_remark_where_an_author_would_be_is_not_a_name(self):
-        slide = self.evidence["devev:0001"]
-        self.assertEqual((slide["speaker"], slide["as_written"], slide["author_note"]), ("", "", "team slide; author not recorded"))
+    def test_the_records_carry_no_attribution_to_a_person(self):
+        # Who said what is the reader's to know (WhoSaidIt above) and to count with; the records name nobody.
+        self.assertTrue(all(i["who"] == [] for i in self.meetings["items"]))
+        self.assertTrue(self.item[M1 + ":agreements-01"]["attributed"])
+        for key in ("speaker", "as_written", "verify", "basis"):
+            self.assertNotIn(key, self.evidence["utt:2026-01-15-0002"])
+    def test_a_shared_account_is_not_a_person_so_its_label_stays_and_nobody_is_listed(self):
+        self.assertEqual(self.item[M4 + ":actions-01"]["text"], "Shared Desk: send the minutes")
+        self.assertEqual(self.meetings["people"], [])
+        self.assertEqual(self.evidence["cmt:ex-0002"]["attributed_to"], "the consortium")
+        self.assertFalse(any(m["speakers"] for m in self.meetings["meetings"]))
 
     def test_a_meeting_carries_the_notes_its_points_summarize_and_says_how_they_were_found(self):
         self.assertEqual((self.meeting[M1]["notes"]["how"], self.meeting[M1]["notes"]["repaired"]), ("cited", False))
         inside = self.meeting[M3]["notes"]                     # written inside another meeting's block
         self.assertEqual((inside["how"], inside["repaired"]), ("names_this_date", True))
-        self.assertIn("Dee: heart rate sensors drift", inside["text"])
+        self.assertIn("[name]: heart rate sensors drift", inside["text"])
         self.assertNotEqual(inside["text"], self.meeting[M1]["notes"]["text"])
-        self.assertTrue(inside["text"].splitlines()[0].startswith(("December 1, 2025", "Dec 1", "2025")) or "2025" in inside["text"].splitlines()[0])
+        self.assertIn("2025", inside["text"].splitlines()[0])  # it starts at its own dated line
         self.assertIsNone(self.meeting[M7]["notes"])           # a transcript, and no notes at all
         none = [m["id"] for m in self.meetings["meetings"] if m["notes"] is None]
         self.assertEqual(len(none), 2)
-
     def test_evidence_says_its_tier_kind_meeting_and_time(self):
         cue = self.evidence["utt:2026-01-15-0001"]
-        self.assertEqual((cue["tier"], cue["kind"], cue["meeting"], cue["speaker"]), ("TR", "utterance", M1, "Ada Example"))
+        self.assertEqual((cue["tier"], cue["kind"], cue["meeting"], cue["attributed_to"]), ("TR", "utterance", M1, "Standards WG"))
         self.assertEqual((cue["start"], cue["end"]), ("00:00:02.000", "00:00:05.000"))
         self.assertEqual(self.evidence["cmt:ex-0003"]["meeting"], "")       # a comment on a document: no meeting
         self.assertNotIn("start", self.evidence["cmt:ex-0003"])
@@ -391,7 +376,6 @@ class TheInspectorRecords(unittest.TestCase):
         self.assertEqual(self.meeting[M1]["evidence"], 5)
         self.assertEqual([m["id"] for m in self.meetings["meetings"] if m["transcript"]], [M1, M7])
         self.assertEqual({e["kind"] for e in self.meetings["evidence"]} - set(pr.EVIDENCE_KINDS.values()), set())
-
     def test_no_contact_data_is_in_a_carried_text(self):
         # Every text that goes onto the page, whatever key holds it: no web link and no e-mail address.
         # A record's own source link stays, in its `url`, and nowhere else.
@@ -423,52 +407,45 @@ class TheInspectorRecords(unittest.TestCase):
 
     # ---- the questions about meetings, on the synthetic package's known answers
 
-    def test_m1_decisions_with_who_and_the_notes(self):
+    def test_m1_decisions_and_whether_the_notes_back_them(self):
         self.assertEqual(self.question(self.meetings, "M1"), [
-            ["2026-01-15", "Standards WG", "Adopt the template for the next data blitz (Ada)", "Ada Example", "notes block"],
-            ["2026-02-10", "Standards WG", "Calibration files are required", "not stated", "notes block"],
-            ["2026-03-03", "Sample Devices WG", "Fund a second hackathon", "not stated", "notes block"]])
-
+            ["2026-01-15", "Standards WG", "Adopt the template for the next data blitz ([name])", "yes", "notes block"],
+            ["2026-02-10", "Standards WG", "Calibration files are required", "no", "notes block"],
+            ["2026-03-03", "Sample Devices WG", "Fund a second hackathon", "no", "notes block"]])
     def test_m2_the_meetings_with_a_transcript(self):
+        # three cues by two people (one of them written two ways): a count of speakers, and nobody named
         self.assertEqual(self.question(self.meetings, "M2"), [
-            ["2026-01-15", "Standards WG", "Template review", 3, 3, "00:00:02.000", "00:00:15.250"],
+            ["2026-01-15", "Standards WG", "Template review", 3, 2, "00:00:02.000", "00:00:15.250"],
             ["2026-01-20", "Example Paper Group", "Paper planning", 1, 1, "00:00:01.000", "00:00:04.000"]])
-
     def test_m4_meetings_whose_points_have_no_evidence(self):
         rows = self.question(self.meetings, "M4")
         self.assertEqual([(r[0], r[3], r[4]) for r in rows], [
             ("2025-12-01", 2, "notes block (link repaired)"), ("2026-02-10", 3, "notes block"), ("2026-03-03", 3, "notes block"),
             ("2026-04-01", 2, "notes block"), ("2026-05-05", 1, "no notes block")])
 
-    def test_m5_who_spoke_where_and_whether_a_transcript_says_so(self):
-        rows = self.question(self.meetings, "M5")
-        self.assertIn(["Standards WG", "Ada Example", 2, 1], rows)
-        self.assertIn(["Example Paper Group", "Cy Placeholder", 1, 1], rows)
-        self.assertIn(["Sample Devices WG", "Eve Roster", 1, 0], rows)
-        self.assertEqual(len(rows), 7)
-        self.assertFalse(any(r[1] == "Shared Desk" for r in rows))
-
-    def test_m6_attributions_that_rest_on_a_guess(self):
-        self.assertEqual(self.question(self.meetings, "M6"),
-                         [["Ben", "Ben Sample", "evidence records", 1], ["Ben", "Ben Sample", "item attributions", 1]])
-
+    def test_m5_how_many_spoke_in_each_group_and_whether_a_transcript_says_so(self):
+        self.assertEqual(self.question(self.meetings, "M5"), [
+            ["Example Paper Group", 1, 1, 1], ["Example Steering Committee", 1, 1, 0],
+            ["Sample Devices WG", 1, 2, 0], ["Standards WG", 2, 3, 2]])
+    def test_m6_how_many_attributions_rest_on_a_guess(self):
+        self.assertEqual(self.question(self.meetings, "M6"), [["evidence records", 1, 1], ["item attributions", 1, 1]])
     def test_m7_disagreements_and_the_next_decision(self):
         rows = self.question(self.meetings, "M7")
-        self.assertEqual([(r[0], r[1], r[4]) for r in rows], [("2026-01-15", "Standards WG", "2026-01-15")])
-
-    def test_m8_actions_and_their_owner(self):
+        self.assertEqual(rows, [["2026-01-15", "Standards WG",
+                                 "Whether depth camera calibration files are required: [name] for, [name] against", "2026-01-15"]])
+    def test_m8_actions_and_whether_the_notes_name_an_owner(self):
         rows = self.question(self.meetings, "M8")
         self.assertEqual([(r[0], r[2], r[3]) for r in rows], [
-            ("2026-01-15", "Ben: draft the template guide", "not stated"), ("2026-01-15", "Cy to collect example files", "not stated"),
-            ("2026-03-03", "Shared Desk: send the minutes", "not stated")])
-
+            ("2026-01-15", "[name]: draft the template guide", "no"), ("2026-01-15", "[name] to collect example files", "no"),
+            ("2026-03-03", "Shared Desk: send the minutes", "no")])
     def test_m10_sources_nothing_cites(self):
+        # "Example" is somebody's surname in this package, so it is replaced where it is not part of a
+        # group's name: the price of replacing a name wherever it stands.
         self.assertEqual(self.question(self.meetings, "M10"), [
             ["Example Steering Committee notes", "meeting notes (Google Doc)"],
-            ["Example Devices WG notes", "meeting notes (Google Doc)"], ["Example workshop agenda", "agenda"]])
+            ["[name] Devices WG notes", "meeting notes (Google Doc)"], ["[name] workshop agenda", "agenda"]])
         self.assertEqual([q["id"] for q in self.meetings["questions"]], ["M1", "M2", "M4", "M5", "M6", "M7", "M8", "M10"])
         self.assertEqual({q["id"] for q in self.meetings["questions"] if q.get("reads") == "absence"}, {"M4", "M6", "M10"})
-
     # ---- devices: the actual instrument, apart from what it observes
 
     def test_a_sensor_is_kept_apart_from_what_it_observes(self):
@@ -518,21 +495,23 @@ class TheInspectorRecords(unittest.TestCase):
         sensor = named[("sensor", "Depth camera")]
         self.assertEqual([(h["tier"], h["kind"]) for h in sensor], [("TR", "utterance"), ("T3", "notes_line"), ("T3", "notes_line")])
         self.assertTrue(all("depth camera" in h["text"].lower() for h in sensor))
-        self.assertEqual((sensor[0]["speaker"], sensor[0]["meeting"], sensor[0]["verify"]), ("Ben Sample", M1, True))
+        self.assertEqual((sensor[0]["meeting"], sensor[0]["attributed_to"]), (M1, "Standards WG"))
+        self.assertTrue(all("speaker" not in h and "as_written" not in h for h in lines))
+        self.assertEqual(sensor[1]["text"], "The depth camera calibration files came up; [name] is against requiring them.")
         self.assertTrue(all("heart rate" in h["text"].lower() for h in named[("property", "Heart rate")]))
         self.assertEqual({h["tier"] for h in lines}, {"TR", "T3"})          # what was said, and the notes: never an AI summary
         self.assertEqual(len({h["where"] for h in lines}), len(lines))      # each line once, however many terms it names
         self.assertEqual(self.device["DepthCam 3000"]["mentions"], {"sensor": [], "property": []})   # "DepthCam" is not "depth camera"
-
-    def test_who_spoke_to_a_device_is_kept_as_the_summary_writes_it(self):
-        self.assertEqual(self.device["DepthCam 3000"]["presenter"], "Ben Sample (with a student)")
-        self.assertEqual(self.device["Behavioral coding"]["presenter"], "")
+    def test_whether_someone_spoke_to_a_device_is_kept_and_who_is_not(self):
+        self.assertEqual([(d["name"], d["spoken_to"], d["presenter"]) for d in self.devices["devices"]], [
+            ("Depth camera (Acme Optics)", True, ""), ("Behavioral coding", False, ""),
+            ("DepthCam 3000", True, ""), ("Wearable heart monitor", True, "")])
         by_id = {e["id"]: e for e in self.devices["evidence"]}
         self.assertEqual({e["tier"] for e in by_id.values()}, {"T1", "T2", "U"})
         self.assertEqual(sorted(e["type"] for e in by_id.values() if e["device"] == self.device["Wearable heart monitor"]["id"]),
                          ["manufacturer/model candidate", "speaker attribution (workshop)"])
         self.assertEqual(len(self.devices["discussion"]), 2)
-
+        self.assertEqual({d["attributed_to"] for d in self.devices["discussion"]}, {"the consortium", "Standards WG"})
     # ---- the questions about devices
 
     def test_d1_what_each_award_deploys_and_what_it_observes(self):
@@ -565,6 +544,153 @@ class TheInspectorRecords(unittest.TestCase):
     def test_d5_awards_that_report_a_procedure(self):
         self.assertEqual(self.question(self.devices, "D5"), [["R34DA000001", "Behavioral coding", 1]])
         self.assertEqual([q["id"] for q in self.devices["questions"]], ["D1", "D2", "D3", "D4", "D5"])
+
+
+class NamesAreReplaced(unittest.TestCase):
+    """kg/package_reader.py's NameScrubber: which words of a text are somebody's name."""
+
+    def setUp(self):
+        self.names = pr.NameScrubber(["Mark Young", "Ada Example", "Li Na", "Ben Sample (with a student)", "(summary author)",
+                                      "João Rübel", "Admin BBQS"],
+                                     protected=["Example Steering Committee", "Young Lab Systems", "Ada Lovelace Institute"])
+
+    def test_a_full_name_goes_wherever_it_stands_in_any_case(self):
+        self.assertEqual(self.names.scrub("as Mark Young said, and mark young again; ADA  EXAMPLE too"),
+                         "as [name] said, and [name] again; [name] too")
+        self.assertEqual(self.names.scrub("João Rübel opened; Rübel closed"), "[name] opened; [name] closed")
+
+    def test_a_single_word_of_a_name_goes_where_it_is_written_as_the_name(self):
+        self.assertEqual(self.names.scrub("Ada for, Example against; an example and ada lowercase stay"),
+                         "[name] for, [name] against; an example and ada lowercase stay")
+        self.assertEqual(self.names.scrub("Sample (Ben) and Ben's rig"), "[name] ([name]) and [name]'s rig")
+        self.assertEqual(self.names.scrub("Adamant, Benefit, Examples"), "Adamant, Benefit, Examples")     # whole words only
+
+    def test_an_ordinary_word_that_is_also_a_name_goes_only_where_it_is_used_as_one(self):
+        self.assertEqual(self.names.scrub("Mark the files as Young investigators do."), "Mark the files as Young investigators do.")
+        self.assertEqual(self.names.scrub("Mark: do it\n- Young: agreed\n(Mark) and (Ada, Young) and Mark's turn, @Young"),
+                         "[name]: do it\n- [name]: agreed\n([name]) and ([name], [name]) and [name]'s turn, @[name]")
+
+    def test_a_two_letter_name_is_a_name_unless_it_is_a_common_word(self):
+        self.assertEqual(self.names.scrub("Li presented and Na agreed"), "[name] presented and [name] agreed")
+        both = pr.NameScrubber(["He Ma"])
+        self.assertEqual(both.scrub("He said so. Ma: yes. He Ma spoke"), "He said so. [name]: yes. [name] spoke")
+
+    def test_what_is_not_a_person_keeps_its_name(self):
+        self.assertEqual(self.names.scrub("Example Steering Committee met at the Ada Lovelace Institute with Young Lab Systems"),
+                         "Example Steering Committee met at the Ada Lovelace Institute with Young Lab Systems")
+        self.assertEqual(self.names.scrub("BBQS Admin wrote; the student and the summary author too"),
+                         "BBQS Admin wrote; the student and the summary author too")
+        self.assertNotIn("Admin", self.names.words)
+        self.assertNotIn("BBQS", self.names.words)
+
+    def test_a_group_written_where_an_author_would_be_is_not_a_person(self):
+        # The real package writes a working group as the author of a line of its notes. That made
+        # "Devices WG" a full name, and "Devices" a name to replace wherever it stood (2026-11-23).
+        names = pr.NameScrubber(["Devices WG", "Devices WG notes", "Ada Example", "Standards", "Dan Standards"], protected=["Depth camera"],
+                                groups=["Devices WG", "Data Standards WG", "Example Steering Committee"])
+        self.assertEqual(names.full, {"Ada Example", "Dan Standards"})
+        self.assertEqual(names.words, {"Ada", "Example", "Dan", "Standards"})     # a person's own words stay names
+        self.assertEqual(names.scrub("Devices WG met; Devices were listed; Ada Example agreed in the Example Steering Committee; Dan too"),
+                         "Devices WG met; Devices were listed; [name] agreed in the Example Steering Committee; [name] too")
+        self.assertEqual(names.leaks({"topic": "Devices WG and sensors"}), 0)
+        alone = pr.NameScrubber(["Devices WG", "Standards", "Ada"], groups=["Devices WG", "Data Standards WG"])
+        self.assertEqual(alone.words, {"Ada"})               # "Standards" alone is the group, not somebody
+        self.assertEqual(alone.scrub("Standards apply; Ada agreed"), "Standards apply; [name] agreed")
+
+    def test_it_counts_what_it_replaced_and_finds_a_full_name_left_in_a_record(self):
+        self.names.scrub("Mark Young and Ada")
+        self.assertEqual(self.names.count, 2)
+        doc = {"text": "Ada spoke", "group": "Ada Example Memorial WG", "rows": [["Mark Young", 3]], "name": "Li Na"}
+        cleaned = self.names.scrub_document(doc)
+        self.assertEqual(cleaned, {"text": "[name] spoke", "group": "Ada Example Memorial WG", "rows": [["[name]", 3]], "name": "Li Na"})
+        self.assertEqual(self.names.leaks(cleaned), 2)        # a group and a `name` are not carried text: left, and found
+        self.assertEqual(self.names.leaks({"text": "[name] spoke"}), 0)
+
+
+class NobodyIsNamed(unittest.TestCase):
+    """The owner's decision (2026-11-23): a statement is attributed to the consortium, to the working
+    group it was made in, and never to a named person. No speaker, author, attendee or owner is named,
+    and a name inside a carried text is replaced by a marker."""
+
+    NAMES = ("Ada Example", "Ben Sample", "Cy Placeholder", "Eve Roster", "Dee Placeholder", "A. Example",
+             "Ada", "Ben", "Cy", "Dee", "Eve", "Roster", "Placeholder")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.records = ip.Records(package_folder())
+        cls.meetings, cls.devices = cls.records.meetings(), cls.records.device_documents()
+
+    def test_no_name_of_anyone_in_the_package_is_anywhere_in_the_records(self):
+        for doc in (self.meetings, self.devices):
+            text = json.dumps(doc, ensure_ascii=False)
+            for name in self.NAMES:
+                found = re.search(r"(?<![A-Za-z])" + re.escape(name) + r"(?![A-Za-z])", text)
+                self.assertIsNone(found, f"{doc['kind']} names {name!r}: ...{text[max(0, (found.start() if found else 0) - 60):(found.end() if found else 0) + 40]}...")
+        self.assertTrue(self.meetings["anonymous"] and self.devices["anonymous"])
+
+    def test_a_statement_is_attributed_to_its_working_group_or_to_the_consortium(self):
+        evidence = {e["id"]: e for e in self.meetings["evidence"]}
+        self.assertEqual(evidence["utt:2026-01-15-0001"]["attributed_to"], "Standards WG")
+        self.assertEqual(evidence["cmt:ex-0003"]["attributed_to"], "the consortium")           # a comment on a document
+        for e in self.meetings["evidence"]:
+            self.assertEqual({k for k in ("speaker", "as_written", "basis", "author_note", "verify") if k in e}, set(), e["id"])
+        self.assertEqual(self.meetings["people"], [])
+        self.assertEqual(self.meetings["unresolved"], [])
+        for tier, rule in self.meetings["tiers"].items():      # how to cite: the group, never "the speaker" or "the author"
+            self.assertNotRegex(rule, r"give the speaker|give the author|display name", tier)
+        self.assertIn("attribute it to the working group", self.meetings["tiers"]["TR"])
+        self.assertTrue(all(i["who"] == [] for i in self.meetings["items"]))
+        self.assertTrue(all(m["speakers"] == [] and m["attendees"] == [] for m in self.meetings["meetings"]))
+        self.assertTrue(all("pis" not in a and "team" not in a for a in self.devices["awards"]))
+        self.assertTrue(all(d["presenter"] == "" for d in self.devices["devices"]))
+        self.assertTrue(all(e["speaker"] == "" for e in self.devices["evidence"] + self.devices["discussion"]))
+
+    def test_what_stays_is_a_count_and_never_who(self):
+        meeting = {m["id"]: m for m in self.meetings["meetings"]}
+        self.assertEqual(meeting[M1]["participants"], 3)                       # three people spoke; nobody is listed
+        item = {i["id"]: i for i in self.meetings["items"]}
+        self.assertTrue(item[M1 + ":agreements-01"]["attributed"])             # the notes attribute it to someone
+        self.assertFalse(item[M1 + ":disagreements-01"]["attributed"])
+        camera = next(d for d in self.devices["devices"] if d["name"] == "Depth camera (Acme Optics)")
+        self.assertTrue(camera["spoken_to"])                                   # someone spoke to it at the workshop
+        self.assertFalse(next(d for d in self.devices["devices"] if d["name"] == "Behavioral coding")["spoken_to"])
+
+    def test_a_name_inside_a_text_is_replaced_and_the_rest_of_the_text_is_kept(self):
+        item = {i["id"]: i for i in self.meetings["items"]}
+        self.assertEqual(item[M1 + ":decisions-01"]["text"], "Adopt the template for the next data blitz ([name])")
+        self.assertEqual(item[M1 + ":actions-01"]["text"], "[name]: draft the template guide")
+        self.assertEqual(item[M1 + ":actions-02"]["text"], "[name] to collect example files")     # "example" the word stays
+        self.assertEqual(item[M1 + ":disagreements-01"]["text"],
+                         "Whether depth camera calibration files are required: [name] for, [name] against")
+        notes = {m["id"]: m["notes"] for m in self.meetings["meetings"]}
+        self.assertIn("[name]: heart rate sensors drift", notes[M3]["text"])
+        self.assertGreater(self.meetings["names_removed"], 10)
+        # what is not a person keeps its name: a group, a maker, a device, an institution
+        self.assertEqual({m["group"] for m in self.meetings["meetings"]},
+                         {"Standards WG", "Sample Devices WG", "Example Steering Committee", "Example Paper Group"})
+        self.assertIn("Depth camera (Acme Optics)", [d["name"] for d in self.devices["devices"]])
+        self.assertIn("Sample Devices Ltd., Springfield", json.dumps(self.devices["devices"]))
+
+    def test_a_turn_is_marked_where_the_speaker_changes_and_not_who_speaks(self):
+        cues = [e for e in self.meetings["evidence"] if e["kind"] == "utterance" and e["meeting"] == M1]
+        self.assertEqual([c["new_turn"] for c in cues], [True, True, True])    # three cues, three different speakers in turn
+        self.assertNotIn("new_turn", next(e for e in self.meetings["evidence"] if e["kind"] == "document_comment"))
+
+    def test_the_questions_count_and_do_not_name(self):
+        q = {x["id"]: x for x in self.meetings["questions"]}
+        self.assertEqual(q["M1"]["columns"], ["Date", "Group", "Decision", "Attributed in the notes", "Notes"])
+        self.assertEqual([r[3] for r in q["M1"]["rows"]], ["yes", "no", "no"])
+        self.assertEqual(q["M5"]["columns"], ["Group", "Meetings with a speaker tie", "People who spoke", "Of them, known from a transcript"])
+        self.assertIn(["Standards WG", 2, 3, 2], q["M5"]["rows"])
+        self.assertEqual(q["M6"]["rows"], [["evidence records", 1, 1], ["item attributions", 1, 1]])
+        self.assertEqual(q["M8"]["columns"], ["Date", "Group", "Action", "Owner named in the notes"])
+        self.assertEqual([r[3] for r in q["M8"]["rows"]], ["no", "no", "no"])
+
+    def test_a_record_with_a_full_name_left_in_it_is_refused(self):
+        leaked = {"kind": "x", "evidence": [{"text": "as Ada Example said"}]}
+        self.assertEqual(self.records.names.leaks(leaked), 1)
+        self.assertEqual(self.records.names.leaks({"devices": [{"name": "Depth camera (Acme Optics)"}]}), 0)
+        self.assertEqual(self.records.names.leaks(self.meetings) + self.records.names.leaks(self.devices), 0)
 
 
 class TheRecordsStayOutOfTheRepository(unittest.TestCase):
@@ -609,6 +735,22 @@ class TheRecordsStayOutOfTheRepository(unittest.TestCase):
                 self.assertIn("this runs on CI", said)
             self.assertEqual(list(Path(out).iterdir()), [])
 
+    def test_the_builder_writes_nothing_when_a_full_name_is_left(self):
+        # A field the scrubber does not read (a `group`, say) that carries somebody's full name.
+        real = ip.Records.meetings
+
+        def leaky(self):
+            doc = real(self)
+            doc["meetings"][0]["group"] = "Ada Example's group"
+            return doc
+
+        with tempfile.TemporaryDirectory() as out, mock.patch.object(ip.Records, "meetings", leaky):
+            code, said = self.run_main(package_folder(), "--out-dir", out)
+            self.assertEqual(code, 1)
+            self.assertIn("full name(s) of people are still in the records, so nothing was written", said)
+            self.assertNotIn("Ada Example", said)                # it says how many, never who
+            self.assertEqual(list(Path(out).iterdir()), [])
+
     def test_a_folder_that_is_not_the_package_is_refused(self):
         with tempfile.TemporaryDirectory() as empty, tempfile.TemporaryDirectory() as out:
             code, said = self.run_main(empty, "--out-dir", out)
@@ -632,20 +774,55 @@ class TheRecordsStayOutOfTheRepository(unittest.TestCase):
         self.assertEqual(holders, [])
 
 
-class ThePeopleAreLinkedAndTheSharedAccountIsNot(unittest.TestCase):
-    """kg/quality.py ties the records to the graph: a person to their Investigator node, never an account."""
+class TheGraphsNamesAreReplacedToo(unittest.TestCase):
+    """kg/quality.py scrubs the records once more, with the names the public graph holds."""
 
-    def test_link_people_skips_what_is_not_a_person(self):
+    def test_the_names_of_the_graphs_investigators_are_replaced_too(self):
+        # kg/quality.py's pass, with the public graph's Investigator names: a person the package never
+        # lists as a speaker can still be named in a text.
         from quality import KGQuality
         with tempfile.TemporaryDirectory() as folder:
             graph = Path(folder) / "public.ttl"
             graph.write_text(synthetic.PUBLIC_TTL, encoding="utf-8")
-            doc = KGQuality(graph).link_people(ip.Records(package_folder()).meetings())
-        people = {p["name"]: p for p in doc["people"]}
-        self.assertTrue(people["Ada Example"].get("investigators"))
-        self.assertNotIn("investigators", people["Shared Desk"])
-        self.assertNotIn("investigators", people["Cy Placeholder"])          # no node of that name
+            doc = ip.Records(package_folder()).meetings()
+            doc["items"][0]["text"] = "Ask Ben Q. Sample and Quinn Graphonly about the rig; Quinn agreed"
+            before = doc["names_removed"]
+            doc = KGQuality(graph).anonymize(doc)
+        self.assertEqual(doc["items"][0]["text"], "Ask [name] and [name] about the rig; [name] agreed")
+        self.assertGreater(doc["names_removed"], before)
+        self.assertEqual(doc["people"], [])
 
-
+    def test_a_record_that_names_people_is_not_put_on_a_page(self):
+        # The older builders (kg/meetings.py, kg/devices.py) name people, and so would a record whose
+        # mark was edited away: kg/quality.py --internal refuses anything not marked anonymous.
+        from click.testing import CliRunner
+        import quality
+        with tempfile.TemporaryDirectory() as folder:
+            graph, named, page = Path(folder) / "public.ttl", Path(folder) / "meetings.json", Path(folder) / "page.html"
+            graph.write_text(synthetic.PUBLIC_TTL, encoding="utf-8")
+            doc = ip.Records(package_folder()).meetings()
+            doc["items"][0]["text"] = "Quinn Graphonly asked about the rig"      # named in the graph only
+            for marked, refused in ((False, True), (None, True), (True, False)):
+                record = dict(doc)
+                if marked is None:
+                    record.pop("anonymous")
+                else:
+                    record["anonymous"] = marked
+                named.write_text(json.dumps(record), encoding="utf-8")
+                with mock.patch.dict(os.environ, {}, clear=False):
+                    for name in ("GITHUB_ACTIONS", "CI"):
+                        os.environ.pop(name, None)
+                    result = CliRunner().invoke(quality.main, [str(graph), "--json", str(Path(folder) / "q.json"), "--html",
+                                                               str(Path(folder) / "public.html"), "--fragment", str(page),
+                                                               "--internal", str(named)])
+                self.assertEqual(result.exit_code != 0, refused, (marked, result.output[-300:]))
+                if refused:
+                    self.assertIn("names people", result.output)
+                    self.assertFalse(page.exists())
+            self.assertTrue(page.exists())
+            records = page.read_text(encoding="utf-8").split("const INTERNAL = ")[1].split(";\nconst BUNDLE")[0]
+            self.assertNotIn("Ada Example", records)
+            self.assertNotIn("Quinn", records)                   # the page's records went through the graph's names too
+            self.assertIn("[name] asked about the rig", records)
 if __name__ == "__main__":
     unittest.main(verbosity=1)

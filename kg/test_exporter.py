@@ -529,8 +529,8 @@ class TheQuestionsReadWhatTheExporterWrites(unittest.TestCase):
 
 # The internal records' tests (kg/test_internal.py) run with these, on a synthetic package, so the KG
 # workflow runs them without a step of its own.
-from test_internal import (ContactDataStaysOut, DeviceTerms, NotesBlocks, TheInspectorRecords,  # noqa: E402,F401
-                           ThePackageIsRead, ThePeopleAreLinkedAndTheSharedAccountIsNot,
+from test_internal import (ContactDataStaysOut, DeviceTerms, NamesAreReplaced, NobodyIsNamed, NotesBlocks,  # noqa: E402,F401
+                           TheGraphsNamesAreReplacedToo, TheInspectorRecords, ThePackageIsRead,
                            TheRecordsStayOutOfTheRepository, WhoSaidIt)
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ bid:proj-wearable a bbqs:Project ; bbqs:name "U01DA000003" ; bbqs:grant_number "
 bid:inv-ada a bbqs:Investigator ; bbqs:name "Ada Example" ; bbqs:member_of_group bid:wg-standards .
 bid:inv-ben a bbqs:Investigator ; bbqs:name "Ben Q. Sample" .
 bid:inv-eve a bbqs:Investigator ; bbqs:name "Eve Roster" .
+bid:inv-quinn a bbqs:Investigator ; bbqs:name "Quinn Graphonly" .
 bid:role-ada a bbqs:ProjectRole ; bbqs:on_project bid:proj-mouse ; bbqs:held_by bid:inv-ada ;
     bbqs:project_role "contact_pi" ; bbqs:role_source "reporter" .
 bid:role-eve a bbqs:ProjectRole ; bbqs:on_project bid:proj-fish ; bbqs:held_by bid:inv-eve ;

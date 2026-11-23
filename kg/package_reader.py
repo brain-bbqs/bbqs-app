@@ -33,6 +33,12 @@ and the others here are the package's own (its README, "Rules for loading and an
   contact    every web link, e-mail address and assignee inside a carried text is replaced by a
              marker ([link redacted], [email redacted], [name redacted]); a record's own source
              link is kept. Line counts never change.
+  nobody     a statement is attributed to the consortium (the working group it was made in), never
+             to a named person: the owner's decision, 2026-11-23. NameScrubber replaces every name
+             it knows inside a carried text by a marker, and the records name no speaker, author,
+             attendee or owner. What it knows: the package's people and the names its records are
+             written with, and whatever names it is handed besides (the public graph's
+             investigators). A name it was never told can stay; a reader flags it.
   devices    a row's observable properties are its `measures`, split at commas and semicolons
              outside brackets; the names a sensor goes by are its name, the makers in its brackets
              and the maker stated on the slide. Mentions are the transcript cues, chat lines and
@@ -141,6 +147,132 @@ def redact(text: str, tally: Counter | None = None) -> str:
     text = _URL.sub(link, text)
     text = _BARE_LINK.sub(link, text)
     return _EMAIL.sub(email, text)
+
+
+NAME_MARK = "[name]"
+_NAME_WORD = re.compile(r"[A-Z][A-Za-zÀ-ɏ'’-]*")
+_ALONE_IN_BRACKETS = re.compile(r"^\s*\(.*\)\s*$", re.S)      # "(summary author)": a remark where a name would be
+# Words that stand where a name would and are not one.
+NOT_NAME_WORDS = frozenset(
+    "BBQS NIH DCAIC EMBER DANDI ELSI Admin Team Lab Labs Notes Slide Slides Summary Workshop Committee Group Working "
+    "Student Students Staff Unknown Speaker Participant Host Zoom Google Doc Docs The And With For Not Meeting Desk "
+    "PI PIs Dr Prof Co AI".split())
+# Ordinary words that are also somebody's name, and two-letter words. Such a name is replaced only
+# where the text uses it as a name ("Mark: ...", "Mark's", "(Mark)"), or half the notes would be marks.
+ORDINARY_WORDS = frozenset(
+    "Will May Mark Grant Art Rich Rose Hope Joy Faith Grace Summer April June August Dawn Page Lane Field Fields King "
+    "Park Wood Woods Stone Rivers Bell Banks Price Small White Black Brown Green Gray Grey Gold Silver Short Strong Wise "
+    "Best Good Day Major Dean Earl Duke Bishop Cook Baker Mason Taylor "
+    "Porter Parker Hunter Fisher Walker Young Long Low High Little Old New Head Hand Hill Dale Glen Ford Bridge Lake Brook "
+    "Brooks Marsh Reed Rice Bean Berry Sage Ivy Lily Violet Iris Amber Ruby Pearl Jade Crystal Angel Christian Chance Sky "
+    "Star Storm Rain West East North South Winter Spring Love Blue Red Hazel Olive Ginger Sandy Bear Wolf Fox Hawk "
+    "Finch Wren Robin Lark Drake Swan Crane Bird Fish Lamb Bull Buck Hart Roe Doe Lyon Lyons Data Brain Mouse Model Science "
+    "He We It No So Do Go Me My An As At Be By If In Is Of On Or To Up Us Am Ah Oh Ok Hi Ma".split())
+# The keys whose text is carried from the package's free text, wherever they sit in a record.
+SCRUBBED_KEYS = frozenset({"text", "title", "as_named", "note", "status", "locator", "session", "topic", "source",
+                           "meeting_title"})
+
+
+class NameScrubber:
+    """Replaces the names it knows by NAME_MARK, in a text or in every carried text of a record.
+
+    A full name (two words or more) is replaced wherever it stands, in any case. A single word of a
+    name is replaced where it stands capitalized as the name has it, except an ordinary word
+    (ORDINARY_WORDS), which is replaced only where the text uses it as a name. A phrase that is not
+    a person (a working group, an institution, a maker, a device) is kept whole, even when one of
+    its words is also somebody's name: "Example Steering Committee" stays when someone is named Example."""
+
+    def __init__(self, names=(), protected=(), groups=()):
+        """`names`: what people are written as. `protected`: phrases that name something else and are
+        kept whole. `groups`: the working groups; a group written where a speaker would be ("Devices
+        WG", or "Devices WG notes", as the author of a line of notes) is not a person."""
+        self.count = 0
+        self.full, words = set(), set()
+        self.protected = sorted({" ".join(str(x or "").split()) for x in [*protected, *groups]} - {""}, key=len, reverse=True)
+        kept_whole = [f" {' '.join(_NAME_WORD.findall(x)).casefold()} " for x in self.protected]
+        kept_whole = [phrase for phrase in kept_whole if len(phrase.split()) >= 2]
+        group_words = {w for g in groups for w in _NAME_WORD.findall(str(g or ""))}
+        for name in names:
+            name = " ".join(str(name or "").split())
+            if not name or _ALONE_IN_BRACKETS.match(name):
+                continue
+            bare = _NAME_WORD.findall(re.sub(r"\(.*?\)", " ", name))
+            written = f" {' '.join(bare).casefold()} "
+            if len(bare) >= 2 and any(written in phrase or phrase in written for phrase in kept_whole):
+                continue                                         # a group, a maker or a device, written as an author
+            if len(bare) == 1 and bare[0] in group_words:
+                continue                                         # one word of a group's name, alone: the group
+            mine = [w.strip("'’-") for w in _NAME_WORD.findall(name)]
+            words.update(w for w in mine if len(w) >= 2 and w not in NOT_NAME_WORDS)
+            outside = [w for w in bare if w not in NOT_NAME_WORDS and len(w) >= 2]
+            if len(outside) >= 2:
+                self.full.add(" ".join(outside))
+        self.words = words
+        edge_l, edge_r = r"(?<![A-Za-zÀ-ɏ0-9])", r"(?![A-Za-zÀ-ɏ0-9])"
+        self._full = (re.compile(edge_l + "(?:" + "|".join(r"[\s ]+".join(re.escape(w) for w in n.split())
+                                                             for n in sorted(self.full, key=len, reverse=True)) + ")" + edge_r, re.I)
+                      if self.full else None)
+        self._word = (re.compile(edge_l + "(?:" + "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True)) + ")" + edge_r)
+                      if words else None)
+        self._protected = (re.compile("|".join(re.escape(x) for x in self.protected)) if self.protected else None)
+
+    @staticmethod
+    def _used_as_a_name(text: str, start: int, end: int) -> bool:
+        """Whether an ordinary word stands as a name here: a label ("Mark: ...") at the start of a line
+        or of a sentence, a possessive, an @mention, or alone between brackets or commas inside them."""
+        lead = text[text.rfind("\n", 0, start) + 1:start]
+        after = text[end:end + 3]
+        opens = re.fullmatch(r"[\s\-*•·>\d.)]*", lead) or re.search(r"[.;!?)\]]\s+$", lead)
+        if opens and re.match(r"\s?[:–]", after):
+            return True
+        if after[:2] in ("'s", "’s") or text[max(0, start - 1):start] == "@":
+            return True
+        before = text[max(0, start - 2):start]
+        return (before.endswith("(") or before.endswith(", ")) and re.match(r"\s?[),]", after) is not None
+
+    def scrub(self, text: str) -> str:
+        if not text or not (self._full or self._word):
+            return text
+        held = []
+
+        def hold(m):
+            held.append(m.group(0))
+            return f"{len(held) - 1}"
+
+        def mark(m):
+            self.count += 1
+            return NAME_MARK
+
+        def word(m):
+            if m.group(0) in ORDINARY_WORDS and not self._used_as_a_name(out, m.start(), m.end()):
+                return m.group(0)
+            self.count += 1
+            return NAME_MARK
+
+        out = self._protected.sub(hold, text) if self._protected else text
+        if self._full:
+            out = self._full.sub(mark, out)
+        if self._word:
+            out = self._word.sub(word, out)
+        # a first and a last name are one mark, with any initials between them or before them
+        out = re.sub(r"(?:(?<![A-Za-z])[A-Z]\.[ \u00A0]+)*\[name\](?:[ \u00A0]+(?:[A-Z]\.?[ \u00A0]+)*\[name\])*", NAME_MARK, out)
+        return re.sub("(\\d+)", lambda m: held[int(m.group(1))], out)
+
+    def scrub_document(self, value, key: str = ""):
+        """A record with every carried text scrubbed (SCRUBBED_KEYS, and the cells of a question's rows)."""
+        if isinstance(value, dict):
+            return {k: self.scrub_document(v, k) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self.scrub_document(v, key) for v in value]
+        if isinstance(value, str) and (key in SCRUBBED_KEYS or key == "rows"):
+            return self.scrub(value)
+        return value
+
+    def leaks(self, value) -> int:
+        """How many times a full name it knows still stands anywhere in a record, whatever the key."""
+        if not self._full:
+            return 0
+        return len(self._full.findall(json.dumps(value, ensure_ascii=False)))
 
 
 def split_top(text: str) -> list[str]:
@@ -375,6 +507,51 @@ class Package:
             elif mine != theirs:
                 problems.append(f"{key}: the files hold {mine}, kg/stats.json says {theirs}")
         return problems
+
+    # ---- nobody is named ---------------------------------------------------------------------------
+
+    def person_names(self) -> list[str]:
+        """Every name the package writes a person with: the people (not a shared account), their
+        aliases, the names speakers and authors are written as, the names items are attributed to,
+        and the awards' PIs."""
+        people = {pid for pid, person in self.person.items() if not person.get("note")}
+        names = []
+        for pid in people:
+            person = self.person[pid]
+            names.append(person.get("name") or "")
+            aliases = person.get("aliases")
+            names += aliases if isinstance(aliases, list) else re.split(r"[;|]", str(aliases or ""))
+        for alias in self.aliases:
+            if alias.get("person_id") in people or not alias.get("person_id"):
+                names += [alias.get("name_as_written") or "", alias.get("canonical_name") or ""]
+        for e in self.evidence:
+            if e.get("speaker") in self.person and e.get("speaker") not in people:
+                continue                                         # a shared account's label is not a person's name
+            names.append(e.get("speaker_as_written") or "")
+        for item in self.items:
+            names += re.split(r"[,;/&]|\band\b", item["attributed_to_as_written"])
+        for award in self.by_label["Award"]:               # the PIs, as the list writes them: surnames. (The
+            names += re.split(r"[,;/&]|\band\b", award.get("pis_as_written") or "")   # team text names institutions too.)
+        return [n for n in (" ".join(str(x).split()) for x in names) if n]
+
+    def not_people(self) -> list[str]:
+        """Phrases that name something other than a person and are kept whole: working groups,
+        organizations, and what the device list names (instruments, makers, tools)."""
+        phrases = [m.get("group") or "" for m in self.meetings]
+        for label in ("WorkingGroup", "Organization", "Topic"):
+            phrases += [n.get("name") or "" for n in self.by_label[label]]
+        for d in self.by_label["Device"]:
+            phrases += [d.get("name") or "", d.get("category") or "", d.get("manufacturer_stated") or "",
+                        d.get("manufacturer_candidate_unverified") or "", d.get("model_candidate_unverified") or ""]
+            phrases += sensor_terms(d) + split_top(d.get("tools") or "")
+        return [x for x in phrases if len(x) >= 3]
+
+    def groups(self) -> list[str]:
+        """The working groups, as the meetings and the package's own list name them."""
+        return sorted(({m.get("group") or "" for m in self.meetings} | {n.get("name") or "" for n in self.by_label["WorkingGroup"]}) - {""})
+
+    def scrubber(self, more_names=()) -> "NameScrubber":
+        return NameScrubber([*self.person_names(), *more_names], self.not_people(), self.groups())
 
     # ---- names -------------------------------------------------------------------------------------
 

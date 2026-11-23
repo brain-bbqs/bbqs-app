@@ -755,6 +755,30 @@ class KGQuality:
                 person["investigators"], person["match"] = hits, how
         return internal
 
+    def anonymize(self, doc: dict) -> dict:
+        """Nobody is named in the internal records (the owner's decision, 2026-11-23). The builder
+        replaced the names the package knows; this replaces the names the GRAPH knows: every
+        investigator's, wherever one stands in a carried text. What the graph names that is not a
+        person (an organization, a working group, a device, a maker, a tool, a species) is kept whole."""
+        import package_reader as pr
+        g = self.graph
+        people = [str(v) for n, c in self.types.items() if c == "Investigator"
+                  for pred in ("name", "aliases") for v in g.objects(n, BBQS[pred])]
+        kept = [str(v) for n, c in self.types.items()
+                if c in ("ResearchOrganization", "WorkingGroup", "Device", "DeviceManufacturer", "DeviceCategory", "SoftwareTool",
+                         "Species", "Dataset", "FundingOpportunity")
+                for pred in ("name", "common_name", "model_name", "aliases") for v in g.objects(n, BBQS[pred])]
+        kept += [m.get("group", "") for m in doc.get("meetings") or []] + [a.get("institution", "") for a in doc.get("awards") or []]
+        for d in doc.get("devices") or []:
+            kept += [d.get("name", ""), d.get("brand_stated", ""), d.get("category", ""), *d.get("sensor", []), *d.get("tools", []),
+                     *((d.get("ai_predicted") or {}).values())]
+        groups = sorted(({m.get("group", "") for m in doc.get("meetings") or []}
+                         | {str(v) for n, c in self.types.items() if c == "WorkingGroup" for v in g.objects(n, BBQS.name)}) - {""})
+        scrubber = pr.NameScrubber(people, [k for k in kept if k and len(k) >= 3], groups)
+        doc = scrubber.scrub_document(doc)
+        doc["names_removed"] = int(doc.get("names_removed") or 0) + scrubber.count
+        return doc
+
     def link_devices(self, doc: dict) -> dict:
         """Tie the device list to the graph. Each award to its Project node by grant number; each
         full name in a "who spoke to it" or "speaker" line to Investigator nodes (match_person: a
@@ -948,10 +972,16 @@ def main(data_file, access, json_path, html_path, fragment_path, source, interna
             kind = doc.get("kind") if isinstance(doc, dict) else None
             if kind not in linkers:
                 raise click.UsageError(f"--internal {path} is not meeting records or a device list "
-                                       f"(its kind is {kind!r}; kg/meetings.py and kg/devices.py write them).")
+                                       f"(its kind is {kind!r}; kg/internal_package.py writes them).")
             if kind in internal:
                 raise click.UsageError(f"--internal was given two files of kind {kind}.")
-            internal[kind] = linkers[kind](doc)
+            if doc.get("anonymous") is not True:
+                # The owner's decision, 2026-11-23: a statement is attributed to the consortium, never
+                # to a named person. Records that name people are not put on a page any more.
+                raise click.UsageError(f"--internal {path} names people (it is not marked anonymous). Statements are "
+                                       "attributed to the consortium, not to named people: build the records with "
+                                       "kg/internal_package.py, which names nobody.")
+            internal[kind] = kg.anonymize(linkers[kind](doc))
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     KGQuality.render_html(report, html_path)                  # never the internal records

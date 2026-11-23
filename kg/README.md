@@ -160,10 +160,10 @@ while the export writes `bbqs:<slot>`, so only 9 of 139 paths match (#422).
 | `quality.py` | Quality evaluation: structure metrics, competency questions, shape coverage, violations → `export/quality.json` + `browser/index.html` (see [Quality evaluation](#quality-evaluation)). |
 | `competency_questions.yaml` | The 42 fixed questions the graph must answer (CQ20-CQ42 adopted from #441), each with its SPARQL and the access level it needs. |
 | `browser/template.html` | Graph Inspector page; `quality.py` inlines the report into it to make the self-contained `browser/index.html`. |
-| `meetings.py` | Working-group meeting notes → the Inspector's Meetings records (who each point is tied to). Internal: reads and writes files outside the repo only. |
-| `devices.py` | The consortium device list → the Inspector's Devices records (by award, each line with its tier: slide, workshop, notes, AI-predicted). Internal: reads and writes files outside the repo only. |
-| `package_reader.py` | The meetings data package, read from its folder, with its rules: the tier decides how a record may be cited, a name is kept as written with how it was resolved, a shared account is never a person, contact data is replaced by markers. |
-| `internal_package.py` | The data package → both records at once, with what only the package has: every meeting item, the notes each summarizes, the evidence (who said or wrote what, with tier and locator), devices as sensor / observable property / procedure, the verbatim mentions, and the internal questions. Internal: reads and writes files outside the repo only. |
+| `meetings.py` | Working-group meeting notes → Meetings records that tie each point to named people. **Superseded**: since 2026-11-23 nobody is named, and `quality.py --internal` refuses records that name people. Use `internal_package.py`. |
+| `devices.py` | The consortium device list → Devices records that name who spoke to a device. **Superseded** for the same reason. Use `internal_package.py`. |
+| `package_reader.py` | The meetings data package, read from its folder, with its rules: the tier decides how a record may be cited, contact data is replaced by markers, and `NameScrubber` replaces every name it knows inside a text. |
+| `internal_package.py` | The data package → both records at once, **naming nobody**: every meeting item, the notes each summarizes, the evidence (what was said or written, with tier and locator, attributed to the working group), devices as sensor / observable property / procedure, the verbatim mentions, and the internal questions. Internal: reads and writes files outside the repo only. |
 | `shapes/validation.shapes.ttl` | Hand-written SHACL validation for the cross-field/cross-node **contradiction** checks and dangling claims (what gen-shacl can't produce). |
 | `fixtures/contradictions.ttl` | A graph seeded with one violation per validation shape (the RED case). |
 | `fixtures/clean.ttl` | The same graph corrected (the GREEN case). |
@@ -454,13 +454,24 @@ python kg/quality.py --fragment /outside/the/repo/inspector.html \
 
 What the package adds, and how each thing is marked:
 
+- **Nobody is named** (the owner's decision, 2026-11-23). A statement is attributed to the consortium,
+  to the working group it was made in, and never to a named person. The records carry no speaker,
+  author, attendee, owner or presenter: only whether there was one, and how many. Inside a carried
+  text, every name the builder knows is replaced by `[name]`: the package's people and the names its
+  records are written with, then (in `quality.py`) every investigator of the public graph. A full
+  name is replaced wherever it stands; a single word of a name where it is written as the name; an
+  ordinary word that is also somebody's name ("Mark", "Field") only where the text uses it as one;
+  and what is not a person (a working group, an institution, a maker, a device) keeps its name. If a
+  full name is still in a record the builder writes nothing, and `quality.py --internal` refuses any
+  record not built this way. The limit: a name nobody told the builder can stay in a text, so the
+  page lets a reader flag it. In a transcript the page marks where the speaker changes, not who
+  speaks.
 - **Meetings.** Every item of every meeting, agenda items included. An item is an AI summary of that
   meeting's notes (tier X), never a quote, and the meeting shows the notes block it summarizes, with
   how the block was found when the package's own link was missing. *Evidence* lists every record the
-  package keeps as someone's words or writing, searchable, each with its tier and what the tier
+  package keeps of what was said or written, searchable, each with its tier and what the tier
   allows: TR a transcript cue nobody has checked, T1 written by a participant, T3 the note-taker's
-  words, T2 "the summary says", U an unverified guess. A name the package only guessed is flagged
-  *to verify*; a shared account is never shown as a person.
+  words, T2 "the summary says", U an unverified guess.
 - **Devices, in SOSA/SSN terms.** A line of the device list is one award's reported use of an
   instrument (an `ssn:Deployment`), not a catalogue entry. The page keeps the **sensor**, the actual
   instrument (`sosa:Sensor`), apart from what it **observes** (`sosa:ObservableProperty`, the list's
@@ -468,10 +479,12 @@ What the package adds, and how each thing is marked:
   of interest. A method is a procedure (`sosa:Procedure`), not a sensor. A maker or model that only
   the AI-assembled list gives stays *AI-predicted, unverified*. *Mentions* are the lines of the
   notes and the transcripts that name the sensor or the property, found by matching the words and
-  never by a model, each with its tier, speaker, meeting and locator.
+  never by a model, each with its tier, working group, meeting and locator.
 - **Questions.** Thirteen internal questions (M1 to M10 about meetings, D1 to D5 about devices) are
   answered when the records are built, each with how it is worked out, and shown on the Questions
-  tab of the artifact copy only. They are never asked of the public export.
+  tab of the artifact copy only. They count and never name: how many people spoke in a group's
+  meetings, whether the notes attribute a decision to someone. They are never asked of the public
+  export.
 
 `kg/test_internal.py` holds all of it to a synthetic package (`kg/fixtures/synthetic_package.py`:
 invented people, awards and text in the package's layout), and runs with the exporter's tests on

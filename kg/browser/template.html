@@ -179,6 +179,7 @@
   .ai b { color: var(--warn); font-weight: 600; }
   details.evi > summary { cursor: pointer; font-size: 12.5px; color: var(--accent); }
   .evrow { border-left: 2px solid var(--line); padding-left: 8px; font-size: 13px; }
+  .evrow.turn { margin-top: 8px; border-left-color: var(--accent); }   /* the speaker changes here; who is not shown */
   .sosa { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
   .sosa > div { border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; display: grid; gap: 3px; min-width: 0; align-content: start; }
   .sosa .lbl { font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -1107,7 +1108,9 @@ const PERSON_OF = new Map();
 if (MT) for (const p of MT.people) for (const iri of p.investigators || []) PERSON_OF.set(iri, p.name);
 const ITEMS_OF = new Map();
 if (MT) for (const i of MT.items) { if (!ITEMS_OF.has(i.meeting)) ITEMS_OF.set(i.meeting, []); ITEMS_OF.get(i.meeting).push(i); }
-const MKINDS = { person: "Wrong person", missing: "Someone is missing", text: "The point is wrong", other: "Something else" };
+const MKINDS = MT && MT.anonymous
+  ? { name: "A name is still in the text", text: "The point is wrong", other: "Something else" }
+  : { person: "Wrong person", missing: "Someone is missing", text: "The point is wrong", other: "Something else" };
 const MPAGE = 20, EPAGE = 50;
 const mt = { q: "", kinds: new Set(), groups: new Set(), person: "", quoted: false, tied: false, newest: true, limit: MPAGE, flagging: null,
              view: "points", focus: "", open: new Set(), eq: "", etiers: new Set(), ekind: "", espeaker: "", elimit: EPAGE };
@@ -1132,6 +1135,9 @@ const CITE = (MT && MT.tiers) || (DV && DV.tiers) || {};
 const evTier = t => EV_TIER[t] ? `<span class="pill ${EV_TIER[t].cls}" title="${esc(CITE[t] || "")}">${esc(t)} · ${esc(EV_TIER[t].text)}</span>` : (t ? `<span class="pill na">${esc(t)}</span>` : "");
 const linkOut = (u, text) => /^https?:\/\//i.test(u || "") ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
 function evWho(e) {
+  // Nobody is named (the owner's decision, 2026-11-23): a statement belongs to the working group it
+  // was made in, or to the consortium.
+  if (e.attributed_to) return `<b title="Attributed to the group, not to a person">${esc(e.attributed_to)}</b>: `;
   if (!e.speaker && !e.as_written) return e.author_note ? `<span class="note">(${esc(e.author_note)})</span> ` : "";
   return `<b>${esc(e.speaker || e.as_written)}</b>${e.speaker && e.as_written && e.as_written !== e.speaker ? ` <span class="note">(written “${esc(e.as_written)}”)</span>` : ""}`
     + (e.verify ? ` <span class="pill warn" title="${esc(e.basis || "")}">name to verify</span>` : (!e.speaker ? ` <span class="pill na" title="${esc(e.basis || "")}">not resolved to a person</span>` : "")) + ": ";
@@ -1139,7 +1145,7 @@ function evWho(e) {
 function evRowHTML(e, withMeeting) {
   const m = withMeeting && e.meeting ? MEET_BY.get(e.meeting) : null;
   const where = [EV_KIND[e.kind] || e.kind, e.start ? String(e.start).slice(0, 8) : "", e.date].filter(Boolean).map(esc).join(" · ");
-  return `<div class="evrow">${evTier(e.tier)} <span class="note">${where}${m ? ` · <button class="linkbtn" data-gomeeting="${esc(m.id)}">${esc(m.title || m.as_named || "meeting")}</button> (${esc(m.group)})` : ""}${e.award ? ` · ${esc(e.award)}` : ""}</span><br>
+  return `<div class="evrow${e.new_turn && !withMeeting ? " turn" : ""}">${evTier(e.tier)} <span class="note">${where}${m ? ` · <button class="linkbtn" data-gomeeting="${esc(m.id)}">${esc(m.title || m.as_named || "meeting")}</button> (${esc(m.group)})` : ""}${e.award ? ` · ${esc(e.award)}` : ""}</span><br>
     ${evWho(e)}<span>${esc(e.text)}</span><br><span class="note">${linkOut(e.url, e.source || "source")}${e.locator ? ` · ${esc(e.locator)}` : ""}</span></div>`;
 }
 
@@ -1172,13 +1178,13 @@ function itemFlagHTML(item) {
   if (!canFlag()) return (pill ? `<div class="chips">${pill}${cur.note ? `<span class="note">${esc(str(cur.note))}</span>` : ""}</div>` : "")
     + (mt.flagging === item.id ? refusedBox(RV.mstatus, RV.mdraft, "data-mflagcancel") : "");
   if (mt.flagging !== item.id) return `<div class="chips">${pill}<button class="linkbtn quiet" data-mflag="${esc(item.id)}">${cur ? "Change flag" : "Flag this point"}</button></div>`;
-  const d = RV.mdraft && RV.mdraft.item === item.id ? RV.mdraft : { problem: (cur && cur.problem) || "person", note: (cur && cur.note) || "" };
+  const d = RV.mdraft && RV.mdraft.item === item.id ? RV.mdraft : { problem: (cur && cur.problem) || Object.keys(MKINDS)[0], note: (cur && cur.note) || "" };
   return `<div class="flagbox">
-    <span class="note" style="margin:0">Flag a wrong attribution or point. It is saved with this page for whoever triages the notes.</span>
+    <span class="note" style="margin:0">${MT.anonymous ? "Flag a name that is still in the text, or a wrong point." : "Flag a wrong attribution or point."} It is saved with this page for whoever triages the notes.</span>
     ${flagNow(cur, MKINDS, RV.mopened)}
     <div class="row"><label for="mflag-kind" class="muted" style="font-size:12.5px">Problem</label>
       <select id="mflag-kind">${Object.entries(MKINDS).map(([k, v]) => `<option value="${k}" ${d.problem === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-    <textarea id="mflag-note" aria-label="What's wrong, and how you know" placeholder="What's wrong, and how you know (who really said it?)">${esc(d.note)}</textarea>
+    <textarea id="mflag-note" aria-label="What's wrong, and how you know" placeholder="${MT.anonymous ? "What's wrong. Do not write the name itself: say where it is." : "What's wrong, and how you know (who really said it?)"}">${esc(d.note)}</textarea>
     <div class="row"><button class="btn" data-mflagsave="${esc(item.id)}">${cur ? "Update flag" : "Save flag"}</button>
       ${cur ? `<button class="btn ghost" data-mflagremove="${esc(item.id)}">Remove flag</button>` : ""}
       <button class="btn ghost" data-mflagcancel="1">Cancel</button>
@@ -1216,7 +1222,7 @@ function itemMatches(i) {
   if (mt.groups.size && !mt.groups.has(m.group)) return false;
   if (mt.person && !i.who.some(w => w.name === mt.person)) return false;
   if (mt.quoted && !i.quotes.length) return false;
-  if (mt.tied && !i.who.some(w => w.how === "attributed" || w.how === "owner")) return false;
+  if (mt.tied && !(i.attributed || i.who.some(w => w.how === "attributed" || w.how === "owner"))) return false;
   if (mt.q) {
     const hay = [i.text, m.title, m.group, m.as_named, m.date, ...i.who.map(w => w.name || w.as_written)].join(" ").toLowerCase();
     if (!hay.includes(mt.q.toLowerCase())) return false;
@@ -1232,7 +1238,8 @@ function meetingHTML(m, items) {
     <header><span class="date">${esc(m.date || "undated")}</span><span class="pill cls" style="color:var(--c-people)">${esc(m.group)}</span>
       <h3>${esc(m.title || "Untitled meeting")}</h3>
       ${m.note ? `<span class="pill na" title="Note on the source">${esc(m.note)}</span>` : ""}
-      <span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span>
+      ${MT.anonymous ? (m.participants ? `<span class="note">${m.participants} ${m.participants === 1 ? "person" : "people"} spoke</span>` : "")
+        : `<span class="note" title="${esc(m.speakers.join(", "))}">${m.speakers.length} named speaker${m.speakers.length === 1 ? "" : "s"}</span>`}
       ${(m.attendees || []).length ? `<span class="note" title="${esc(m.attendees.join(", "))}">${m.attendees.length} listed as attending</span>` : ""}
       ${MT.from_package ? `<span class="pill na" title="${esc(CITE.X || "")}">points: AI summary of the notes</span>${m.transcript ? `<span class="pill ok" title="${esc(CITE.TR || "")}">has a transcript</span>` : ""}` : ""}</header>
     ${MT.from_package && m.source ? `<span class="note">${linkOut(m.url, m.source)}${m.source_kind ? ` · ${esc(m.source_kind)}` : ""}</span>` : ""}
@@ -1265,7 +1272,7 @@ function evidenceMatches(e) {
   if (mt.eq) {
     // The record's own words and who they are from: not its meeting's name, or every cue of the
     // Data Standards group would answer a search for "data standards".
-    const hay = [e.text, e.speaker, e.as_written, e.award].join(" ").toLowerCase();
+    const hay = [e.text, e.speaker, e.as_written, e.award].filter(Boolean).join(" ").toLowerCase();
     for (const word of mt.eq.toLowerCase().split(/\s+/).filter(Boolean)) if (!hay.includes(word)) return false;
   }
   return true;
@@ -1279,11 +1286,11 @@ function renderEvidence() {
       <input class="search" id="meq" type="search" placeholder="Search what was said or written" value="${esc(mt.eq)}" aria-label="Search the evidence">
       <fieldset><legend>Tier: how it may be cited</legend>${Object.keys(EV_TIER).filter(t => tiers[t]).map(t => `<label title="${esc(CITE[t] || "")}"><input type="checkbox" data-metier="${t}" ${mt.etiers.has(t) ? "checked" : ""}>${esc(t)} · ${esc(EV_TIER[t].text)}<span class="c">${fmt(tiers[t])}</span></label>`).join("")}</fieldset>
       <fieldset><legend>Kind</legend><select id="mekind" class="search" aria-label="One kind of record"><option value="">Every kind</option>${Object.keys(kinds).sort().map(k => `<option value="${esc(k)}" ${mt.ekind === k ? "selected" : ""}>${esc(EV_KIND[k] || k)} · ${fmt(kinds[k])}</option>`).join("")}</select></fieldset>
-      <fieldset><legend>Speaker or author</legend><select id="mespeaker" class="search" aria-label="One person's records"><option value="">Everyone</option>${Object.keys(speakers).sort((a, b) => a.localeCompare(b)).map(k => `<option value="${esc(k)}" ${mt.espeaker === k ? "selected" : ""}>${esc(k)} · ${fmt(speakers[k])}</option>`).join("")}</select></fieldset>
+      ${Object.keys(speakers).length ? `<fieldset><legend>Speaker or author</legend><select id="mespeaker" class="search" aria-label="One person's records"><option value="">Everyone</option>${Object.keys(speakers).sort((a, b) => a.localeCompare(b)).map(k => `<option value="${esc(k)}" ${mt.espeaker === k ? "selected" : ""}>${esc(k)} · ${fmt(speakers[k])}</option>`).join("")}</select></fieldset>` : ""}
       <button class="linkbtn" id="meclear">Clear filters</button>
     </aside>
     <div class="list">
-      <p class="note" style="margin:0">Every record the package keeps as someone's words or writing, with where it comes from. The tier says how it may be cited: hover it. A search looks in the record's own words and its speaker's name, and all the words must be there.</p>
+      <p class="note" style="margin:0">Every record the package keeps of what was said or written, with where it comes from. The tier says how it may be cited: hover it. A search looks in the record's own words, and all the words must be there.${MT.anonymous ? " In a transcript, a coloured edge marks where the speaker changes; who speaks is not shown." : ""}</p>
       <div class="legend">${Object.keys(EV_TIER).filter(t => tiers[t]).map(t => `<span>${evTier(t)} ${esc(CITE[t] || "")}</span>`).join("")}</div>
       <div class="meta"><span>${fmt(hits.length)} of ${fmt(EVIDENCE.length)} records</span></div>
       ${hits.slice(0, mt.elimit).map(e => evRowHTML(e, true)).join("") || `<p class="empty">No record matches.</p>`}
@@ -1317,7 +1324,7 @@ function renderMeetings() {
   if (mt.newest) meetings = [...meetings].reverse();
   const views = EVIDENCE.length ? `<div class="filters" role="group" aria-label="What to show">
       <button data-mview="points" aria-pressed="${mt.view === "points"}">Points by meeting · ${fmt(MT.items.length)}</button>
-      <button data-mview="evidence" aria-pressed="${mt.view === "evidence"}">Evidence: who said or wrote what · ${fmt(EVIDENCE.length)}</button>
+      <button data-mview="evidence" aria-pressed="${mt.view === "evidence"}">Evidence: ${MT.anonymous ? "what was said or written" : "who said or wrote what"} · ${fmt(EVIDENCE.length)}</button>
       <button data-mview="sources" aria-pressed="${mt.view === "sources"}">Sources · ${fmt((MT.sources || []).length)}</button></div>` : "";
   const kindCount = {}, groupCount = {};
   for (const i of MT.items) kindCount[i.kind] = (kindCount[i.kind] || 0) + 1;
@@ -1325,21 +1332,24 @@ function renderMeetings() {
   const people = MT.people.filter(p => p.attributed + p.owns + p.named > 0 || p.name === mt.person).sort((a, b) => a.name.localeCompare(b.name));
   const src = MT.source || {};
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
-    <div style="display:grid;gap:6px"><p class="intro">Lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date, with who each point is tied to: <b>said</b> (the notes attribute it to them), <b>owns</b> (their action), <b>named</b> (the sentence mentions them). Hover a name to see how it was matched.</p>
-      <p class="intro note"><span class="pill warn">not transcripts</span> ${esc(MT.caveat || "")}</p>
+    <div style="display:grid;gap:6px">${MT.anonymous
+      ? `<p class="intro">Agenda items, lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date. <b>Nobody is named</b>: a point belongs to the group that met, and a statement to that group or to the consortium. ${fmt(MT.names_removed || 0)} names were replaced by [name] in the text.</p>
+      <p class="intro note"><span class="pill ok">nobody is named</span> ${esc(MT.caveat || "")}</p>`
+      : `<p class="intro">Lessons, agreements, disagreements, decisions and actions from the working-group meetings, by date, with who each point is tied to: <b>said</b> (the notes attribute it to them), <b>owns</b> (their action), <b>named</b> (the sentence mentions them). Hover a name to see how it was matched.</p>
+      <p class="intro note"><span class="pill warn">not transcripts</span> ${esc(MT.caveat || "")}</p>`}
       <p class="note" style="margin:0">${esc(src.description || "")} Built from <code>${esc(src.file || "the notes")}</code>${src.sha256 ? ` (sha256 ${esc(src.sha256.slice(0, 12))})` : ""}. Internal: this copy of the page only, never the public site.</p>
       ${(MT.manifest || []).length ? `<div class="viol w"><span>These records differ from the package's own counts: ${MT.manifest.map(esc).join("; ")}</span></div>` : ""}
       ${views}</div>
     ${mt.view === "evidence" && EVIDENCE.length ? renderEvidence() : mt.view === "sources" && EVIDENCE.length ? renderSources() : `<div class="meet">
       <aside class="facets">
-        <input class="search" id="mq" type="search" placeholder="Search points, meetings, people" value="${esc(mt.q)}" aria-label="Search meeting notes">
-        <fieldset><legend>Person</legend>
-          <select id="mperson" class="search" aria-label="Show one person's points"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p.name)}" ${mt.person === p.name ? "selected" : ""}>${esc(p.name)} · ${p.attributed + p.owns + p.named}</option>`).join("")}</select></fieldset>
+        <input class="search" id="mq" type="search" placeholder="${MT.anonymous ? "Search points and meetings" : "Search points, meetings, people"}" value="${esc(mt.q)}" aria-label="Search meeting notes">
+        ${people.length ? `<fieldset><legend>Person</legend>
+          <select id="mperson" class="search" aria-label="Show one person's points"><option value="">Everyone</option>${people.map(p => `<option value="${esc(p.name)}" ${mt.person === p.name ? "selected" : ""}>${esc(p.name)} · ${p.attributed + p.owns + p.named}</option>`).join("")}</select></fieldset>` : ""}
         <fieldset><legend>Kind</legend>${Object.entries(KIND).filter(([k]) => kindCount[k]).map(([k, v]) => `<label><input type="checkbox" data-mkind="${k}" ${mt.kinds.has(k) ? "checked" : ""}><i class="swatch" style="color:var(--c-${v.c})"></i>${v.plural}<span class="c">${kindCount[k] || 0}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Group</legend>${Object.keys(groupCount).sort().map(g => `<label><input type="checkbox" data-mgroup="${esc(g)}" ${mt.groups.has(g) ? "checked" : ""}>${esc(g)}<span class="c">${groupCount[g]}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Only</legend>
-          <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>Points someone said or owns</label>
-          <label><input type="checkbox" id="mquoted" ${mt.quoted ? "checked" : ""}>Words in quotation marks</label></fieldset>
+          <label><input type="checkbox" id="mtied" ${mt.tied ? "checked" : ""}>${MT.anonymous ? "Points the notes attribute to someone" : "Points someone said or owns"}</label>
+          ${MT.items.some(i => i.quotes.length) ? `<label><input type="checkbox" id="mquoted" ${mt.quoted ? "checked" : ""}>Words in quotation marks</label>` : ""}</fieldset>
         <button class="linkbtn" id="mclear">Clear filters</button>
       </aside>
       <div class="list">
@@ -1364,7 +1374,7 @@ function meetingFlagsHTML() {
     const ties = now ? now.who.map(w => w.name || `${w.as_written}?`) : [];
     const state = !now ? `<span class="pill warn">not in these notes</span>` : now.text !== str(f.text_at_flag) ? `<span class="pill warn">text changed</span>`
       : ties.join("|") !== then.join("|") ? `<span class="pill warn" title="Now: ${esc(ties.join(", ") || "nobody")}">ties changed</span>` : `<span class="pill na">unchanged</span>`;
-    return `<tr><td class="mono">${esc(str(f.date))} · ${esc(str(f.group))}</td><td>${esc(str(f.text_at_flag))}<br><span class="note">${esc(then.join(", "))}</span></td>
+    return `<tr><td class="mono">${esc(str(f.date))} · ${esc(str(f.group))}</td><td>${MT.anonymous ? (now ? esc(now.text) : `<span class="muted">a point of an earlier build</span>`) : `${esc(str(f.text_at_flag))}<br><span class="note">${esc(then.join(", "))}</span>`}</td>
       <td><span class="pill flag">${esc(str(MKINDS[f.problem] || f.problem))}</span></td><td>${esc(str(f.note))}</td><td>${state}</td><td class="mono">${esc(flagWhen(f))}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
@@ -1443,7 +1453,8 @@ const TIER_UI = {
   U: { cls: "warn", text: "AI-predicted, unverified" },
 };
 const DFILTER = { T1: "Listed on the team's slide", T2: "Someone spoke to it at the workshop", U: "Has an AI-predicted model or maker" };
-const DKINDS = { model: "Model or maker is wrong", confirmed: "I can confirm the model", presenter: "Wrong person named",
+const DKINDS = DV && DV.anonymous ? { model: "Model or maker is wrong", confirmed: "I can confirm the model", name: "A name is still in the text",
+                 device: "Device is wrong or missing", other: "Something else" } : { model: "Model or maker is wrong", confirmed: "I can confirm the model", presenter: "Wrong person named",
                  device: "Device is wrong or missing", other: "Something else" };
 const DEV_AWARD = new Map(DV ? DV.awards.map(a => [a.award, a]) : []);
 const DEV_EVIDENCE = new Map(DV ? DV.evidence.map(e => [e.id, e]) : []);
@@ -1545,7 +1556,8 @@ function deviceRowHTML(d) {
       ${Array.isArray(d.observes) ? sosaHTML(d) : `<span><b>${esc(d.name)}</b>${d.kind && d.kind !== "device/sensor" ? ` <span class="pill na">${esc(d.kind)}</span>` : ""}${d.measures.length ? ` <span class="muted">· measures ${d.measures.map(esc).join(", ")}</span>` : ""}</span>`}
       ${d.tools.length || d.sharing.length ? `<span class="note">${d.tools.length ? `tools: ${d.tools.map(esc).join(", ")}` : ""}${d.tools.length && d.sharing.length ? " · " : ""}${d.sharing.length ? `sharing: ${d.sharing.map(esc).join(", ")}` : ""}</span>` : ""}
       <div class="chips">${d.tiers.map(tierPill).join("")}</div>
-      ${d.presenter ? `<span><span class="muted">Spoke to it (workshop summary, not yet checked against the transcript):</span> ${spokeHTML(d.presenter)}</span>` : ""}
+      ${d.presenter ? `<span><span class="muted">Spoke to it (workshop summary, not yet checked against the transcript):</span> ${spokeHTML(d.presenter)}</span>`
+        : d.spoken_to ? `<span class="muted">Someone spoke to it at the workshop, per the summary (not yet checked against the transcript). Who is not shown.</span>` : ""}
       ${d.brand_stated ? `<span><span class="muted">Brand on the team's slide:</span> ${esc(d.brand_stated)}${catalogHTML(c.brand, "in the device catalog")}</span>` : ""}
       ${ai ? `<div class="ai"><b>AI-predicted, unverified:</b> ${esc([ai.manufacturer, ai.model].filter(Boolean).join(" · "))}
         <span class="note">From the AI-assembled device list; nothing on a slide or in the workshop summary backs it. Confirm with the lab before using it.</span>${catalogHTML(c.ai_manufacturer, "a catalog maker has this name")}${catalogHTML(c.ai_model, "a catalog device has this name")}</div>` : ""}
@@ -1569,7 +1581,8 @@ function sosaHTML(d) {
   </div>`;
 }
 function mentionRowHTML(h) {
-  const who = h.speaker || h.as_written ? `<b>${esc(h.speaker || h.as_written)}</b>${h.verify ? ` <span class="pill warn">name to verify</span>` : ""}: ` : "";
+  const who = h.attributed_to ? `<b title="Attributed to the group, not to a person">${esc(h.attributed_to)}</b>: `
+    : h.speaker || h.as_written ? `<b>${esc(h.speaker || h.as_written)}</b>${h.verify ? ` <span class="pill warn">name to verify</span>` : ""}: ` : "";
   const where = [EV_KIND[h.kind] || h.kind, h.date].filter(Boolean).map(esc).join(" · ");
   return `<div class="evrow">${evTier(h.tier)} <span class="note">${where}${h.meeting && MEET_BY.has(h.meeting) ? ` · <button class="linkbtn" data-gomeeting="${esc(h.meeting)}">${esc(h.meeting_title || "meeting")}</button>` : (h.meeting_title ? ` · ${esc(h.meeting_title)}` : "")}${h.group ? ` (${esc(h.group)})` : ""}</span><br>
     ${who}<span>${esc(h.text)}</span><br><span class="note">${linkOut(h.url, h.source || "source")}${h.locator ? ` · ${esc(h.locator)}` : ""}</span></div>`;
@@ -1597,13 +1610,13 @@ function discussionHTML() {
   const q = dv.q.toLowerCase();
   const shown = rows.filter(r => !q || [r.topic, r.speaker, r.text, r.session, r.source].join(" ").toLowerCase().includes(q));
   if (!shown.length) return "";
-  return `<section style="display:grid;gap:8px"><h2>Who said what about devices, across the consortium · ${shown.length}</h2>
+  return `<section style="display:grid;gap:8px"><h2>${DV.anonymous ? "What was said" : "Who said what"} about devices, across the consortium · ${shown.length}</h2>
     <p class="note" style="margin:0">Statements from the workshop summary (T2) and the working-group notes (T3), each with where it was said. The notes' wording is the note-taker's.</p>
     ${shown.map(r => {
       const url = safeUrl(r.url);
       return `<div class="mtg"><header><span class="date">${esc(r.date || "undated")}</span>${tierPill(r.tier)}<b>${esc(r.topic)}</b></header>
         <span>${esc(r.text)}</span>
-        <span class="note">${spokeHTML(r.speaker)}${r.session ? ` · ${esc(r.session)}` : ""}${r.source ? ` · ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(r.source)}</a>` : esc(r.source)}` : ""}</span></div>`;
+        <span class="note">${r.attributed_to ? esc(r.attributed_to) : spokeHTML(r.speaker)}${r.session ? ` · ${esc(r.session)}` : ""}${r.source ? ` · ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(r.source)}</a>` : esc(r.source)}` : ""}</span></div>`;
     }).join("")}</section>`;
 }
 function renderDevices() {
@@ -1617,8 +1630,8 @@ function renderDevices() {
   const person = dv.person && BY_ID.get(dv.person);
   const src = DV.source || {};
   $("#view").innerHTML = `<div style="display:grid;gap:14px">
-    <div style="display:grid;gap:6px"><p class="intro">Every device and sensor the teams listed for the Data Blitz, by award, with what backs each line. ${fmt(count(d => d.kind === "device/sensor"))} devices and sensors and ${fmt(count(d => d.kind !== "device/sensor"))} methods across ${fmt(DV.awards.length)} awards; ${fmt(count(d => d.presenter))} have someone named as speaking to them, and ${fmt(count(d => d.ai_predicted))} carry an AI-predicted model or maker.</p>
-      <p class="intro note"><span class="pill warn">AI-predicted models are not facts</span> ${esc(DV.caveat || "")}</p>
+    <div style="display:grid;gap:6px"><p class="intro">Every device and sensor the teams listed for the Data Blitz, by award, with what backs each line. ${fmt(count(d => d.kind === "device/sensor"))} devices and sensors and ${fmt(count(d => d.kind !== "device/sensor"))} methods across ${fmt(DV.awards.length)} awards; ${DV.anonymous ? `${fmt(count(d => d.spoken_to))} were spoken to at the workshop` : `${fmt(count(d => d.presenter))} have someone named as speaking to them`}, and ${fmt(count(d => d.ai_predicted))} carry an AI-predicted model or maker.</p>
+      <p class="intro note"><span class="pill warn">AI-predicted models are not facts</span>${DV.anonymous ? ` <span class="pill ok">nobody is named</span>` : ""} ${esc(DV.caveat || "")}</p>
       <div class="legend">${Object.keys(TIER_UI).filter(t => (DV.tiers || {})[t]).map(t => `<span>${tierPill(t)} ${esc(DV.tiers[t])} (${fmt(tierCount[t] || 0)} records)</span>`).join("")}</div>
       <p class="note" style="margin:0">${esc(src.description || "")} Internal: this copy of the page only, never the public site.</p>
       ${PROPS.length ? `<div class="filters" role="group" aria-label="What to show">
@@ -1626,7 +1639,7 @@ function renderDevices() {
         <button data-dview="properties" aria-pressed="${dv.view === "properties"}">By what is observed · ${fmt(PROPS.length)} properties</button></div>` : ""}</div>
     <div class="meet">
       <aside class="facets">
-        <input class="search" id="dq" type="search" placeholder="Search devices, measures, makers, people" value="${esc(dv.q)}" aria-label="Search the device list">
+        <input class="search" id="dq" type="search" placeholder="${DV.anonymous ? "Search devices, measures, makers" : "Search devices, measures, makers, people"}" value="${esc(dv.q)}" aria-label="Search the device list">
         <fieldset><legend>Award</legend><select id="daward" class="search" aria-label="Show one award's devices"><option value="">Every award</option>${DV.awards.map(a => `<option value="${esc(a.award)}" ${dv.award === a.award ? "selected" : ""}>${esc(a.award)} · ${esc(a.institution)}</option>`).join("")}</select></fieldset>
         <fieldset><legend>Evidence</legend>${Object.entries(DFILTER).map(([t, label]) => `<label><input type="checkbox" data-dtier="${t}" ${dv.tiers.has(t) ? "checked" : ""}>${esc(label)}<span class="c">${count(d => d.tiers.includes(t))}</span></label>`).join("")}</fieldset>
         <fieldset><legend>Kind</legend>${Object.keys(kinds).sort().map(k => `<label><input type="checkbox" data-dkind="${esc(k)}" ${dv.kinds.has(k) ? "checked" : ""}>${esc(k)}<span class="c">${kinds[k]}</span></label>`).join("")}</fieldset>

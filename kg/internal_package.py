@@ -10,10 +10,10 @@ the Inspector's two tabs read either, and adds what only the package has:
 
   meetings   every item of every meeting (agenda items too), each marked for what it is: an AI
              summary of that meeting's notes (tier X), shown with the notes block it paraphrases;
-             and the evidence: every record the package keeps as someone's words or writing
+             and the evidence: every record the package keeps as what was said or written
              (transcript cues, chat lines, comments, slide rows, workshop statements), with its tier,
-             how it may be cited, the speaker as written and as resolved, the meeting, the source
-             and the locator. That list is what a search for "who said what" reads.
+             how it may be cited, the meeting, the source and the locator. That list is what a
+             search for "what was said about ..." reads.
   devices    each row of the device list as one award's reported use of an instrument, in the terms
              of W3C SOSA/SSN: the sensor (the actual instrument, sosa:Sensor) apart from what it
              observes (sosa:ObservableProperty), the award's species as the feature of interest, a
@@ -23,13 +23,20 @@ the Inspector's two tabs read either, and adds what only the package has:
   questions  what the records answer, computed here and stated with how: the page shows each with
              its rows, and kg/test_internal.py holds every one to a synthetic package's known answer.
 
-The package's rules are kg/package_reader.py's (its docstring): tiers decide how a record may be
-cited, a name is kept as written with how it was resolved, a shared account is never a person, and
-contact data is replaced by markers as the package is read.
+NOBODY IS NAMED (the owner's decision, 2026-11-23). A statement is attributed to the consortium, to
+the working group it was made in, and never to a named person. So these records carry no speaker,
+no author, no attendee and no owner: only whether there was one, and how many. Inside a carried
+text every name the package knows is replaced by "[name]" (kg/package_reader.py, NameScrubber), and
+kg/quality.py does the same with the names of the public graph's investigators. A full name that is
+still in a record stops this script: it writes nothing. A name nobody told it can stay in a text;
+the page lets a reader flag it.
 
-Internal. The package names people and what they said in meetings. This script refuses to run on
-CI, refuses a package or an output folder inside the repository, and what it writes goes only into
-the artifact copy of the Inspector (kg/quality.py --internal), never a committed or published page.
+The package's other rules are kg/package_reader.py's (its docstring): the tier decides how a record
+may be cited, and contact data is replaced by markers as the package is read.
+
+Internal. The package holds what was said in meetings. This script refuses to run on CI, refuses a
+package or an output folder inside the repository, and what it writes goes only into the artifact
+copy of the Inspector (kg/quality.py --internal), never a committed or published page.
 Standard library only, so it runs with `python -I`.
 """
 from __future__ import annotations
@@ -45,24 +52,36 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import package_reader as pr  # noqa: E402
 
-VERSION = 3
+VERSION = 4
 # The markers tests/guards/inspector-internal-data looks for in committed files: built here, as in
 # kg/meetings.py and kg/devices.py, so that this file is not itself taken for a copy of the records.
 MEETINGS_KIND, DEVICES_KIND = "bbqs-" + "meetings", "bbqs-" + "devices"
 PACKAGE_NAME = "BBQS meetings data package"
 NO_VALUE = re.compile(r"^(?:not specified\b.*|unknown|none|n/?a|tbd|[-–—?.\s]*)$", re.I)
-NOT_A_NAME = re.compile(r"^\s*\(.*\)\s*$", re.S)          # "(summary author)": a remark where a name would be
-SAYS_VERIFY = re.compile(r"\b(?:verify|likely)\b", re.I)   # the source itself marks the name for checking
+CONSORTIUM = "the consortium"            # whom a statement made outside any meeting is attributed to
 
+NOBODY = ("Nobody is named: a statement is attributed to the working group it was made in, or to the consortium, "
+          "never to a person. Names inside the text were replaced by [name]; one the builder was never told can "
+          "remain, so flag any you see.")
 MEETINGS_CAVEAT = (
     "Each point is an AI summary of that meeting's notes (tier X), not a quote: read it with the notes it "
-    "summarizes, shown under the meeting. Under Evidence, only a record marked TR, T1 or T3 is someone's words "
-    "or writing, and a TR line is an auto-caption nobody has checked.")
+    "summarizes, shown under the meeting. Under Evidence, only a record marked TR, T1 or T3 is what was actually "
+    "said or written, and a TR line is an auto-caption nobody has checked. " + NOBODY)
 DEVICES_CAVEAT = (
     "A line is what one award reported using, not a catalogue entry. The sensor (the actual instrument) is kept "
     "apart from what it observes. A maker or model marked AI-predicted is a guess of the AI-assembled list (tier U): "
     "never a fact until the lab confirms it. A mention is a line of the notes or a transcript that names the "
-    "sensor or the property, found by matching the words, so it can name something else of the same name.")
+    "sensor or the property, found by matching the words, so it can name something else of the same name. " + NOBODY)
+# How a record of each tier may be cited when nobody is named: the tier's rule (kg/package_reader.py,
+# CITE) with the working group in the place of the speaker or the author.
+CITE = {
+    "TR": "A quote, as captioned: cite the meeting, date and time, and attribute it to the working group. An "
+          "auto-caption nobody has checked.",
+    "T1": "A quote from a written record by participants (a slide, a comment, a chat line): cite the date and "
+          "locator, and attribute it to the group or the consortium.",
+    "T3": pr.CITE["T3"].replace("what the speaker said", "what was said"),
+    "T2": pr.CITE["T2"], "X": pr.CITE["X"], "A": pr.CITE["A"], "U": pr.CITE["U"],
+}
 SOSA = {
     "sensor": "sosa:Sensor: the actual instrument an award reported using.",
     "property": "sosa:ObservableProperty: what the instrument observes (the list's \"measures\").",
@@ -82,21 +101,6 @@ def _stated(value) -> str:
     return "" if NO_VALUE.match(value) else value
 
 
-def _who(resolution: dict) -> dict:
-    """One name on an item or a record, in the shape the Inspector shows: the person when the package
-    resolved the name to one, else the name as written with why not."""
-    name, note = resolution.get("name") or "", resolution.get("note") or ""
-    if note:                                     # a shared account: never a person
-        return {"name": "", "as_written": resolution.get("as_written") or name, "how": "attributed", "verify": False,
-                "basis": f"a shared account, not a person ({note})"}
-    if not name:
-        return {"name": "", "as_written": resolution.get("as_written") or "", "how": "attributed", "verify": False,
-                "basis": "the package names no person for it"}
-    verify = bool(resolution.get("verify"))
-    return {"name": name, "as_written": resolution.get("as_written") or name, "how": "attributed", "verify": verify,
-            "basis": (resolution.get("how") or "") + (" (a guess the package marks to verify)" if verify else "")}
-
-
 def _notes_state(meeting: dict) -> str:
     """Whether a meeting has the notes block its items paraphrase, and whether its link was repaired."""
     if not meeting["notes"]:
@@ -104,16 +108,21 @@ def _notes_state(meeting: dict) -> str:
     return "notes block (link repaired)" if meeting["notes"]["repaired"] else "notes block"
 
 
-class Records:
-    """The package read once, and the two documents built from it."""
+def _yes(value) -> str:
+    return "yes" if value else "no"
 
-    def __init__(self, folder):
+
+class Records:
+    """The package read once, and the two documents built from it. Nobody is named in either."""
+
+    def __init__(self, folder, more_names=()):
         self.pkg = pr.Package(folder)
         p = self.pkg
+        self.names = p.scrubber(more_names)
         self.source_title = {sid: s.get("title") or sid for sid, s in p.source.items()}
         self.spoke = defaultdict(list)                       # meeting -> [(person id, tier)]
         for edge in p.edges_by_type.get("SPOKE_IN", ()):
-            if edge.get("source") in p.person and edge.get("target") in p.meeting:
+            if self._is_person(edge.get("source")) and edge.get("target") in p.meeting:
                 self.spoke[edge["target"]].append((edge["source"], edge.get("tier") or ""))
         self.meeting_of = {e["id"]: p.meeting_of(e)[0] for e in p.evidence}
         self.evidence_of_meeting = defaultdict(list)
@@ -130,12 +139,24 @@ class Records:
         for edge in p.edges_by_type.get("AT_INSTITUTION", ()):
             self.institution.setdefault(edge["source"], _text((p.node.get(edge["target"]) or {}).get("name")))
         self.devices = sorted(p.by_label["Device"], key=lambda d: (self._award_name(d["id"]), d["id"]))
+        # Whom the package attributes each item to. Kept here to count with; never written out.
+        self.raised = {item["id"]: p.raised_by(item["id"]) for item in p.items}
 
     def _award_name(self, device_id: str) -> str:
         return _text((self.pkg.node.get(self.award_of_device.get(device_id, "")) or {}).get("name"))
 
-    def _is_person(self, person_id: str) -> bool:
+    def _is_person(self, person_id) -> bool:
         return person_id in self.pkg.person and not self.pkg.person[person_id].get("note")
+
+    def _group_of(self, meeting_id: str) -> str:
+        return _text((self.pkg.meeting.get(meeting_id) or {}).get("group")) or CONSORTIUM
+
+    def _finished(self, doc: dict) -> dict:
+        """The record with every carried text scrubbed of names, and how many were replaced."""
+        before = self.names.count
+        doc = self.names.scrub_document(doc)
+        doc["names_removed"] = self.names.count - before
+        return doc
 
     # ---- meetings ------------------------------------------------------------------------------------
 
@@ -157,38 +178,35 @@ class Records:
                 "text": "\n".join(lines).strip(), "locator": _text(segment.get("locator") or
                                                                     f"lines {segment.get('line_start')}-{segment.get('line_end')}")}
 
-    def evidence_row(self, e: dict) -> dict:
-        p = self.pkg
-        speaker = _who(p.speaker(e)) if (e.get("speaker") or e.get("speaker_as_written")) else None
-        written, author_note = (speaker or {}).get("as_written", ""), ""
-        if speaker and not speaker["name"] and NOT_A_NAME.match(written):
-            # "(team slide; author not recorded)" says why there is no author: it is not a name
-            written, author_note = "", written.strip()[1:-1].strip()
-        row = {"id": e["id"], "meeting": self.meeting_of[e["id"]], "tier": e.get("tier") or "",
-               "kind": pr.EVIDENCE_KINDS.get(e.get("kind"), _text(e.get("kind"))), "text": e.get("text") or "",
-               "speaker": (speaker or {}).get("name", ""), "as_written": written, "author_note": author_note,
-               "verify": bool((speaker or {}).get("verify")) or bool(written and SAYS_VERIFY.search(written)),
-               "basis": (speaker or {}).get("basis", ""),
-               "date": e.get("date") or "", "source": self.source_title.get(e.get("source_id"), e.get("source_id") or ""),
-               "locator": _text(e.get("locator")), "url": e.get("url") or ""}
-        if e.get("start"):
-            row["start"], row["end"] = e.get("start"), e.get("end") or ""
-        if e.get("award"):
-            row["award"] = _text((p.node.get(e["award"]) or {}).get("name") or e["award"])
-        return row
+    def evidence_rows(self) -> list[dict]:
+        """Every evidence record, attributed to its working group or to the consortium. For a
+        transcript, `new_turn` marks where the speaker changes, and never who speaks."""
+        p, rows, last_speaker = self.pkg, [], {}
+        for e in p.evidence:
+            meeting = self.meeting_of[e["id"]]
+            row = {"id": e["id"], "meeting": meeting, "tier": e.get("tier") or "",
+                   "kind": pr.EVIDENCE_KINDS.get(e.get("kind"), _text(e.get("kind"))), "text": e.get("text") or "",
+                   "attributed_to": self._group_of(meeting) if meeting else CONSORTIUM,
+                   "date": e.get("date") or "", "source": self.source_title.get(e.get("source_id"), e.get("source_id") or ""),
+                   "locator": _text(e.get("locator")), "url": e.get("url") or ""}
+            if e.get("start"):
+                row["start"], row["end"] = e.get("start"), e.get("end") or ""
+            if e.get("kind") == "utterance":
+                speaker = e.get("speaker") or e.get("speaker_as_written") or ""
+                row["new_turn"] = last_speaker.get(meeting) != speaker
+                last_speaker[meeting] = speaker
+            if e.get("award"):
+                row["award"] = _text((p.node.get(e["award"]) or {}).get("name") or e["award"])
+            rows.append(row)
+        return rows
 
     def meetings(self) -> dict:
         p = self.pkg
-        items, unresolved = [], Counter()
+        items = []
         for item in sorted(p.items, key=lambda i: (i["meeting"], pr.KIND_ORDER.index(i["kind"]), i["n"])):
-            who = [_who(r) for r in p.raised_by(item["id"])]
-            if not who and item["attributed_to_as_written"]:
-                who = [_who({"as_written": item["attributed_to_as_written"]})]
-            for w in who:
-                if not w["name"]:
-                    unresolved[w["as_written"]] += 1
             items.append({"id": item["id"], "meeting": item["meeting"], "kind": item["kind"], "n": item["n"],
-                          "text": item["text"], "who": who, "quotes": [], "tier": item["tier"] or "X",
+                          "text": item["text"], "who": [], "quotes": [], "tier": item["tier"] or "X",
+                          "attributed": bool(self.raised[item["id"]] or item["attributed_to_as_written"]),
                           "locator": _text(item["locator"])})
         per_meeting = defaultdict(Counter)
         for item in items:
@@ -200,76 +218,62 @@ class Records:
             source = p.source.get(m.get("source_id") or "") or {}
             meetings.append({
                 "id": m["id"], "date": m.get("date") or "", "group": _text(m.get("group")), "as_named": _text(m.get("name")),
-                "title": _text(m.get("title")), "agenda": [],
-                "speakers": sorted({p.person[pid].get("name") or "" for pid, _t in self.spoke.get(m["id"], ()) if self._is_person(pid)}),
-                "attendees": [], "note": _text(m.get("source_note")), "counts": dict(per_meeting.get(m["id"], {})),
+                "title": _text(m.get("title")), "agenda": [], "speakers": [], "attendees": [],
+                "participants": len({pid for pid, _t in self.spoke.get(m["id"], ())}),
+                "note": _text(m.get("source_note")), "counts": dict(per_meeting.get(m["id"], {})),
                 "source": _text(source.get("title")), "source_kind": _text(source.get("kind")), "url": m.get("url") or "",
                 "notes": self.notes_of(m["id"]), "evidence": len(evidence),
                 "transcript": any(e.get("kind") == "utterance" for e in evidence)})
-
-        people = {}
-        for pid, person in p.person.items():
-            spoke_in = {m for m, speakers in self.spoke.items() if any(s == pid for s, _t in speakers)}
-            people[pid] = {"name": person.get("name") or "", "meetings": len(spoke_in),
-                           "groups": sorted({_text(p.meeting[m].get("group")) for m in spoke_in} - {""}),
-                           "attributed": 0, "owns": 0, "named": 0}
-            if person.get("note"):
-                people[pid].update(not_a_person=True, note=_text(person.get("note")))
-        for edge in p.edges_by_type.get("RAISED", ()):
-            if edge.get("source") in people and edge.get("target") in p.item:
-                people[edge["source"]]["attributed"] += 1
-        said = Counter(e.get("speaker") for e in p.evidence if e.get("speaker") in people)
-        for pid, n in said.items():
-            people[pid]["records"] = n
 
         cited = Counter(e.get("source_id") for e in p.evidence)
         sources = [{"id": s["source_id"], "title": _text(s.get("title")), "kind": _text(s.get("kind")),
                     "tier": _text(s.get("default_tier")), "note": pr.redact(_text(s.get("note"))), "url": s.get("url") or "",
                     "records": cited.get(s["source_id"], 0)} for s in p.sources]
-        evidence = [self.evidence_row(e) for e in p.evidence]
+        evidence = self.evidence_rows()
         counts = p.counts()
-        return {
-            "kind": MEETINGS_KIND, "version": VERSION, "from_package": True,
+        doc = {
+            "kind": MEETINGS_KIND, "version": VERSION, "from_package": True, "anonymous": True,
             "source": {"file": PACKAGE_NAME, "sha256": p.digest().get("kg/nodes.jsonl", ""), "meetings": len(meetings),
                        "description": (f"{len(meetings)} meetings, {len(items)} items, {len(evidence)} evidence records and "
                                        f"{len(sources)} sources, from the {PACKAGE_NAME}. Contact data was replaced by markers "
                                        f"as it was read ({p.redactions.get('link', 0)} links, {p.redactions.get('email', 0)} "
                                        f"e-mail addresses, {p.redactions.get('name', 0)} assignees).")},
-            "caveat": MEETINGS_CAVEAT, "tiers": dict(pr.CITE), "tier_counts": counts["evidence_by_tier"],
+            "caveat": MEETINGS_CAVEAT, "tiers": dict(CITE), "tier_counts": counts["evidence_by_tier"],
             "manifest": p.check_against_stats(),
-            "meetings": meetings, "items": items,
-            "people": sorted(people.values(), key=lambda x: x["name"]),
-            "unresolved": [{"as_written": name, "count": n} for name, n in unresolved.most_common()],
+            "meetings": meetings, "items": items, "people": [], "unresolved": [],
             "evidence": evidence, "sources": sources, "unread_fields": {},
             "questions": self.meeting_questions(items, meetings, evidence, sources),
         }
+        return self._finished(doc)
 
     def meeting_questions(self, items, meetings, evidence, sources) -> list[dict]:
         p = self.pkg
         by_id = {m["id"]: m for m in meetings}
         where = lambda i: (by_id[i["meeting"]]["date"], by_id[i["meeting"]]["group"])     # noqa: E731
-        names = lambda i: "; ".join(w["name"] or f'{w["as_written"]} (not resolved)' for w in i["who"]) or "not stated"  # noqa: E731
         notes = lambda i: _notes_state(by_id[i["meeting"]])                                # noqa: E731
         out = []
 
         decisions = sorted((i for i in items if i["kind"] == "decision"), key=lambda i: (*where(i), i["n"]))
-        out.append({"id": "M1", "question": "What did each group decide, who is each decision attributed to, and do the notes back it?",
-                    "how": "Every item of kind decision, by date and group, with the names the package attributes it to and "
-                           "whether the meeting has a notes block. A decision is an AI summary of the notes (tier X).",
-                    "columns": ["Date", "Group", "Decision", "Attributed to", "Notes"],
-                    "rows": [[*where(i), i["text"], names(i), notes(i)] for i in decisions]})
+        out.append({"id": "M1", "question": "What did each group decide, and do the notes back it?",
+                    "how": "Every item of kind decision, by date and group, with whether the notes attribute it to anyone "
+                           "(never to whom) and whether the meeting has a notes block. A decision is an AI summary of the "
+                           "notes (tier X).",
+                    "columns": ["Date", "Group", "Decision", "Attributed in the notes", "Notes"],
+                    "rows": [[*where(i), i["text"], _yes(i["attributed"]), notes(i)] for i in decisions]})
 
         cues = defaultdict(list)
-        for e in evidence:
-            if e["kind"] == "utterance" and e["meeting"]:
-                cues[e["meeting"]].append(e)
+        for e in p.evidence:
+            if e.get("kind") == "utterance" and self.meeting_of[e["id"]]:
+                cues[self.meeting_of[e["id"]]].append(e)
         out.append({"id": "M2", "question": "Which meetings have a transcript, and how much of it: cues, speakers, time span?",
-                    "how": "Meetings with at least one transcript cue (tier TR), with the number of cues, of distinct speakers "
-                           "as written, and the first and last time stamp. What was said about a term is the Evidence search.",
+                    "how": "Meetings with at least one transcript cue (tier TR), with the number of cues, the number of "
+                           "different speakers (a count, nobody named), and the first and last time stamp. What was said "
+                           "about a term is the Evidence search.",
                     "columns": ["Date", "Group", "Meeting", "Cues", "Speakers", "From", "To"],
                     "rows": sorted([by_id[m]["date"], by_id[m]["group"], by_id[m]["title"], len(rows),
-                                    len({r["as_written"] for r in rows}), min(r.get("start", "") for r in rows),
-                                    max(r.get("end", "") for r in rows)] for m, rows in cues.items())})
+                                    len({r.get("speaker") or r.get("speaker_as_written") for r in rows}),
+                                    min(r.get("start") or "" for r in rows), max(r.get("end") or "" for r in rows)]
+                                   for m, rows in cues.items())})
 
         bare = [m for m in meetings if sum(m["counts"].values()) and not m["evidence"]]
         out.append({"id": "M4", "reads": "absence",
@@ -279,35 +283,39 @@ class Records:
                     "columns": ["Date", "Group", "Meeting", "Items", "Notes"],
                     "rows": [[m["date"], m["group"], m["title"], sum(m["counts"].values()), _notes_state(m)] for m in bare]})
 
-        spoke = defaultdict(lambda: [0, 0])                 # (group, person) -> [meetings, of which transcribed]
+        groups = defaultdict(lambda: [set(), set(), set()])     # group -> [meetings, people, people known from a transcript]
         for meeting, speakers in self.spoke.items():
-            by_person = defaultdict(set)
+            entry = groups[by_id[meeting]["group"]]
+            entry[0].add(meeting)
             for pid, tier in speakers:
-                by_person[pid].add(tier)
-            for pid, tiers in by_person.items():
-                if self._is_person(pid):
-                    key = (by_id[meeting]["group"], p.person[pid].get("name") or "")
-                    spoke[key][0] += 1
-                    spoke[key][1] += "TR" in tiers
-        out.append({"id": "M5", "question": "Who spoke in which group's meetings, and is that from a transcript or from the notes?",
-                    "how": "The package's speaker ties, per group and person: how many meetings, and in how many of them the tie "
-                           "comes from a transcript (tier TR). The rest come from the notes' summary (tier X).",
-                    "columns": ["Group", "Person", "Meetings", "From a transcript"],
-                    "rows": [[g, name, n, tr] for (g, name), (n, tr) in sorted(spoke.items(), key=lambda kv: (kv[0][0], -kv[1][0], kv[0][1]))]})
+                entry[1].add(pid)
+                if tier == "TR":
+                    entry[2].add(pid)
+        out.append({"id": "M5", "question": "How many people spoke in each group's meetings, and is that known from a transcript or from the notes?",
+                    "how": "The package's speaker ties, counted per group: the meetings that have one, the different people "
+                           "who spoke, and how many of them a transcript (tier TR) shows speaking. The rest are known from "
+                           "the notes' summary (tier X). Counts only: nobody is named.",
+                    "columns": ["Group", "Meetings with a speaker tie", "People who spoke", "Of them, known from a transcript"],
+                    "rows": [[g, len(ms), len(people), len(tr)] for g, (ms, people, tr) in sorted(groups.items())]})
 
-        guesses = Counter()
-        for e in evidence:
-            if e["verify"] and e["speaker"]:              # resolved to a person, by a guess
-                guesses[(e["as_written"], e["speaker"], "evidence records")] += 1
-        for i in items:
-            for w in i["who"]:
-                if w["verify"]:
-                    guesses[(w["as_written"], w["name"], "item attributions")] += 1
-        out.append({"id": "M6", "reads": "absence", "question": "Which attributions rest on a name the package only guessed (VERIFY)?",
+        guessed = {"evidence records": [0, set()], "item attributions": [0, set()]}
+        for e in p.evidence:
+            who = p.speaker(e) if (e.get("speaker") or e.get("speaker_as_written")) else None
+            if who and who["verify"] and who["name"]:
+                guessed["evidence records"][0] += 1
+                guessed["evidence records"][1].add(who["as_written"])
+        for item in p.items:
+            for who in self.raised[item["id"]]:
+                if who["verify"] and who["name"]:
+                    guessed["item attributions"][0] += 1
+                    guessed["item attributions"][1].add(who["as_written"])
+        out.append({"id": "M6", "reads": "absence", "question": "How many attributions rest on a name the package only guessed (VERIFY)?",
                     "how": "Evidence records and item attributions whose name as written was resolved to a person by an alias "
-                           "the package marks VERIFY, counted per name.",
-                    "columns": ["As written", "Resolved to", "What", "Count"],
-                    "rows": [[a, n, what, c] for (a, n, what), c in sorted(guesses.items(), key=lambda kv: (-kv[1], kv[0]))]})
+                           "the package marks VERIFY: how many records, and how many different names as written. The names "
+                           "are not shown. Since nobody is named here, a wrong guess can no longer put words in anyone's "
+                           "mouth; it still matters to whoever checks the package.",
+                    "columns": ["What", "Records", "Different names as written"],
+                    "rows": [[what, n, len(names)] for what, (n, names) in guessed.items() if n]})
 
         decided = defaultdict(list)
         for i in decisions:
@@ -316,17 +324,17 @@ class Records:
         for i in sorted((i for i in items if i["kind"] == "disagreement"), key=lambda i: (*where(i), i["n"])):
             date, group = where(i)
             later = [d for d in decided.get(group, ()) if d >= date]
-            rows.append([date, group, i["text"], names(i), min(later) if later else "none recorded"])
+            rows.append([date, group, i["text"], min(later) if later else "none recorded"])
         out.append({"id": "M7", "question": "Which disagreements did a group record, and did the group record a decision afterwards?",
                     "how": "Every item of kind disagreement, with the date of the group's next decision on or after that day. "
                            "A later decision is not necessarily about the same matter.",
-                    "columns": ["Date", "Group", "Disagreement", "Attributed to", "Next decision in the group"], "rows": rows})
+                    "columns": ["Date", "Group", "Disagreement", "Next decision in the group"], "rows": rows})
 
-        out.append({"id": "M8", "question": "Who owns each action item?",
-                    "how": "Every item of kind action with the names the package attributes it to. Where it names nobody the "
-                           "owner is not stated.",
-                    "columns": ["Date", "Group", "Action", "Owner"],
-                    "rows": [[*where(i), i["text"], names(i)]
+        out.append({"id": "M8", "question": "Which action items name an owner in the notes?",
+                    "how": "Every item of kind action, with whether the package attributes it to anyone. Who is not shown: "
+                           "the owner is whoever the working group's own notes say.",
+                    "columns": ["Date", "Group", "Action", "Owner named in the notes"],
+                    "rows": [[*where(i), i["text"], _yes(i["attributed"])]
                              for i in sorted((i for i in items if i["kind"] == "action"), key=lambda i: (*where(i), i["n"]))]})
 
         out.append({"id": "M10", "reads": "absence", "question": "Which source documents does no evidence record cite?",
@@ -348,34 +356,29 @@ class Records:
             refs = []
             for hit in mentions["terms"][key]["hits"]:
                 if hit["where"] not in hit_index:
-                    speaker = _who(hit["speaker"]) if (hit["speaker"].get("person") or hit["speaker"].get("as_written")) else {}
                     meeting = p.meeting.get(hit["meeting"]) or {}
                     hit_index[hit["where"]] = len(hits)
                     hits.append({"where": hit["where"], "tier": hit["tier"], "kind": hit["kind"], "text": hit["text"],
-                                 "speaker": speaker.get("name", ""), "as_written": speaker.get("as_written", ""),
-                                 "verify": bool(speaker.get("verify")), "meeting": hit["meeting"],
-                                 "meeting_title": _text(meeting.get("title")), "group": _text(meeting.get("group")),
-                                 "date": hit["date"], "source": self.source_title.get(hit["source"], hit["source"]),
+                                 "attributed_to": self._group_of(hit["meeting"]) if hit["meeting"] else CONSORTIUM,
+                                 "meeting": hit["meeting"], "meeting_title": _text(meeting.get("title")),
+                                 "group": _text(meeting.get("group")), "date": hit["date"],
+                                 "source": self.source_title.get(hit["source"], hit["source"]),
                                  "locator": _text(hit["locator"]), "url": hit["url"]})
                 refs.append(hit_index[hit["where"]])
             return refs
 
         awards = []
         for a in sorted(p.by_label["Award"], key=lambda a: _text(a.get("name"))):
+            # the award's PIs and team are on its Project node in the graph; they are not repeated here
             awards.append({"award": _text(a.get("name")), "institution": self.institution.get(a["id"], ""),
-                           "pis": _text(a.get("pis_as_written")), "species": _text(a.get("species")), "title": _text(a.get("title")),
-                           "team": _text(a.get("team_as_written")), "status": _text(a.get("status_at_blitz"))})
+                           "species": _text(a.get("species")), "title": _text(a.get("title")),
+                           "status": _text(a.get("status_at_blitz"))})
         species = {a["award"]: a["species"] for a in awards}
 
         devices, evidence, properties = [], [], {}
         for d in self.devices:
             award = self._award_name(d["id"])
             rows = self.evidence_of_device.get(d["id"], [])
-            presenters = []
-            for e in rows:
-                written = _text(e.get("speaker_as_written"))
-                if e.get("kind") == "speaker attribution (workshop)" and written and written not in presenters:
-                    presenters.append(written)
             maker, model = _stated(d.get("manufacturer_candidate_unverified")), _stated(d.get("model_candidate_unverified"))
             procedure = _text(d.get("kind")) != "device/sensor"
             observes = pr.property_labels(d)
@@ -389,7 +392,9 @@ class Records:
             devices.append({
                 "id": d["id"], "award": award, "name": _text(d.get("name")), "kind": _text(d.get("kind")),
                 "category": _text(d.get("category")), "measures": observes, "tools": pr.split_top(d.get("tools") or ""),
-                "sharing": pr.split_top(d.get("sharing") or ""), "presenter": "; ".join(presenters),
+                "sharing": pr.split_top(d.get("sharing") or ""), "presenter": "",
+                # someone spoke to it at the workshop, per the summary: whether, never who
+                "spoken_to": any(e.get("kind") == "speaker attribution (workshop)" for e in rows),
                 "brand_stated": _stated(d.get("manufacturer_stated")),
                 "ai_predicted": {"manufacturer": maker, "model": model} if (maker or model) else None,
                 "on_team_slide": _text(d.get("on_team_slide")).lower().startswith("yes"),
@@ -401,8 +406,8 @@ class Records:
                 "feature": species.get(award, ""), "mentions": named})
             for e in rows:
                 evidence.append({"id": e["id"], "device": d["id"], "award": award, "tier": e.get("tier") or "",
-                                 "type": _text(e.get("kind")), "text": e.get("text") or "",
-                                 "speaker": _text(e.get("speaker_as_written")), "session": "", "date": e.get("date") or "",
+                                 "type": _text(e.get("kind")), "text": e.get("text") or "", "speaker": "", "session": "",
+                                 "date": e.get("date") or "",
                                  "source": self.source_title.get(e.get("source_id"), e.get("source_id") or ""),
                                  "url": e.get("url") or "", "note": _text(e.get("locator"))})
             for label in observes:
@@ -419,15 +424,16 @@ class Records:
             if e.get("kind") == "device discussion":
                 meeting = p.meeting.get(self.meeting_of[e["id"]]) or {}
                 discussion.append({"id": e["id"], "topic": topic_of.get(e["id"], ""), "tier": e.get("tier") or "",
-                                   "speaker": _text(e.get("speaker_as_written")), "text": e.get("text") or "",
+                                   "speaker": "", "text": e.get("text") or "",
+                                   "attributed_to": _text(meeting.get("group")) or CONSORTIUM,
                                    "session": _text(meeting.get("title")), "date": e.get("date") or "",
                                    "source": self.source_title.get(e.get("source_id"), e.get("source_id") or ""),
                                    "url": e.get("url") or ""})
 
         properties = sorted(properties.values(), key=lambda x: (-len(x["awards"]), -len(x["devices"]), x["label"].lower()))
         doc = {
-            "kind": DEVICES_KIND, "version": VERSION, "from_package": True, "caveat": DEVICES_CAVEAT,
-            "tiers": {t: pr.CITE[t] for t in ("T1", "T2", "T3", "U", "TR")}, "sosa": dict(SOSA),
+            "kind": DEVICES_KIND, "version": VERSION, "from_package": True, "anonymous": True, "caveat": DEVICES_CAVEAT,
+            "tiers": {t: CITE[t] for t in ("T1", "T2", "T3", "U", "TR")}, "sosa": dict(SOSA),
             "rule": "A maker or model the list only guesses is shown as AI-predicted and unverified, never as the device's.",
             "awards": awards, "devices": devices, "evidence": evidence, "discussion": discussion, "orphan_evidence": [],
             "properties": properties, "mention_lines": hits,
@@ -438,7 +444,7 @@ class Records:
                        "files": p.digest()},
         }
         doc["questions"] = self.device_questions(doc)
-        return doc
+        return self._finished(doc)
 
     def device_questions(self, doc: dict) -> list[dict]:
         devices, lines = doc["devices"], doc["mention_lines"]
@@ -520,19 +526,25 @@ def main(argv=None) -> int:
             path.resolve().relative_to(repo)
         except ValueError:
             continue
-        parser.error(f"{path} is inside the repository; the package names people and what they said, keep it elsewhere")
+        parser.error(f"{path} is inside the repository; the package holds what was said in meetings, keep it elsewhere")
     try:
         records = Records(args.folder)
     except pr.PackageError as exc:
         parser.error(str(exc))
     meetings, devices = records.meetings(), records.device_documents()
+    left = records.names.leaks(meetings) + records.names.leaks(devices)
+    if left:
+        print(f"internal_package: {left} full name(s) of people are still in the records, so nothing was written. "
+              "A field carries a name the scrubber does not read: fix that field in kg/internal_package.py.", file=sys.stderr)
+        return 1
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for name, doc in (("meetings.json", meetings), ("devices.json", devices)):
         (args.out_dir / name).write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(meetings['meetings'])} meetings, {len(meetings['items'])} items, {len(meetings['evidence'])} evidence records, "
           f"{len(meetings['sources'])} sources; {len(devices['devices'])} device lines across {len(devices['awards'])} awards, "
           f"{len(devices['properties'])} observable properties, {len(devices['mention_lines'])} mention lines; "
-          f"{len(meetings['questions']) + len(devices['questions'])} questions answered; wrote {args.out_dir}")
+          f"{len(meetings['questions']) + len(devices['questions'])} questions answered; nobody is named "
+          f"({meetings['names_removed'] + devices['names_removed']} names replaced in the text); wrote {args.out_dir}")
     for problem in meetings["manifest"]:
         print(f"differs from the package's own counts: {problem}", file=sys.stderr)
     return 0
