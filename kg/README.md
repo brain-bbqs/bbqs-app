@@ -574,11 +574,16 @@ Claude Desktop and other clients that take a JSON entry:
 ```
 
 No checkout is needed: the script names its own dependencies, so uv runs it from GitHub, and it
-then reads the export the site publishes, or the one committed to `main`:
+then reads the export the site publishes, or the one committed to `main`. Put the id of a commit you
+have looked at in place of `<commit>` (the newest one in the file's history on GitHub):
 
 ```bash
-claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/mcp_server.py
+claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/<commit>/kg/mcp_server.py
 ```
+
+A branch name works in that place too, and is not written here on purpose: with `main` there, your
+machine runs whatever that branch holds each time the client starts the server. A commit id runs
+the code you read, until you change the id.
 
 ### On a public URL
 
@@ -789,10 +794,26 @@ and a roster record with an end missing is counted in `describe_graph`'s notes (
 2026-11-05).
 
 `sparql_query` sees the graph exactly as exported, with neither change. It refuses everything that
-is not a read of the loaded graph (updates, `CONSTRUCT`, `DESCRIBE`, `SERVICE`, `FROM`) and stops a
-query after 10 seconds. `--no-sparql` leaves the tool out, which is the safer choice for an endpoint
-anyone can reach: a stopped query still cost 10 seconds of CPU. Nothing the server tells a client
-then mentions SPARQL.
+is not a read of the loaded graph (updates, `CONSTRUCT`, `DESCRIBE`, `SERVICE`, `FROM`).
+
+Its limits are enforced outside the server's own process. rdflib has no query timeout, and nothing
+inside a Python process can stop a thread in the middle of a step, so the server never evaluates a
+query itself: it hands the text to one child process that holds its own copy of the graph
+(`SparqlProcess`), and only waits.
+
+- **Time.** A query that keeps reading the graph is stopped after 10 seconds and told how to narrow
+  itself. One that does not stop by itself is ended with the child process 2 seconds later, and the
+  next query starts a fresh one (about half a second). A `VALUES` cross product is such a query: it
+  reads nothing, so the lookup budget never saw it, and before 2026-11-23 it held the server for
+  minutes (found in review of #520).
+- **Other callers.** One query runs at a time. A second waits at most 10 seconds and is then turned
+  away; the other tools answer as fast as ever, because the server is only waiting.
+- **Size.** A query over 20,000 characters is refused unread. An answer over 1,000,000 characters is
+  refused. On Linux the child may add at most 512 MB to its memory.
+
+`--no-sparql` leaves the tool out, and is still the choice for an endpoint anyone can reach: a
+stopped query has cost up to 12 seconds of one CPU, and whoever keeps asking keeps the one query
+slot busy. Nothing the server tells a client then mentions SPARQL.
 
 What the view leaves out, it mostly counts in `describe_graph`'s notes rather than dropping in
 silence: a roster record with an end missing, or with a person, project, role or role's source

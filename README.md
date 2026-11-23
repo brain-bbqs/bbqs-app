@@ -56,10 +56,11 @@ To talk to it from Claude Code (give the full path to your checkout):
 claude mcp add bbqs-kg -- uv run /path/to/bbqs-app/kg/mcp_server.py
 ```
 
-Or, with no checkout at all, straight from GitHub:
+Or, with no checkout at all, straight from GitHub, at a commit you have looked at (its id in place
+of `<commit>`; a branch name there would run whatever the branch holds each time the server starts):
 
 ```bash
-claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/main/kg/mcp_server.py
+claude mcp add bbqs-kg -- uv run https://raw.githubusercontent.com/brain-bbqs/bbqs-app/<commit>/kg/mcp_server.py
 ```
 
 To serve it on a public URL for a claude.ai connector, see [On a public URL](kg/README.md#on-a-public-url).

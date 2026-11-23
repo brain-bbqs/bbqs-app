@@ -43,6 +43,7 @@ import heapq
 import json
 import math
 import os
+import queue
 import re
 import subprocess
 import sys
@@ -51,6 +52,7 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+import weakref
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -104,6 +106,12 @@ MAX_SEEDS = 5            # find_related: starting nodes in one question
 PATH_STEPS = 50_000      # find_paths stops exploring longer paths after this many steps
 SHORTEST_STEPS = 50_000  # ... and listing the shortest ones after this many (a deep page can ask for many)
 SPARQL_SECONDS = 10.0    # time budget for one sparql_query
+SPARQL_GRACE = 2.0       # ... and how long past it the query process may take to stop by itself before it is ended
+SPARQL_QUEUE = 10.0      # the longest a query waits for the one before it; then it is turned away
+SPARQL_START = 120.0     # the longest the query process may take to load the graph
+SPARQL_MEMORY = 512 * 2 ** 20   # bytes a query may add to the query process, where the platform can cap it
+MAX_QUERY_CHARS = 20_000        # a longer query is refused unread
+MAX_REPLY_CHARS = 1_000_000     # a sparql answer larger than this, as JSON, is refused
 MAX_ROWS = 1000
 FETCH_SECONDS = 10
 MAX_BYTES = 64 * 1024 * 1024
@@ -123,8 +131,11 @@ _deadline: contextvars.ContextVar = contextvars.ContextVar("sparql_deadline", de
 
 class _BudgetedGraph(Graph):
     """A Graph whose lookups stop once the running query's time budget is spent. rdflib has no
-    query timeout, but every join step of its evaluator comes through triples(), which makes it
-    the one place a runaway query (a cross product, an open-ended property path) can be stopped."""
+    query timeout, but every lookup of its evaluator comes through triples(), which is where a
+    query that keeps reading the graph (a cross product of patterns, an open-ended property path)
+    stops by itself, with a message that says how to narrow it. It is not the limit: a step that
+    reads nothing (a VALUES cross product, a sort) never comes through here. The limit is
+    SparqlProcess, which ends the process the query runs in."""
 
     def triples(self, triple):
         deadline = _deadline.get()
@@ -352,6 +363,8 @@ class Reached(NamedTuple):
 
 class KG:
     """An exported graph, indexed for traversal. Immutable once built: reloading builds a new one."""
+
+    loaded_from: tuple | None = None   # (bytes, format) the graph was parsed from: what a query process is given
 
     def __init__(self, graph: Graph, snapshot: dict | None = None):
         self.graph = graph
@@ -1182,8 +1195,13 @@ class KG:
         return {"hops": len(path) - 1, "strength": _shown(strength), "text": text,
                 "nodes": [self.nodes[iri].id for iri in path]}
 
-    def sparql(self, query: str, limit: int = 100) -> dict:
+    def sparql(self, query: str, limit: int = 100, seconds: float | None = None) -> dict:
+        """One query, evaluated here, in this process. The server does not call this directly: it
+        hands the query to SparqlProcess, which runs this in a process it can end."""
         limit = _page(limit, MAX_ROWS)
+        seconds = SPARQL_SECONDS if seconds is None else seconds
+        if len(str(query)) > MAX_QUERY_CHARS:
+            raise KGError(_too_long(len(str(query))))
         text = re.sub(r"\bbid:([0-9a-fA-F][0-9a-fA-F-]*)", self._full_id, str(query))
         try:
             prepared = prepareQuery(text, initNs=PREFIXES)
@@ -1195,7 +1213,7 @@ class KG:
             raise KGError("Read-only: only SELECT and ASK queries run here.")
         if algebra.get("datasetClause") or "ServiceGraphPattern" in _algebra_names(algebra):
             raise KGError("FROM and SERVICE are not accepted: a query runs against the loaded graph only.")
-        budget = _deadline.set(time.monotonic() + SPARQL_SECONDS)
+        budget = _deadline.set(time.monotonic() + seconds)
         try:
             result = self.graph.query(prepared)
             if result.type == "ASK":
@@ -1207,8 +1225,10 @@ class KG:
                     break
                 rows.append([self._cell(cell) for cell in row])
         except _OutOfTime:
-            raise KGError(f"Stopped after {SPARQL_SECONDS:g} seconds. Narrow the query: anchor a variable to a "
-                          "class or a known node, and avoid unbounded * and + paths.") from None
+            raise KGError(_stopped(seconds)) from None
+        except MemoryError:
+            raise KGError("Query failed: it needed more memory than one query may use. Narrow it: anchor a "
+                          "variable to a class or a known node, and select fewer rows.") from None
         except Exception as exc:
             raise KGError("Query failed: " + " ".join(str(exc).split())[:300]) from exc
         finally:
@@ -1216,6 +1236,10 @@ class KG:
         reply = {"columns": [str(v) for v in result.vars], "rows": rows}
         if more:
             reply["more"] = True
+        size = len(json.dumps(reply, default=str))
+        if size > MAX_REPLY_CHARS:
+            raise KGError(f"The answer is {size:,} characters and a reply holds at most {MAX_REPLY_CHARS:,}. "
+                          "Select fewer columns, lower `limit`, or leave long text (abstracts) out.")
         return reply
 
     def _full_id(self, match) -> str:
@@ -1315,8 +1339,8 @@ class GraphSource:
                 "file_modified": _iso(datetime.fromtimestamp(stat.st_mtime, timezone.utc))}
         if len(data) > MAX_BYTES:
             raise RuntimeError(f"larger than {MAX_BYTES // 2 ** 20} MB")
-        graph = _BudgetedGraph().parse(data=data, format=guess_format(location.split("?")[0]) or "turtle")
-        kg = KG(graph, {"source": self._shown(location), **modified, "loaded_at": _iso(datetime.now(timezone.utc))})
+        kg = _loaded(data, guess_format(location.split("?")[0]) or "turtle",
+                     {"source": self._shown(location), **modified, "loaded_at": _iso(datetime.now(timezone.utc))})
         if not kg.nodes:
             raise RuntimeError("it holds no nodes")
         self._seen[location] = seen
@@ -1329,6 +1353,232 @@ class GraphSource:
             return location
         path = Path(location)
         return "kg/export/bbqs.ttl (the committed export)" if path.resolve() == BUNDLED_EXPORT else path.name
+
+
+def _loaded(data: bytes, fmt: str, snapshot: dict | None = None) -> "KG":
+    """The graph in `data`, as a KG. The one place a graph is parsed: the server loads the graph it
+    serves here, and the query process loads its own copy of the same bytes here, so the two hold
+    the same triples in the same order."""
+    kg = KG(_BudgetedGraph().parse(data=data, format=fmt), snapshot)
+    kg.loaded_from = (data, fmt)
+    return kg
+
+
+# ---- sparql_query runs in a process of its own ----------------------------------------------------
+
+def _stopped(seconds: float) -> str:
+    return (f"Stopped after {seconds:g} second{'' if seconds == 1 else 's'}. Narrow the query: anchor a variable to "
+            "a class or a known node, and avoid unbounded * and + paths and large VALUES lists.")
+
+
+def _too_long(length: int) -> str:
+    return (f"The query is {length:,} characters and at most {MAX_QUERY_CHARS:,} are read. Ask for less in one "
+            "query: a long VALUES list can usually be a pattern.")
+
+
+def _cap_memory(extra: int) -> bool:
+    """Let this process take `extra` more bytes of memory and no more, where the platform enforces
+    such a limit (Linux). Elsewhere nothing is capped and the time limit is the only stop."""
+    try:
+        import resource
+        with open("/proc/self/statm", encoding="ascii") as statm:
+            held = int(statm.read().split()[0]) * resource.getpagesize()
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        wanted = held + extra
+        if hard != resource.RLIM_INFINITY:
+            wanted = min(wanted, hard)
+        resource.setrlimit(resource.RLIMIT_AS, (wanted, hard))
+        return True
+    except (ImportError, OSError, ValueError, IndexError):
+        return False
+
+
+def query_process(seconds: float) -> int:
+    """`mcp_server.py --query-process SECONDS`: the process sparql_query is evaluated in. Started by
+    SparqlProcess and by nothing else. It reads the graph from its standard input (one JSON line
+    {"format", "bytes"}, then that many bytes), answers {"ready": <nodes>}, and then answers one
+    query per line: {"query", "limit"} in, {"ok": <reply>} or {"error": <text>} out. It reads a
+    graph and nothing else: no file, no network, no write. Its answers go out on the pipe it was
+    started with; anything else that writes to standard output is sent to standard error instead,
+    so nothing can slip a line into the answers."""
+    answers = os.dup(1)
+    os.dup2(2, 1)
+    sys.stdout = sys.stderr
+    requests = sys.stdin.buffer
+
+    def say(message: dict):
+        line = json.dumps(message, default=str).encode("utf-8") + b"\n"
+        while line:
+            line = line[os.write(answers, line):]
+
+    try:
+        header = json.loads(requests.readline())
+        kg = _loaded(requests.read(int(header["bytes"])), str(header["format"]))
+        capped = _cap_memory(SPARQL_MEMORY)
+    except BaseException as exc:  # whatever it was, the server is told, and this process ends
+        say({"failed": " ".join(str(exc).split())[:300] or type(exc).__name__})
+        return 1
+    say({"ready": len(kg.nodes), "memory_capped": capped})
+    for line in requests:
+        try:
+            asked = json.loads(line)
+            say({"ok": kg.sparql(asked["query"], asked["limit"], seconds)})
+        except KGError as exc:
+            say({"error": str(exc)})
+        except MemoryError:
+            say({"error": "Query failed: it needed more memory than one query may use. Narrow it."})
+        except Exception as exc:
+            say({"error": "Query failed: " + (" ".join(str(exc).split())[:300] or type(exc).__name__)})
+    return 0
+
+
+def _end_process(process) -> None:
+    """End a query process now, and wait until it is gone. The process first, its pipes after: the
+    thread that reads its answers is inside a read until the process ends, and closing a pipe
+    another thread is reading waits for that read."""
+    try:
+        process.kill()
+        process.wait(timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    for stream in (process.stdin, process.stdout):
+        try:
+            if stream is not None:
+                stream.close()
+        except (OSError, ValueError):
+            pass
+
+
+class SparqlProcess:
+    """sparql_query, evaluated in a process of its own, so that its limits hold whatever a query does.
+
+    rdflib has no query timeout, and nothing inside a Python process can stop a thread that is in
+    the middle of a step. A query that never reads the graph (a VALUES cross product) ran for
+    minutes under the lookup budget alone, with every other caller waiting on it. So the server
+    never evaluates a query itself: it hands the text to one long-lived child process that holds
+    its own copy of the graph, and waits for the answer.
+      * time: the child stops a query that keeps reading the graph after `seconds`, and says how to
+        narrow it. A query that does not stop by itself is ended with the child, `grace` seconds
+        later; the next query starts a fresh one. No query holds the server past seconds + grace.
+      * other callers: the server only waits, so the other tools answer as fast as ever. One query
+        runs at a time; a second one waits at most `queue_seconds` and is then turned away.
+      * size: a query over MAX_QUERY_CHARS is refused unread, an answer over MAX_REPLY_CHARS is
+        refused, and the child may add at most SPARQL_MEMORY to its memory where the platform can
+        cap it.
+    The child is started for the graph being served and replaced when that graph is."""
+
+    def __init__(self, seconds: float | None = None, grace: float | None = None, queue_seconds: float | None = None):
+        self.seconds = SPARQL_SECONDS if seconds is None else seconds
+        self.grace = SPARQL_GRACE if grace is None else grace
+        self.queue_seconds = SPARQL_QUEUE if queue_seconds is None else queue_seconds
+        self.ended = 0                 # query processes ended because a query did not stop by itself
+        self.memory_capped: bool | None = None
+        self._lock = threading.Lock()
+        self._process = None
+        self._answers: queue.Queue | None = None
+        self._serving = None           # the KG the running process holds a copy of
+        self._closer = None
+
+    @property
+    def pid(self) -> int | None:
+        """The running query process, if there is one."""
+        return self._process.pid if self._process is not None and self._process.poll() is None else None
+
+    def run(self, kg: "KG", query: str, limit: int = 100) -> dict:
+        """The reply to one query on `kg`: what KG.sparql returns, or the KGError it raises."""
+        query = str(query)
+        if len(query) > MAX_QUERY_CHARS:
+            raise KGError(_too_long(len(query)))
+        if not self._lock.acquire(timeout=self.queue_seconds):
+            raise KGError("Busy: another query is still running, and one runs at a time. Ask again in a few seconds.")
+        try:
+            self._start(kg)
+            try:
+                self._process.stdin.write(json.dumps({"query": query, "limit": limit}).encode("utf-8") + b"\n")
+                self._process.stdin.flush()
+            except (OSError, ValueError):
+                self.close()
+                raise KGError("Query failed: the query process was not running. Ask again.") from None
+            reply = self._next(self.seconds + self.grace)
+            if reply is None:
+                self.close()
+                self.ended += 1
+                raise KGError(_stopped(self.seconds))
+            if reply is _GONE:
+                self.close()
+                raise KGError("Query failed: the query process ended before it answered; it may have run out of "
+                              "memory. Narrow the query: select fewer rows, and avoid large VALUES lists.")
+        finally:
+            self._lock.release()
+        if "ok" in reply:
+            return reply["ok"]
+        raise KGError(str(reply.get("error") or "Query failed."))
+
+    def close(self) -> None:
+        """End the query process, if one is running. The next query starts another."""
+        process, self._process, self._answers, self._serving = self._process, None, None, None
+        if self._closer is not None:
+            self._closer.detach()
+            self._closer = None
+        if process is not None:
+            _end_process(process)
+
+    def _start(self, kg: "KG") -> None:
+        if self._process is not None and self._process.poll() is None and self._serving is kg:
+            return
+        self.close()
+        loaded_from = getattr(kg, "loaded_from", None)
+        if loaded_from is None:
+            raise KGError("Query failed: this graph was not loaded from a file or a URL, so no query process "
+                          "can be given a copy of it.")
+        data, fmt = loaded_from
+        try:
+            process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--query-process", repr(self.seconds)],
+                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        except OSError as exc:
+            raise KGError(f"Query failed: the query process could not be started ({exc}).") from None
+        self._process, self._answers, self._serving = process, queue.Queue(), kg
+        self._closer = weakref.finalize(self, _end_process, process)   # never left behind, however this object goes
+        threading.Thread(target=_pump, args=(process.stdout, self._answers), daemon=True, name="bbqs-kg-sparql").start()
+        try:
+            process.stdin.write(json.dumps({"format": fmt, "bytes": len(data)}).encode("utf-8") + b"\n" + data)
+            process.stdin.flush()
+        except (OSError, ValueError):
+            pass                       # it ended already: the read below says so
+        first = self._next(SPARQL_START)
+        if first is None or first is _GONE or "ready" not in first:
+            why = "it did not load the graph in time" if first is None else (
+                "it ended while loading the graph" if first is _GONE else str(first.get("failed") or first))
+            self.close()
+            raise KGError(f"Query failed: the query process could not start ({why}).")
+        self.memory_capped = bool(first.get("memory_capped"))
+
+    def _next(self, timeout: float):
+        """The child's next line: a dict, None when none came in time, _GONE when the child ended."""
+        try:
+            line = self._answers.get(timeout=timeout)
+        except queue.Empty:
+            return None
+        if line is None:
+            return _GONE
+        try:
+            return json.loads(line)
+        except ValueError:
+            return _GONE               # not a line of ours: treat the child as broken
+
+
+_GONE = object()
+
+
+def _pump(stream, lines: queue.Queue) -> None:
+    """Move the child's lines onto a queue, so a read can be given a time limit on every platform."""
+    try:
+        for line in stream:
+            lines.put(line)
+    except (OSError, ValueError):
+        pass
+    finally:
+        lines.put(None)
 
 
 # ---- MCP ----------------------------------------------------------------------------------------
@@ -1351,8 +1601,9 @@ def instructions(sparql: bool = True) -> str:
     return INSTRUCTIONS if sparql else INSTRUCTIONS.replace("; use sparql_query for counts and aggregates", WITHOUT_SPARQL)
 
 
-def build_server(source: GraphSource, sparql: bool = True):
-    """The MCP server over `source`. Every tool is a read; nothing here can change the graph."""
+def build_server(source: GraphSource, sparql: "bool | SparqlProcess" = True):
+    """The MCP server over `source`. Every tool is a read; nothing here can change the graph.
+    `sparql`: False leaves sparql_query out; a SparqlProcess is used as given (its limits)."""
     from anyio import to_thread
     from mcp.server.mcpserver import MCPServer
     from mcp.server.mcpserver.exceptions import ToolError
@@ -1511,6 +1762,8 @@ def build_server(source: GraphSource, sparql: bool = True):
         return kg.answered(kg.paths(source_node, target_node, max_hops, limit, avoid_edges, offset))
 
     if sparql:
+        queries = sparql if isinstance(sparql, SparqlProcess) else SparqlProcess()
+
         @tool
         def sparql_query(
             query: Annotated[str, Field(description="A SPARQL SELECT or ASK query. Prefixes bbqs: (schema terms) "
@@ -1523,9 +1776,10 @@ def build_server(source: GraphSource, sparql: bool = True):
             bbqs:Project, bbqs:grant_number and so on; describe_graph's notes give the roster pattern. In the
             `rows`, a number is a number, a truth value true or false, a date or time ISO text and any other
             literal its text (NaN and infinity as NaN, INF, -INF); a node of this graph is bid:<id>, and any
-            other IRI prefix:name or <iri>. `more` means rows were cut at limit."""
+            other IRI prefix:name or <iri>. `more` means rows were cut at limit. One query runs at a time
+            and is stopped after 10 seconds."""
             kg = source.current()
-            return kg.answered(kg.sparql(query, limit))
+            return kg.answered(queries.run(kg, query, limit))
 
     server = MCPServer("bbqs-kg", title="BBQS knowledge graph", version=__version__, instructions=instructions(sparql),
                        website_url="https://brain-bbqs.org/", tools=tools)
@@ -1556,6 +1810,7 @@ def command_line(argv=None) -> argparse.Namespace:
                              "(may be repeated, or set BBQS_KG_ALLOWED_HOSTS to a comma-separated list). The Host "
                              "and Origin check then stays on for it and the local names.")
     parser.add_argument("--no-sparql", action="store_true", help="Do not offer the sparql_query tool.")
+    parser.add_argument("--query-process", type=float, metavar="SECONDS", help=argparse.SUPPRESS)  # see query_process()
     parser.add_argument("--check", action="store_true", help="Load the graph, print what it holds, and exit.")
     args = parser.parse_args(argv)
     if args.allow_host is None:
@@ -1581,6 +1836,8 @@ def transport_security(allowed: list):
 
 def main(argv=None) -> int:
     args = command_line(argv)
+    if args.query_process is not None:
+        return query_process(args.query_process)
     source = GraphSource(args.source, args.refresh)
     try:
         kg = source.current()

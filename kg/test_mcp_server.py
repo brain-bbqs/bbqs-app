@@ -1464,6 +1464,246 @@ class TheExport(unittest.TestCase):
             self.assertIn("file_modified", self.kg.snapshot)
 
 
+# A query that never reads the graph: four lists of 60 values joined, 12,960,000 rows, and not one
+# lookup. Nothing inside rdflib can interrupt it (it ran for minutes), so only ending the process
+# that evaluates it stops it.
+RUNAWAY = ("SELECT (COUNT(*) AS ?n) WHERE { "
+           + " ".join(f"VALUES ?v{i} {{ {' '.join(map(str, range(60)))} }}" for i in range(4)) + " }")
+READS_FOR_EVER = "SELECT (COUNT(*) AS ?n) WHERE { ?a ?b ?c . ?d ?e ?f . ?g ?h ?i }"   # 150 billion rows, all lookups
+
+
+class TheQueryProcess(unittest.TestCase):
+    """sparql_query's limits hold whatever the query does. A review of #520 (2026-11-19) found that
+    a single query could hold the server for 16 to 20 seconds: the 10-second budget was only checked
+    when the evaluator looked something up in the graph. RUNAWAY above never does, and ran past 45
+    seconds. The server now hands every query to a process of its own (SparqlProcess) and ends that
+    process when a query does not stop."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.kg = m.GraphSource(str(EXPORT), 0).current()
+
+    def process(self, **limits):
+        made = m.SparqlProcess(**limits)
+        self.addCleanup(made.close)
+        return made
+
+    def test_through_the_server_a_query_that_never_reads_the_graph_is_stopped_at_the_limit(self):
+        # Written against the server's tool and two constants, so it runs on the code before the
+        # fix as well: there the call is still running when this test gives up on it.
+        with mock.patch.object(m, "SPARQL_SECONDS", 1.0), mock.patch.object(m, "SPARQL_GRACE", 1.0, create=True):
+            server = m.build_server(m.GraphSource(str(EXPORT), 0))
+            said = {}
+
+            def ask():
+                try:
+                    result = asyncio.run(server.call_tool("sparql_query", {"query": RUNAWAY, "limit": 100}))
+                    said.update(error=result.is_error, text="".join(block.text for block in result.content))
+                except Exception as exc:             # a tool's error is raised to an in-process caller
+                    said.update(error=True, text=str(exc))
+
+            call, started = threading.Thread(target=ask, daemon=True), time.monotonic()
+            call.start()
+            call.join(30)
+            self.assertFalse(call.is_alive(), "sparql_query was still running 30 s into a query with a 1-second limit")
+        self.assertLess(time.monotonic() - started, 15)
+        self.assertTrue(said["error"])
+        self.assertIn("Stopped after 1 second.", said["text"])
+        # ... and the server answers the next query, from a fresh query process
+        again = asyncio.run(server.call_tool("sparql_query", {"query": "ASK { ?s a bbqs:Project }", "limit": 100}))
+        self.assertEqual(json.loads("".join(block.text for block in again.content))["answer"], True)
+
+    def test_a_query_is_answered_in_another_process_exactly_as_the_graph_answers_it(self):
+        queries = self.process()
+        for query, limit in [("SELECT ?s WHERE { ?s a bbqs:Investigator } ORDER BY ?s", 3),
+                             ("SELECT ?p ?t WHERE { ?p a bbqs:Project ; bbqs:title ?t } ORDER BY ?p", 5),
+                             ("SELECT (COUNT(?p) AS ?n) WHERE { ?p a bbqs:Project }", 100),
+                             ("ASK { ?s a bbqs:Project }", 100), ("ASK { ?s a bbqs:NoSuchThing }", 100)]:
+            here = json.loads(json.dumps(self.kg.sparql(query, limit), default=str))
+            self.assertEqual(queries.run(self.kg, query, limit), here, query)
+        # Without ORDER BY a query's rows come in no promised order, here or there: the same rows.
+        unordered = "SELECT ?s ?n WHERE { ?s a bbqs:Species ; bbqs:name ?n }"
+        here, there = self.kg.sparql(unordered, m.MAX_ROWS), queries.run(self.kg, unordered, m.MAX_ROWS)
+        self.assertEqual(sorted(map(tuple, there["rows"])), sorted(map(tuple, here["rows"])))
+        self.assertGreater(len(there["rows"]), 3)
+        self.assertNotIn("more", there)
+        self.assertIsNotNone(queries.pid)
+        self.assertNotEqual(queries.pid, os.getpid())
+        self.assertEqual(queries.ended, 0)
+        for refused in ("DELETE WHERE { ?s ?p ?o }", "this is not sparql", "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }",
+                        "SELECT * WHERE { SERVICE <http://example.org/> { ?s ?p ?o } }",
+                        "SELECT ?s WHERE { ?s bbqs:name ?n FILTER(?n > ) }"):
+            with self.assertRaises(m.KGError) as here:
+                self.kg.sparql(refused)
+            with self.assertRaises(m.KGError) as there:
+                queries.run(self.kg, refused)
+            self.assertEqual(str(there.exception), str(here.exception), refused)
+        ordered = "SELECT ?s WHERE { ?s a bbqs:Investigator } ORDER BY ?s"      # a limit out of range is clamped, alike
+        for limit in (0, -3, m.MAX_ROWS + 50):
+            self.assertEqual(queries.run(self.kg, ordered, limit), self.kg.sparql(ordered, limit), limit)
+
+    def test_a_query_that_does_not_stop_is_ended_and_the_next_one_gets_a_fresh_process(self):
+        queries = self.process(seconds=1, grace=1)
+        self.assertEqual(queries.run(self.kg, "ASK { ?s ?p ?o }"), {"answer": True})
+        first, started = queries.pid, time.monotonic()
+        with self.assertRaises(m.KGError) as stopped:
+            queries.run(self.kg, RUNAWAY)
+        took = time.monotonic() - started
+        self.assertIn("Stopped after 1 second.", str(stopped.exception))
+        self.assertGreaterEqual(took, 2)             # the budget, then the grace
+        self.assertLess(took, 10)
+        self.assertEqual(queries.ended, 1)
+        self.assertIsNone(queries.pid)               # ended, not left running
+        with self.assertRaises(ProcessLookupError):
+            os.kill(first, 0)
+        self.assertEqual(queries.run(self.kg, "ASK { ?s ?p ?o }"), {"answer": True})
+        self.assertNotIn(queries.pid, (None, first))
+
+    def test_a_query_that_keeps_reading_the_graph_stops_by_itself_and_keeps_its_process(self):
+        queries = self.process(seconds=1, grace=20)
+        queries.run(self.kg, "ASK { ?s ?p ?o }")
+        process, started = queries.pid, time.monotonic()
+        with self.assertRaises(m.KGError) as stopped:
+            queries.run(self.kg, READS_FOR_EVER)
+        self.assertIn("Stopped after 1 second.", str(stopped.exception))
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual((queries.ended, queries.pid), (0, process))
+
+    def test_while_a_query_runs_the_other_tools_answer_and_a_second_query_is_turned_away(self):
+        queries = self.process(seconds=3, grace=1, queue_seconds=0.3)
+        queries.run(self.kg, "ASK { ?s ?p ?o }")
+        outcome = []
+
+        def runaway():
+            try:
+                outcome.append(queries.run(self.kg, RUNAWAY))
+            except m.KGError as exc:
+                outcome.append(str(exc))
+
+        running = threading.Thread(target=runaway, daemon=True)
+        running.start()
+        time.sleep(0.5)
+        started = time.monotonic()
+        self.kg.node("WG-Analytics"), self.kg.search("behavior"), self.kg.related("House Mouse"), self.kg.describe()
+        self.assertLess(time.monotonic() - started, 2.0, "the other tools waited on a running query")
+        started = time.monotonic()
+        with self.assertRaises(m.KGError) as busy:
+            queries.run(self.kg, "ASK { ?s ?p ?o }")
+        self.assertIn("Busy", str(busy.exception))
+        self.assertLess(time.monotonic() - started, 2.0)
+        running.join(20)
+        self.assertFalse(running.is_alive())
+        self.assertIn("Stopped after 3 seconds.", outcome[0])
+
+    def test_a_query_too_long_is_refused_unread_and_an_answer_too_large_is_refused(self):
+        queries = self.process()
+        long = "ASK { ?s ?p ?o } # " + "x" * m.MAX_QUERY_CHARS
+        with self.assertRaises(m.KGError) as unread:
+            queries.run(self.kg, long)
+        self.assertIn(f"at most {m.MAX_QUERY_CHARS:,} are read", str(unread.exception))
+        self.assertIsNone(queries.pid)               # no process was started to read it
+        with self.assertRaises(m.KGError) as unread_here:
+            self.kg.sparql(long)
+        self.assertEqual(str(unread_here.exception), str(unread.exception))
+        self.assertEqual(self.kg.sparql("ASK { ?s ?p ?o } # " + "x" * (m.MAX_QUERY_CHARS - 19)), {"answer": True})
+        with mock.patch.object(m, "MAX_REPLY_CHARS", 500):
+            with self.assertRaises(m.KGError) as large:
+                self.kg.sparql("SELECT ?s ?p ?o WHERE { ?s ?p ?o }", 100)
+            self.assertIn("a reply holds at most 500", str(large.exception))
+            self.assertEqual(self.kg.sparql("ASK { ?s ?p ?o }"), {"answer": True})
+
+    @unittest.skipUnless(hasattr(os, "kill") and os.name == "posix", "ends a process by signal")
+    def test_a_query_process_ended_from_outside_is_replaced(self):
+        import signal
+        queries = self.process()
+        queries.run(self.kg, "ASK { ?s ?p ?o }")
+        gone = queries.pid
+        os.kill(gone, signal.SIGKILL)
+        deadline = time.monotonic() + 10
+        outcomes = []
+        while time.monotonic() < deadline:
+            try:
+                outcomes.append(queries.run(self.kg, "ASK { ?s ?p ?o }"))
+                break
+            except m.KGError as exc:                 # the one query that found it gone is told so
+                outcomes.append(str(exc))
+        self.assertEqual(outcomes[-1], {"answer": True}, outcomes)
+        self.assertLessEqual(len(outcomes), 2)
+        for said in outcomes[:-1]:
+            self.assertIn("Query failed: the query process", said)
+        self.assertNotIn(queries.pid, (None, gone))
+
+    def test_a_new_graph_gets_a_query_process_of_its_own(self):
+        count = "SELECT (COUNT(?s) AS ?n) WHERE { ?s a bbqs:Species }"
+        with tempfile.TemporaryDirectory() as folder:
+            one, two = Path(folder) / "one.ttl", Path(folder) / "two.ttl"
+            one.write_text(FIXTURE, encoding="utf8")
+            two.write_text(FIXTURE + f'\n<{m.ID_NS}00000000-0000-4000-8000-0000000000ff> a bbqs:Species ; bbqs:name "Okapi" .\n',
+                           encoding="utf8")
+            first, second = m.GraphSource(str(one)).current(), m.GraphSource(str(two)).current()
+            queries = self.process()
+            before = queries.run(first, count)["rows"][0][0]
+            process = queries.pid
+            self.assertEqual(queries.run(second, count)["rows"][0][0], before + 1)
+            self.assertNotIn(queries.pid, (None, process))
+            self.assertEqual(queries.run(first, count)["rows"][0][0], before)
+        made_in_memory = fixture_kg()                # not loaded from bytes: there is nothing to hand a process
+        with self.assertRaises(m.KGError) as none:
+            queries.run(made_in_memory, count)
+        self.assertIn("was not loaded from a file or a URL", str(none.exception))
+
+    def test_the_query_process_can_only_read_the_graph_it_is_handed(self):
+        # A text check, as for the server itself: what runs an outsider's query opens no file, makes
+        # no request and starts nothing.
+        body = inspect.getsource(m.query_process)
+        for banned in ("open(", "urlopen", "urllib", "Path(", "subprocess", "socket", "GraphSource", ".write_text", "exec("):
+            self.assertNotIn(banned, body, banned)
+        self.assertIn("os.dup2(2, 1)", body)         # nothing but its own answers reaches the server's pipe
+        self.assertIn("_loaded(", body)              # the same load as the server's
+
+    @unittest.skipUnless(os.name == "posix" and Path("/proc").is_dir(), "reads /proc for the server's child")
+    def test_the_query_process_ends_with_the_server(self):
+        client = Stdio("--source", str(EXPORT))
+        try:
+            client.ask("initialize", INITIALIZE)
+            client.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            failed, text = client.call("sparql_query", query="SELECT (COUNT(?p) AS ?n) WHERE { ?p a bbqs:Project }")
+            self.assertFalse(failed, text)
+            children = [int(entry.name) for entry in Path("/proc").iterdir() if entry.name.isdigit()
+                        and _parent_of(entry) == client.process.pid]
+            self.assertEqual(len(children), 1, "the server holds one query process")
+            self.assertIn("--query-process", (Path("/proc") / str(children[0]) / "cmdline").read_text())
+        finally:
+            client.close()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and Path(f"/proc/{children[0]}").exists():
+            time.sleep(0.1)
+        self.assertFalse(Path(f"/proc/{children[0]}").exists(), "the query process outlived its server")
+
+
+def _parent_of(entry: Path) -> int | None:
+    try:
+        return int(entry.joinpath("stat").read_text().rsplit(")", 1)[1].split()[1])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+class TheDocumentedCommands(unittest.TestCase):
+    """What the READMEs tell a reader to run."""
+
+    def test_no_documented_command_runs_whatever_is_on_a_branch(self):
+        # `uv run <url of a file on main>` runs, on the reader's machine, whatever main holds each
+        # time the client starts the server. The documented line pins a commit instead.
+        for readme in (HERE.parent / "README.md", HERE / "README.md"):
+            text = readme.read_text(encoding="utf8")
+            runs = re.findall(r"uv run (https?://\S+)", text)
+            self.assertTrue(runs, readme.name)
+            for url in runs:
+                ref = re.fullmatch(r"https://raw\.githubusercontent\.com/brain-bbqs/bbqs-app/([^/]+)/kg/mcp_server\.py", url)
+                self.assertIsNotNone(ref, url)
+                self.assertRegex(ref.group(1), r"^(<commit>|[0-9a-f]{40})$", f"{readme.name}: {url} names a branch")
+
+
 class TheCommitDate(unittest.TestCase):
     """The committed export is dated by its commit on every git and every Python. CI failed on
     2026-11-19 with KeyError 'committed': the runner's git 2.56 prints a UTC commit's strict ISO date
