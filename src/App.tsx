@@ -19,6 +19,7 @@ import MITWorkshopSpeakers from "./pages/MITWorkshopSpeakers";
 import MITWorkshopSeating from "./pages/MITWorkshopSeating";
 import MITWorkshopPosters from "./pages/MITWorkshopPosters";
 import WorkingGroups from "./pages/WorkingGroups";
+import StandardsDoc, { StandardsDocsIndex } from "./pages/StandardsDoc";
 import Resources from "./pages/Resources";
 import Announcements from "./pages/Announcements";
 import ProgressPage from "./pages/Progress";
@@ -85,6 +86,8 @@ const App = () => (
               <Route path="/mit-workshop-2026/seating" element={<MITWorkshopSeating />} />
               <Route path="/mit-workshop-2026/posters" element={<MITWorkshopPosters />} />
               <Route path="/working-groups" element={<WorkingGroups />} />
+              <Route path="/working-groups/standards" element={<StandardsDocsIndex />} />
+              <Route path="/working-groups/standards/:slug" element={<StandardsDoc />} />
               <Route path="/resources" element={<Resources />} />
               <Route path="/resources/devices" element={<Devices />} />
               <Route path="/resources/devices/graph" element={<DevicesGraph />} />

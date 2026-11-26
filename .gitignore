@@ -32,5 +32,8 @@ playwright-report
 # Machine-local and it leaks the connection string.
 supabase/.temp/
 
+# WG-Standards documents, fetched from brain-bbqs/bbqs-standards by scripts/fetch-standards-docs.mjs.
+src/content/standards/
+
 # The weekly digest the progress builder writes next to its JSON snapshot; only the JSON is served.
 public/data/progress.md
