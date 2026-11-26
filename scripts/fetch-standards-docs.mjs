@@ -18,7 +18,7 @@
 // and the pages show a "not available" notice.
 
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,21 @@ const REPO = "brain-bbqs/bbqs-standards";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dest = path.join(root, "src", "content", "standards");
 
+// SVG figures are shown with <object> (src/pages/StandardsDoc.tsx) so that the links in them
+// work, which index.html's CSP allows (object-src and frame-src 'self'). Unlike <img>,
+// <object> also runs scripts in an SVG, with this site's origin, so SVGs with active content
+// are refused.
+const ACTIVE_SVG =
+  /<script\b|<foreignObject\b|<(?:iframe|embed|object)\b|<[^>]*\son[a-z]+\s*=|(?:href|src)\s*=\s*["']\s*(?:javascript:|data:(?!image\/))/i;
+
+function checkSvgs(contentDir) {
+  const svgs = readdirSync(contentDir, { recursive: true }).filter((f) => f.toLowerCase().endsWith(".svg"));
+  const active = svgs.filter((f) => ACTIVE_SVG.test(readFileSync(path.join(contentDir, f), "utf8")));
+  if (active.length) throw new Error(`SVG with scripts or event handlers: ${active.join(", ")}`);
+}
+
 function install(contentDir, source) {
+  checkSvgs(contentDir);
   rmSync(dest, { recursive: true, force: true });
   cpSync(contentDir, dest, { recursive: true });
   writeFileSync(path.join(dest, "SOURCE"), `${source}\n`);

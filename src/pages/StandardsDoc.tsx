@@ -162,9 +162,23 @@ export default function StandardsDoc() {
       ) : (
         <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
       ),
-    img: ({ node, ...props }) => (
-      <img {...props} loading="lazy" className="mx-auto rounded-lg border border-border bg-white" />
-    ),
+    img: ({ node, src = "", alt = "", ...props }) =>
+      // An SVG figure is embedded as a document, not as an image, so that the links in it (for
+      // example, on every element of the BBQS standards stack) can be followed. Its <img>
+      // fallback is shown if the SVG cannot be embedded. scripts/fetch-standards-docs.mjs refuses
+      // SVGs with scripts, which <object> would run.
+      /\.svg$/i.test(src) ? (
+        <object
+          data={src}
+          type="image/svg+xml"
+          aria-label={alt}
+          className="mx-auto block max-w-full h-auto rounded-lg border border-border bg-white"
+        >
+          <img {...props} src={src} alt={alt} loading="lazy" className="mx-auto" />
+        </object>
+      ) : (
+        <img {...props} src={src} alt={alt} loading="lazy" className="mx-auto rounded-lg border border-border bg-white" />
+      ),
     table: ({ node, ...props }) => (
       <div className="overflow-x-auto">
         <table {...props} />
